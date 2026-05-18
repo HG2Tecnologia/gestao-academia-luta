@@ -1,0 +1,121 @@
+<div class="dash-page">
+  <div class="dash-header">
+    <h1>Dashboard</h1>
+    <p>Bem-vindo, {{ authService.currentUser()?.nome ?? 'usuário' }}!</p>
+  </div>
+
+  @if (carregando()) {
+    <div class="metrics-grid">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="metric-card skeleton-pulse" style="height:100px"></div>
+      }
+    </div>
+  } @else if (erro()) {
+    <div class="error-card">
+      <p>{{ erro() }}</p>
+      <button class="btn-secondary" (click)="carregar()">Tentar novamente</button>
+    </div>
+  } @else if (resumo()) {
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Total de Alunos</span>
+          <div class="metric-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value">{{ resumo()!.totalAlunos }}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Turmas Ativas</span>
+          <div class="metric-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value">{{ resumo()!.turmasAtivas }}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Presenças Hoje</span>
+          <div class="metric-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value">{{ resumo()!.presencasHoje }}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">Sem turma</span>
+          <div class="metric-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+          </div>
+        </div>
+        <div class="metric-value">{{ resumo()!.alunosInadimplentes }}</div>
+      </div>
+    </div>
+
+    <!-- Aniversariantes do mês -->
+    @if (aniversariantes().length > 0) {
+      <div class="table-card" style="margin-bottom:16px;">
+        <div class="table-card-header" style="display:flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Aniversariantes de {{ mesNomes[mesAtual] }}
+          <span style="margin-left:auto;font-size:12px;background:rgba(99,102,241,0.12);color:#6366f1;padding:2px 8px;border-radius:99px;font-weight:600;">{{ aniversariantes().length }}</span>
+        </div>
+        <div class="aniversariantes-lista">
+          @for (a of aniversariantes(); track a.id) {
+            <div class="aniversariante-row">
+              <div class="aniversariante-avatar">{{ a.nome.charAt(0).toUpperCase() }}</div>
+              <span class="aniversariante-nome">{{ a.nome }}</span>
+              <span class="aniversariante-data">dia {{ a.diaNascimento }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="table-card">
+      <div class="table-card-header">Próximas aulas hoje</div>
+      @if (resumo()!.proximasAulas.length === 0) {
+        <div class="table-empty">Nenhuma aula agendada para hoje.</div>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Horário</th>
+                <th>Turma</th>
+                <th>Modalidade</th>
+                <th>Sala</th>
+                <th>Alunos</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (aula of resumo()!.proximasAulas; track aula.horarioId) {
+                <tr>
+                  <td>{{ aula.horaInicio }} – {{ aula.horaFim }}</td>
+                  <td>{{ aula.turma }}</td>
+                  <td>{{ aula.modalidade }}</td>
+                  <td>{{ aula.sala ?? '—' }}</td>
+                  <td>{{ aula.totalAlunos }}/{{ aula.capacidadeMaxima }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</div>

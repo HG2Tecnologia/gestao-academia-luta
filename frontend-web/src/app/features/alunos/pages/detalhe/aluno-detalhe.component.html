@@ -1,0 +1,622 @@
+@if (carregando()) {
+  <div class="page-container">
+    <div class="skeleton-header"></div>
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+  </div>
+} @else if (erro() || !aluno()) {
+  <div class="page-container">
+    <div class="error-card"><p>{{ erro() || 'Aluno não encontrado.' }}</p></div>
+    <button class="btn-secondary" style="margin-top:12px" (click)="voltar()">← Voltar</button>
+  </div>
+} @else {
+  <div class="page-container">
+
+    <!-- Breadcrumb + ações -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <button class="btn-ghost-back" (click)="voltar()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar para Alunos
+      </button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        @if (aluno()!.telefone) {
+          <a [href]="wppLink(aluno()!.telefone!)" target="_blank" rel="noopener" class="btn-wpp-contato">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Entrar em contato
+          </a>
+        }
+        <a [routerLink]="['/app/alunos', aluno()!.id, 'editar']" class="btn-secondary">Editar aluno</a>
+      </div>
+    </div>
+
+    <!-- Header do perfil -->
+    <div class="perfil-header">
+      <div class="perfil-avatar">{{ avatarInicial(aluno()!.nome) }}</div>
+      <div class="perfil-header-info">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h1 style="font-size:1.5rem;font-weight:700;margin:0;color:var(--app-text-1)">{{ aluno()!.nome }}</h1>
+          <span class="status-badge" [class.ativo]="aluno()!.ativo">{{ aluno()!.ativo ? 'Ativo' : 'Inativo' }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+          @if (aluno()!.matricula) {
+            <span class="info-chip">Matrícula: {{ aluno()!.matricula }}</span>
+          }
+          @if (aluno()!.faixaAtualNome) {
+            <span class="faixa-chip" [style.background]="faixaCor(aluno()!.faixaAtualCor) + '22'" [style.color]="faixaCor(aluno()!.faixaAtualCor)" [style.border]="'1px solid ' + faixaCor(aluno()!.faixaAtualCor) + '55'">
+              {{ aluno()!.faixaAtualNome }}
+            </span>
+          }
+          @if (perfil()) {
+            <app-nivel-badge [nivel]="perfil()!.nivel" />
+          }
+        </div>
+        @if (aluno()!.email) {
+          <p style="font-size:13px;color:var(--app-text-3);margin:6px 0 0;">{{ aluno()!.email }}</p>
+        }
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="margin-top:24px;">
+      <button class="tab" [class.active]="tabAtiva()==='info'" (click)="tabAtiva.set('info')">Informações</button>
+      <button class="tab" [class.active]="tabAtiva()==='presencas'" (click)="tabAtiva.set('presencas')">Presenças</button>
+      <button class="tab" [class.active]="tabAtiva()==='financeiro'" (click)="tabAtiva.set('financeiro')">Financeiro</button>
+      <button class="tab" [class.active]="tabAtiva()==='ranking'" (click)="tabAtiva.set('ranking')">Ranking & XP</button>
+      <button class="tab" [class.active]="tabAtiva()==='contratos'" (click)="tabAtiva.set('contratos'); carregarContratos(aluno()!.id)">Contratos</button>
+    </div>
+
+    <!-- ABA: INFORMAÇÕES -->
+    @if (tabAtiva() === 'info') {
+      <div class="tab-content">
+
+        <!-- Cards de estatísticas -->
+        <div class="info-cards-row">
+          <div class="info-card">
+            <div class="info-card-icon" style="background:rgba(99,102,241,0.1);color:#6366f1">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div>
+              <div class="info-card-label">Turmas</div>
+              <div class="info-card-value">{{ aluno()!.turmas.length }}</div>
+            </div>
+          </div>
+          <div class="info-card" style="cursor:default;">
+            <div class="info-card-icon" style="background:rgba(168,85,247,0.1);color:#a855f7">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div class="info-card-label">Faixa atual</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                @if (aluno()!.faixaAtualCor) {
+                  <div style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,0.15);flex-shrink:0;" [style.background]="faixaCor(aluno()!.faixaAtualCor)"></div>
+                }
+                <div class="info-card-value" style="font-size:14px">{{ aluno()!.faixaAtualNome ?? '—' }}</div>
+                <button class="btn-grad-mini" (click)="abrirModalGraduacao()" title="Registrar graduação">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Graduar
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <div>
+              <div class="info-card-label">XP Total</div>
+              <div class="info-card-value">{{ aluno()!.xpTotal }}</div>
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-icon" style="background:rgba(34,197,94,0.1);color:#22c55e">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div>
+              <div class="info-card-label">Nível</div>
+              <div class="info-card-value" style="font-size:14px">{{ aluno()!.nivel }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados pessoais -->
+        <div class="secao-card">
+          <h3 class="secao-titulo">Dados pessoais</h3>
+          <div class="dados-grid">
+            @if (aluno()!.telefone) {
+              <div class="dado-item">
+                <span class="dado-label">Telefone</span>
+                <span class="dado-valor">{{ aluno()!.telefone }}</span>
+              </div>
+            }
+            @if (aluno()!.dataNascimento) {
+              <div class="dado-item">
+                <span class="dado-label">Data de nascimento</span>
+                <span class="dado-valor">{{ formatarData(aluno()!.dataNascimento) }}</span>
+              </div>
+            }
+            @if (aluno()!.tipoPlano) {
+              <div class="dado-item">
+                <span class="dado-label">Tipo de plano</span>
+                <span class="dado-valor">{{ aluno()!.tipoPlano }}</span>
+              </div>
+            }
+            @if (aluno()!.contatoEmergenciaNome) {
+              <div class="dado-item">
+                <span class="dado-label">Contato de emergência</span>
+                <span class="dado-valor">{{ aluno()!.contatoEmergenciaNome }}{{ aluno()!.contatoEmergenciaTelefone ? ' · ' + aluno()!.contatoEmergenciaTelefone : '' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Turmas vinculadas -->
+        @if (aluno()!.turmas.length > 0) {
+          <div class="secao-card">
+            <h3 class="secao-titulo">Turmas vinculadas</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              @for (t of aluno()!.turmas; track t) {
+                <span class="info-chip">{{ t }}</span>
+              }
+            </div>
+          </div>
+        }
+
+      </div>
+    }
+
+    <!-- ABA: PRESENÇAS -->
+    @if (tabAtiva() === 'presencas') {
+      <div class="tab-content">
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">De</label>
+            <input type="date" class="form-input" [ngModel]="presencasDe()" (ngModelChange)="presencasDe.set($event)" style="max-width:160px" />
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Até</label>
+            <input type="date" class="form-input" [ngModel]="presencasAte()" (ngModelChange)="presencasAte.set($event)" style="max-width:160px" />
+          </div>
+          <button class="btn-secondary" (click)="carregarPresencas(aluno()!.id)">Filtrar</button>
+        </div>
+
+        @if (carregandoPresencas()) {
+          <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+        } @else if (presencas().length === 0) {
+          <div class="empty-state"><p>Nenhuma presença encontrada no período.</p></div>
+        } @else {
+          <div class="secao-card" style="padding:0;overflow:hidden;">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--app-border);display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ presencas().length }} presença{{ presencas().length !== 1 ? 's' : '' }}</span>
+            </div>
+            <div class="presencas-lista-detalhe">
+              @for (p of presencas(); track p.id) {
+                <div class="presenca-row">
+                  <div class="presenca-check-icon">
+                    <svg width="14" height="14" fill="none" stroke="#22c55e" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div style="flex:1">
+                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ p.nomeTurma }}</div>
+                    <div style="font-size:12px;color:var(--app-text-3)">{{ p.horaCheckin ? p.horaCheckin.substring(0,5) : '' }}</div>
+                  </div>
+                  <div style="font-size:13px;color:var(--app-text-2)">{{ formatarData(p.data) }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ABA: FINANCEIRO -->
+    @if (tabAtiva() === 'financeiro') {
+      <div class="tab-content">
+        @if (carregandoPagamentos()) {
+          <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+        } @else if (pagamentos().length === 0) {
+          <div class="empty-state"><p>Nenhum pagamento registrado para este aluno.</p></div>
+        } @else {
+          <!-- Resumo rápido -->
+          <div class="info-cards-row" style="margin-bottom:16px;">
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(34,197,94,0.1);color:#22c55e">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Total pago</div>
+                <div class="info-card-value" style="font-size:16px;">{{ formatarMoeda(totalPago()) }}</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Pendente</div>
+                <div class="info-card-value" style="font-size:16px;">{{ formatarMoeda(totalPendente()) }}</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(239,68,68,0.1);color:#ef4444">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Em atraso</div>
+                <div class="info-card-value" style="font-size:16px;">{{ formatarMoeda(totalAtrasado()) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabela de pagamentos -->
+          <div class="secao-card" style="padding:0;overflow:hidden;">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--app-border);">
+              <span style="font-size:13px;font-weight:600;color:var(--app-text-1)">Histórico de pagamentos</span>
+            </div>
+            <div class="pagamentos-lista">
+              @for (p of pagamentos(); track p.id) {
+                <div class="pagamento-row">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1);">{{ p.descricao || p.tipo }}</div>
+                    <div style="font-size:12px;color:var(--app-text-3);margin-top:2px;">
+                      Venc: {{ formatarData(p.dataVencimento) }}
+                      @if (p.dataPagamento) { · Pago: {{ formatarData(p.dataPagamento) }} }
+                      @if (p.formaPagamento) { · {{ p.formaPagamento }} }
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                    <span class="badge-pag" [class]="badgeStatusPag(p.status)">{{ p.status }}</span>
+                    <span style="font-size:14px;font-weight:700;color:var(--app-text-1);">{{ formatarMoeda(p.valor) }}</span>
+                    @if (p.status === 'Pendente' || p.status === 'Atrasado') {
+                      <button class="btn-pagar-mini" (click)="marcarPagamentoPago(p)" title="Marcar como pago">
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                        Pagar
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ABA: RANKING & XP -->
+    @if (tabAtiva() === 'ranking') {
+      <div class="tab-content">
+        @if (carregandoPerfil()) {
+          <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+        } @else if (perfil()) {
+          <div class="info-cards-row">
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(99,102,241,0.1);color:#6366f1">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Posição global</div>
+                <div class="info-card-value">#{{ perfil()!.posicaoGlobal }}</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Posição na turma</div>
+                <div class="info-card-value">{{ perfil()!.posicaoTurma > 0 ? '#' + perfil()!.posicaoTurma : '—' }}</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">XP este mês</div>
+                <div class="info-card-value">{{ perfil()!.xpMensal }}</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-icon" style="background:rgba(239,68,68,0.1);color:#ef4444">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              </div>
+              <div>
+                <div class="info-card-label">Sequência</div>
+                <div class="info-card-value">{{ perfil()!.sequenciaAtual }} dias</div>
+              </div>
+            </div>
+          </div>
+
+          @if (perfil()!.conquistasDesbloqueadas.length > 0) {
+            <div class="secao-card" style="margin-top:16px;">
+              <h3 class="secao-titulo">Conquistas ({{ perfil()!.conquistasDesbloqueadas.length }})</h3>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                @for (c of perfil()!.conquistasDesbloqueadas; track c.id) {
+                  <div class="conquista-chip" [title]="c.descricao">
+                    <span>{{ c.iconeUrl }}</span>
+                    <span style="font-size:11px;">{{ c.nome }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="empty-state"><p>Dados de ranking não disponíveis.</p></div>
+        }
+      </div>
+    }
+
+    <!-- ABA: CONTRATOS -->
+    @if (tabAtiva() === 'contratos') {
+      <div class="tab-content">
+
+        <!-- Visualização inline do contrato -->
+        @if (contratoDetalhe(); as det) {
+          <div class="contrato-inline">
+            <div class="contrato-inline-header">
+              <button class="btn-ghost-back" (click)="fecharContratoInline()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                Voltar para lista
+              </button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                @if (det.status === 1) {
+                  @if (aluno()!.telefone) {
+                    <button class="btn-wpp" (click)="enviarWppContrato()">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      Enviar via WhatsApp
+                    </button>
+                  }
+                  <button class="btn-secondary" [class.btn-copiado]="linkCopiado()" (click)="copiarLinkContrato()">
+                    @if (linkCopiado()) {
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Copiado!
+                    } @else {
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar link
+                    }
+                  </button>
+                }
+                <button class="btn-secondary" (click)="imprimirContrato()">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  Imprimir
+                </button>
+              </div>
+            </div>
+            <div class="contrato-status-bar" [class.status-assinado]="det.status===2" [class.status-cancelado]="det.status===3">
+              @if (det.status===1) { ⏳ Aguardando assinatura do aluno }
+              @if (det.status===2) { ✓ Assinado por <strong>{{ det.nomeAssinou }}</strong> em {{ formatarDataHora(det.dataAssinatura) }} }
+              @if (det.status===3) { ✕ Contrato cancelado }
+            </div>
+            <div class="contrato-html" [innerHTML]="contratoConteudoSafe()"></div>
+          </div>
+
+        } @else {
+          <!-- Lista de contratos -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <span style="font-size:13px;color:var(--app-text-2);">{{ contratos().length }} contrato(s)</span>
+            <button class="btn-primary" style="font-size:13px;" (click)="abrirModalNovoContrato()">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Gerar contrato
+            </button>
+          </div>
+          @if (erroContratos()) { <div class="alert-error">{{ erroContratos() }}</div> }
+          @if (carregandoContratos()) {
+            <div class="skeleton-list">@for (i of [1,2]; track i) { <div class="skeleton-row" style="height:56px;"></div> }</div>
+          } @else if (contratos().length === 0) {
+            <div class="empty-state">
+              <p style="color:var(--app-text-3);font-size:13px;margin:0;">Nenhum contrato vinculado a este aluno.</p>
+            </div>
+          } @else {
+            @if (carregandoContratoDetalhe()) {
+              <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+            } @else {
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Modalidade</th><th>Status</th><th>Criado em</th><th>Assinado por</th><th></th></tr></thead>
+                  <tbody>
+                    @for (c of contratos(); track c.id) {
+                      <tr>
+                        <td style="font-size:12px;color:var(--app-text-2)">{{ c.nomeModalidade ?? '—' }}</td>
+                        <td><span class="badge-ct" [ngClass]="badgeClassContrato(c.status)">{{ c.statusLabel }}</span></td>
+                        <td style="font-size:13px;">{{ formatarData(c.criadoEm) }}</td>
+                        <td style="font-size:13px;">{{ c.nomeAssinou ?? '—' }}</td>
+                        <td style="text-align:right;">
+                          <button class="btn-secondary" style="font-size:12px;padding:5px 10px;" (click)="verContratoInline(c.id)">Ver contrato</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        }
+      </div>
+    }
+
+  </div>
+}
+
+<!-- Modal: Novo contrato (#1) -->
+@if (modalContratoAberto()) {
+  <div class="modal-backdrop" (click)="modalContratoAberto.set(false)"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Gerar contrato para {{ aluno()?.nome }}</h3>
+      <button class="modal-close" (click)="modalContratoAberto.set(false)">✕</button>
+    </div>
+    @if (erroCriacaoContrato()) { <div class="alert-error" style="margin:0 16px 0;">{{ erroCriacaoContrato() }}</div> }
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Modalidade</label>
+        <select class="form-input" [ngModel]="contratoModalidadeId()" (ngModelChange)="contratoModalidadeId.set($event); onContratoModalidadeChange()">
+          <option value="">Sem modalidade específica</option>
+          @for (m of modalidades(); track m.id) {
+            <option [value]="m.id">{{ m.nome }}</option>
+          }
+        </select>
+      </div>
+      @if (contratoAvisoExistente()) {
+        <div class="alert-aviso" style="margin-top:10px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {{ contratoAvisoExistente() }}
+        </div>
+      }
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Modelo de contrato</label>
+        <select class="form-input" [ngModel]="contratoModeloId()" (ngModelChange)="contratoModeloId.set($event)">
+          <option value="">Template padrão</option>
+          @for (m of modelos(); track m.id) {
+            <option [value]="m.id">{{ m.nome }}</option>
+          }
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="modalContratoAberto.set(false)">Cancelar</button>
+      <button class="btn-primary" (click)="criarContrato()" [disabled]="criandoContrato()">
+        {{ criandoContrato() ? 'Gerando...' : (contratoAvisoExistente() ? 'Confirmar e substituir' : 'Gerar contrato') }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Modal: Registrar graduação (#7) -->
+@if (modalGraduacaoAberto()) {
+  <div class="modal-backdrop" (click)="modalGraduacaoAberto.set(false)"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Registrar graduação — {{ aluno()?.nome }}</h3>
+      <button class="modal-close" (click)="modalGraduacaoAberto.set(false)">✕</button>
+    </div>
+    @if (graduacaoOk()) {
+      <div class="alert-success" style="margin:0 0 12px;">✓ Graduação registrada com sucesso!</div>
+    }
+    @if (erroGrad()) { <div class="alert-error" style="margin:0 0 12px;">{{ erroGrad() }}</div> }
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Modalidade *</label>
+          <select class="form-input" [ngModel]="gradModalidadeId()" (ngModelChange)="gradModalidadeId.set($event); onGradModalidadeChange()">
+            <option value="">Selecione...</option>
+            @for (m of modalidades(); track m.id) { <option [value]="m.id">{{ m.nome }}</option> }
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nova graduação *</label>
+          <select class="form-input" [ngModel]="gradFaixaId()" (ngModelChange)="gradFaixaId.set($event)" [disabled]="faixasGrad().length === 0">
+            <option value="">{{ gradModalidadeId() ? 'Selecione a faixa...' : 'Selecione a modalidade primeiro' }}</option>
+            @for (f of faixasGrad(); track f.id) {
+              <option [value]="f.id">{{ f.nome }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data do exame *</label>
+          <input type="date" class="form-input" [ngModel]="gradData()" (ngModelChange)="gradData.set($event)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Professor responsável *</label>
+          <select class="form-input" [ngModel]="gradProfessorId()" (ngModelChange)="gradProfessorId.set($event)">
+            <option value="">Selecione...</option>
+            @for (p of professores(); track p.id) { <option [value]="p.id">{{ p.nome }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="form-input" rows="2" [ngModel]="gradObservacoes()" (ngModelChange)="gradObservacoes.set($event)" placeholder="Opcional..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="modalGraduacaoAberto.set(false)">Cancelar</button>
+      <button class="btn-primary" (click)="registrarGraduacao()" [disabled]="registrandoGrad() || graduacaoOk()">
+        {{ registrandoGrad() ? 'Registrando...' : 'Confirmar graduação' }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  /* Botão voltar ghost */
+  .btn-ghost-back { display:inline-flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; font-size:13px; font-weight:500; color:var(--app-text-2); padding:6px 10px; border-radius:6px; transition:all 0.15s; }
+  .btn-ghost-back:hover { background:var(--app-border-light); color:var(--app-text-1); }
+
+  /* Botão WhatsApp contato */
+  .btn-wpp-contato { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:8px; background:rgba(37,211,102,0.12); color:#25d366; font-size:13px; font-weight:600; text-decoration:none; border:1px solid rgba(37,211,102,0.3); transition:all 0.15s; }
+  .btn-wpp-contato:hover { background:rgba(37,211,102,0.2); border-color:rgba(37,211,102,0.5); }
+
+  /* Header do perfil */
+  .perfil-header { display:flex; align-items:flex-start; gap:20px; background:var(--app-surface); border:1px solid var(--app-border); border-radius:12px; padding:24px; flex-wrap:wrap; }
+  .perfil-avatar { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#a855f7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; flex-shrink:0; }
+  .perfil-header-info { flex:1; min-width:0; }
+
+  /* Badges */
+  .status-badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
+  .status-badge.ativo { background:rgba(34,197,94,0.15); color:#22c55e; }
+  .status-badge:not(.ativo) { background:rgba(148,163,184,0.15); color:#94a3b8; }
+  .faixa-chip { font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
+  .info-chip { font-size:12px; font-weight:500; padding:3px 10px; border-radius:99px; background:var(--app-bg); border:1px solid var(--app-border); color:var(--app-text-2); }
+
+  /* Cards de estatísticas em linha */
+  .info-cards-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+  .info-card { display:flex; align-items:center; gap:14px; background:var(--app-surface); border:1px solid var(--app-border); border-radius:10px; padding:16px; }
+  .info-card-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .info-card-label { font-size:11px; color:var(--app-text-3); font-weight:500; text-transform:uppercase; letter-spacing:0.04em; }
+  .info-card-value { font-size:20px; font-weight:700; color:var(--app-text-1); margin-top:2px; }
+
+  /* Seções cards */
+  .secao-card { background:var(--app-surface); border:1px solid var(--app-border); border-radius:10px; padding:20px; margin-top:16px; }
+  .secao-titulo { font-size:13px; font-weight:600; color:var(--app-text-1); margin:0 0 14px; text-transform:uppercase; letter-spacing:0.04em; }
+  .dados-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .dado-item { display:flex; flex-direction:column; gap:2px; }
+  .dado-label { font-size:11px; color:var(--app-text-3); font-weight:500; }
+  .dado-valor { font-size:14px; color:var(--app-text-1); font-weight:500; }
+
+  /* Lista de presenças */
+  .presencas-lista-detalhe { display:flex; flex-direction:column; }
+  .presenca-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--app-border); }
+  .presenca-row:last-child { border-bottom:none; }
+  .presenca-check-icon { width:28px; height:28px; border-radius:50%; background:rgba(34,197,94,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* Conquistas */
+  .conquista-chip { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:99px; background:var(--app-bg); border:1px solid var(--app-border); font-size:13px; }
+
+  /* Lista de pagamentos */
+  .pagamentos-lista { display:flex; flex-direction:column; }
+  .pagamento-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--app-border); flex-wrap:wrap; }
+  .pagamento-row:last-child { border-bottom:none; }
+  .badge-pag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; }
+  .badge-pag-pago { background:rgba(34,197,94,0.12); color:#16a34a; }
+  .badge-pag-pendente { background:rgba(245,158,11,0.15); color:#d97706; }
+  .badge-pag-atrasado { background:rgba(239,68,68,0.15); color:#dc2626; }
+  .badge-pag-cancelado { background:rgba(148,163,184,0.12); color:#94a3b8; }
+  .btn-pagar-mini { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid rgba(34,197,94,0.4); background:rgba(34,197,94,0.08); color:#16a34a; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .btn-pagar-mini:hover { background:rgba(34,197,94,0.18); border-color:rgba(34,197,94,0.6); }
+  .badge-ct { font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; }
+  .badge-ct-pendente  { background:rgba(245,158,11,0.12); color:#b45309; }
+  .badge-ct-assinado  { background:rgba(34,197,94,0.12);  color:#15803d; }
+  .badge-ct-cancelado { background:rgba(107,114,128,0.12); color:#6b7280; }
+
+  /* Graduation mini button */
+  .btn-grad-mini { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:6px; border:1px solid rgba(99,102,241,0.4); background:rgba(99,102,241,0.08); color:#6366f1; font-size:11px; font-weight:600; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .btn-grad-mini:hover { background:rgba(99,102,241,0.18); border-color:rgba(99,102,241,0.6); }
+
+  /* Inline contract view */
+  .contrato-inline { background:var(--app-surface); border:1px solid var(--app-border); border-radius:12px; overflow:hidden; }
+  .contrato-inline-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--app-border); flex-wrap:wrap; gap:10px; }
+  .contrato-status-bar { padding:10px 20px; font-size:13px; font-weight:500; background:rgba(245,158,11,0.1); color:#b45309; border-bottom:1px solid var(--app-border); }
+  .contrato-status-bar.status-assinado { background:rgba(34,197,94,0.1); color:#15803d; }
+  .contrato-status-bar.status-cancelado { background:rgba(107,114,128,0.1); color:#6b7280; }
+  .contrato-html { padding:32px 40px; font-size:14px; line-height:1.75; color:var(--app-text-1); max-height:600px; overflow-y:auto; }
+
+  /* WPP button in inline view */
+  .btn-wpp { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; border:1px solid rgba(37,211,102,0.4); background:rgba(37,211,102,0.1); color:#16a34a; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+  .btn-wpp:hover { background:rgba(37,211,102,0.2); }
+
+  /* Copy feedback */
+  .btn-copiado { background:rgba(34,197,94,0.1) !important; border-color:rgba(34,197,94,0.4) !important; color:#16a34a !important; }
+
+  /* Warning alert */
+  .alert-aviso { display:flex; align-items:flex-start; gap:8px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#b45309; padding:10px 14px; border-radius:8px; font-size:13px; }
+
+  /* Success alert */
+  .alert-success { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); color:#16a34a; padding:10px 14px; border-radius:8px; font-size:13px; }
+</style>

@@ -1,0 +1,231 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">{{ editandoId() ? 'Editar Aluno' : 'Novo Aluno' }}</h1>
+    <a routerLink="/app/alunos" class="btn-secondary">← Voltar</a>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else {
+    @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+    @if (editandoId() && matricula()) {
+      <div class="summary-card" style="margin-bottom:16px;">
+        <span>Matrícula: <strong>{{ matricula() }}</strong></span>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="salvar()" class="form-card">
+
+      <!-- Nome + Telefone -->
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">Nome completo *</label>
+          <input formControlName="nome" class="form-input" placeholder="Nome do aluno" />
+          @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
+            <span class="form-error">Nome é obrigatório (mínimo 3 caracteres)</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone *</label>
+          <input formControlName="telefone" class="form-input" placeholder="(11) 99999-9999"
+            (input)="mascaraTelefone($event)" inputmode="numeric" />
+          @if (form.get('telefone')?.invalid && form.get('telefone')?.touched) {
+            <span class="form-error">Telefone é obrigatório</span>
+          }
+        </div>
+      </div>
+
+      <!-- E-mail + Data de Nascimento -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input formControlName="email" type="email" class="form-input" placeholder="email@exemplo.com" />
+          @if (form.get('email')?.invalid && form.get('email')?.touched) {
+            <span class="form-error">E-mail inválido</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de Nascimento *</label>
+          <input formControlName="dataNascimento" type="date" class="form-input" />
+          @if (form.get('dataNascimento')?.invalid && form.get('dataNascimento')?.touched) {
+            <span class="form-error">Data de nascimento é obrigatória</span>
+          }
+        </div>
+      </div>
+
+      <!-- Plano + Dia de Vencimento -->
+      <div class="form-section-title">Plano e Financeiro</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Plano da Academia</label>
+          <select class="form-input" [ngModel]="planoSelecionadoId()" (ngModelChange)="planoSelecionadoId.set($event)" [ngModelOptions]="{standalone: true}">
+            <option value="">— Sem plano vinculado —</option>
+            @for (p of planosDisponiveis(); track p.id) {
+              <option [value]="p.id">{{ p.nome }} — {{ p.valorMensal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}/mês</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dia de Vencimento</label>
+          <input
+            type="number"
+            class="form-input"
+            placeholder="Ex: 10"
+            min="1" max="31"
+            [ngModel]="diaVencimento()"
+            (ngModelChange)="diaVencimento.set($event)"
+            [ngModelOptions]="{standalone: true}"
+          />
+          <span style="font-size:11px;color:var(--app-text-3);margin-top:4px">Dia do mês em que vence</span>
+        </div>
+      </div>
+
+      <!-- Contato de Emergência -->
+      <div class="form-section-title">
+        Contato de Emergência / Responsável
+        @if (menorDeIdade()) {
+          <span class="badge-menor">Obrigatório — aluno menor de 18 anos</span>
+        }
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome do responsável{{ menorDeIdade() ? ' *' : '' }}</label>
+          <input formControlName="contatoEmergenciaNome" class="form-input" placeholder="Nome do responsável" />
+          @if (form.get('contatoEmergenciaNome')?.invalid && form.get('contatoEmergenciaNome')?.touched) {
+            <span class="form-error">Nome do responsável é obrigatório para menores de 18 anos</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone do responsável{{ menorDeIdade() ? ' *' : '' }}</label>
+          <input formControlName="contatoEmergenciaTelefone" class="form-input" placeholder="(11) 99999-9999"
+            (input)="mascaraEmergTel($event)" inputmode="numeric" />
+          @if (form.get('contatoEmergenciaTelefone')?.invalid && form.get('contatoEmergenciaTelefone')?.touched) {
+            <span class="form-error">Telefone do responsável é obrigatório para menores de 18 anos</span>
+          }
+        </div>
+      </div>
+
+      @if (editandoId()) {
+        <div class="form-group">
+          <label class="toggle-label">
+            <div class="toggle-switch">
+              <input formControlName="ativo" type="checkbox" />
+              <span class="toggle-slider"></span>
+            </div>
+            Aluno ativo
+          </label>
+        </div>
+      }
+
+      <!-- Registrar graduação (apenas no modo edição) -->
+      @if (editandoId()) {
+        <div class="form-section-title" style="margin-top:24px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+          Registrar Nova Graduação
+        </div>
+        <div class="grad-card">
+          @if (gradSucesso()) {
+            <div class="alert-success">✓ Graduação registrada com sucesso!</div>
+          }
+          @if (erroGrad()) {
+            <div class="alert-error">{{ erroGrad() }}</div>
+          }
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Modalidade</label>
+              <select class="form-input" [ngModel]="modalidadeGradId()" (ngModelChange)="onModalidadeGradChange($event)" [ngModelOptions]="{standalone: true}">
+                <option value="">— Selecione a modalidade —</option>
+                @for (m of modalidades(); track m.id) {
+                  <option [value]="m.id">{{ m.nome }}</option>
+                }
+              </select>
+            </div>
+            @if (faixasGrad().length > 0) {
+              <div class="form-group">
+                <label class="form-label">Nova Faixa</label>
+                <select class="form-input" [ngModel]="faixaGradId()" (ngModelChange)="faixaGradId.set($event)" [ngModelOptions]="{standalone: true}">
+                  <option value="">— Selecione a faixa —</option>
+                  @for (f of faixasGrad(); track f.id) {
+                    <option [value]="f.id">{{ f.nome }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="form-group" style="max-width:160px;">
+              <label class="form-label">Data do exame</label>
+              <input type="date" class="form-input" [ngModel]="dataGrad()" (ngModelChange)="dataGrad.set($event)" [ngModelOptions]="{standalone: true}" />
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+            <button type="button" class="btn-primary" style="background:#a855f7;border-color:#a855f7;" (click)="registrarGraduacao()" [disabled]="registrandoGrad() || !faixaGradId()">
+              {{ registrandoGrad() ? 'Registrando...' : '🥋 Registrar Graduação' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Vinculações opcionais (apenas no cadastro) -->
+      @if (!editandoId()) {
+        <div class="form-section-title">Vinculações iniciais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--app-text-3)">(opcional)</span></div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Turma inicial</label>
+            <select class="form-input" [ngModel]="turmaInicialId()" (ngModelChange)="turmaInicialId.set($event)" [ngModelOptions]="{standalone: true}">
+              <option value="">— Sem turma inicial —</option>
+              @for (t of turmas(); track t.id) {
+                <option [value]="t.id">{{ t.nome }} · {{ t.modalidadeNome }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Modalidade (para faixa inicial)</label>
+            <select class="form-input" [ngModel]="modalidadeInicialId()" (ngModelChange)="onModalidadeChange($event)" [ngModelOptions]="{standalone: true}">
+              <option value="">— Sem faixa inicial —</option>
+              @for (m of modalidades(); track m.id) {
+                <option [value]="m.id">{{ m.nome }}</option>
+              }
+            </select>
+          </div>
+          @if (faixas().length > 0) {
+            <div class="form-group">
+              <label class="form-label">Faixa inicial</label>
+              <select class="form-input" [ngModel]="faixaInicialId()" (ngModelChange)="faixaInicialId.set($event)" [ngModelOptions]="{standalone: true}">
+                <option value="">— Selecione —</option>
+                @for (f of faixas(); track f.id) {
+                  <option [value]="f.id">{{ f.nome }}</option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/app/alunos" class="btn-secondary">Cancelar</a>
+        <button type="submit" class="btn-primary" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando...' : (editandoId() ? 'Salvar alterações' : 'Cadastrar aluno') }}
+        </button>
+      </div>
+    </form>
+  }
+</div>
+
+<style>
+  .form-section-title { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; display: flex; align-items: center; gap: 10px; }
+  .badge-menor { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: rgba(251,146,60,0.15); color: #f97316; text-transform: none; letter-spacing: 0; }
+  .form-error { font-size: 12px; color: var(--color-danger, #ef4444); margin-top: 4px; display: block; }
+  .toggle-label { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--color-border); border-radius: 99px; transition: background 0.2s; cursor: pointer; }
+  .toggle-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--color-primary, #6366f1); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+  .grad-card { background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 10px; padding: 16px; margin-top: 4px; }
+  .alert-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #16a34a; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+</style>

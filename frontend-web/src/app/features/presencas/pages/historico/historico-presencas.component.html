@@ -1,0 +1,119 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Histórico de Presenças</h1>
+  </div>
+
+  <div class="filters-row" style="align-items:flex-end;">
+    <!-- Busca por nome com autocomplete -->
+    <div class="form-group" style="position:relative;flex:1;max-width:360px;">
+      <label class="form-label">Buscar aluno</label>
+      <div style="position:relative;">
+        <input
+          [ngModel]="nomeBusca()"
+          (ngModelChange)="onNomeInput($event)"
+          (blur)="fecharSugestoes()"
+          class="form-input"
+          placeholder="Digite o nome do aluno..."
+          autocomplete="off" />
+        @if (buscandoAluno()) {
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--color-text-secondary)">
+            Buscando...
+          </span>
+        }
+      </div>
+      @if (mostrarSugestoes() && sugestoes().length > 0) {
+        <div class="autocomplete-dropdown">
+          @for (s of sugestoes(); track s.id) {
+            <button class="autocomplete-item" type="button" (mousedown)="selecionarAluno(s)">
+              <span class="presenca-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">{{ s.nome.charAt(0) }}</span>
+              <div>
+                <span style="font-weight:500;">{{ s.nome }}</span>
+                <span style="font-size:12px;color:var(--color-text-secondary);display:block;">{{ s.email }}</span>
+              </div>
+            </button>
+          }
+        </div>
+      }
+      @if (mostrarSugestoes() && sugestoes().length === 0 && nomeBusca().length >= 2 && !buscandoAluno()) {
+        <div class="autocomplete-dropdown">
+          <span style="padding:10px 12px;display:block;color:var(--color-text-secondary);font-size:13px;">Nenhum aluno encontrado</span>
+        </div>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">De</label>
+      <input [ngModel]="de()" (ngModelChange)="de.set($event)" type="date" class="form-input" style="max-width:160px" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Até</label>
+      <input [ngModel]="ate()" (ngModelChange)="ate.set($event)" type="date" class="form-input" style="max-width:160px" />
+    </div>
+    <button class="btn-primary" (click)="buscar()" [disabled]="carregando() || !alunoSelecionado()">Buscar</button>
+  </div>
+
+  @if (alunoSelecionado() && presencas().length > 0) {
+    <div class="summary-card">
+      <span>{{ alunoSelecionado()!.nome }} · Total no período: <strong>{{ presencas().length }} presenças</strong></span>
+    </div>
+  }
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else if (erro()) {
+    <div class="error-card"><p>{{ erro() }}</p></div>
+  } @else if (presencas().length > 0) {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Turma</th>
+            <th>Check-in</th>
+            <th>Método</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of presencas(); track p.id) {
+            <tr>
+              <td>{{ p.data }}</td>
+              <td>{{ p.nomeTurma }}</td>
+              <td>{{ p.horaCheckin }}</td>
+              <td>{{ p.metodoCheckin }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (alunoSelecionado()) {
+    <div class="empty-state"><p>Nenhuma presença encontrada no período para {{ alunoSelecionado()!.nome }}.</p></div>
+  }
+</div>
+
+<style>
+  .autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-surface, #1e1e1e);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    z-index: 50;
+    overflow: hidden;
+  }
+  .autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .autocomplete-item:hover { background: rgba(255,255,255,0.05); }
+</style>

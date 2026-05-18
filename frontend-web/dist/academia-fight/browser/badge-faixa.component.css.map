@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;d8d129c6f61b9cc24dee9aa6889956195f49efae55a89cba071d5bf94f06d4e4;/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/frontend-web/src/app/shared/components/badge-faixa/badge-faixa.component.ts"],
+  "sourcesContent": ["\n    .badge-faixa {\n      display: inline-block;\n      border-radius: 2px;\n      border: 2px solid rgba(255,255,255,0.6);\n      flex-shrink: 0;\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,iBAAe;AACf,UAAQ,IAAI,MAAM,KAAK,GAAG,EAAC,GAAG,EAAC,GAAG,EAAC;AACnC,eAAa;AACf;",
+  "names": []
+}

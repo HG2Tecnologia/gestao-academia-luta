@@ -1,0 +1,211 @@
+<div class="planos-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Planos</h1>
+      <p class="page-subtitle">Planos e mensalidades oferecidos pela academia</p>
+    </div>
+    <button class="btn-primary" (click)="abrirNovo()">+ Novo Plano</button>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row" style="height:120px;border-radius:12px;"></div> }</div>
+  } @else if (planos().length === 0) {
+    <div class="empty-state">
+      <svg width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <h3>Nenhum plano criado</h3>
+      <p>Crie o primeiro plano da academia para começar a vincular alunos</p>
+      <button class="btn-primary" (click)="abrirNovo()">Criar primeiro plano</button>
+    </div>
+  } @else {
+    <div class="planos-grid">
+      @for (p of planos(); track p.id) {
+        <div class="plano-card" [class.inativo]="!p.ativo">
+          <div class="plano-top">
+            <div>
+              <div class="plano-nome">{{ p.nome }}</div>
+              @if (p.descricao) {
+                <p class="plano-desc">{{ p.descricao }}</p>
+              }
+            </div>
+            <div class="plano-acoes">
+              <button class="btn-icon" title="Editar" (click)="abrirEditar(p)">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button class="btn-icon btn-icon-danger" title="Excluir" (click)="confirmarExcluir(p)">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="plano-valores">
+            <div class="valor-item">
+              <span class="valor-label">Mensalidade</span>
+              <span class="valor-num">{{ formatarMoeda(p.valorMensal) }}</span>
+            </div>
+            @if (p.taxaMatricula) {
+              <div class="valor-item">
+                <span class="valor-label">Taxa de matrícula</span>
+                <span class="valor-num">{{ formatarMoeda(p.taxaMatricula!) }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="plano-footer">
+            <span class="plano-alunos">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              {{ p.totalAlunos }} {{ p.totalAlunos === 1 ? 'aluno' : 'alunos' }}
+            </span>
+            <button class="btn-toggle" (click)="toggleAtivo(p)">
+              {{ p.ativo ? 'Inativar' : 'Reativar' }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Modal criar/editar plano -->
+@if (modalAberto()) {
+  <div class="modal-backdrop" (click)="fecharModal()"></div>
+  <div class="modal" role="dialog">
+    <div class="modal-header">
+      <h2 class="modal-titulo">{{ editandoId() ? 'Editar plano' : 'Novo plano' }}</h2>
+      <button class="modal-fechar" (click)="fecharModal()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form [formGroup]="form" (ngSubmit)="salvar()" class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Nome do plano *</label>
+        <input formControlName="nome" class="form-input" placeholder="Ex: Plano Mensal, Trimestral..." />
+        @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
+          <span class="form-erro">Nome é obrigatório (mínimo 2 caracteres)</span>
+        }
+      </div>
+      <div class="form-field">
+        <label class="form-label">Descrição</label>
+        <textarea formControlName="descricao" class="form-input form-textarea" placeholder="Descreva o que inclui este plano..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Valor mensal *</label>
+          <input formControlName="valorMensal" type="number" class="form-input" placeholder="0,00" min="0" step="0.01" />
+          @if (form.get('valorMensal')?.invalid && form.get('valorMensal')?.touched) {
+            <span class="form-erro">Informe o valor mensal</span>
+          }
+        </div>
+        <div class="form-field">
+          <label class="form-label">Taxa de matrícula</label>
+          <input formControlName="taxaMatricula" type="number" class="form-input" placeholder="0,00 (opcional)" min="0" step="0.01" />
+        </div>
+      </div>
+      @if (erroModal()) {
+        <p class="form-erro">{{ erroModal() }}</p>
+      }
+    </form>
+    <div class="modal-footer">
+      <button class="btn-ghost" type="button" (click)="fecharModal()" [disabled]="salvando()">Cancelar</button>
+      <button class="btn-primary" type="button" (click)="salvar()" [disabled]="salvando()">
+        {{ salvando() ? 'Salvando...' : (editandoId() ? 'Salvar alterações' : 'Criar plano') }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Modal confirmar exclusão -->
+@if (confirmandoExcluir()) {
+  <div class="modal-backdrop" (click)="fecharExcluir()"></div>
+  <div class="modal modal-sm confirm-box" role="dialog">
+    <div class="modal-icon-danger">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+    </div>
+    <h3 class="modal-titulo" style="font-size:1rem;margin:0">Excluir plano?</h3>
+    <p style="font-size:0.875rem;color:var(--app-text-2);margin:0;text-align:center;line-height:1.6">
+      O plano <strong>{{ confirmandoExcluir()!.nome }}</strong> será removido permanentemente.
+      Isso falhará se houver alunos vinculados a ele.
+    </p>
+    @if (erroExcluir()) {
+      <p class="form-erro">{{ erroExcluir() }}</p>
+    }
+    <div class="modal-footer" style="justify-content:center">
+      <button class="btn-ghost" (click)="fecharExcluir()" [disabled]="excluindo()">Cancelar</button>
+      <button class="btn-danger" (click)="executarExcluir()" [disabled]="excluindo()">
+        {{ excluindo() ? 'Excluindo...' : 'Excluir' }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  .planos-page { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--app-text-1); margin: 0 0 4px; }
+  .page-subtitle { font-size: 0.875rem; color: var(--app-text-3); margin: 0; }
+
+  .planos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  .plano-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; transition: border-color 0.15s; }
+  .plano-card:hover { border-color: rgba(99,102,241,0.4); }
+  .plano-card.inativo { opacity: 0.6; }
+
+  .plano-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .plano-nome { font-size: 1rem; font-weight: 700; color: var(--app-text-1); margin-bottom: 4px; }
+  .plano-desc { font-size: 0.8rem; color: var(--app-text-3); margin: 0; line-height: 1.5; }
+  .plano-acoes { display: flex; gap: 4px; flex-shrink: 0; }
+
+  .btn-icon { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--app-border); background: var(--app-surface); cursor: pointer; color: var(--app-text-2); display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; }
+  .btn-icon:hover { background: var(--app-border); color: var(--app-text-1); }
+  .btn-icon-danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; border-color: #ef4444; }
+
+  .plano-valores { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: rgba(99,102,241,0.05); border-radius: 8px; }
+  .valor-item { display: flex; justify-content: space-between; align-items: center; }
+  .valor-label { font-size: 0.75rem; color: var(--app-text-3); }
+  .valor-num { font-size: 0.95rem; font-weight: 700; color: var(--app-text-1); }
+
+  .plano-valores { flex: 1; }
+  .plano-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--app-border); }
+  .plano-alunos { font-size: 0.75rem; color: var(--app-text-3); display: flex; align-items: center; gap: 4px; }
+  .btn-toggle { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; background: transparent; border: 1px solid var(--app-border); border-radius: 6px; color: var(--app-text-2); cursor: pointer; }
+  .btn-toggle:hover { background: var(--app-border); }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+  .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 16px; width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .modal-sm { width: 400px; }
+  .confirm-box { padding: 28px; align-items: center; gap: 12px; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--app-border); }
+  .modal-titulo { font-size: 1.1rem; font-weight: 700; color: var(--app-text-1); margin: 0; }
+  .modal-fechar { background: none; border: none; color: var(--app-text-3); cursor: pointer; display: flex; align-items: center; padding: 4px; border-radius: 6px; }
+  .modal-fechar:hover { background: var(--app-border); }
+  .modal-body { padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px 20px; border-top: 1px solid var(--app-border); }
+  .modal-icon-danger { width: 52px; height: 52px; border-radius: 50%; background: rgba(239,68,68,0.1); color: #ef4444; display: flex; align-items: center; justify-content: center; }
+
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: var(--app-text-2); }
+  .form-input { background: var(--app-bg, #0f1117); border: 1px solid var(--app-border); border-radius: 8px; padding: 9px 12px; font-size: 0.875rem; color: var(--app-text-1); width: 100%; box-sizing: border-box; }
+  .form-input:focus { outline: none; border-color: var(--color-primary, #6366f1); }
+  .form-textarea { resize: vertical; min-height: 72px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-erro { font-size: 0.8rem; color: #ef4444; font-weight: 500; }
+
+  .btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; background: var(--color-primary, #6366f1); color: #fff; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .btn-ghost { padding: 9px 18px; background: transparent; border: 1px solid var(--app-border); border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: var(--app-text-2); cursor: pointer; }
+  .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost:hover:not(:disabled) { background: var(--app-border); }
+  .btn-danger { padding: 9px 18px; background: #ef4444; color: #fff; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+  .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-danger:hover:not(:disabled) { opacity: 0.88; }
+
+  @media (max-width: 768px) {
+    .planos-page { padding: 16px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>

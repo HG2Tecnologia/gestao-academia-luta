@@ -1,0 +1,136 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Check-in de Presenças</h1>
+      <p class="page-subtitle">Registre a presença dos alunos</p>
+    </div>
+    <button class="btn-secondary" [class.active]="modoQr()" (click)="modoQr.set(!modoQr())">
+      {{ modoQr() ? 'Fechar câmera' : 'Modo QR Code' }}
+    </button>
+  </div>
+
+  @if (modoQr()) {
+    <div class="qr-section">
+      <app-qr-scanner [ativo]="modoQr()" (codigoDetectado)="onQrDetectado($event)" />
+      @if (feedbackQr()) {
+        <div class="qr-feedback">{{ feedbackQr() }}</div>
+      }
+    </div>
+  }
+
+  <div class="filters-row">
+    <div class="form-group">
+      <label class="form-label">Turma</label>
+      @if (carregandoTurmas()) {
+        <div class="form-input" style="max-width:300px;color:var(--color-text-secondary)">Carregando turmas...</div>
+      } @else {
+        <select
+          [ngModel]="turmaId()"
+          (ngModelChange)="turmaId.set($event); onTurmaChange()"
+          class="form-input"
+          style="max-width:300px">
+          <option value="">Selecione uma turma...</option>
+          @for (t of turmas(); track t.id) {
+            <option [value]="t.id">{{ t.nome }} — {{ t.modalidadeNome }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Horário</label>
+      <select
+        [ngModel]="horarioId()"
+        (ngModelChange)="horarioId.set($event); onHorarioChange()"
+        class="form-input"
+        style="max-width:320px"
+        [disabled]="!turmaId() || carregandoHorarios()">
+        <option value="">
+          {{ !turmaId() ? 'Selecione uma turma primeiro' : carregandoHorarios() ? 'Carregando...' : 'Selecione o horário...' }}
+        </option>
+        @for (h of horarios(); track h.id) {
+          <option [value]="h.id">{{ horarioLabel(h) }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Data</label>
+      <input
+        [ngModel]="data()"
+        (ngModelChange)="data.set($event)"
+        type="date"
+        class="form-input"
+        style="max-width:180px"
+        (change)="carregarAlunos()" />
+    </div>
+  </div>
+
+  @if (erro()) {
+    <div class="alert-error">{{ erro() }}</div>
+  }
+
+  @if (carregandoAlunos()) {
+    <div class="skeleton-list">
+      @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
+    </div>
+  } @else if (turmaId() && horarioId() && alunos().length === 0) {
+    <div class="empty-state">
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      </svg>
+      <p>Nenhum aluno matriculado nesta turma.</p>
+    </div>
+  } @else if (alunos().length > 0) {
+    <div class="presenca-lista">
+      @for (aluno of alunos(); track aluno.alunoId) {
+        <div class="presenca-item" [class.presente]="presentes().has(aluno.alunoId)" (click)="togglePresente(aluno.alunoId)">
+          <div class="presenca-avatar">{{ aluno.nomeAluno.charAt(0) }}</div>
+          <div class="presenca-info">
+            <span class="presenca-nome">{{ aluno.nomeAluno }}</span>
+            <span class="presenca-email">{{ aluno.emailAluno }}</span>
+          </div>
+          <div class="presenca-check">
+            @if (presentes().has(aluno.alunoId)) {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="presenca-footer">
+      <span>{{ presentes().size }} de {{ alunos().length }} presentes</span>
+      <button class="btn-primary" [disabled]="salvando() || presentes().size === 0" (click)="salvar()">
+        {{ salvando() ? 'Salvando...' : 'Salvar presenças' }}
+      </button>
+    </div>
+  }
+</div>
+
+@if (modalSucesso()) {
+  <div class="modal-backdrop" (click)="modalSucesso.set(false)"></div>
+  <div class="modal-sucesso">
+    <div class="sucesso-icone">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h3 class="sucesso-titulo">Presenças salvas!</h3>
+    <p class="sucesso-desc">{{ presentes().size }} aluno{{ presentes().size !== 1 ? 's' : '' }} registrado{{ presentes().size !== 1 ? 's' : '' }} com sucesso.</p>
+    <button class="btn-primary" style="width:100%" (click)="modalSucesso.set(false)">Fechar</button>
+  </div>
+}
+
+<style>
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; }
+  .modal-sucesso {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: var(--app-surface); border-radius: 16px; padding: 32px 40px;
+    text-align: center; z-index: 101; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 280px;
+  }
+  .sucesso-icone { width: 72px; height: 72px; border-radius: 50%; background: rgba(34,197,94,0.12); display: flex; align-items: center; justify-content: center; }
+  .sucesso-titulo { font-size: 1.2rem; font-weight: 700; margin: 0; color: var(--app-text-1); }
+  .sucesso-desc { font-size: 0.9rem; color: var(--app-text-2); margin: 0; }
+</style>

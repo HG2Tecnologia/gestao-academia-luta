@@ -1,0 +1,150 @@
+<div class="page-container" style="max-width:900px;">
+  <div class="page-header">
+    <div>
+      <a routerLink="/app/contratos" class="back-link">← Contratos</a>
+      <h1 class="page-title">Modelos de Contrato</h1>
+      <p class="page-subtitle">Crie N modelos para diferentes modalidades e planos</p>
+    </div>
+    <button class="btn-primary" (click)="abrirNovo()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Novo modelo
+    </button>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  <!-- Variáveis disponíveis -->
+  <div class="variaveis-card">
+    <p style="font-size:12px;font-weight:600;color:var(--app-text-2);margin:0 0 8px;">Variáveis disponíveis (clique para inserir no editor):</p>
+    <div class="variaveis-grid">
+      @for (v of variaveis; track v) {
+        <code class="variavel-chip" style="cursor:pointer;" (click)="inserirVariavel(v)" title="Inserir {{ v }}">{{ v }}</code>
+      }
+    </div>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2]; track i) { <div class="skeleton-row" style="height:70px;"></div> }</div>
+  } @else if (modelos().length === 0) {
+    <div class="empty-state">
+      <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--app-text-3);margin-bottom:12px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p style="font-weight:600;color:var(--app-text-2);margin:0 0 4px;">Nenhum modelo cadastrado</p>
+      <p style="font-size:13px;color:var(--app-text-3);margin:0;">Ao criar um contrato sem modelo selecionado, o template padrão é usado.</p>
+    </div>
+  } @else {
+    <div class="modelos-lista">
+      @for (m of modelos(); track m.id) {
+        <div class="modelo-card">
+          <div class="modelo-info">
+            <div class="modelo-nome">{{ m.nome }}</div>
+            <div class="modelo-meta">Criado em {{ formatarData(m.criadoEm) }}</div>
+          </div>
+          <div class="modelo-acoes">
+            <button class="btn-secondary" style="font-size:12px;padding:6px 12px;" (click)="abrirEditar(m)">Editar</button>
+            <button class="btn-icon btn-danger" (click)="excluir(m)" title="Excluir modelo">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Modal edição -->
+@if (modalAberto()) {
+  <div class="modal-backdrop" (click)="fecharModal()"></div>
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>{{ editando() ? 'Editar modelo' : 'Novo modelo' }}</h3>
+      <button class="modal-close" (click)="fecharModal()">✕</button>
+    </div>
+    @if (erroSalvar()) { <div class="alert-error" style="margin:0 0 12px;">{{ erroSalvar() }}</div> }
+    @if (salvoOk()) { <div class="alert-success" style="margin:0 0 12px;">✓ Salvo com sucesso!</div> }
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome do modelo *</label>
+        <input class="form-input" placeholder="Ex: Contrato BJJ, Contrato Muay Thai..." [ngModel]="formNome()" (ngModelChange)="formNome.set($event)" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Conteúdo do contrato *</label>
+        <!-- Toolbar -->
+        <div class="editor-toolbar">
+          <button type="button" class="tb-btn" (click)="formatText('bold')" title="Negrito"><b>N</b></button>
+          <button type="button" class="tb-btn" (click)="formatText('italic')" title="Itálico"><i>I</i></button>
+          <button type="button" class="tb-btn" (click)="formatText('underline')" title="Sublinhado"><u>S</u></button>
+          <div class="tb-sep"></div>
+          <button type="button" class="tb-btn" (click)="formatText('justifyLeft')" title="Alinhar à esquerda">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 4h12v2H3zm0 4h18v2H3zm0 4h12v2H3z"/></svg>
+          </button>
+          <button type="button" class="tb-btn" (click)="formatText('justifyCenter')" title="Centralizar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm3 4h12v2H6zm-3 4h18v2H3zm3 4h12v2H6z"/></svg>
+          </button>
+          <button type="button" class="tb-btn" (click)="formatText('justifyRight')" title="Alinhar à direita">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm6 4h12v2H9zm-6 4h18v2H3zm6 4h12v2H9z"/></svg>
+          </button>
+          <div class="tb-sep"></div>
+          <button type="button" class="tb-btn" (click)="formatText('insertUnorderedList')" title="Lista com marcadores">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="6" r="2"/><path d="M9 5h12v2H9zM9 11h12v2H9zM9 17h12v2H9z"/><circle cx="4" cy="12" r="2"/><circle cx="4" cy="18" r="2"/></svg>
+          </button>
+          <button type="button" class="tb-btn" (click)="formatText('insertOrderedList')" title="Lista numerada">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h1V3H3v1h1zm0 6H3v1h2v-4H3v1h1zm-1 6h2v1H3v-4h1v3zm4-14h12v2H7zm0 6h12v2H7zm0 6h12v2H7z"/></svg>
+          </button>
+          <div class="tb-sep"></div>
+          <button type="button" class="tb-btn" (click)="formatText('formatBlock', 'h2')" title="Título grande">H2</button>
+          <button type="button" class="tb-btn" (click)="formatText('formatBlock', 'h3')" title="Título médio">H3</button>
+          <button type="button" class="tb-btn" (click)="formatText('formatBlock', 'p')" title="Parágrafo">P</button>
+          <div class="tb-sep"></div>
+          <button type="button" class="tb-btn" (click)="formatText('insertHorizontalRule')" title="Linha separadora">—</button>
+        </div>
+        <!-- Editor contenteditable -->
+        <div #editorRef class="rich-editor" contenteditable="true"
+          (input)="syncConteudo()"
+          (blur)="syncConteudo()">
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="fecharModal()">Cancelar</button>
+      <button class="btn-primary" (click)="salvar()" [disabled]="salvando()">
+        {{ salvando() ? 'Salvando...' : 'Salvar modelo' }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  .back-link { font-size: 13px; color: var(--app-text-3); text-decoration: none; display: inline-block; margin-bottom: 4px; }
+  .back-link:hover { color: var(--app-text-1); }
+
+  .variaveis-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+  .variaveis-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .variavel-chip { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); color: #6366f1; font-size: 11px; font-family: monospace; padding: 3px 8px; border-radius: 4px; }
+
+  .empty-state { text-align: center; padding: 48px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; }
+
+  .modelos-lista { display: flex; flex-direction: column; gap: 10px; }
+  .modelo-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .modelo-nome { font-weight: 600; font-size: 14px; color: var(--app-text-1); }
+  .modelo-meta { font-size: 12px; color: var(--app-text-3); margin-top: 2px; }
+  .modelo-acoes { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .btn-icon { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: var(--app-text-3); }
+  .btn-danger:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
+
+  .modal-wide { width: min(860px, 95vw); max-height: 90vh; display: flex; flex-direction: column; }
+  .modal-wide .modal-body { overflow-y: auto; flex: 1; }
+
+  .editor-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 6px 8px; background: var(--app-bg); border: 1px solid var(--app-border); border-bottom: none; border-radius: 8px 8px 0 0; }
+  .tb-btn { background: none; border: 1px solid transparent; border-radius: 4px; padding: 4px 7px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--app-text-2); min-width: 26px; display: inline-flex; align-items: center; justify-content: center; }
+  .tb-btn:hover { background: var(--app-border-light); border-color: var(--app-border); color: var(--app-text-1); }
+  .tb-sep { width: 1px; height: 18px; background: var(--app-border); margin: 0 3px; }
+  .rich-editor { min-height: 320px; padding: 16px 20px; border: 1px solid var(--app-border); border-radius: 0 0 8px 8px; font-size: 14px; line-height: 1.75; color: var(--app-text-1); background: var(--app-surface); outline: none; overflow-y: auto; }
+  .rich-editor:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .rich-editor h2 { font-size: 20px; font-weight: 700; margin: 0 0 12px; }
+  .rich-editor h3 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
+  .rich-editor p { margin-bottom: 6px; }
+  .rich-editor hr { border: none; border-top: 1px solid var(--app-border); margin: 16px 0; }
+
+  .alert-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #22c55e; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+</style>

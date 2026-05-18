@@ -1,0 +1,192 @@
+<div class="page-container rel-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Relatórios</h1>
+      @if (relatorio()) {
+        <p class="page-subtitle">Ano {{ anoSelecionado() }} · {{ relatorio()!.totalAlunosAtivos }} alunos ativos</p>
+      }
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select class="form-input" style="max-width:110px;" [ngModel]="anoSelecionado()" (ngModelChange)="onAnoChange($event)">
+        @for (a of anos; track a) {
+          <option [value]="a">{{ a }}</option>
+        }
+      </select>
+      @if (relatorio()) {
+        <button class="btn-secondary no-print" (click)="exportarCSV()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row" style="height:80px;"></div> }</div>
+  } @else {
+  @if (relatorio(); as r) {
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Receita recebida {{ anoSelecionado() }}</div>
+        <div class="kpi-value kpi-green">{{ formatarMoeda(r.totalRecebidoAno) }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Alunos ativos</div>
+        <div class="kpi-value">{{ r.totalAlunosAtivos }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Inadimplentes agora</div>
+        <div class="kpi-value" [class.kpi-red]="r.totalInadimplentes > 0">{{ r.totalInadimplentes }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total em atraso</div>
+        <div class="kpi-value" [class.kpi-red]="r.inadimplentes.length > 0">
+          {{ formatarMoeda(totalDevido()) }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico Receita Mensal -->
+    <div class="chart-card">
+      <div class="chart-title">Receita mensal — {{ anoSelecionado() }}</div>
+      <div class="bar-chart">
+        @for (m of r.receitaMensal; track m.mes) {
+          <div class="bar-col">
+            <div class="bar-wrap">
+              @if (m.recebido > 0) {
+                <div class="bar bar-green" [style.height.%]="barH(m.recebido, maxRecebido())" [title]="formatarMoeda(m.recebido)"></div>
+              }
+              @if (m.pendente > 0) {
+                <div class="bar bar-amber" [style.height.%]="barH(m.pendente, maxRecebido())" [title]="'Pendente: ' + formatarMoeda(m.pendente)"></div>
+              }
+              @if (m.atrasado > 0 && m.atrasado !== m.pendente) {
+                <div class="bar bar-red" [style.height.%]="barH(m.atrasado, maxRecebido())" [title]="'Atrasado: ' + formatarMoeda(m.atrasado)"></div>
+              }
+            </div>
+            <div class="bar-label">{{ meses[m.mes - 1] }}</div>
+            <div class="bar-value">{{ m.recebido > 0 ? formatarMoeda(m.recebido) : '—' }}</div>
+          </div>
+        }
+      </div>
+      <div class="chart-legend">
+        <span class="legend-dot legend-green"></span>Recebido
+        <span class="legend-dot legend-amber" style="margin-left:16px;"></span>Pendente
+        <span class="legend-dot legend-red" style="margin-left:16px;"></span>Atrasado
+      </div>
+    </div>
+
+    <!-- Gráfico Frequência Mensal -->
+    <div class="chart-card">
+      <div class="chart-title">Presenças mensais — {{ anoSelecionado() }}</div>
+      <div class="bar-chart">
+        @for (m of r.frequenciaMensal; track m.mes) {
+          <div class="bar-col">
+            <div class="bar-wrap">
+              <div class="bar bar-indigo" [style.height.%]="barH(m.totalPresencas, maxPresencas())" [title]="m.totalPresencas + ' presenças'"></div>
+            </div>
+            <div class="bar-label">{{ meses[m.mes - 1] }}</div>
+            <div class="bar-value">{{ m.totalPresencas > 0 ? m.totalPresencas : '—' }}</div>
+          </div>
+        }
+      </div>
+      <div class="chart-legend">
+        <span class="legend-dot legend-indigo"></span>Total de check-ins
+      </div>
+    </div>
+
+    <!-- Tabela Inadimplentes -->
+    @if (r.inadimplentes.length > 0) {
+      <div class="chart-card">
+        <div class="chart-title">Inadimplentes atuais ({{ r.inadimplentes.length }})</div>
+        <div class="table-wrapper" style="margin-top:12px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Aluno</th>
+                <th style="text-align:right;">Total devido</th>
+                <th style="text-align:center;">Dias em atraso</th>
+                <th>Último vencimento</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (ind of r.inadimplentes; track ind.alunoId) {
+                <tr>
+                  <td class="font-medium">{{ ind.nomeAluno }}</td>
+                  <td style="text-align:right;color:#dc2626;font-weight:600;">{{ formatarMoeda(ind.totalDevido) }}</td>
+                  <td style="text-align:center;">
+                    <span class="badge-dias" [class.badge-dias-critico]="ind.diasAtraso > 30">{{ ind.diasAtraso }}d</span>
+                  </td>
+                  <td style="font-size:13px;">{{ formatarData(ind.ultimoVencimento) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <div class="chart-card" style="text-align:center;padding:32px;">
+        <div style="color:#16a34a;font-weight:600;font-size:15px;">Nenhum inadimplente no momento</div>
+        <div style="color:var(--app-text-3);font-size:13px;margin-top:4px;">Todos os alunos estão em dia.</div>
+      </div>
+    }
+
+  }
+  }
+</div>
+
+<style>
+  .rel-page { }
+
+  /* KPIs */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 12px; padding: 16px 20px; }
+  .kpi-label { font-size: 12px; color: var(--app-text-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; font-weight: 700; color: var(--app-text-1); }
+  .kpi-green { color: #16a34a; }
+  .kpi-red { color: #dc2626; }
+
+  /* Charts */
+  .chart-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--app-text-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+
+  /* Bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-bottom: 28px; position: relative; overflow: hidden; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; min-width: 0; }
+  .bar-wrap { width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; flex: 1; min-height: 0; overflow: hidden; }
+  .bar { width: 100%; max-width: 28px; border-radius: 4px 4px 0 0; transition: height 0.3s ease; min-height: 2px; }
+  .bar-green { background: #22c55e; }
+  .bar-amber { background: #f59e0b; }
+  .bar-red { background: #ef4444; }
+  .bar-indigo { background: #6366f1; }
+  .bar-label { font-size: 11px; color: var(--app-text-3); white-space: nowrap; }
+  .bar-value { font-size: 10px; color: var(--app-text-3); white-space: nowrap; text-align: center; }
+
+  /* Legend */
+  .chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--app-text-2); margin-top: 8px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+  .legend-green { background: #22c55e; }
+  .legend-amber { background: #f59e0b; }
+  .legend-red { background: #ef4444; }
+  .legend-indigo { background: #6366f1; }
+
+  /* Badges */
+  .badge-dias { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: rgba(239,68,68,0.1); color: #dc2626; }
+  .badge-dias-critico { background: rgba(239,68,68,0.2); color: #b91c1c; }
+
+  /* Print */
+  @media print {
+    .no-print { display: none !important; }
+    .page-container { padding: 0 !important; }
+    .chart-card, .kpi-card { break-inside: avoid; }
+    .kpi-row { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .bar-value { display: none; }
+  }
+</style>

@@ -1,0 +1,63 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">{{ editandoId() ? 'Editar Modalidade' : 'Nova Modalidade' }}</h1>
+    <a routerLink="/app/modalidades" class="btn-secondary">← Voltar</a>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else {
+    @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+    <form [formGroup]="form" (ngSubmit)="salvar()" class="form-card">
+      <div class="form-group">
+        <label class="form-label">Nome *</label>
+        <input formControlName="nome" class="form-input" placeholder="Ex: Jiu-Jitsu, Muay Thai, Boxe..." />
+        @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
+          <span class="form-error">Nome é obrigatório (mínimo 2 caracteres)</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea formControlName="descricao" class="form-input" rows="3" placeholder="Descreva a modalidade..."></textarea>
+      </div>
+
+      @if (editandoId()) {
+        <div class="form-group">
+          <label class="toggle-label">
+            <div class="toggle-switch">
+              <input formControlName="ativo" type="checkbox" />
+              <span class="toggle-slider"></span>
+            </div>
+            Modalidade ativa
+          </label>
+        </div>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/app/modalidades" class="btn-secondary">Cancelar</a>
+        <button type="submit" class="btn-primary" [disabled]="salvando() || form.invalid">
+          {{ salvando() ? 'Salvando...' : 'Salvar' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>
+
+<style>
+  .toggle-label { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0; background: var(--color-border);
+    border-radius: 99px; transition: background 0.2s; cursor: pointer;
+  }
+  .toggle-slider::before {
+    content: ''; position: absolute; height: 16px; width: 16px;
+    left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--color-primary, #6366f1); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+  .form-error { font-size: 12px; color: var(--color-danger, #ef4444); margin-top: 4px; display: block; }
+</style>

@@ -1,0 +1,147 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Registrar Graduação</h1>
+    <a routerLink="/app/graduacao" class="btn-secondary">← Voltar</a>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="form-card">
+
+    <!-- Aluno (autocomplete) -->
+    <div class="form-row">
+      <div class="form-group" style="position:relative;flex:1;">
+        <label class="form-label">Aluno *</label>
+        <input
+          [ngModel]="nomeBusca()"
+          (ngModelChange)="onNomeInput($event)"
+          (blur)="fecharSugestoes()"
+          [ngModelOptions]="{standalone: true}"
+          class="form-input"
+          placeholder="Digite o nome do aluno..."
+          autocomplete="off"
+          [class.input-error]="form.get('alunoId')?.invalid && form.get('alunoId')?.touched" />
+        @if (mostrarSugestoes() && sugestoes().length > 0) {
+          <div class="autocomplete-dropdown">
+            @for (s of sugestoes(); track s.id) {
+              <button class="autocomplete-item" type="button" (mousedown)="selecionarAluno(s)">
+                <span class="presenca-avatar" style="width:28px;height:28px;font-size:12px;flex-shrink:0;">{{ s.nome.charAt(0) }}</span>
+                <div>
+                  <span style="font-weight:500;">{{ s.nome }}</span>
+                  <span style="font-size:12px;color:var(--app-text-3);display:block;">
+                    @if (s.turmas.length) {
+                      {{ s.turmas.join(', ') }}
+                    } @else if (s.email) {
+                      {{ s.email }}
+                    } @else {
+                      Sem turma
+                    }
+                  </span>
+                </div>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Professor -->
+      <div class="form-group">
+        <label class="form-label">Professor *</label>
+        <select formControlName="professorId" class="form-input">
+          <option value="">Selecione o professor...</option>
+          @for (p of professores(); track p.id) {
+            <option [value]="p.id">{{ p.nome }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Modalidade + Faixa -->
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Modalidade *</label>
+        <select formControlName="modalidadeId" class="form-input" (change)="carregarFaixas()">
+          <option value="">Selecione a modalidade...</option>
+          @for (m of modalidades(); track m.id) {
+            <option [value]="m.id">{{ m.nome }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Faixa *</label>
+        <select formControlName="faixaId" class="form-input" (change)="onFaixaChange()" [attr.disabled]="faixas().length === 0 ? true : null">
+          <option value="">{{ faixas().length === 0 ? 'Selecione a modalidade primeiro' : 'Selecione a faixa...' }}</option>
+          @for (f of faixas(); track f.id) {
+            <option [value]="f.id">{{ f.nome }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (faixaSelecionada()) {
+      <div class="requisitos-card">
+        <h4>Requisitos da Faixa</h4>
+        <div class="req-row">
+          <app-badge-faixa [cor]="faixaSelecionada()!.cor" [nome]="faixaSelecionada()!.nome" tamanho="lg" />
+          <span>{{ faixaSelecionada()!.nome }}</span>
+        </div>
+        <p>Meses mínimos: <strong>{{ faixaSelecionada()!.requisitosMesesMinimos }}</strong></p>
+        <p>Presenças mínimas: <strong>{{ faixaSelecionada()!.requisitosPresencasMinimas }}</strong></p>
+      </div>
+    }
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data do Exame *</label>
+        <input formControlName="dataExame" type="date" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label checkbox-label" style="margin-top:28px">
+          <input formControlName="aprovado" type="checkbox" class="form-checkbox" />
+          Aprovado
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Observações</label>
+      <textarea formControlName="observacoes" class="form-input" rows="3"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" routerLink="/app/graduacao">Cancelar</button>
+      <button type="submit" class="btn-primary" [disabled]="salvando()">
+        {{ salvando() ? 'Registrando...' : 'Registrar Graduação' }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-surface, #1e1e1e);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    z-index: 50;
+    overflow: hidden;
+  }
+  .autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .autocomplete-item:hover { background: rgba(255,255,255,0.05); }
+  .input-error { border-color: var(--color-danger, #ef4444) !important; }
+</style>

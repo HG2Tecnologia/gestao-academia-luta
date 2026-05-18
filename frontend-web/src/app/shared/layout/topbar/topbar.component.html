@@ -1,0 +1,117 @@
+<header class="topbar">
+  <button class="hamburger-btn" type="button" aria-label="Menu" (click)="layoutService.toggleSidebar()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <nav class="topbar-breadcrumb">
+    <span>Tatame</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    <span class="topbar-page">{{ breadcrumb }}</span>
+  </nav>
+
+  <div class="topbar-actions">
+    <!-- Tema -->
+    <button class="notif-btn" type="button" [title]="themeService.isDark() ? 'Tema claro' : 'Tema escuro'" (click)="themeService.toggle()">
+      @if (themeService.isDark()) {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      } @else {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      }
+    </button>
+
+    <!-- Notificações -->
+    <div class="notif-wrap">
+      <button class="notif-btn" type="button" title="Notificações" (click)="abrirNotificacoes()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        @if (naoLidas() > 0) {
+          <span class="notif-badge">{{ naoLidas() > 9 ? '9+' : naoLidas() }}</span>
+        }
+      </button>
+
+      @if (notifAberto()) {
+        <div class="notif-overlay" (click)="fecharNotificacoes()"></div>
+        <div class="notif-panel">
+          <div class="notif-panel-header">
+            <span class="notif-panel-title">Notificações</span>
+            @if (naoLidas() > 0) {
+              <button class="notif-mark-all" (click)="marcarTodasLidas()">Marcar todas como lidas</button>
+            }
+          </div>
+
+          @if (carregandoNotif()) {
+            <div class="notif-loading">
+              <div class="notif-skeleton"></div>
+              <div class="notif-skeleton"></div>
+            </div>
+          } @else if (notifVisiveis().length === 0) {
+            <div class="notif-empty">
+              <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--app-text-3)"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+              <p>Nenhuma notificação</p>
+            </div>
+          } @else {
+            <div class="notif-list">
+              @for (n of notifVisiveis(); track n.id) {
+                <div class="notif-item" [class.notif-nao-lida]="!n.lida">
+                  <div class="notif-icone">{{ iconeTipo(n.tipoLabel) }}</div>
+                  <div class="notif-conteudo">
+                    <div class="notif-titulo">{{ n.titulo }}</div>
+                    <div class="notif-mensagem">{{ n.mensagem }}</div>
+                    <div class="notif-tempo">{{ n.tempoRelativo }}</div>
+                  </div>
+                  <div class="notif-acoes">
+                    @if (!n.lida) {
+                      <button class="notif-acao-btn" (click)="marcarLida(n.id)" title="Marcar como lida">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                    }
+                    <button class="notif-acao-btn notif-acao-del" (click)="excluir(n.id)" title="Remover">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Usuário -->
+    <div class="dropdown-wrap">
+      <button class="user-btn" type="button" (click)="alternarDropdown()">
+        <div class="user-avatar">{{ (authService.currentUser()?.nome ?? 'U').charAt(0).toUpperCase() }}</div>
+        <span class="user-name">{{ authService.currentUser()?.nome ?? 'Usuário' }}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M19 9l-7 7-7-7"/></svg>
+      </button>
+
+      @if (dropdownAberto()) {
+        <div class="dropdown-overlay" (click)="fecharDropdown()"></div>
+        <div class="dropdown-menu">
+          <div class="dropdown-header">
+            <div class="dropdown-user-name">{{ authService.currentUser()?.nome }}</div>
+            <div class="dropdown-email">{{ authService.currentUser()?.email }}</div>
+          </div>
+          <div class="dropdown-items">
+            <a routerLink="/app/configuracoes" (click)="fecharDropdown()" class="dropdown-link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/></svg>
+              Meu perfil
+            </a>
+            <button type="button" (click)="sair()" class="dropdown-link danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              Sair
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</header>

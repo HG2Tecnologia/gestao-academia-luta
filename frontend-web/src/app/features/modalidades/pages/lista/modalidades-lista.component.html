@@ -1,0 +1,133 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Modalidades</h1>
+      <p class="page-subtitle">Estilos de luta praticados na academia</p>
+    </div>
+    <a routerLink="novo" class="btn-primary">+ Nova Modalidade</a>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else if (modalidades().length === 0) {
+    <div class="empty-state">
+      <svg width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+      <h3>Nenhuma modalidade cadastrada</h3>
+      <p>Crie a primeira modalidade para começar</p>
+      <a routerLink="novo" class="btn-primary">Criar primeira modalidade</a>
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Descrição</th>
+            <th>Status</th>
+            <th style="width:120px;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of modalidades(); track m.id) {
+            <tr [class.row-inativa]="!m.ativo">
+              <td class="font-medium">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div class="mod-icon">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </div>
+                  <a [routerLink]="[m.id]" class="nome-link">{{ m.nome }}</a>
+                </div>
+              </td>
+              <td style="color:var(--app-text-2);font-size:13px;">{{ m.descricao || '—' }}</td>
+              <td>
+                <button class="toggle-status" [class.ativo]="m.ativo" (click)="m.ativo ? abrirConfirmacao('arquivar', m) : reativar(m)" [title]="m.ativo ? 'Clique para inativar' : 'Clique para ativar'">
+                  <div class="toggle-knob"></div>
+                  <span>{{ m.ativo ? 'Ativa' : 'Inativa' }}</span>
+                </button>
+              </td>
+              <td>
+                <div style="display:flex;gap:8px;">
+                  <a [routerLink]="[m.id, 'editar']" class="action-link">Editar</a>
+                  @if (!m.ativo) {
+                    <button class="action-link danger" (click)="abrirConfirmacao('excluir', m)" title="Remover permanentemente">Excluir</button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (confirmando()) {
+  <div class="modal-backdrop" (click)="fecharConfirmacao()"></div>
+  <div class="modal-box" role="dialog">
+    <div class="modal-icon" [class.icon-warn]="confirmando()!.tipo === 'arquivar'" [class.icon-danger]="confirmando()!.tipo === 'excluir'">
+      @if (confirmando()!.tipo === 'arquivar') {
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      } @else {
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      }
+    </div>
+    <h3 class="modal-title">
+      {{ confirmando()!.tipo === 'arquivar' ? 'Inativar modalidade?' : 'Excluir permanentemente?' }}
+    </h3>
+    <p class="modal-desc">
+      @if (confirmando()!.tipo === 'arquivar') {
+        A modalidade <strong>{{ confirmando()!.modalidade.nome }}</strong> será inativada e ficará oculta para novos cadastros.
+      } @else {
+        A modalidade <strong>{{ confirmando()!.modalidade.nome }}</strong> será removida permanentemente. Isso falhará se houver faixas ou turmas vinculadas.
+      }
+    </p>
+    @if (erroModal()) {
+      <p class="modal-erro">{{ erroModal() }}</p>
+    }
+    <div class="modal-footer">
+      <button class="btn-ghost" (click)="fecharConfirmacao()" [disabled]="executando()">Cancelar</button>
+      <button [class]="confirmando()!.tipo === 'excluir' ? 'btn-danger' : 'btn-warn'" (click)="executarAcao()" [disabled]="executando()">
+        {{ executando() ? 'Aguarde...' : (confirmando()!.tipo === 'arquivar' ? 'Inativar' : 'Excluir') }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  .nome-link { font-size:14px; font-weight:600; color:var(--app-text-1); text-decoration:none; }
+  .nome-link:hover { color:var(--app-accent); text-decoration:underline; }
+  .row-inativa { opacity: 0.6; }
+  .mod-icon { width: 30px; height: 30px; border-radius: 7px; background: rgba(99,102,241,0.1); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* Toggle de status */
+  .toggle-status { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px 4px 4px; border: 1px solid var(--app-border); border-radius: 99px; background: var(--app-surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--app-text-2); transition: all 0.2s; }
+  .toggle-status .toggle-knob { width: 18px; height: 18px; border-radius: 50%; background: var(--app-border); transition: background 0.2s; }
+  .toggle-status.ativo { border-color: rgba(34,197,94,0.4); color: #16a34a; }
+  .toggle-status.ativo .toggle-knob { background: #22c55e; }
+  .toggle-status:hover { opacity: 0.8; }
+
+  /* Modal de confirmação */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+  .modal-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 101; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 16px; width: 400px; max-width: calc(100vw - 32px); padding: 28px 28px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); text-align: center; }
+  .modal-icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+  .icon-warn { background: rgba(245,158,11,0.12); color: #f59e0b; }
+  .icon-danger { background: rgba(239,68,68,0.1); color: #ef4444; }
+  .modal-title { font-size: 1.05rem; font-weight: 700; color: var(--app-text-1); margin: 0; }
+  .modal-desc { font-size: 0.875rem; color: var(--app-text-2); margin: 0; line-height: 1.6; }
+  .modal-erro { font-size: 0.8rem; color: #ef4444; font-weight: 500; margin: 0; }
+  .modal-footer { display: flex; gap: 10px; margin-top: 8px; width: 100%; justify-content: flex-end; }
+  .btn-ghost { padding: 9px 18px; background: transparent; border: 1px solid var(--app-border); border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: var(--app-text-2); cursor: pointer; }
+  .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost:hover:not(:disabled) { background: var(--app-border); }
+  .btn-danger { padding: 9px 18px; background: #ef4444; color: #fff; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+  .btn-danger:disabled, .btn-warn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-danger:hover:not(:disabled) { opacity: 0.88; }
+  .btn-warn { padding: 9px 18px; background: #f59e0b; color: #fff; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+  .btn-warn:hover:not(:disabled) { opacity: 0.88; }
+</style>

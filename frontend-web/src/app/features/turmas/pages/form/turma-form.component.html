@@ -1,0 +1,148 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb"><a routerLink="/app/turmas" class="breadcrumb-link">Turmas</a> / {{ modoEdicao() ? 'Editar' : 'Nova' }}</div>
+      <h1 class="page-title">{{ modoEdicao() ? 'Editar Turma' : 'Nova Turma' }}</h1>
+    </div>
+  </div>
+
+  @if (!modoEdicao() && modalidades().length === 0 && !carregando()) {
+    <div class="alerta-prereq">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <strong>Nenhuma modalidade cadastrada.</strong>
+        Você precisa criar uma modalidade antes de criar uma turma.
+      </div>
+      <a routerLink="/app/modalidades/novo" class="btn-primary" style="white-space:nowrap;font-size:13px;padding:8px 14px;">Criar modalidade</a>
+    </div>
+  }
+
+  @if (erro()) {
+    <div class="alert-error" style="margin-bottom:16px">{{ erro() }}</div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="form-card">
+    <div class="form-group">
+      <label class="form-label">Nome *</label>
+      <input formControlName="nome" class="form-input" placeholder="Ex: Jiu-Jitsu Adulto A" />
+      @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
+        <span class="form-error">Nome obrigatório (mín. 3 caracteres)</span>
+      }
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Modalidade *</label>
+        <select formControlName="modalidadeId" class="form-input">
+          <option value="">Selecione a modalidade</option>
+          @for (m of modalidades(); track m.id) {
+            <option [value]="m.id">{{ m.nome }}</option>
+          }
+        </select>
+        @if (form.get('modalidadeId')?.invalid && form.get('modalidadeId')?.touched) {
+          <span class="form-error">Selecione uma modalidade</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nível</label>
+        <select formControlName="nivel" class="form-input">
+          <option value="">Sem nível</option>
+          <option value="Iniciante">Iniciante</option>
+          <option value="Intermediário">Intermediário</option>
+          <option value="Avançado">Avançado</option>
+          <option value="Competição">Competição</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Professor — select com busca -->
+    <div class="form-group">
+      <label class="form-label">Professor *</label>
+      <div class="professor-search-wrapper">
+        <input
+          [ngModel]="buscaProfessor()"
+          (ngModelChange)="buscaProfessor.set($event)"
+          [ngModelOptions]="{standalone: true}"
+          class="form-input professor-search-input"
+          placeholder="Buscar professor pelo nome..."
+        />
+        @if (buscaProfessor()) {
+          <button type="button" class="professor-clear" (click)="buscaProfessor.set('')">✕</button>
+        }
+      </div>
+      <div class="professor-list" [class.has-results]="professoresFiltrados().length > 0">
+        @for (p of professoresFiltrados(); track p.id) {
+          <button type="button" class="professor-option"
+            [class.selected]="form.get('professorId')?.value === p.id"
+            (click)="form.get('professorId')?.setValue(p.id)">
+            <div class="professor-avatar">{{ p.nome.charAt(0) }}</div>
+            <div>
+              <div style="font-weight:500;font-size:13px;">{{ p.nome }}</div>
+              <div style="font-size:11px;color:var(--color-text-secondary);">{{ p.email }}</div>
+            </div>
+            @if (form.get('professorId')?.value === p.id) {
+              <span class="check-icon" style="margin-left:auto;">✓</span>
+            }
+          </button>
+        } @empty {
+          @if (professores().length === 0) {
+            <div class="professor-empty" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;">
+              <span style="color:var(--app-text-3);font-size:13px;">Nenhum professor cadastrado ainda.</span>
+              <a routerLink="/app/funcionarios/novo" class="btn-primary" style="font-size:12px;padding:6px 12px;">Cadastrar professor</a>
+            </div>
+          } @else {
+            <div class="professor-empty">Nenhum professor encontrado.</div>
+          }
+        }
+      </div>
+      @if (form.get('professorId')?.invalid && form.get('professorId')?.touched) {
+        <span class="form-error">Selecione um professor</span>
+      }
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Capacidade Máxima *</label>
+        <input formControlName="capacidadeMaxima" type="number" class="form-input" min="1" />
+        @if (form.get('capacidadeMaxima')?.invalid && form.get('capacidadeMaxima')?.touched) {
+          <span class="form-error">Capacidade deve ser maior que 0</span>
+        }
+      </div>
+
+      @if (modoEdicao()) {
+        <div class="form-group" style="justify-content:flex-end;padding-top:22px">
+          <label class="form-label checkbox-label">
+            <input formControlName="ativo" type="checkbox" class="form-checkbox" />
+            Turma ativa
+          </label>
+        </div>
+      }
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" routerLink="/app/turmas">Cancelar</button>
+      <button type="submit" class="btn-primary" [disabled]="carregando()">
+        @if (carregando()) { Salvando... } @else { {{ modoEdicao() ? 'Salvar alterações' : 'Criar turma' }} }
+      </button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .alerta-prereq { display: flex; align-items: center; gap: 12px; background: #fffbeb; border: 1px solid #fbbf24; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; color: #92400e; font-size: 13px; flex-wrap: wrap; }
+  .alerta-prereq svg { flex-shrink: 0; color: #f59e0b; }
+  .alerta-prereq div { flex: 1; }
+  .form-error { font-size: 12px; color: var(--color-danger, #ef4444); margin-top: 4px; display: block; }
+  .professor-search-wrapper { position: relative; }
+  .professor-search-input { padding-right: 36px; }
+  .professor-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--color-text-secondary); font-size: 14px; padding: 4px; line-height: 1; }
+  .professor-list { border: 1px solid var(--color-border); border-radius: 8px; max-height: 220px; overflow-y: auto; margin-top: 6px; background: var(--color-surface); }
+  .professor-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; background: none; cursor: pointer; text-align: left; transition: background 0.15s; border-bottom: 1px solid var(--color-border); }
+  .professor-option:last-child { border-bottom: none; }
+  .professor-option:hover { background: rgba(99,102,241,0.06); }
+  .professor-option.selected { background: rgba(99,102,241,0.1); }
+  .professor-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--color-primary, #6366f1); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .professor-empty { padding: 14px 12px; font-size: 13px; color: var(--color-text-secondary); text-align: center; }
+  .check-icon { color: var(--color-primary, #6366f1); font-weight: 700; }
+</style>

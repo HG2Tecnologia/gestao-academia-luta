@@ -1,0 +1,12 @@
+<div class="shell">
+  <app-sidebar />
+  @if (layoutService.sidebarAberta()) {
+    <div class="sidebar-overlay" (click)="layoutService.fecharSidebar()"></div>
+  }
+  <div class="shell-main">
+    <app-topbar />
+    <main class="shell-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

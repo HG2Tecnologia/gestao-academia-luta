@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/core/services/academia.service.ts"],
+  "sourcesContent": ["import { Injectable, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\nimport { Observable } from 'rxjs';\nimport { environment } from '../../../environments/environment';\nimport { BaseResponse } from '../models/auth.model';\nimport { AcademiaDto, UpdateAcademiaRequest } from '../models/academia.model';\n\n@Injectable({ providedIn: 'root' })\nexport class AcademiaService {\n  private readonly http = inject(HttpClient);\n  private readonly api = `${environment.apiUrl}/api/academia`;\n\n  getCurrent(): Observable<BaseResponse<AcademiaDto>> {\n    return this.http.get<BaseResponse<AcademiaDto>>(this.api);\n  }\n\n  update(data: UpdateAcademiaRequest): Observable<BaseResponse<AcademiaDto>> {\n    return this.http.put<BaseResponse<AcademiaDto>>(this.api, data);\n  }\n\n  updateTemplateContrato(template: string | null): Observable<BaseResponse<void>> {\n    return this.http.put<BaseResponse<void>>(`${this.api}/template-contrato`, { template });\n  }\n}\n"],
+  "mappings": ";;;;;;;;;;AAQM,IAAO,kBAAP,MAAO,iBAAe;EAD5B,cAAA;AAEmB,SAAA,OAAO,OAAO,UAAU;AACxB,SAAA,MAAM,GAAG,YAAY,MAAM;;EAE5C,aAAU;AACR,WAAO,KAAK,KAAK,IAA+B,KAAK,GAAG;EAC1D;EAEA,OAAO,MAA2B;AAChC,WAAO,KAAK,KAAK,IAA+B,KAAK,KAAK,IAAI;EAChE;EAEA,uBAAuB,UAAuB;AAC5C,WAAO,KAAK,KAAK,IAAwB,GAAG,KAAK,GAAG,sBAAsB,EAAE,SAAQ,CAAE;EACxF;;;uBAdW,kBAAe;IAAA;EAAA;;4EAAf,kBAAe,SAAf,iBAAe,WAAA,YADF,OAAM,CAAA;EAAA;;",
+  "names": []
+}

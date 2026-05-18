@@ -1,0 +1,228 @@
+@if (carregando()) {
+  <div class="page-container"><div class="skeleton-header"></div></div>
+} @else if (erro() || !turma()) {
+  <div class="page-container"><div class="error-card"><p>{{ erro() || 'Turma não encontrada.' }}</p></div></div>
+} @else {
+  <div class="page-container">
+    <div class="page-header">
+      <div>
+        <div class="breadcrumb"><a routerLink="/app/turmas" class="breadcrumb-link">Turmas</a> / {{ turma()!.nome }}</div>
+        <h1 class="page-title">{{ turma()!.nome }}</h1>
+        <div class="badges-row">
+          <span class="badge-tag">{{ turma()!.modalidadeNome }}</span>
+          @if (turma()!.nivel) { <span class="badge-tag secondary">{{ turma()!.nivel }}</span> }
+          <span [class]="turma()!.ativo ? 'badge-ativo' : 'badge-inativo'">{{ turma()!.ativo ? 'Ativa' : 'Inativa' }}</span>
+        </div>
+      </div>
+      <a [routerLink]="['/app/turmas', turma()!.id, 'editar']" class="btn-secondary">Editar</a>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-value">{{ turma()!.totalAlunos }}/{{ turma()!.capacidadeMaxima }}</span><span class="stat-label">Alunos</span></div>
+      <div class="stat-card"><span class="stat-value">{{ turma()!.horarios.length }}</span><span class="stat-label">Horários</span></div>
+      <div class="stat-card"><span class="stat-value">{{ turma()!.professorNome }}</span><span class="stat-label">Professor</span></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab" [class.active]="abaAtiva() === 'alunos'" (click)="abaAtiva.set('alunos')">Alunos</button>
+      <button class="tab" [class.active]="abaAtiva() === 'horarios'" (click)="abaAtiva.set('horarios')">Horários</button>
+      <button class="tab" [class.active]="abaAtiva() === 'presencas'" (click)="abaAtiva.set('presencas')">Presenças</button>
+    </div>
+
+    <!-- ABA: ALUNOS -->
+    @if (abaAtiva() === 'alunos') {
+      <div class="tab-content">
+        <div class="matricular-row">
+          <div style="position:relative; max-width:340px; flex:1">
+            <input
+              [ngModel]="filtroAluno()"
+              (ngModelChange)="onFiltroChange($event)"
+              (focus)="abrirDropdown()"
+              (blur)="fecharDropdown()"
+              placeholder="Selecionar aluno..."
+              class="form-input"
+              autocomplete="off" />
+            @if (dropdownAberto()) {
+              <ul class="aluno-dropdown">
+                @if (alunosFiltrados().length === 0) {
+                  <li class="aluno-dropdown-vazio">Nenhum aluno disponível</li>
+                }
+                @for (a of alunosFiltrados(); track a.id) {
+                  <li class="aluno-dropdown-item" (mousedown)="selecionarAluno(a)">
+                    {{ a.nome }}
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+          <button class="btn-primary" [disabled]="operando() || !alunoSelecionado()" (click)="matricular()">
+            {{ operando() ? 'Matriculando...' : '+ Matricular' }}
+          </button>
+        </div>
+
+        @if (erroMatricula()) {
+          <div class="alert-error" style="margin-bottom:12px;">{{ erroMatricula() }}</div>
+        }
+
+        @if (turma()!.alunos.length === 0) {
+          <div class="empty-state"><p>Nenhum aluno matriculado</p></div>
+        } @else {
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Nome</th><th>Email</th><th>Desde</th><th></th></tr></thead>
+              <tbody>
+                @for (aluno of turma()!.alunos; track aluno.id) {
+                  <tr>
+                    <td class="font-medium">{{ aluno.nomeAluno }}</td>
+                    <td>{{ aluno.emailAluno }}</td>
+                    <td>{{ aluno.dataInicio | date:'dd/MM/yyyy' }}</td>
+                    <td><button class="action-link danger" (click)="abrirModalRemover(aluno)">Remover</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ABA: HORÁRIOS -->
+    @if (abaAtiva() === 'horarios') {
+      <div class="tab-content">
+        @if (turma()!.horarios.length === 0) {
+          <div class="empty-state"><p>Nenhum horário cadastrado</p></div>
+        } @else {
+          <div class="horarios-grid">
+            @for (h of turma()!.horarios; track h.id) {
+              <div class="horario-item">
+                <div class="horario-item-left">
+                  <span class="horario-dia-badge">{{ h.diaSemanaLabel }}</span>
+                  <div class="horario-tempo">
+                    <span class="horario-hora-texto">{{ formatarHora(h.horaInicio) }}</span>
+                    <span class="horario-separador">–</span>
+                    <span class="horario-hora-texto">{{ formatarHora(h.horaFim) }}</span>
+                  </div>
+                  @if (h.sala) {
+                    <span class="horario-sala-tag">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                      {{ h.sala }}
+                    </span>
+                  }
+                </div>
+                <button class="horario-remover-btn" (click)="abrirModalRemoverHorario(h)" title="Remover horário">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ABA: PRESENÇAS -->
+    @if (abaAtiva() === 'presencas') {
+      <div class="tab-content">
+        <a [routerLink]="['/app/presencas']" [queryParams]="{ turmaId: turma()!.id }" class="btn-secondary">
+          Ver presenças desta turma
+        </a>
+      </div>
+    }
+  </div>
+}
+
+<!-- MODAL: Confirmar desmatriculação -->
+@if (alunoParaRemover()) {
+  <div class="modal-backdrop" (click)="fecharModalRemover()"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Remover aluno da turma</h3>
+      <button class="modal-close" (click)="fecharModalRemover()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--app-text-2);font-size:0.9rem;">
+        Tem certeza que deseja remover <strong>{{ alunoParaRemover()!.nomeAluno }}</strong> desta turma?
+        O histórico de presenças será mantido.
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="fecharModalRemover()" [disabled]="removendo()">Cancelar</button>
+      <button class="btn-danger" (click)="confirmarRemover()" [disabled]="removendo()">
+        {{ removendo() ? 'Removendo...' : 'Remover' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- MODAL: Confirmar remoção de horário -->
+@if (horarioParaRemover()) {
+  <div class="modal-backdrop" (click)="fecharModalRemoverHorario()"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Remover horário</h3>
+      <button class="modal-close" (click)="fecharModalRemoverHorario()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--app-text-2);font-size:0.9rem;">
+        Deseja remover o horário de <strong>{{ horarioParaRemover()!.diaSemanaLabel }}</strong>,
+        das <strong>{{ formatarHora(horarioParaRemover()!.horaInicio) }}</strong>
+        às <strong>{{ formatarHora(horarioParaRemover()!.horaFim) }}</strong>?
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="fecharModalRemoverHorario()" [disabled]="removendoHorario()">Cancelar</button>
+      <button class="btn-danger" (click)="confirmarRemoverHorario()" [disabled]="removendoHorario()">
+        {{ removendoHorario() ? 'Removendo...' : 'Remover' }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  /* Dropdown de seleção de aluno */
+  .aluno-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 200; max-height: 260px; overflow-y: auto; padding: 4px; margin: 0; list-style: none; }
+  .aluno-dropdown-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--app-text-1); transition: background 0.1s; }
+  .aluno-dropdown-item:hover { background: var(--app-border-light); }
+  .aluno-dropdown-vazio { padding: 12px 10px; font-size: 13px; color: var(--app-text-3); text-align: center; }
+
+  /* Grid de horários */
+  .horarios-grid { display: flex; flex-direction: column; gap: 8px; }
+  .horario-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--app-surface); border: 1px solid var(--app-border);
+    border-radius: 10px; padding: 14px 16px;
+    transition: box-shadow 0.15s;
+  }
+  .horario-item:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+  .horario-item-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .horario-dia-badge {
+    font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 99px;
+    background: rgba(99,102,241,0.12); color: #6366f1; min-width: 70px; text-align: center;
+  }
+  .horario-tempo { display: flex; align-items: center; gap: 6px; }
+  .horario-hora-texto { font-size: 18px; font-weight: 700; color: var(--app-text-1); font-variant-numeric: tabular-nums; }
+  .horario-separador { font-size: 16px; color: var(--app-text-3); font-weight: 300; }
+  .horario-sala-tag {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--app-text-3);
+    background: var(--app-bg); border: 1px solid var(--app-border);
+    padding: 3px 10px; border-radius: 99px;
+  }
+  .horario-remover-btn {
+    background: none; border: none; cursor: pointer; padding: 6px;
+    color: var(--app-text-3); border-radius: 6px; transition: all 0.15s;
+    display: flex; align-items: center;
+  }
+  .horario-remover-btn:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+  /* Modais */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; }
+  .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: var(--app-surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 420px; z-index: 101; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-header h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+  .modal-close { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--app-text-3); }
+  .modal-body { margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-danger { padding: 8px 18px; background: #ef4444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: background 0.15s; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>

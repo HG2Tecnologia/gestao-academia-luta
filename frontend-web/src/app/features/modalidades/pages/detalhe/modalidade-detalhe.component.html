@@ -1,0 +1,147 @@
+@if (carregando()) {
+  <div class="page-container">
+    <div class="skeleton-header"></div>
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+  </div>
+} @else if (erro() || !modalidade()) {
+  <div class="page-container">
+    <div class="error-card"><p>{{ erro() || 'Modalidade não encontrada.' }}</p></div>
+    <button class="btn-secondary" style="margin-top:12px" (click)="voltar()">← Voltar</button>
+  </div>
+} @else {
+  <div class="page-container">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <button class="btn-ghost-back" (click)="voltar()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar para Modalidades
+      </button>
+      <a [routerLink]="['/app/modalidades', modalidade()!.id, 'editar']" class="btn-secondary">Editar</a>
+    </div>
+
+    <!-- Perfil da modalidade -->
+    <div class="mod-header">
+      <div class="mod-icon">
+        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h1 style="font-size:1.5rem;font-weight:700;margin:0;color:var(--app-text-1)">{{ modalidade()!.nome }}</h1>
+          <span class="status-badge" [class.ativo]="modalidade()!.ativo">{{ modalidade()!.ativo ? 'Ativa' : 'Arquivada' }}</span>
+        </div>
+        @if (modalidade()!.descricao) {
+          <p style="font-size:14px;color:var(--app-text-2);margin:6px 0 0;">{{ modalidade()!.descricao }}</p>
+        }
+        <div style="display:flex;gap:20px;margin-top:10px;flex-wrap:wrap;">
+          <span class="stat-chip"><strong>{{ faixas().length }}</strong> faixas</span>
+          <span class="stat-chip"><strong>{{ turmas().length }}</strong> turma(s)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Faixas / Sistema de graduação -->
+    <div class="secao-card" style="margin-top:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <h3 class="secao-titulo" style="margin:0;">Sistema de Faixas</h3>
+        <a routerLink="/app/graduacao/faixas" class="btn-secondary" style="font-size:12px;padding:5px 12px;">Gerenciar faixas</a>
+      </div>
+      @if (faixas().length === 0) {
+        <div class="empty-state" style="padding:20px 0;">
+          <p style="margin:0;font-size:13px;color:var(--app-text-3);">Nenhuma faixa cadastrada para esta modalidade.</p>
+        </div>
+      } @else {
+        <div class="faixas-lista">
+          @for (f of faixas(); track f.id; let i = $index) {
+            <div class="faixa-item">
+              <div class="faixa-dot" [style.background]="corFaixa(f.cor)"></div>
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:600;color:var(--app-text-1);">{{ f.nome }}</div>
+                @if (f.descricao) {
+                  <div style="font-size:12px;color:var(--app-text-3);">{{ f.descricao }}</div>
+                }
+              </div>
+              <span class="ordem-badge">#{{ f.ordem ?? i + 1 }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Turmas -->
+    <div class="secao-card" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <h3 class="secao-titulo" style="margin:0;">Turmas desta modalidade</h3>
+        <a routerLink="/app/turmas/nova" class="btn-secondary" style="font-size:12px;padding:5px 12px;">+ Nova turma</a>
+      </div>
+      @if (turmas().length === 0) {
+        <div class="empty-state" style="padding:20px 0;">
+          <p style="margin:0;font-size:13px;color:var(--app-text-3);">Nenhuma turma vinculada a esta modalidade.</p>
+        </div>
+      } @else {
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Turma</th>
+                <th>Professor</th>
+                <th>Nível</th>
+                <th>Capacidade</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of turmas(); track t.id) {
+                <tr>
+                  <td class="font-medium">{{ t.nome }}</td>
+                  <td style="font-size:13px;color:var(--app-text-2);">{{ t.professorNome }}</td>
+                  <td style="font-size:13px;color:var(--app-text-2);">{{ t.nivel ?? '—' }}</td>
+                  <td style="font-size:13px;color:var(--app-text-2);">{{ t.capacidadeMaxima }}</td>
+                  <td>
+                    <span class="badge" [class.badge-success]="t.ativo" [class.badge-neutral]="!t.ativo">
+                      {{ t.ativo ? 'Ativa' : 'Inativa' }}
+                    </span>
+                  </td>
+                  <td style="text-align:right;">
+                    <a [routerLink]="['/app/turmas', t.id]" class="btn-secondary" style="font-size:12px;padding:4px 10px;">Ver turma</a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  </div>
+}
+
+<style>
+  .btn-ghost-back { display:inline-flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; font-size:13px; font-weight:500; color:var(--app-text-2); padding:6px 10px; border-radius:6px; transition:all 0.15s; }
+  .btn-ghost-back:hover { background:var(--app-border-light); color:var(--app-text-1); }
+
+  .mod-header { display:flex; align-items:flex-start; gap:20px; background:var(--app-surface); border:1px solid var(--app-border); border-radius:12px; padding:24px; flex-wrap:wrap; }
+  .mod-icon { width:64px; height:64px; border-radius:14px; background:rgba(99,102,241,0.12); color:#6366f1; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  .status-badge { font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
+  .status-badge.ativo { background:rgba(34,197,94,0.15); color:#22c55e; }
+  .status-badge:not(.ativo) { background:rgba(148,163,184,0.15); color:#94a3b8; }
+
+  .stat-chip { font-size:13px; color:var(--app-text-2); }
+  .stat-chip strong { color:var(--app-text-1); font-weight:700; }
+
+  .secao-card { background:var(--app-surface); border:1px solid var(--app-border); border-radius:10px; padding:20px; }
+  .secao-titulo { font-size:13px; font-weight:600; color:var(--app-text-1); margin:0 0 14px; text-transform:uppercase; letter-spacing:0.04em; }
+
+  .faixas-lista { display:flex; flex-direction:column; gap:8px; }
+  .faixa-item { display:flex; align-items:center; gap:14px; padding:10px 12px; background:var(--app-bg); border:1px solid var(--app-border); border-radius:8px; }
+  .faixa-dot { width:20px; height:20px; border-radius:50%; border:2px solid rgba(0,0,0,0.1); flex-shrink:0; }
+  .ordem-badge { font-size:11px; font-weight:600; color:var(--app-text-3); background:var(--app-border-light); padding:2px 8px; border-radius:99px; flex-shrink:0; }
+
+  .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; }
+  .badge-success { background:rgba(34,197,94,0.15); color:#22c55e; }
+  .badge-neutral { background:rgba(148,163,184,0.15); color:#94a3b8; }
+</style>

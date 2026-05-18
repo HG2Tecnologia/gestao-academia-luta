@@ -1,0 +1,128 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Contratos</h1>
+      @if (!carregando()) {
+        <p class="page-subtitle">{{ contratosFiltrados().length }} contrato(s)</p>
+      }
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a routerLink="/app/contratos/modelos" class="btn-secondary">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Modelos
+      </a>
+      <button class="btn-primary" (click)="abrirModalNovo()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo contrato
+      </button>
+    </div>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  <!-- Filtros -->
+  <div class="filtros-row">
+    <input class="form-input search-input" placeholder="Buscar por aluno..." style="max-width:260px;" [ngModel]="filtroBusca()" (ngModelChange)="filtroBusca.set($event)" />
+    <select class="form-input" style="max-width:160px;" [ngModel]="filtroStatus()" (ngModelChange)="filtroStatus.set($event)">
+      <option value="">Todos os status</option>
+      <option value="1">Pendente</option>
+      <option value="2">Assinado</option>
+      <option value="3">Cancelado</option>
+    </select>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Aluno</th>
+            <th>Status</th>
+            <th>Criado em</th>
+            <th>Assinado em</th>
+            <th>Assinado por</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (contratosFiltrados().length === 0) {
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--app-text-3);">Nenhum contrato encontrado.</td></tr>
+          }
+          @for (c of contratosFiltrados(); track c.id) {
+            <tr class="row-link" [routerLink]="['/app/contratos', c.id]">
+              <td class="font-medium">{{ c.nomeAluno }}</td>
+              <td><span class="badge" [ngClass]="badgeClass(c.status)">{{ c.statusLabel }}</span></td>
+              <td style="font-size:13px;">{{ formatarData(c.criadoEm) }}</td>
+              <td style="font-size:13px;">{{ formatarData(c.dataAssinatura) }}</td>
+              <td style="font-size:13px;">{{ c.nomeAssinou ?? '—' }}</td>
+              <td style="text-align:right;">
+                @if (c.status === 1) {
+                  <button class="btn-icon btn-danger" title="Cancelar contrato" (click)="cancelarContrato(c.id, $event)">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Modal Novo Contrato -->
+@if (modalNovoAberto()) {
+  <div class="modal-backdrop" (click)="fecharModalNovo()"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Novo contrato</h3>
+      <button class="modal-close" (click)="fecharModalNovo()">✕</button>
+    </div>
+    @if (erroCriacao()) { <div class="alert-error" style="margin:0 0 12px;">{{ erroCriacao() }}</div> }
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Aluno *</label>
+        <select class="form-input" [ngModel]="novoAlunoId()" (ngModelChange)="novoAlunoId.set($event)">
+          <option value="">Selecione um aluno...</option>
+          @for (a of alunos(); track a.id) {
+            <option [value]="a.id">{{ a.nome }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Modelo de contrato</label>
+        <select class="form-input" [ngModel]="novoModeloId()" (ngModelChange)="novoModeloId.set($event)">
+          <option value="">Template padrão da academia</option>
+          @for (m of modelos(); track m.id) {
+            <option [value]="m.id">{{ m.nome }}</option>
+          }
+        </select>
+        @if (modelos().length === 0) {
+          <span style="font-size:11px;color:var(--app-text-3);margin-top:4px;display:block;">
+            Nenhum modelo cadastrado. <a routerLink="/app/contratos/modelos" style="color:#6366f1;">Criar modelos</a>
+          </span>
+        }
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" (click)="fecharModalNovo()">Cancelar</button>
+      <button class="btn-primary" (click)="criarContrato()" [disabled]="criando()">
+        {{ criando() ? 'Criando...' : 'Criar contrato' }}
+      </button>
+    </div>
+  </div>
+}
+
+<style>
+  .filtros-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .badge-pendente  { background: rgba(245,158,11,0.12); color: #b45309; }
+  .badge-assinado  { background: rgba(34,197,94,0.12);  color: #15803d; }
+  .badge-cancelado { background: rgba(107,114,128,0.12); color: #6b7280; }
+  .row-link { cursor: pointer; }
+  .row-link:hover td { background: var(--app-surface-hover, rgba(0,0,0,0.03)); }
+  .btn-icon { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; color: var(--app-text-3); }
+  .btn-danger:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
+</style>

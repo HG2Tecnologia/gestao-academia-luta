@@ -1,0 +1,141 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Professores & Funcionários</h1>
+      <p class="page-subtitle">Gerencie a equipe da academia</p>
+    </div>
+    <a routerLink="novo" class="btn-primary">+ Novo Funcionário</a>
+  </div>
+
+  <div class="filters-row">
+    <input
+      [ngModel]="filtroNome()"
+      (ngModelChange)="onNomeChange($event)"
+      class="form-input"
+      placeholder="Buscar por nome..."
+      style="max-width:300px" />
+    <select class="form-input" style="max-width:180px" (change)="onPerfilChange($any($event.target).value)">
+      <option value="">Todos os perfis</option>
+      <option value="Admin">Admin</option>
+      <option value="Professor">Professor</option>
+      <option value="Recepcionista">Recepcionista</option>
+    </select>
+  </div>
+
+  @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3,4]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else if (funcionarios().length === 0) {
+    <div class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
+      </svg>
+      <p>Nenhum funcionário encontrado.</p>
+      <a routerLink="novo" class="btn-primary">+ Novo Funcionário</a>
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Funcionário</th>
+            <th>Cargo</th>
+            <th>Perfil</th>
+            <th>Telefone</th>
+            <th>Status</th>
+            <th style="width:60px;">Config.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (f of funcionarios(); track f.id) {
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div class="presenca-avatar" [style.background]="perfilCor(f.perfil)" style="flex-shrink:0;">{{ avatarInicial(f.nome) }}</div>
+                  <div>
+                    <a [routerLink]="[f.id]" class="nome-link">{{ f.nome }}</a>
+                    @if (f.email) {
+                      <div style="font-size:12px;color:var(--app-text-3)">{{ f.email }}</div>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td style="color:var(--app-text-2);font-size:13px;">{{ f.cargo }}</td>
+              <td>
+                <span class="perfil-badge" [style.background]="perfilCor(f.perfil) + '22'" [style.color]="perfilCor(f.perfil)">
+                  {{ f.perfil }}
+                </span>
+              </td>
+              <td style="font-size:13px;color:var(--app-text-2);">
+                @if (f.telefone) {
+                  <a [href]="wppLink(f.telefone)" target="_blank" rel="noopener" class="wpp-tel-link" [title]="'WhatsApp: ' + f.telefone">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    {{ f.telefone }}
+                  </a>
+                } @else {
+                  <span style="color:var(--app-text-3)">—</span>
+                }
+              </td>
+              <td>
+                <span class="badge" [class.badge-success]="f.ativo" [class.badge-neutral]="!f.ativo">
+                  {{ f.ativo ? 'Ativo' : 'Inativo' }}
+                </span>
+              </td>
+              <td>
+                <div>
+                  <button class="btn-dots" (click)="toggleDropdown(f.id, $event); $event.stopPropagation()" title="Configurações">
+                    <span>⋯</span>
+                  </button>
+                  @if (dropdownAbertoId() === f.id) {
+                    <div class="acao-overlay" (click)="fecharDropdown()"></div>
+                    <div class="acao-dropdown" [style.top.px]="dropdownPos().top" [style.right.px]="dropdownPos().right">
+                      <a [routerLink]="[f.id, 'editar']" class="acao-item" (click)="fecharDropdown()">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Editar
+                      </a>
+                      <div class="acao-separator"></div>
+                      <button class="acao-item toggle-item" (click)="toggleAtivo(f)">
+                        <div class="mini-toggle" [class.on]="f.ativo">
+                          <div class="mini-toggle-knob"></div>
+                        </div>
+                        {{ f.ativo ? 'Desativar' : 'Ativar' }}
+                      </button>
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<style>
+  .nome-link { font-size: 14px; font-weight: 600; color: var(--app-text-1); text-decoration: none; }
+  .nome-link:hover { color: var(--app-accent); text-decoration: underline; }
+  .perfil-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .badge-success { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .badge-neutral { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+  .btn-dots { background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; padding: 4px 8px; font-size: 18px; color: var(--app-text-3); line-height: 1; transition: all 0.15s; }
+  .btn-dots:hover { background: var(--app-border-light); border-color: var(--app-border); color: var(--app-text-1); }
+
+  .acao-overlay { position: fixed; inset: 0; z-index: 10; }
+  .acao-dropdown { position: fixed; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 200; min-width: 155px; padding: 4px; }
+  .acao-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: none; background: none; cursor: pointer; font-size: 13px; color: var(--app-text-1); text-decoration: none; border-radius: 6px; transition: background 0.1s; text-align: left; }
+  .acao-item:hover { background: var(--app-border-light); }
+  .acao-separator { height: 1px; background: var(--app-border); margin: 4px 0; }
+  .toggle-item { color: var(--app-text-2); }
+
+  .mini-toggle { width: 28px; height: 16px; border-radius: 99px; background: var(--app-border); position: relative; flex-shrink: 0; transition: background 0.2s; }
+  .mini-toggle.on { background: #22c55e; }
+  .mini-toggle-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: white; transition: transform 0.2s; }
+  .mini-toggle.on .mini-toggle-knob { transform: translateX(12px); }
+
+  .wpp-tel-link { display: inline-flex; align-items: center; gap: 5px; color: #25d366; text-decoration: none; font-size: 13px; opacity: 0.85; transition: opacity 0.15s; }
+  .wpp-tel-link:hover { opacity: 1; }
+</style>

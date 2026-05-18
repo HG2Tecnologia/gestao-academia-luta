@@ -1,0 +1,90 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Ranking</h1>
+      <p class="page-subtitle">Classificação dos alunos da academia</p>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-row">
+    <div class="tabs" style="margin-bottom:0; border-bottom:none;">
+      <button class="tab" [class.active]="periodo()==='mensal'" (click)="alternarPeriodo('mensal')">Mensal</button>
+      <button class="tab" [class.active]="periodo()==='historico'" (click)="alternarPeriodo('historico')">Histórico</button>
+    </div>
+    <select class="form-input" style="max-width:220px;" [ngModel]="turmaId()" (ngModelChange)="alternarTurma($event)">
+      <option value="">Academia inteira</option>
+      @for (t of turmas(); track t.id) {
+        <option [value]="t.id">{{ t.nome }}</option>
+      }
+    </select>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">
+      @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
+    </div>
+  } @else if (erro()) {
+    <div class="empty-state" style="gap:16px;">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--color-danger, #ef4444)">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p>{{ erro() }}</p>
+      <button class="btn-secondary" (click)="carregar()">Tentar novamente</button>
+    </div>
+  } @else if (!leaderboard()?.items?.length) {
+    <div class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+      </svg>
+      <p>Nenhum treino registrado ainda.</p>
+      <p style="font-size:13px;color:var(--color-text-secondary)">As presenças aparecerão aqui automaticamente.</p>
+    </div>
+  } @else {
+    <!-- Pódio top 3 -->
+    <app-podium [top3]="top3" />
+
+    <!-- Lista a partir do 4º -->
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Aluno</th>
+            <th>Nível</th>
+            <th>XP no Período</th>
+            <th>XP Total</th>
+            <th>Conquistas</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of restante; track item.alunoId) {
+            <tr [class.minha-linha]="item.alunoId === usuarioLogado?.sub">
+              <td><strong>#{{ item.posicao }}</strong></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div class="presenca-avatar" [style.border-color]="nivelCor(item.nivel)" style="border:2px solid;">{{ avatarInicial(item.nomeAluno) }}</div>
+                  <span class="font-medium">{{ item.nomeAluno }}</span>
+                </div>
+              </td>
+              <td><app-nivel-badge [nivel]="item.nivel" /></td>
+              <td><strong>{{ item.xpPeriodo }}</strong> XP</td>
+              <td>{{ item.xpTotal }} XP</td>
+              <td>🏅 {{ item.totalConquistas }}</td>
+              <td><a [routerLink]="['/app/ranking/perfil', item.alunoId]" class="action-link">Ver perfil</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="summary-card" style="margin-top:12px;">
+      {{ leaderboard()?.totalParticipantes }} participantes · Página {{ leaderboard()?.pagina }} de {{ leaderboard()?.totalPaginas }}
+    </div>
+  }
+</div>
+
+<style>
+  .minha-linha { background: rgba(99,102,241,0.06); font-weight: 600; }
+</style>

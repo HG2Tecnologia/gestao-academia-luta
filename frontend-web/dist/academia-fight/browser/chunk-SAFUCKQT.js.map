@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/features/funcionarios/funcionarios.routes.ts"],
+  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const funcionariosRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/lista/funcionarios-lista.component').then(m => m.FuncionariosListaComponent),\n    title: 'Funcionários — Academia Fight',\n  },\n  {\n    path: 'novo',\n    loadComponent: () =>\n      import('./pages/form/funcionario-form.component').then(m => m.FuncionarioFormComponent),\n    title: 'Novo Funcionário — Academia Fight',\n  },\n  {\n    path: ':id/editar',\n    loadComponent: () =>\n      import('./pages/form/funcionario-form.component').then(m => m.FuncionarioFormComponent),\n    title: 'Editar Funcionário — Academia Fight',\n  },\n];\n"],
+  "mappings": ";;;AAEO,IAAM,qBAA6B;EACxC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA4C,EAAE,KAAK,OAAK,EAAE,0BAA0B;IAC7F,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAyC,EAAE,KAAK,OAAK,EAAE,wBAAwB;IACxF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAyC,EAAE,KAAK,OAAK,EAAE,wBAAwB;IACxF,OAAO;;;",
+  "names": []
+}

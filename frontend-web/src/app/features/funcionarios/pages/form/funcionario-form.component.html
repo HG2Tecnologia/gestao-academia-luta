@@ -1,0 +1,103 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">{{ editandoId() ? 'Editar Funcionário' : 'Novo Funcionário' }}</h1>
+    <a routerLink="/app/funcionarios" class="btn-secondary">← Voltar</a>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+  } @else {
+    @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
+
+    <form [formGroup]="form" (ngSubmit)="salvar()" class="form-card">
+      <!-- Nome + Telefone -->
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">Nome completo *</label>
+          <input formControlName="nome" class="form-input" placeholder="Nome do funcionário" />
+          @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
+            <span class="form-error">Nome é obrigatório (mínimo 3 caracteres)</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone *</label>
+          <input formControlName="telefone" class="form-input" placeholder="(11) 99999-9999"
+            (input)="mascaraTelefone($event)" inputmode="numeric" />
+          @if (form.get('telefone')?.invalid && form.get('telefone')?.touched) {
+            <span class="form-error">Telefone é obrigatório</span>
+          }
+        </div>
+      </div>
+
+      <!-- E-mail + Cargo + Perfil -->
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">E-mail</label>
+          <input formControlName="email" type="email" class="form-input" placeholder="email@academia.com" />
+          @if (form.get('email')?.invalid && form.get('email')?.touched) {
+            <span class="form-error">E-mail inválido</span>
+          }
+        </div>
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">Cargo *</label>
+          <input formControlName="cargo" class="form-input" placeholder="Ex: Professor de Jiu-Jitsu" />
+          @if (form.get('cargo')?.invalid && form.get('cargo')?.touched) {
+            <span class="form-error">Cargo é obrigatório</span>
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Perfil *</label>
+          <select formControlName="perfil" class="form-input">
+            <option value="Admin">Admin</option>
+            <option value="Professor">Professor</option>
+            <option value="Recepcionista">Recepcionista</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title">Permissões de acesso</div>
+      <div class="permissoes-grid" formGroupName="permissoes">
+        @for (modulo of modulos; track modulo) {
+          <label class="perm-item">
+            <input type="checkbox" [formControlName]="modulo" />
+            <span>{{ modulo }}</span>
+          </label>
+        }
+      </div>
+
+      @if (editandoId()) {
+        <div class="form-group" style="margin-top:16px;">
+          <label class="toggle-label">
+            <div class="toggle-switch">
+              <input formControlName="ativo" type="checkbox" />
+              <span class="toggle-slider"></span>
+            </div>
+            Funcionário ativo
+          </label>
+        </div>
+      }
+
+      <div class="form-actions">
+        <a routerLink="/app/funcionarios" class="btn-secondary">Cancelar</a>
+        <button type="submit" class="btn-primary" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando...' : 'Salvar' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>
+
+<style>
+  .form-section-title { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; }
+  .form-error { font-size: 12px; color: var(--color-danger, #ef4444); margin-top: 4px; display: block; }
+  .permissoes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .perm-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .perm-item:has(input:checked) { border-color: var(--color-primary, #6366f1); background: rgba(99,102,241,0.08); }
+  .toggle-label { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--color-border); border-radius: 99px; transition: background 0.2s; cursor: pointer; }
+  .toggle-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--color-primary, #6366f1); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+</style>

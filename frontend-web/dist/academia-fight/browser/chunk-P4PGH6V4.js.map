@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/core/services/usuario.service.ts"],
+  "sourcesContent": ["import { Injectable, inject } from '@angular/core';\nimport { HttpClient } from '@angular/common/http';\nimport { Observable } from 'rxjs';\nimport { environment } from '../../../environments/environment';\nimport { UsuarioResumoDto } from '../models/usuario.model';\n\ninterface ApiResponse<T> { sucesso: boolean; mensagem?: string; dados?: T; }\n\n@Injectable({ providedIn: 'root' })\nexport class UsuarioService {\n  private readonly http = inject(HttpClient);\n  private readonly base = `${environment.apiUrl}/api/usuarios`;\n\n  getProfessores(): Observable<ApiResponse<UsuarioResumoDto[]>> {\n    return this.http.get<ApiResponse<UsuarioResumoDto[]>>(`${this.base}/professores`);\n  }\n}\n"],
+  "mappings": ";;;;;;;;;;AASM,IAAO,iBAAP,MAAO,gBAAc;EAD3B,cAAA;AAEmB,SAAA,OAAO,OAAO,UAAU;AACxB,SAAA,OAAO,GAAG,YAAY,MAAM;;EAE7C,iBAAc;AACZ,WAAO,KAAK,KAAK,IAAqC,GAAG,KAAK,IAAI,cAAc;EAClF;;;uBANW,iBAAc;IAAA;EAAA;;4EAAd,iBAAc,SAAd,gBAAc,WAAA,YADD,OAAM,CAAA;EAAA;;",
+  "names": []
+}

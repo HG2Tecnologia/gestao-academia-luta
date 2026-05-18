@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/features/configuracoes/configuracoes.routes.ts"],
+  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const configuracoesRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/geral/configuracoes-geral.component').then(m => m.ConfiguracoesGeralComponent),\n    title: 'Configurações — Academia Fight',\n  },\n];\n"],
+  "mappings": ";;;AAEO,IAAM,sBAA8B;EACzC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA6C,EAAE,KAAK,OAAK,EAAE,2BAA2B;IAC/F,OAAO;;;",
+  "names": []
+}

@@ -1,0 +1,523 @@
+<div class="lp">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a routerLink="/" class="brand">
+        <span class="brand-mark">T</span>
+        Tatame
+      </a>
+      <div class="nav-links">
+        <a href="#problema">Problema</a>
+        <a href="#recursos">Recursos</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#precos">Preços</a>
+        <a href="#depoimentos">Clientes</a>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-ghost" routerLink="/login" style="padding: 10px 16px; font-size: 14px">Entrar</a>
+        <a class="btn btn-primary" routerLink="/cadastro" style="padding: 10px 18px; font-size: 14px">Começar grátis →</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero container">
+    <div class="hero-grid">
+      <!-- Left -->
+      <div>
+        <div class="badge"><span class="dot"></span>Novo · 30 dias grátis</div>
+        <h1 class="hero-headline h-display">
+          A academia que para de<br>
+          <em>perder alunos.</em>
+        </h1>
+        <p class="hero-sub lead">
+          O sistema completo pra academias de luta que querem crescer sem virar planilha. Cobrança automática, ranking gamificado e dashboard que mostra exatamente onde você está perdendo dinheiro.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" routerLink="/cadastro">Começar 30 dias grátis →</a>
+          <a class="btn btn-ghost btn-lg" href="#dash">Ver demonstração</a>
+        </div>
+        <div class="hero-trust">
+          <div class="avatar-stack">
+            <span class="avatar">MT</span>
+            <span class="avatar">AB</span>
+            <span class="avatar">RV</span>
+            <span class="avatar">CR</span>
+            <span class="avatar" style="background: var(--accent); color: #0a0a0a">+</span>
+          </div>
+          <div>
+            <div class="stars">★★★★★</div>
+            <div style="color: var(--fg-2)">4.9/5 · <strong>+540 academias</strong> usando agora</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Mockup -->
+      <div id="dash" data-reveal>
+        <div class="dash">
+          <div class="dash-chrome">
+            <div class="dash-dots"><span></span><span></span><span></span></div>
+            <div class="dash-url">app.tatame.com.br/dashboard</div>
+            <div style="width: 56px"></div>
+          </div>
+          <div class="dash-body">
+            <aside class="dash-sidebar">
+              <div class="dash-side-brand">
+                <span class="brand-mark" style="width:18px;height:18px;font-size:11px">T</span>
+                Tatame
+              </div>
+              <div class="dash-side-section">Geral</div>
+              <div class="dash-side-item active">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v10h14V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Dashboard
+              </div>
+              <div class="dash-side-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21v-1a7 7 0 0 1 14 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Alunos
+              </div>
+              <div class="dash-side-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Aulas
+              </div>
+              <div class="dash-side-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+                Financeiro
+              </div>
+              <div class="dash-side-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4zM7 4H4v3a3 3 0 0 0 3 3M17 4h3v3a3 3 0 0 1-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Ranking
+              </div>
+            </aside>
+            <main class="dash-main">
+              <div class="dash-h">
+                <div>
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--fg-3);letter-spacing:0.08em;text-transform:uppercase">Olá, Mestre Carlos</div>
+                  <div class="dash-title">Visão Geral · Maio 2026</div>
+                </div>
+                <div class="badge" style="padding:4px 10px;font-size:9px"><span class="dot"></span>Ao vivo</div>
+              </div>
+              <div class="dash-stats">
+                @for (stat of dashStats(); track stat.label) {
+                  <div class="dash-stat">
+                    <div class="label">{{ stat.label }}</div>
+                    <div class="val">{{ stat.val }}</div>
+                    <div class="delta">{{ stat.delta }} vs. anterior</div>
+                  </div>
+                }
+              </div>
+              <div class="dash-chart">
+                <div class="chart-h">
+                  <div class="label">Frequência semanal</div>
+                  <div class="label">Últimos 12 dias</div>
+                </div>
+                <div class="chart-bars">
+                  @for (bar of bars(); track $index) {
+                    <div class="chart-bar" [style.height.%]="bar"></div>
+                  }
+                </div>
+              </div>
+              <div class="dash-list">
+                <div class="dash-list-h">Pagamentos recentes</div>
+                <div class="dash-list-row">
+                  <span>Bruno Yamamoto · Faixa Roxa</span>
+                  <span style="color:var(--fg-3);font-family:var(--mono);font-size:11px">R$ 280</span>
+                  <span class="pill paid">Pago</span>
+                </div>
+                <div class="dash-list-row">
+                  <span>Letícia Andrade · Faixa Azul</span>
+                  <span style="color:var(--fg-3);font-family:var(--mono);font-size:11px">R$ 280</span>
+                  <span class="pill paid">Pago</span>
+                </div>
+                <div class="dash-list-row">
+                  <span>Rafael Costa · Faixa Branca</span>
+                  <span style="color:var(--fg-3);font-family:var(--mono);font-size:11px">R$ 220</span>
+                  <span class="pill due">Em aberto</span>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee">
+    <div class="marquee-track">
+      @for (item of disciplinasMarquee; track $index) {
+        <span class="marquee-item">{{ item }}</span>
+      }
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section id="problema" class="section">
+    <div class="container">
+      <div class="section-num">01 — O Problema</div>
+      <div class="two-col-head">
+        <h2 class="h-1" data-reveal>
+          Você abriu uma academia<br>
+          pra <em style="font-style:normal;color:var(--accent)">treinar</em>.<br>
+          Não pra cobrar boleto.
+        </h2>
+        <p class="lead" data-reveal>
+          Toda semana é a mesma coisa: aluno some, mensalidade atrasa, planilha quebra, professor liga pedindo lista. O dinheiro escorre e você nem percebe onde.
+        </p>
+      </div>
+      <div class="problem-grid" data-reveal>
+        @for (p of problemas; track p.num) {
+          <div class="problem-card">
+            <span class="num">{{ p.num }}</span>
+            <div class="title">{{ p.title }}</div>
+            <div class="body">{{ p.body }}</div>
+            <div class="strike">{{ p.strike }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- SOLUTION -->
+  <section class="section">
+    <div class="container">
+      <div class="section-num">02 — A Solução</div>
+      <div class="solution-split">
+        <div>
+          <h2 class="h-1" data-reveal>
+            Um sistema que <em style="font-style:normal;color:var(--accent)">cuida</em> da academia<br>
+            enquanto você cuida do tatame.
+          </h2>
+          <p class="lead" style="margin-top: 28px" data-reveal>
+            Tatame é a única plataforma feita exclusivamente pra academias de luta. Cobra sozinho, engaja seus alunos, e mostra todo dia onde você pode crescer.
+          </p>
+          <div class="transform-list" data-reveal>
+            @for (row of transforms; track $index) {
+              <div class="transform-row">
+                <div class="from">{{ row[0] }}</div>
+                <div class="arrow">→</div>
+                <div class="to">{{ row[1] }}</div>
+              </div>
+            }
+          </div>
+        </div>
+        <div data-reveal>
+          <div class="img-ph">
+            <span>ATLETA · TREINO</span>
+            <span style="align-self:flex-end">JIU-JITSU</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="recursos" class="section">
+    <div class="container">
+      <div class="section-num">03 — Recursos</div>
+      <div class="two-col-head">
+        <h2 class="h-1" data-reveal>
+          Tudo que sua academia precisa.<br>
+          <em style="font-style:normal;color:var(--accent)">Nada que ela não usa.</em>
+        </h2>
+        <p class="lead" data-reveal>
+          Cinco ferramentas que conversam entre si. Você abre uma vez de manhã e pronto — sua operação inteira está sob controle.
+        </p>
+      </div>
+
+      <div class="features-grid" data-reveal>
+        <div class="feature-card span-3 tall">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21v-1a7 7 0 0 1 14 0v1M21 21v-1a5 5 0 0 0-3-4.58" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="feat-title">Gestão de alunos completa</div>
+          <div class="feat-body">Cadastro com foto, contato, faixa, graduação, histórico médico, contrato digital assinado. Tudo num só lugar, acessível em qualquer dispositivo.</div>
+          <div style="background:var(--bg-3);border:1px solid var(--line);border-radius:8px;padding:20px;flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:0.08em;text-transform:uppercase">
+            CARDS DE ALUNOS · UI
+          </div>
+        </div>
+
+        <div class="feature-card span-3 tall">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4zM7 4H4v3a3 3 0 0 0 3 3M17 4h3v3a3 3 0 0 1-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="feat-title">Ranking gamificado ao vivo</div>
+          <div class="feat-body">Pontos por presença, graduação e competição. O aluno vê o ranking no app. Frequência sobe sem você fazer nada.</div>
+          <div class="ranking">
+            <div class="ranking-head">
+              <div class="eyebrow">Ranking · Maio</div>
+              <div class="badge" style="padding:3px 8px;font-size:9px"><span class="dot"></span>Ao vivo</div>
+            </div>
+            @for (row of rankingRows(); track row.name; let i = $index) {
+              <div class="ranking-row" [class.gold]="i === 0" [class.silver]="i === 1" [class.bronze]="i === 2">
+                <span class="pos">{{ i + 1 }}</span>
+                <span>
+                  <div class="rname">{{ row.name }}</div>
+                  <div class="rfaixa">Faixa {{ row.faixa }}</div>
+                </span>
+                <span class="pts">{{ row.pts | number:'1.0-0' }} pts</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="feature-card span-2">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="feat-title">Financeiro automático</div>
+          <div class="feat-body">Pix, cartão e boleto na mesma tela. Cobra sozinho no dia 5, manda lembrete no dia 8, suspende acesso no dia 15. Você só conta o dinheiro.</div>
+        </div>
+
+        <div class="feature-card span-2">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="feat-title">Presença por QR</div>
+          <div class="feat-body">Aluno bate o QR Code no celular ao entrar. Você vê quem treinou hoje, quem sumiu há 7 dias, quem está virando lenda.</div>
+        </div>
+
+        <div class="feature-card span-2">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18M7 14l4-4 4 4 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="feat-title">Dashboard executivo</div>
+          <div class="feat-body">Receita, churn, frequência, projeção de caixa. Os números que importam, atualizados em tempo real, sem precisar de planilha nenhuma.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIFFERENTIALS -->
+  <section class="section" style="background: var(--bg-2)">
+    <div class="container">
+      <div class="section-num">04 — Por que Tatame</div>
+      <h2 class="h-1" data-reveal style="max-width: 16ch">
+        Não é mais um sistema de gestão.<br>
+        É uma <em style="font-style:normal;color:var(--accent)">arma de crescimento</em>.
+      </h2>
+      <div class="diff-grid" data-reveal>
+        @for (d of diferenciais; track d.num) {
+          <div class="diff-row">
+            <div class="diff-num">/ {{ d.num }}</div>
+            <div class="diff-title">{{ d.title }}</div>
+            <div class="diff-body">{{ d.body }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="como-funciona" class="section">
+    <div class="container">
+      <div class="section-num">05 — Como funciona</div>
+      <h2 class="h-1" data-reveal style="max-width: 18ch">
+        Você está rodando<br>em <em style="font-style:normal;color:var(--accent)">menos de 24 horas</em>.
+      </h2>
+      <p class="lead" style="margin-top: 24px" data-reveal>
+        Sem instalação, sem consultor, sem treinamento. A gente migra sua planilha pra você.
+      </p>
+      <div class="steps" data-reveal>
+        @for (p of passos; track p.num) {
+          <div class="step">
+            <span class="step-num">{{ p.num }}</span>
+            <div class="step-title">{{ p.title }}</div>
+            <div class="step-body">{{ p.body }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- BENEFITS + ROI -->
+  <section class="section">
+    <div class="container">
+      <div class="section-num">06 — Resultado</div>
+      <h2 class="h-1" data-reveal style="max-width: 16ch">
+        Em <em style="font-style:normal;color:var(--accent)">90 dias</em> sua academia<br>não vai parecer a mesma.
+      </h2>
+      <div class="benefit-stats" data-reveal>
+        @for (b of beneficios; track b.num) {
+          <div class="benefit-stat">
+            <div class="bnum">{{ b.num }}</div>
+            <div class="blabel">{{ b.label }}</div>
+          </div>
+        }
+      </div>
+
+      <div class="roi-card" data-reveal>
+        <div>
+          <div class="eyebrow" style="margin-bottom: 12px">Calculadora · Quanto você está perdendo</div>
+          <div class="h-2" style="margin-bottom: 28px; font-size: clamp(24px, 3vw, 40px)">Descubra seu ganho mensal.</div>
+
+          <div class="input-row">
+            <label>Alunos hoje <span class="val">{{ roiStudents() }}</span></label>
+            <input class="slider" type="range" min="20" max="500" step="5"
+                   [value]="roiStudents()" (input)="setRoiStudents($event)">
+          </div>
+          <div class="input-row">
+            <label>Mensalidade média <span class="val">R$ {{ roiFee() }}</span></label>
+            <input class="slider" type="range" min="80" max="500" step="10"
+                   [value]="roiFee()" (input)="setRoiFee($event)">
+          </div>
+          <div class="input-row">
+            <label>Inadimplência atual <span class="val">{{ roiDefaultRate() }}%</span></label>
+            <input class="slider" type="range" min="2" max="35" step="1"
+                   [value]="roiDefaultRate()" (input)="setRoiDefault($event)">
+          </div>
+        </div>
+
+        <div class="roi-result">
+          <div class="roi-label">Você ganha por mês</div>
+          <div class="roi-big">{{ fmtBrl(roiResult().total) }}</div>
+          <div style="border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px">
+            <div class="roi-line">
+              <span>Inadimplência recuperada</span>
+              <span>{{ fmtBrl(roiResult().recovered) }}</span>
+            </div>
+            <div class="roi-line">
+              <span>Crescimento ({{ roiResult().newStudents }} novos alunos)</span>
+              <span>{{ fmtBrl(roiResult().growth) }}</span>
+            </div>
+            <div class="roi-line" style="border-top: 1px solid var(--line); color: var(--accent)">
+              <span>Investimento Tatame</span>
+              <span style="font-family:var(--mono)">R$ 149</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="depoimentos" class="section" style="background: var(--bg-2)">
+    <div class="container">
+      <div class="section-num">07 — Quem já treina com a gente</div>
+      <h2 class="h-1" data-reveal style="max-width: 20ch">
+        <em style="font-style:normal;color:var(--accent)">540 academias</em>.<br>
+        +50 mil alunos gerenciados.<br>
+        Zero arrependidos.
+      </h2>
+      <div class="test-wrap">
+        <div class="test-card" data-reveal>
+          <div class="test-quote">{{ testimonialAtivo().quote }}</div>
+          <div class="test-meta">
+            <div class="test-avatar">{{ testimonialAtivo().avatar }}</div>
+            <div>
+              <div class="tname">{{ testimonialAtivo().name }}</div>
+              <div class="trole">{{ testimonialAtivo().role }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="test-nav">
+          <div class="test-dots">
+            @for (t of depoimentos; track t.name; let i = $index) {
+              <button class="test-dot" [class.active]="i === testimonialIdx()"
+                      (click)="testimonialIdx.set(i)"></button>
+            }
+          </div>
+          <div class="test-arrows">
+            <button class="test-arrow" (click)="prevTestimonial()">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="test-arrow" (click)="nextTestimonial()">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="precos" class="section">
+    <div class="container">
+      <div class="section-num">08 — Preços</div>
+      <div style="text-align: center; max-width: 720px; margin: 0 auto">
+        <h2 class="h-1" data-reveal>
+          Um plano. <em style="font-style:normal;color:var(--accent)">Tudo dentro.</em>
+        </h2>
+        <p class="lead" style="margin: 24px auto 0; text-align: center" data-reveal>
+          Sem trial limitado. Sem feature trancada. Sem upgrade forçado. Você paga uma coisa só, simples e justa.
+        </p>
+      </div>
+
+      <div class="pricing-card" data-reveal>
+        <div class="pricing-head">
+          <div>
+            <div class="eyebrow">Plano único · Tudo incluso</div>
+            <div class="h-2" style="margin-top: 8px">Tatame Pro</div>
+          </div>
+          <div class="toggle-period">
+            <button [class.active]="!pricingAnual()" (click)="pricingAnual.set(false)">Mensal</button>
+            <button [class.active]="pricingAnual()" (click)="pricingAnual.set(true)">
+              Anual <span class="save">−20%</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="price-was">de R$ {{ pricingWas() }}/mês</div>
+        <div class="price-row">
+          <span class="price-currency">R$</span>
+          <span class="price-amount">{{ pricingPreco() }}</span>
+          <span class="price-period">/mês{{ pricingAnual() ? ' · cobrado anualmente' : '' }}</span>
+        </div>
+        <p style="color: var(--fg-2); font-size: 16px; line-height: 1.55; max-width: 60ch">
+          Alunos ilimitados. Sem taxa por matrícula. Sem letra miúda. Cancele com um clique se não amar.
+        </p>
+
+        <ul class="feature-list">
+          @for (f of priceFeatures; track f) {
+            <li>
+              <span class="fcheck">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              {{ f }}
+            </li>
+          }
+        </ul>
+
+        <div class="pricing-cta">
+          <a class="btn btn-primary btn-lg" routerLink="/cadastro">Começar 30 dias grátis →</a>
+          <a class="btn btn-ghost btn-lg" routerLink="/cadastro">Falar com vendas</a>
+        </div>
+        <div class="pricing-fine">SEM CARTÃO DE CRÉDITO · MIGRAÇÃO GRÁTIS · SEU TIME EM MENOS DE 24H</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final-cta">
+    <div class="container">
+      <div class="urgency" data-reveal><span class="dot"></span>23 academias começaram esta semana</div>
+      <h2 class="h-display" data-reveal style="margin-top: 24px">
+        Sua academia<br>no <em style="font-style:normal;color:var(--accent)">próximo nível</em>.
+      </h2>
+      <div class="final-cta-actions" data-reveal>
+        <a class="btn btn-primary btn-lg" routerLink="/cadastro">Começar 30 dias grátis →</a>
+        <a class="btn btn-ghost btn-lg" routerLink="/cadastro">Agendar demonstração</a>
+      </div>
+      <div class="final-fine" data-reveal>
+        Sem cartão de crédito · Cancele com 1 clique · Suporte humano em até 2h
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>© 2026 Tatame. Feito por quem treina, pra quem treina.</div>
+      <a routerLink="/" class="brand" style="justify-content: center">
+        <span class="brand-mark">T</span>
+        Tatame
+      </a>
+      <div class="footer-links">
+        <a href="#">Termos</a>
+        <a href="#">Privacidade</a>
+        <a href="#">Suporte</a>
+      </div>
+    </div>
+  </footer>
+
+</div>

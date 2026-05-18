@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;db653c97524f0591e7fae656576798f627b63cd89949c420699f3feaac533dbc;/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/frontend-web/src/app/shared/components/nivel-badge/nivel-badge.component.ts"],
+  "sourcesContent": ["\n    .nivel-badge {\n      display: inline-flex; align-items: center; gap: 4px;\n      padding: 2px 8px; border-radius: 99px; font-size: 0.7rem; font-weight: 600;\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AAAa,eAAa;AAAQ,OAAK;AAChD,WAAS,IAAI;AAAK,iBAAe;AAAM,aAAW;AAAQ,eAAa;AACzE;",
+  "names": []
+}

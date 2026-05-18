@@ -1,0 +1,158 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Grade de Horários</h1>
+      <p class="page-subtitle">Visão semanal das aulas</p>
+    </div>
+    <button class="btn-primary" (click)="abrirModal()">+ Novo Horário</button>
+  </div>
+
+  @if (carregando()) {
+    <div class="skeleton-grade"><div class="skeleton-row" style="height:200px"></div></div>
+  } @else if (erro()) {
+    <div class="error-card"><p>{{ erro() }}</p><button class="btn-secondary" (click)="carregar()">Tentar novamente</button></div>
+  } @else {
+    <div class="grade-semanal">
+      @for (dia of diasOrdem; track dia) {
+        <div class="grade-coluna">
+          <div class="grade-header">{{ dia }}</div>
+          <div class="grade-aulas">
+            @for (h of getDia(dia); track h.id) {
+              <div
+                class="aula-card"
+                [style.border-left-color]="corModalidade(h.nomeModalidade)"
+                (click)="selecionar(h)"
+              >
+                <div class="aula-hora">{{ h.horaInicio }} – {{ h.horaFim }}</div>
+                <div class="aula-nome">{{ h.nomeTurma }}</div>
+                <div class="aula-meta">{{ h.nomeModalidade }}</div>
+                <div class="aula-ocupacao">{{ h.totalAlunos }}/{{ h.capacidadeMaxima }}</div>
+                @if (h.sala) { <div class="aula-sala">{{ h.sala }}</div> }
+              </div>
+            }
+            @if (getDia(dia).length === 0) {
+              <div class="grade-vazio">—</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (horarioSelecionado()) {
+    <div class="drawer-backdrop" (click)="fecharModal()"></div>
+    <div class="drawer">
+      <div class="drawer-header">
+        <h3>{{ horarioSelecionado()!.nomeTurma }}</h3>
+        <button class="drawer-close" (click)="fecharModal()">✕</button>
+      </div>
+
+      @if (!modoEdicao()) {
+        <div class="drawer-body">
+          <p><strong>Modalidade:</strong> {{ horarioSelecionado()!.nomeModalidade }}</p>
+          <p><strong>Professor:</strong> {{ horarioSelecionado()!.nomeProfessor }}</p>
+          <p><strong>Dia:</strong> {{ horarioSelecionado()!.diaSemanaLabel }}</p>
+          <p><strong>Horário:</strong> {{ horarioSelecionado()!.horaInicio }} – {{ horarioSelecionado()!.horaFim }}</p>
+          @if (horarioSelecionado()!.sala) { <p><strong>Sala:</strong> {{ horarioSelecionado()!.sala }}</p> }
+          <p><strong>Alunos:</strong> {{ horarioSelecionado()!.totalAlunos }}/{{ horarioSelecionado()!.capacidadeMaxima }}</p>
+        </div>
+        <div class="drawer-actions">
+          <button class="btn-danger" (click)="remover(horarioSelecionado()!.id)">Remover</button>
+          <button class="btn-secondary" (click)="abrirEdicao()">Editar</button>
+        </div>
+      } @else {
+        <form [formGroup]="formEdicao" (ngSubmit)="salvarEdicao()" class="drawer-body">
+          @if (erroEdicao()) { <div class="alert-error" style="margin-bottom:12px;">{{ erroEdicao() }}</div> }
+          <div class="form-group">
+            <label class="form-label">Turma *</label>
+            <select formControlName="turmaId" class="form-input">
+              @for (t of turmas(); track t.id) {
+                <option [value]="t.id">{{ t.nome }} · {{ t.modalidadeNome }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Início *</label>
+              <input formControlName="horaInicio" type="time" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fim *</label>
+              <input formControlName="horaFim" type="time" class="form-input" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sala</label>
+            <input formControlName="sala" class="form-input" placeholder="Ex: Tatame A" />
+          </div>
+          <div class="drawer-actions">
+            <button type="button" class="btn-secondary" (click)="cancelarEdicao()">Cancelar</button>
+            <button type="submit" class="btn-primary" [disabled]="salvandoEdicao()">
+              {{ salvandoEdicao() ? 'Salvando...' : 'Salvar alterações' }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+  }
+
+  @if (modalAberto()) {
+    <div class="modal-backdrop" (click)="fecharModal()"></div>
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Novo Horário</h3>
+        <button class="modal-close" (click)="fecharModal()">✕</button>
+      </div>
+      @if (erroForm()) {
+        <div class="alert-error">{{ erroForm() }}</div>
+      }
+      <form [formGroup]="form" (ngSubmit)="salvar()" class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Turma *</label>
+          <select formControlName="turmaId" class="form-input">
+            <option value="">Selecione a turma</option>
+            @for (t of turmas(); track t.id) {
+              <option [value]="t.id">{{ t.nome }} · {{ t.modalidadeNome }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dias da Semana *</label>
+          <div class="dias-chips">
+            @for (d of diasOpcoes; track d.value) {
+              <button
+                type="button"
+                class="dia-chip"
+                [class.selected]="isDiaSelecionado(d.value)"
+                (click)="toggleDia(d.value)">
+                {{ d.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Sala</label>
+            <input formControlName="sala" class="form-input" placeholder="Ex: Tatame A" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Início *</label>
+            <input formControlName="horaInicio" type="time" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fim *</label>
+            <input formControlName="horaFim" type="time" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="salvando()">
+            {{ salvando() ? 'Salvando...' : 'Criar Horário' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>
