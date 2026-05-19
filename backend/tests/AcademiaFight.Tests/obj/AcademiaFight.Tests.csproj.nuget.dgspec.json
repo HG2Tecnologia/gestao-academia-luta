@@ -1,0 +1,425 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/AcademiaFight.Tests.csproj": {}
+  },
+  "projects": {
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj",
+        "projectName": "AcademiaFight.API",
+        "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj",
+        "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
+        "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj"
+              },
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
+              },
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Hangfire.AspNetCore": {
+              "target": "Package",
+              "version": "[1.8.14, )"
+            },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[7.2.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
+        "projectName": "AcademiaFight.Application",
+        "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
+        "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
+        "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
+        "projectName": "AcademiaFight.Domain",
+        "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
+        "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
+        "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
+        "projectName": "AcademiaFight.Infrastructure",
+        "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
+        "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
+        "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj"
+              },
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            },
+            "Hangfire.Core": {
+              "target": "Package",
+              "version": "[1.8.14, )"
+            },
+            "Hangfire.PostgreSql": {
+              "target": "Package",
+              "version": "[1.20.9, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.4, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/AcademiaFight.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/AcademiaFight.Tests.csproj",
+        "projectName": "AcademiaFight.Tests",
+        "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/AcademiaFight.Tests.csproj",
+        "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
+        "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj": {
+                "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Hangfire.InMemory": {
+              "target": "Package",
+              "version": "[0.10.0, )"
+            },
+            "Microsoft.AspNetCore.Mvc.Testing": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Microsoft.EntityFrameworkCore.InMemory": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.12.0, )"
+            },
+            "coverlet.collector": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[6.0.4, )"
+            },
+            "xunit": {
+              "target": "Package",
+              "version": "[2.9.3, )"
+            },
+            "xunit.runner.visualstudio": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[3.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

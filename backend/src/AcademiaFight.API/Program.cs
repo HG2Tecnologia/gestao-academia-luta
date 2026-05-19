@@ -205,3 +205,6 @@ RecurringJob.AddOrUpdate<RankingMensalResetJob>(
     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();
+
+// Necessário para WebApplicationFactory nos testes de integração
+public partial class Program { }
