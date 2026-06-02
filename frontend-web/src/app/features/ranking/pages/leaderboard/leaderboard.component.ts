@@ -1,100 +1,250 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { RankingService } from '../../../../core/services/ranking.service';
-import { TurmaService } from '../../../../core/services/turma.service';
+import { AlunoService } from '../../../../core/services/aluno.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { SignalrService } from '../../../../core/services/signalr.service';
-import { LeaderboardDto, LeaderboardItemDto, NIVEL_CONFIG } from '../../../../core/models/ranking.model';
-import { NivelBadgeComponent } from '../../../../shared/components/nivel-badge/nivel-badge.component';
-import { PodiumComponent } from '../../../../shared/components/podium/podium.component';
+import { LeaderboardCustomDto, LancamentoPontoDto, RankingCustomDto } from '../../../../core/models/ranking.model';
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NivelBadgeComponent, PodiumComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './leaderboard.component.html',
 })
-export class LeaderboardComponent implements OnInit, OnDestroy {
-  periodo = signal<'mensal' | 'historico'>('mensal');
-  turmaId = signal<string>('');
-  leaderboard = signal<LeaderboardDto | null>(null);
-  turmas = signal<any[]>([]);
+export class LeaderboardComponent implements OnInit {
+  rankings = signal<RankingCustomDto[]>([]);
+  rankingSelecionado = signal<RankingCustomDto | null>(null);
+  leaderboard = signal<LeaderboardCustomDto | null>(null);
+  lancamentos = signal<LancamentoPontoDto[]>([]);
+  alunos = signal<any[]>([]);
+
   carregando = signal(true);
+  carregandoLb = signal(false);
+  carregandoLanc = signal(false);
   erro = signal('');
+
+  // Modais
+  showModalCriar = signal(false);
+  showModalPontuar = signal(false);
+  showLancamentos = signal(false);
+  salvando = signal(false);
+  erroModal = signal('');
+
+  formCriar = this.fb.group({
+    nome: ['', Validators.required],
+    descricao: [''],
+    incluirPresencas: [true],
+    incluirPontosManuais: [true],
+    pesoPresencas: [1, [Validators.required, Validators.min(1)]],
+    pesoManuais: [1, [Validators.required, Validators.min(1)]],
+    visivelParaAluno: [true],
+    dataInicio: [''],
+    dataFim: [''],
+  });
+
+  formPontuar = this.fb.group({
+    alunoId: ['', Validators.required],
+    pontos: [1, [Validators.required, Validators.min(1)]],
+    descricao: [''],
+  });
+
+  editandoId = signal<string | null>(null);
 
   constructor(
     private rankingService: RankingService,
-    private turmaService: TurmaService,
+    private alunoService: AlunoService,
     readonly authService: AuthService,
-    private signalr: SignalrService,
+    private fb: FormBuilder,
   ) {}
 
   ngOnInit(): void {
-    this.turmaService.getAll({ ativo: true }).subscribe(r => this.turmas.set(r.dados ?? []));
-    this.carregar();
-    this.conectarSignalR();
+    this.carregarRankings();
+    this.carregarAlunos();
   }
 
-  ngOnDestroy(): void {
-    this.signalr.stopConnection();
+  get isAdmin(): boolean { return this.authService.currentUser()?.perfil === 'Admin'; }
+  get isProfessor(): boolean {
+    const p = this.authService.currentUser()?.perfil;
+    return p === 'Professor' || p === 'Admin';
   }
 
-  private conectarSignalR(): void {
-    const user = this.authService.currentUser();
-    if (!user) return;
-    const token = localStorage.getItem('af_access_token') ?? '';
-    const academiaId = user.academia_id ?? '';
-    if (!academiaId) return;
-
-    this.signalr.startConnection(academiaId, token)
-      .then(() => {
-        this.signalr.onRankingAtualizado(item => {
-          const lb = this.leaderboard();
-          if (!lb) return;
-          const items = lb.items.map(i => i.alunoId === item.alunoId ? { ...i, ...item } : i);
-          this.leaderboard.set({ ...lb, items });
-        });
-      })
-      .catch(() => {
-        // SignalR failure is non-blocking — data loading continues regardless
-      });
-  }
-
-  carregar(): void {
+  carregarRankings(): void {
     this.carregando.set(true);
-    this.erro.set('');
-
-    const obs = this.turmaId()
-      ? this.rankingService.getLeaderboardTurma(this.turmaId(), this.periodo())
-      : this.rankingService.getLeaderboardAcademia(this.periodo());
-
-    obs.subscribe({
-      next: lb => {
-        this.leaderboard.set(lb);
-        this.carregando.set(false);
-      },
-      error: (err) => {
-        const status = err?.status ?? 0;
-        if (status === 0) {
-          this.erro.set('Não foi possível conectar ao servidor.');
-        } else {
-          this.erro.set(`Erro ao carregar ranking (${status}).`);
+    this.rankingService.listarRankingsCustom(this.isAdmin).subscribe({
+      next: list => {
+        this.rankings.set(list);
+        if (list.length > 0 && !this.rankingSelecionado()) {
+          this.selecionarRanking(list[0]);
         }
         this.carregando.set(false);
       },
+      error: () => { this.erro.set('Erro ao carregar rankings.'); this.carregando.set(false); },
     });
   }
 
-  get top3(): LeaderboardItemDto[] { return this.leaderboard()?.items.slice(0, 3) ?? []; }
-  get restante(): LeaderboardItemDto[] { return this.leaderboard()?.items.slice(3) ?? []; }
+  selecionarRanking(r: RankingCustomDto): void {
+    this.rankingSelecionado.set(r);
+    this.leaderboard.set(null);
+    this.showLancamentos.set(false);
+    this.carregarLeaderboard(r.id);
+  }
 
-  alternarPeriodo(p: 'mensal' | 'historico'): void { this.periodo.set(p); this.carregar(); }
-  alternarTurma(id: string): void { this.turmaId.set(id); this.carregar(); }
+  carregarLeaderboard(id: string): void {
+    this.carregandoLb.set(true);
+    this.rankingService.getLeaderboardCustom(id).subscribe({
+      next: lb => { this.leaderboard.set(lb); this.carregandoLb.set(false); },
+      error: () => this.carregandoLb.set(false),
+    });
+  }
 
-  avatarInicial(nome: string): string { return (nome ?? 'U').charAt(0).toUpperCase(); }
-  nivelCor(nivel: string): string { return NIVEL_CONFIG[nivel]?.cor ?? '#6366f1'; }
+  carregarLancamentos(): void {
+    const r = this.rankingSelecionado();
+    if (!r) return;
+    this.carregandoLanc.set(true);
+    this.rankingService.listarLancamentos(r.id).subscribe({
+      next: list => { this.lancamentos.set(list); this.carregandoLanc.set(false); },
+      error: () => this.carregandoLanc.set(false),
+    });
+  }
 
-  get usuarioLogado() { return this.authService.currentUser(); }
+  toggleLancamentos(): void {
+    this.showLancamentos.update(v => !v);
+    if (this.showLancamentos() && this.lancamentos().length === 0) {
+      this.carregarLancamentos();
+    }
+  }
+
+  carregarAlunos(): void {
+    this.alunoService.getAll({ ativo: true, page: 1, pageSize: 500 }).subscribe({
+      next: r => this.alunos.set((r.dados as any)?.itens ?? r.dados ?? []),
+      error: () => {},
+    });
+  }
+
+  // ─── Modal Criar/Editar ───────────────────────────────────────────────────
+
+  abrirCriar(): void {
+    this.editandoId.set(null);
+    this.formCriar.reset({
+      nome: '', descricao: '', incluirPresencas: true, incluirPontosManuais: true,
+      pesoPresencas: 1, pesoManuais: 1, visivelParaAluno: true, dataInicio: '', dataFim: '',
+    });
+    this.erroModal.set('');
+    this.showModalCriar.set(true);
+  }
+
+  abrirEditar(r: RankingCustomDto): void {
+    this.editandoId.set(r.id);
+    this.formCriar.patchValue({
+      nome: r.nome,
+      descricao: r.descricao ?? '',
+      incluirPresencas: r.incluirPresencas,
+      incluirPontosManuais: r.incluirPontosManuais,
+      pesoPresencas: r.pesoPresencas,
+      pesoManuais: r.pesoManuais,
+      visivelParaAluno: r.visivelParaAluno,
+      dataInicio: r.dataInicio ?? '',
+      dataFim: r.dataFim ?? '',
+    });
+    this.erroModal.set('');
+    this.showModalCriar.set(true);
+  }
+
+  salvarRanking(): void {
+    if (this.formCriar.invalid) return;
+    this.salvando.set(true);
+    this.erroModal.set('');
+    const v = this.formCriar.value;
+    const payload = {
+      nome: v.nome!, descricao: v.descricao || undefined,
+      incluirPresencas: v.incluirPresencas!, incluirPontosManuais: v.incluirPontosManuais!,
+      pesoPresencas: v.pesoPresencas!, pesoManuais: v.pesoManuais!,
+      visivelParaAluno: v.visivelParaAluno!,
+      dataInicio: v.dataInicio || undefined, dataFim: v.dataFim || undefined,
+      ativo: true,
+    };
+
+    const editId = this.editandoId();
+    const obs = editId
+      ? this.rankingService.atualizarRankingCustom(editId, payload)
+      : this.rankingService.criarRankingCustom(payload);
+
+    obs.subscribe({
+      next: () => { this.salvando.set(false); this.showModalCriar.set(false); this.carregarRankings(); },
+      error: (e) => { this.salvando.set(false); this.erroModal.set(e?.error?.mensagem ?? 'Erro ao salvar'); },
+    });
+  }
+
+  desativarRanking(r: RankingCustomDto): void {
+    if (!confirm(`Desativar o ranking "${r.nome}"?`)) return;
+    this.rankingService.desativarRankingCustom(r.id).subscribe({
+      next: () => this.carregarRankings(),
+      error: () => {},
+    });
+  }
+
+  // ─── Modal Pontuar ────────────────────────────────────────────────────────
+
+  abrirPontuar(): void {
+    this.formPontuar.reset({ alunoId: '', pontos: 1, descricao: '' });
+    this.erroModal.set('');
+    this.showModalPontuar.set(true);
+  }
+
+  salvarPontos(): void {
+    if (this.formPontuar.invalid) return;
+    const r = this.rankingSelecionado();
+    if (!r) return;
+    this.salvando.set(true);
+    this.erroModal.set('');
+    const v = this.formPontuar.value;
+    this.rankingService.lancarPontos(r.id, {
+      alunoId: v.alunoId!,
+      pontos: v.pontos!,
+      descricao: v.descricao || undefined,
+    }).subscribe({
+      next: () => {
+        this.salvando.set(false);
+        this.showModalPontuar.set(false);
+        this.carregarLeaderboard(r.id);
+        this.lancamentos.set([]);
+      },
+      error: (e) => { this.salvando.set(false); this.erroModal.set(e?.error?.mensagem ?? 'Erro ao lançar'); },
+    });
+  }
+
+  removerLancamento(id: string): void {
+    if (!confirm('Remover este lançamento?')) return;
+    this.rankingService.removerLancamento(id).subscribe({
+      next: () => {
+        this.lancamentos.update(list => list.filter(l => l.id !== id));
+        const r = this.rankingSelecionado();
+        if (r) this.carregarLeaderboard(r.id);
+      },
+      error: () => {},
+    });
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+
+  medalha(pos: number): string {
+    if (pos === 1) return '🥇';
+    if (pos === 2) return '🥈';
+    if (pos === 3) return '🥉';
+    return `#${pos}`;
+  }
+
+  fmtData(d?: string): string {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+  }
+
+  tagPeriodo(r: RankingCustomDto): string {
+    if (!r.dataInicio && !r.dataFim) return '';
+    const i = r.dataInicio ? this.fmtData(r.dataInicio) : '...';
+    const f = r.dataFim ? this.fmtData(r.dataFim) : '...';
+    return `${i} → ${f}`;
+  }
 }

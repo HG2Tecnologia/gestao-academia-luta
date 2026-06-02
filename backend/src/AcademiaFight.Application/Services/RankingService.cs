@@ -2,6 +2,7 @@ using AcademiaFight.Application.DTOs.Ranking;
 using AcademiaFight.Application.Interfaces;
 using AcademiaFight.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using AcademiaFight.Domain.Enums;
 
 namespace AcademiaFight.Application.Services;
 
@@ -35,6 +36,89 @@ public class RankingService : IRankingService
             .ToListAsync(ct);
 
         return await BuildLeaderboard(alunoIds, periodo, pagina, ct);
+    }
+
+    public async Task<LeaderboardPresencaDto?> GetLeaderboardModalidadeAsync(Guid modalidadeId, int pagina = 1, DateOnly? dataInicio = null, DateOnly? dataFim = null, CancellationToken ct = default)
+    {
+        var modalidade = await _db.Modalidades.FirstOrDefaultAsync(m => m.Id == modalidadeId, ct);
+        if (modalidade is null) return null;
+
+        var alunoIds = await _db.Matriculas
+            .Where(m => m.Ativo)
+            .Join(_db.Turmas.Where(t => t.ModalidadeId == modalidadeId && t.Ativo),
+                  m => m.TurmaId, t => t.Id, (m, t) => m.AlunoId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return await BuildLeaderboardPresencas(alunoIds, "modalidade", modalidade.Nome, pagina, dataInicio, dataFim, ct);
+    }
+
+    public async Task<LeaderboardPresencaDto> GetLeaderboardPresencasTurmaAsync(Guid turmaId, int pagina = 1, DateOnly? dataInicio = null, DateOnly? dataFim = null, CancellationToken ct = default)
+    {
+        var turma = await _db.Turmas
+            .Include(t => t.Modalidade)
+            .FirstOrDefaultAsync(t => t.Id == turmaId, ct);
+
+        var alunoIds = await _db.Matriculas
+            .Where(m => m.TurmaId == turmaId && m.Ativo)
+            .Select(m => m.AlunoId)
+            .ToListAsync(ct);
+
+        var nomeEscopo = turma is not null
+            ? $"{turma.Modalidade?.Nome} — {turma.Nome}"
+            : "Turma";
+
+        return await BuildLeaderboardPresencas(alunoIds, "turma", nomeEscopo, pagina, dataInicio, dataFim, ct);
+    }
+
+    private async Task<LeaderboardPresencaDto> BuildLeaderboardPresencas(
+        List<Guid> alunoIds, string escopo, string nomeEscopo, int pagina,
+        DateOnly? dataInicio, DateOnly? dataFim, CancellationToken ct)
+    {
+        var alunos = await _db.Usuarios
+            .Where(u => alunoIds.Contains(u.Id) && u.Ativo)
+            .Select(u => new { u.Id, u.Nome })
+            .ToListAsync(ct);
+
+        var qPresencas = _db.Presencas.Where(p => alunoIds.Contains(p.AlunoId));
+        if (dataInicio.HasValue) qPresencas = qPresencas.Where(p => p.Data >= dataInicio.Value);
+        if (dataFim.HasValue)   qPresencas = qPresencas.Where(p => p.Data <= dataFim.Value);
+
+        var presencas = await qPresencas
+            .GroupBy(p => p.AlunoId)
+            .Select(g => new { AlunoId = g.Key, Total = g.Count() })
+            .ToDictionaryAsync(x => x.AlunoId, x => x.Total, ct);
+
+        var total = alunos.Count;
+        var totalPaginas = (int)Math.Ceiling((double)total / PageSize);
+
+        var items = alunos
+            .Select(a => new { a.Id, a.Nome, Total = presencas.GetValueOrDefault(a.Id, 0) })
+            .OrderByDescending(x => x.Total)
+            .ThenBy(x => x.Nome)
+            .Skip((pagina - 1) * PageSize)
+            .Take(PageSize)
+            .Select((x, i) => new LeaderboardPresencaItemDto
+            {
+                Posicao = (pagina - 1) * PageSize + i + 1,
+                AlunoId = x.Id,
+                NomeAluno = x.Nome,
+                TotalPresencas = x.Total
+            })
+            .ToList();
+
+        return new LeaderboardPresencaDto
+        {
+            Escopo = escopo,
+            NomeEscopo = nomeEscopo,
+            DataInicio = dataInicio,
+            DataFim = dataFim,
+            TotalParticipantes = total,
+            Pagina = pagina,
+            TamanhoPagina = PageSize,
+            TotalPaginas = totalPaginas,
+            Items = items
+        };
     }
 
     public async Task<PerfilGamificadoDto?> GetPerfilGamificadoAsync(Guid alunoId, CancellationToken ct = default)

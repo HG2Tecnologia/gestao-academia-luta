@@ -534,6 +534,64 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.ToTable("horarios", (string)null);
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.LancamentoPonto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AcademiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("academia_id");
+
+                    b.Property<Guid>("AlunoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aluno_id");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateOnly>("Data")
+                        .HasColumnType("date")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("descricao");
+
+                    b.Property<int>("Pontos")
+                        .HasColumnType("integer")
+                        .HasColumnName("pontos");
+
+                    b.Property<Guid>("RankingCustomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ranking_custom_id");
+
+                    b.Property<Guid>("RegistradoPorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registrado_por_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlunoId");
+
+                    b.HasIndex("RegistradoPorId");
+
+                    b.HasIndex("AcademiaId", "AlunoId");
+
+                    b.HasIndex("RankingCustomId", "AlunoId");
+
+                    b.ToTable("lancamentos_ponto", (string)null);
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Matricula", b =>
                 {
                     b.Property<Guid>("Id")
@@ -904,6 +962,73 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.ToTable("presencas", (string)null);
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.RankingCustom", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AcademiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("academia_id");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateOnly?>("DataFim")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("DataInicio")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("descricao");
+
+                    b.Property<bool>("IncluirPontosManuais")
+                        .HasColumnType("boolean")
+                        .HasColumnName("incluir_pontos_manuais");
+
+                    b.Property<bool>("IncluirPresencas")
+                        .HasColumnType("boolean")
+                        .HasColumnName("incluir_presencas");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nome");
+
+                    b.Property<int>("PesoManuais")
+                        .HasColumnType("integer")
+                        .HasColumnName("peso_manuais");
+
+                    b.Property<int>("PesoPresencas")
+                        .HasColumnType("integer")
+                        .HasColumnName("peso_presencas");
+
+                    b.Property<bool>("VisivelParaAluno")
+                        .HasColumnType("boolean")
+                        .HasColumnName("visivel_para_aluno");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcademiaId", "Ativo");
+
+                    b.ToTable("rankings_custom", (string)null);
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Turma", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1227,6 +1352,33 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.Navigation("Turma");
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.LancamentoPonto", b =>
+                {
+                    b.HasOne("AcademiaFight.Domain.Entities.Usuario", "Aluno")
+                        .WithMany()
+                        .HasForeignKey("AlunoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AcademiaFight.Domain.Entities.RankingCustom", "RankingCustom")
+                        .WithMany("Lancamentos")
+                        .HasForeignKey("RankingCustomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AcademiaFight.Domain.Entities.Usuario", "RegistradoPor")
+                        .WithMany()
+                        .HasForeignKey("RegistradoPorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Aluno");
+
+                    b.Navigation("RankingCustom");
+
+                    b.Navigation("RegistradoPor");
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Matricula", b =>
                 {
                     b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
@@ -1355,6 +1507,17 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.Navigation("Horario");
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.RankingCustom", b =>
+                {
+                    b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
+                        .WithMany()
+                        .HasForeignKey("AcademiaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Academia");
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Turma", b =>
                 {
                     b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
@@ -1431,6 +1594,11 @@ namespace AcademiaFight.Infrastructure.Migrations
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Plano", b =>
                 {
                     b.Navigation("Alunos");
+                });
+
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.RankingCustom", b =>
+                {
+                    b.Navigation("Lancamentos");
                 });
 
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Turma", b =>

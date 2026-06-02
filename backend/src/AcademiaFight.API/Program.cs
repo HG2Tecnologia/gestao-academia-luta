@@ -55,6 +55,7 @@ builder.Services.AddScoped<IFuncionarioService, FuncionarioService>();
 builder.Services.AddScoped<IXpService, XpService>();
 builder.Services.AddScoped<IConquistaService, ConquistaService>();
 builder.Services.AddScoped<IRankingService, RankingService>();
+builder.Services.AddScoped<IRankingCustomService, RankingCustomService>();
 builder.Services.AddScoped<IFinanceiroService, FinanceiroService>();
 builder.Services.AddScoped<IPlanoService, PlanoService>();
 builder.Services.AddScoped<IContratoService, ContratoService>();

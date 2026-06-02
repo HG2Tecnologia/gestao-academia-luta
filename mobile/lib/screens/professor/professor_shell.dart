@@ -20,6 +20,7 @@ class ProfessorShell extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.schedule_outlined, color: kText2), selectedIcon: Icon(Icons.schedule_rounded, color: kPrimary), label: 'Horários'),
           NavigationDestination(icon: Icon(Icons.check_circle_outline_rounded, color: kText2), selectedIcon: Icon(Icons.check_circle_rounded, color: kPrimary), label: 'Presença'),
           NavigationDestination(icon: Icon(Icons.sports_martial_arts_outlined, color: kText2), selectedIcon: Icon(Icons.sports_martial_arts, color: kPrimary), label: 'Graduação'),
+          NavigationDestination(icon: Icon(Icons.emoji_events_outlined, color: kText2), selectedIcon: Icon(Icons.emoji_events_rounded, color: kPrimary), label: 'Rankings'),
           NavigationDestination(icon: Icon(Icons.person_outline_rounded, color: kText2), selectedIcon: Icon(Icons.person_rounded, color: kPrimary), label: 'Perfil'),
         ],
       ),

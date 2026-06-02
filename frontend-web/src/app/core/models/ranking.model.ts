@@ -52,6 +52,58 @@ export interface PerfilGamificadoDto {
   historicoXp: HistoricoXpItemDto[];
 }
 
+export interface RankingCustomDto {
+  id: string;
+  nome: string;
+  descricao?: string;
+  incluirPresencas: boolean;
+  incluirPontosManuais: boolean;
+  pesoPresencas: number;
+  pesoManuais: number;
+  visivelParaAluno: boolean;
+  ativo: boolean;
+  dataInicio?: string;
+  dataFim?: string;
+  criadoEm: string;
+}
+
+export interface LeaderboardCustomItemDto {
+  posicao: number;
+  alunoId: string;
+  nomeAluno: string;
+  pontosPresencas: number;
+  pontosManuais: number;
+  totalPontos: number;
+}
+
+export interface LeaderboardCustomDto {
+  rankingId: string;
+  nomeRanking: string;
+  descricao?: string;
+  incluirPresencas: boolean;
+  incluirPontosManuais: boolean;
+  pesoPresencas: number;
+  pesoManuais: number;
+  dataInicio?: string;
+  dataFim?: string;
+  totalParticipantes: number;
+  pagina: number;
+  tamanhoPagina: number;
+  totalPaginas: number;
+  items: LeaderboardCustomItemDto[];
+}
+
+export interface LancamentoPontoDto {
+  id: string;
+  alunoId: string;
+  nomeAluno: string;
+  pontos: number;
+  descricao?: string;
+  nomeRegistradoPor: string;
+  data: string;
+  criadoEm: string;
+}
+
 export const NIVEL_CONFIG: Record<string, { cor: string; label: string }> = {
   Iniciante: { cor: '#94a3b8', label: 'Iniciante' },
   Guerreiro: { cor: '#22c55e', label: 'Guerreiro' },

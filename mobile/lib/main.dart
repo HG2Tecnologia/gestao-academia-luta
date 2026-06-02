@@ -25,12 +25,15 @@ import 'screens/admin/relatorio_presencas_screen.dart';
 import 'screens/admin/aniversariantes_screen.dart';
 import 'screens/professor/prof_presenca_historico_screen.dart';
 import 'screens/admin/modelos_contrato_screen.dart';
+import 'screens/admin/rankings_screen.dart';
+import 'screens/admin/ranking_detalhe_screen.dart';
 import 'screens/professor/professor_shell.dart';
 import 'screens/professor/prof_turmas_screen.dart';
 import 'screens/professor/prof_horarios_screen.dart';
 import 'screens/professor/prof_presenca_screen.dart';
 import 'screens/professor/prof_graduacao_screen.dart';
 import 'screens/professor/prof_perfil_screen.dart';
+import 'screens/professor/prof_ranking_screen.dart';
 import 'screens/aluno/aluno_shell.dart';
 import 'screens/aluno/aluno_perfil_screen.dart';
 import 'screens/aluno/aluno_horarios_screen.dart';
@@ -58,6 +61,19 @@ final _router = GoRouter(
     GoRoute(path: '/cadastrar', builder: (_, __) => const CadastroScreen()),
     GoRoute(path: '/esqueci-senha', builder: (_, __) => const EsqueciSenhaScreen()),
     GoRoute(path: '/scan-qr', builder: (_, __) => const QrScanScreen()),
+    GoRoute(
+      path: '/admin/rankings',
+      builder: (_, __) => const AdminRankingsScreen(),
+      routes: [
+        GoRoute(
+          path: ':id',
+          builder: (_, state) => AdminRankingDetalheScreen(
+            rankingId: state.pathParameters['id']!,
+            rankingExtra: state.extra as Map<String, dynamic>?,
+          ),
+        ),
+      ],
+    ),
 
     // Admin
     StatefulShellRoute.indexedStack(
@@ -144,6 +160,9 @@ final _router = GoRouter(
         ]),
         StatefulShellBranch(routes: [
           GoRoute(path: '/professor/graduacao', builder: (_, __) => const ProfGraduacaoScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/professor/rankings', builder: (_, __) => const ProfRankingScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(path: '/professor/perfil', builder: (_, __) => const ProfPerfilScreen()),

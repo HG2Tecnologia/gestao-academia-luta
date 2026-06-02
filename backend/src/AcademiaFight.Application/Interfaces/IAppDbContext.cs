@@ -23,5 +23,7 @@ public interface IAppDbContext
     DbSet<Contrato> Contratos { get; }
     DbSet<ModeloContrato> ModelosContrato { get; }
     DbSet<Notificacao> Notificacoes { get; }
+    DbSet<RankingCustom> RankingsCustom { get; }
+    DbSet<LancamentoPonto> LancamentosPonto { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -34,6 +34,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Contrato> Contratos => Set<Contrato>();
     public DbSet<ModeloContrato> ModelosContrato => Set<ModeloContrato>();
     public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
+    public DbSet<RankingCustom> RankingsCustom => Set<RankingCustom>();
+    public DbSet<LancamentoPonto> LancamentosPonto => Set<LancamentoPonto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +102,12 @@ public class AppDbContext : DbContext, IAppDbContext
 
         modelBuilder.Entity<Notificacao>()
             .HasQueryFilter(n => n.AcademiaId == _tenantContext.AcademiaId);
+
+        modelBuilder.Entity<RankingCustom>()
+            .HasQueryFilter(r => r.AcademiaId == _tenantContext.AcademiaId);
+
+        modelBuilder.Entity<LancamentoPonto>()
+            .HasQueryFilter(l => l.AcademiaId == _tenantContext.AcademiaId);
 
         modelBuilder.Entity<Usuario>()
             .HasOne(u => u.Plano)

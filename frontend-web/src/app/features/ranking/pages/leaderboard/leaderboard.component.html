@@ -1,92 +1,361 @@
 <div class="page-container">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Ranking</h1>
-      <p class="page-subtitle">Classificação dos alunos da academia</p>
+      <h1 class="page-title">Rankings</h1>
+      <p class="page-subtitle">Classificação por pontos configuráveis</p>
     </div>
-  </div>
-
-  <!-- Filtros -->
-  <div class="filters-row">
-    <div class="tabs" style="margin-bottom:0; border-bottom:none;">
-      <button class="tab" [class.active]="periodo()==='mensal'" (click)="alternarPeriodo('mensal')">Mensal</button>
-      <button class="tab" [class.active]="periodo()==='historico'" (click)="alternarPeriodo('historico')">Histórico</button>
-    </div>
-    <select class="form-input" style="max-width:220px;" [ngModel]="turmaId()" (ngModelChange)="alternarTurma($event)">
-      <option value="">Academia inteira</option>
-      @for (t of turmas(); track t.id) {
-        <option [value]="t.id">{{ t.nome }}</option>
-      }
-    </select>
+    @if (isAdmin) {
+      <button class="btn-primary" (click)="abrirCriar()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:6px"><path d="M12 5v14M5 12h14"/></svg>
+        Novo ranking
+      </button>
+    }
   </div>
 
   @if (carregando()) {
     <div class="skeleton-list">
-      @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
+      @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
     </div>
   } @else if (erro()) {
-    <div class="empty-state" style="gap:16px;">
-      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--color-danger, #ef4444)">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
+    <div class="empty-state">
       <p>{{ erro() }}</p>
-      <button class="btn-secondary" (click)="carregar()">Tentar novamente</button>
+      <button class="btn-secondary" (click)="carregarRankings()">Tentar novamente</button>
     </div>
-  } @else if (!leaderboard()?.items?.length) {
+  } @else if (rankings().length === 0) {
     <div class="empty-state">
       <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
         <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
       </svg>
-      <p>Nenhum treino registrado ainda.</p>
-      <p style="font-size:13px;color:var(--color-text-secondary)">As presenças aparecerão aqui automaticamente.</p>
+      <p>Nenhum ranking criado ainda.</p>
+      @if (isAdmin) {
+        <button class="btn-primary" (click)="abrirCriar()">Criar primeiro ranking</button>
+      }
     </div>
   } @else {
-    <!-- Pódio top 3 -->
-    @if (top3.length >= 2) {
-      <app-podium [top3]="top3" />
-    }
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start;">
 
-    <!-- Lista completa -->
-    <div class="table-wrapper">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Aluno</th>
-            <th>Nível</th>
-            <th>XP no Período</th>
-            <th>XP Total</th>
-            <th>Conquistas</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of leaderboard()?.items ?? []; track item.alunoId) {
-            <tr [class.minha-linha]="item.alunoId === usuarioLogado?.sub">
-              <td><strong>#{{ item.posicao }}</strong></td>
-              <td>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div class="presenca-avatar" [style.border-color]="nivelCor(item.nivel)" style="border:2px solid;">{{ avatarInicial(item.nomeAluno) }}</div>
-                  <span class="font-medium">{{ item.nomeAluno }}</span>
+      <!-- Lista de rankings -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        @for (r of rankings(); track r.id) {
+          <div
+            class="ranking-tab-item"
+            [class.active]="rankingSelecionado()?.id === r.id"
+            [class.inativo]="!r.ativo"
+            (click)="selecionarRanking(r)"
+          >
+            <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;">
+              <div style="min-width:0;">
+                <div class="font-medium" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.nome }}</div>
+                @if (tagPeriodo(r)) {
+                  <div style="font-size:11px;color:#f59e0b;margin-top:2px;">📅 {{ tagPeriodo(r) }}</div>
+                }
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+                  @if (r.incluirPresencas) {
+                    <span class="badge-tag" style="font-size:10px;padding:1px 6px;">Presenças ×{{ r.pesoPresencas }}</span>
+                  }
+                  @if (r.incluirPontosManuais) {
+                    <span style="display:inline-flex;padding:1px 6px;border-radius:99px;font-size:10px;background:#dcfce7;color:#166534;">Manual ×{{ r.pesoManuais }}</span>
+                  }
+                  @if (!r.ativo) {
+                    <span class="badge-inativo" style="font-size:10px;padding:1px 6px;">Inativo</span>
+                  }
                 </div>
-              </td>
-              <td><app-nivel-badge [nivel]="item.nivel" /></td>
-              <td><strong>{{ item.xpPeriodo }}</strong> XP</td>
-              <td>{{ item.xpTotal }} XP</td>
-              <td>🏅 {{ item.totalConquistas }}</td>
-              <td><a [routerLink]="['/app/ranking/perfil', item.alunoId]" class="action-link">Ver perfil</a></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+              </div>
+              @if (isAdmin) {
+                <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;" (click)="$event.stopPropagation()">
+                  <button class="action-link" style="font-size:11px;" (click)="abrirEditar(r)">Editar</button>
+                  @if (r.ativo) {
+                    <button class="action-link danger" style="font-size:11px;" (click)="desativarRanking(r)">Desativar</button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
 
-    <div class="summary-card" style="margin-top:12px;">
-      {{ leaderboard()?.totalParticipantes }} participantes · Página {{ leaderboard()?.pagina }} de {{ leaderboard()?.totalPaginas }}
+      <!-- Leaderboard do ranking selecionado -->
+      @if (rankingSelecionado(); as r) {
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <h2 style="font-size:18px;font-weight:700;margin:0;">{{ r.nome }}</h2>
+              @if (r.descricao) {
+                <p style="font-size:13px;color:var(--app-text-2);margin:4px 0 0;">{{ r.descricao }}</p>
+              }
+              @if (tagPeriodo(r)) {
+                <p style="font-size:12px;color:#f59e0b;margin:4px 0 0;">📅 {{ tagPeriodo(r) }}</p>
+              }
+            </div>
+            <div style="display:flex;gap:8px;">
+              @if (isProfessor && r.incluirPontosManuais) {
+                <button class="btn-primary" style="font-size:13px;padding:8px 14px;" (click)="abrirPontuar()">
+                  + Lançar pontos
+                </button>
+              }
+              @if (isProfessor && r.incluirPontosManuais) {
+                <button class="btn-secondary" style="font-size:13px;padding:8px 14px;" (click)="toggleLancamentos()">
+                  {{ showLancamentos() ? 'Ver leaderboard' : 'Ver lançamentos' }}
+                </button>
+              }
+            </div>
+          </div>
+
+          @if (!showLancamentos()) {
+            <!-- Leaderboard -->
+            @if (carregandoLb()) {
+              <div class="skeleton-list">
+                @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
+              </div>
+            } @else if (!leaderboard()?.items?.length) {
+              <div class="empty-state" style="padding:40px 0;">
+                <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+                </svg>
+                <p>Nenhum participante neste ranking.</p>
+              </div>
+            } @else {
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width:60px;">#</th>
+                      <th>Aluno</th>
+                      @if (leaderboard()!.incluirPresencas) {
+                        <th style="text-align:right;">Presenças</th>
+                      }
+                      @if (leaderboard()!.incluirPontosManuais) {
+                        <th style="text-align:right;">Pts manuais</th>
+                      }
+                      <th style="text-align:right;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of leaderboard()!.items; track item.alunoId) {
+                      <tr>
+                        <td style="font-weight:700;font-size:16px;">{{ medalha(item.posicao) }}</td>
+                        <td>
+                          <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="presenca-avatar">{{ (item.nomeAluno || 'U').charAt(0).toUpperCase() }}</div>
+                            <span class="font-medium">{{ item.nomeAluno }}</span>
+                          </div>
+                        </td>
+                        @if (leaderboard()!.incluirPresencas) {
+                          <td style="text-align:right;">{{ item.pontosPresencas }}</td>
+                        }
+                        @if (leaderboard()!.incluirPontosManuais) {
+                          <td style="text-align:right;">{{ item.pontosManuais }}</td>
+                        }
+                        <td style="text-align:right;font-weight:700;font-size:15px;">{{ item.totalPontos }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="summary-card" style="margin-top:12px;">
+                {{ leaderboard()?.totalParticipantes }} participantes
+              </div>
+            }
+          } @else {
+            <!-- Lançamentos -->
+            @if (carregandoLanc()) {
+              <div class="skeleton-list">
+                @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
+              </div>
+            } @else if (lancamentos().length === 0) {
+              <div class="empty-state" style="padding:40px 0;"><p>Nenhum lançamento de pontos.</p></div>
+            } @else {
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Aluno</th>
+                      <th style="text-align:right;">Pontos</th>
+                      <th>Motivo</th>
+                      <th>Por</th>
+                      <th>Data</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (l of lancamentos(); track l.id) {
+                      <tr>
+                        <td class="font-medium">{{ l.nomeAluno }}</td>
+                        <td style="text-align:right;font-weight:700;">+{{ l.pontos }}</td>
+                        <td style="color:var(--app-text-2);font-size:13px;">{{ l.descricao || '—' }}</td>
+                        <td style="font-size:13px;">{{ l.nomeRegistradoPor }}</td>
+                        <td style="font-size:13px;">{{ fmtData(l.data) }}</td>
+                        <td>
+                          @if (isProfessor) {
+                            <button class="action-link danger" (click)="removerLancamento(l.id)">Remover</button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      }
     </div>
   }
 </div>
 
+<!-- Modal Criar/Editar Ranking -->
+@if (showModalCriar()) {
+  <div class="modal-backdrop" (click)="showModalCriar.set(false)"></div>
+  <div class="modal" style="max-width:540px;max-height:90vh;display:flex;flex-direction:column;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editandoId() ? 'Editar ranking' : 'Novo ranking' }}</h3>
+      <button class="modal-close" (click)="showModalCriar.set(false)">✕</button>
+    </div>
+    <form [formGroup]="formCriar" (ngSubmit)="salvarRanking()" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="modal-body" style="flex:1;overflow-y:auto;gap:16px;">
+
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input class="form-input" formControlName="nome" placeholder="Ex: Ranking da Liga">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Descrição <span style="font-weight:400;color:var(--app-text-2);">(opcional)</span>
+          </label>
+          <input class="form-input" formControlName="descricao" placeholder="Breve descrição do ranking">
+        </div>
+
+        <div>
+          <label class="form-label" style="margin-bottom:8px;display:block;">
+            Período de validade
+            <span style="font-weight:400;color:var(--app-text-2);">(opcional — sem datas = ranking permanente)</span>
+          </label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group" style="gap:4px;">
+              <label style="font-size:12px;color:var(--app-text-2);">Data início</label>
+              <input class="form-input" type="date" formControlName="dataInicio">
+            </div>
+            <div class="form-group" style="gap:4px;">
+              <label style="font-size:12px;color:var(--app-text-2);">Data fim</label>
+              <input class="form-input" type="date" formControlName="dataFim">
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--app-border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px;">
+          <p style="font-weight:600;font-size:13px;margin:0;">Como calcular pontos</p>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;">
+              <input type="checkbox" formControlName="incluirPresencas">
+              <span style="font-size:14px;">Contar presenças</span>
+            </label>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <span style="font-size:12px;color:var(--app-text-2);">Peso:</span>
+              <input class="form-input" type="number" formControlName="pesoPresencas" min="1"
+                style="width:64px;padding:6px 8px;text-align:center;">
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;">
+              <input type="checkbox" formControlName="incluirPontosManuais">
+              <span style="font-size:14px;">Pontos manuais (professor)</span>
+            </label>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <span style="font-size:12px;color:var(--app-text-2);">Peso:</span>
+              <input class="form-input" type="number" formControlName="pesoManuais" min="1"
+                style="width:64px;padding:6px 8px;text-align:center;">
+            </div>
+          </div>
+
+          <p style="font-size:11px;color:var(--app-text-2);margin:0;">
+            Total = (presenças × peso) + (pontos manuais × peso)
+          </p>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" formControlName="visivelParaAluno">
+          <div>
+            <span style="font-size:14px;font-weight:500;">Visível para alunos no app</span>
+            <p style="font-size:12px;color:var(--app-text-2);margin:2px 0 0;">Alunos conseguem ver este ranking no celular</p>
+          </div>
+        </label>
+
+        @if (erroModal()) {
+          <div class="alert-error">{{ erroModal() }}</div>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="showModalCriar.set(false)">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="formCriar.invalid || salvando()">
+          {{ salvando() ? 'Salvando...' : (editandoId() ? 'Salvar alterações' : 'Criar ranking') }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- Modal Lançar Pontos -->
+@if (showModalPontuar()) {
+  <div class="modal-backdrop" (click)="showModalPontuar.set(false)"></div>
+  <div class="modal" style="max-width:440px;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Lançar pontos</h3>
+      <button class="modal-close" (click)="showModalPontuar.set(false)">✕</button>
+    </div>
+    <form [formGroup]="formPontuar" (ngSubmit)="salvarPontos()">
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label class="form-label">Aluno *</label>
+          <select class="form-input" formControlName="alunoId">
+            <option value="">Selecione o aluno</option>
+            @for (a of alunos(); track a.id) {
+              <option [value]="a.id">{{ a.nome }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Quantidade de pontos *</label>
+          <input class="form-input" type="number" formControlName="pontos" min="1">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Motivo <span style="font-weight:400;color:var(--app-text-2);">(opcional)</span>
+          </label>
+          <input class="form-input" formControlName="descricao" placeholder="Ex: Vitória no campeonato">
+        </div>
+
+        @if (erroModal()) {
+          <div class="alert-error">{{ erroModal() }}</div>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="showModalPontuar.set(false)">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="formPontuar.invalid || salvando()">
+          {{ salvando() ? 'Lançando...' : 'Confirmar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
 <style>
-  .minha-linha { background: rgba(99,102,241,0.06); font-weight: 600; }
+  .ranking-tab-item {
+    padding: 12px 14px;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--app-surface);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .ranking-tab-item:hover { border-color: #6366f1; }
+  .ranking-tab-item.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
+  .ranking-tab-item.inativo { opacity: 0.55; }
 </style>
