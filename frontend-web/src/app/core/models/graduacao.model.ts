@@ -5,6 +5,10 @@ export interface GraduacaoDto {
   faixaId: string;
   nomeFaixa: string;
   corFaixa: string;
+  corBarraFaixa: string;
+  faixaTemGraus: boolean;
+  faixaMaxGraus: number;
+  grau: number;
   modalidadeId: string;
   nomeModalidade: string;
   dataExame: string;
@@ -22,6 +26,9 @@ export interface FaixaDto {
   nomeModalidade: string;
   nome: string;
   cor: string;
+  corBarra: string;
+  temGraus: boolean;
+  maxGraus: number;
   ordem: number;
   requisitosMesesMinimos: number;
   requisitosPresencasMinimas: number;
@@ -32,6 +39,9 @@ export interface CreateFaixaRequest {
   modalidadeId: string;
   nome: string;
   cor: string;
+  corBarra: string;
+  temGraus: boolean;
+  maxGraus: number;
   ordem: number;
   requisitosMesesMinimos: number;
   requisitosPresencasMinimas: number;
@@ -44,6 +54,7 @@ export interface RegistrarGraduacaoRequest {
   dataExame: string;
   professorId: string;
   aprovado: boolean;
+  grau: number;
   observacoes?: string;
 }
 

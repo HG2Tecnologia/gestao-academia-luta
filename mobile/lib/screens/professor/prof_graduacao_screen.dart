@@ -17,6 +17,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
   Map<String, dynamic>? _turmaSel;
   Map<String, dynamic>? _alunoSel;
   Map<String, dynamic>? _faixaSel;
+  int _grauSel = 0;
   final _obsCtrl = TextEditingController();
   int _step = 0;
   bool _loading = true;
@@ -97,12 +98,14 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
     try {
       final hoje = DateTime.now();
       final dataExame = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+      final temGraus = _faixaSel!['temGraus'] == true;
       await dio.post('/api/graduacoes', data: {
         'alunoId': _alunoSel!['id'],
         'faixaId': _faixaSel!['id'],
         'dataExame': dataExame,
         'professorId': _profId,
         'aprovado': true,
+        'grau': temGraus ? _grauSel : 0,
         'observacoes': _obsCtrl.text.trim(),
       });
       if (mounted) {
@@ -126,7 +129,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
   }
 
   void _back() => setState(() {
-    if (_step == 2) { _step = 1; _faixaSel = null; }
+    if (_step == 2) { _step = 1; _faixaSel = null; _grauSel = 0; }
     else if (_step == 1) { _step = 0; _turmaSel = null; }
   });
 
@@ -267,7 +270,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 ..._faixas.map((f) => GestureDetector(
-                      onTap: () => setState(() => _faixaSel = f),
+                      onTap: () => setState(() { _faixaSel = f; _grauSel = 0; }),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(14),
@@ -286,6 +289,65 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
                         ]),
                       ),
                     )),
+                // Seletor de grau — aparece apenas quando a faixa selecionada tem graus
+                if (_faixaSel != null && _faixaSel!['temGraus'] == true) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: kSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Icon(Icons.military_tech_rounded, color: kPrimary, size: 16),
+                          const SizedBox(width: 6),
+                          Text('Grau', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: kPrimary.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                            child: Text(_grauSel == 0 ? 'Sem grau' : '$_grauSel° grau',
+                                style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
+                          ),
+                        ]),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: List.generate(
+                            (_faixaSel!['maxGraus'] as num? ?? 4).toInt() + 1,
+                            (i) => GestureDetector(
+                              onTap: () => setState(() => _grauSel = i),
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: _grauSel == i ? kPrimary : kBg,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: _grauSel == i ? kPrimary : kBorder, width: 1.5),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    i == 0 ? '—' : '$i',
+                                    style: TextStyle(
+                                      color: _grauSel == i ? Colors.white : kText2,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: _obsCtrl,

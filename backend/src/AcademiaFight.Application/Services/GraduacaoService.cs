@@ -60,18 +60,29 @@ public class GraduacaoService : IGraduacaoService
         if (!alunoExiste)
             return BaseResponse<GraduacaoDto>.Falha("Aluno não encontrado.");
 
+        if (faixa.TemGraus && request.Grau > faixa.MaxGraus)
+            return BaseResponse<GraduacaoDto>.Falha($"Grau inválido. Esta faixa permite no máximo {faixa.MaxGraus} graus.");
+
         if (request.Aprovado)
         {
-            // Verificar se aluno já tem faixa igual ou superior
+            // Verificar se aluno já tem faixa superior
             var faixaAtual = await _db.Graduacoes
                 .Include(g => g.Faixa)
                 .Where(g => g.AlunoId == request.AlunoId && g.Faixa.ModalidadeId == faixa.ModalidadeId && g.Aprovado)
-                .OrderByDescending(g => g.Faixa.Ordem)
+                .OrderByDescending(g => g.Faixa.Ordem).ThenByDescending(g => g.Grau)
                 .FirstOrDefaultAsync(ct);
 
-            if (faixaAtual is not null && faixaAtual.Faixa.Ordem >= faixa.Ordem)
-                return BaseResponse<GraduacaoDto>.Falha(
-                    $"Aluno já possui faixa igual ou superior ({faixaAtual.Faixa.Nome}) nesta modalidade.");
+            if (faixaAtual is not null)
+            {
+                if (faixaAtual.Faixa.Ordem > faixa.Ordem)
+                    return BaseResponse<GraduacaoDto>.Falha(
+                        $"Aluno já possui faixa superior ({faixaAtual.Faixa.Nome}) nesta modalidade.");
+
+                // Mesma faixa: grau deve ser maior que o atual
+                if (faixaAtual.FaixaId == faixa.Id && request.Grau <= faixaAtual.Grau)
+                    return BaseResponse<GraduacaoDto>.Falha(
+                        $"Aluno já possui {faixaAtual.Faixa.Nome} com {faixaAtual.Grau}º grau. Informe um grau superior.");
+            }
         }
 
         var graduacao = new Graduacao
@@ -80,6 +91,7 @@ public class GraduacaoService : IGraduacaoService
             FaixaId = request.FaixaId,
             DataExame = request.DataExame,
             Aprovado = request.Aprovado,
+            Grau = faixa.TemGraus ? request.Grau : 0,
             ProfessorId = request.ProfessorId,
             Observacoes = request.Observacoes
         };
@@ -169,10 +181,14 @@ public class GraduacaoService : IGraduacaoService
         FaixaId = g.FaixaId,
         NomeFaixa = g.Faixa?.Nome ?? string.Empty,
         CorFaixa = g.Faixa?.Cor ?? "#FFFFFF",
+        CorBarraFaixa = g.Faixa?.CorBarra ?? "#000000",
+        FaixaTemGraus = g.Faixa?.TemGraus ?? false,
+        FaixaMaxGraus = g.Faixa?.MaxGraus ?? 0,
         ModalidadeId = g.Faixa?.ModalidadeId ?? Guid.Empty,
         NomeModalidade = g.Faixa?.Modalidade?.Nome ?? string.Empty,
         DataExame = g.DataExame,
         Aprovado = g.Aprovado,
+        Grau = g.Grau,
         ProfessorId = g.ProfessorId,
         NomeProfessor = g.Professor?.Nome ?? string.Empty,
         Observacoes = g.Observacoes,

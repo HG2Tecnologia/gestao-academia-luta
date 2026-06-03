@@ -10,6 +10,7 @@ public class Graduacao : EntityBase
     public DateOnly DataExame { get; set; }
     public bool Aprovado { get; set; }
     public Guid ProfessorId { get; set; }
+    public int Grau { get; set; } = 0;
     public string? Observacoes { get; set; }
     public string? CertificadoUrl { get; set; }
 

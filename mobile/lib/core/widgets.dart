@@ -1,6 +1,80 @@
 import 'package:flutter/material.dart';
 import 'constants.dart';
 
+/// Visual representation of a martial arts belt with optional degree stripes.
+/// Displays a colored bar (belt color) + optional dark tip with white stripes (degrees).
+class BeltBadge extends StatelessWidget {
+  final Color cor;
+  final Color corBarra;
+  final bool temGraus;
+  final int grau;
+  final int maxGraus;
+  final double height;
+  final double minWidth;
+
+  const BeltBadge({
+    super.key,
+    required this.cor,
+    this.corBarra = const Color(0xFF000000),
+    this.temGraus = false,
+    this.grau = 0,
+    this.maxGraus = 4,
+    this.height = 16,
+    this.minWidth = 48,
+  });
+
+  static Color fromHex(String hex) {
+    final h = hex.replaceFirst('#', '').padLeft(6, '0');
+    return Color(int.parse('FF$h', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: SizedBox(
+          height: height,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Main belt color
+              Container(width: minWidth, color: cor),
+              // Tip with stripes (only if temGraus)
+              if (temGraus)
+                Container(
+                  color: corBarra,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(maxGraus, (i) {
+                      final earned = i < grau;
+                      return Container(
+                        width: 3,
+                        height: height * 0.65,
+                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                        decoration: BoxDecoration(
+                          color: earned
+                              ? Colors.white.withOpacity(0.9)
+                              : Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ErroConexao extends StatelessWidget {
   final VoidCallback onRetry;
   final String? mensagem;

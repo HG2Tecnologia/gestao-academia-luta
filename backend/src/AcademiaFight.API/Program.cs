@@ -49,6 +49,7 @@ builder.Services.AddScoped<IMatriculaService, MatriculaService>();
 builder.Services.AddScoped<IPresencaService, PresencaService>();
 builder.Services.AddScoped<IFaixaService, FaixaService>();
 builder.Services.AddScoped<IGraduacaoService, GraduacaoService>();
+builder.Services.AddScoped<IModalidadeSeedService, ModalidadeSeedService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IFuncionarioService, FuncionarioService>();

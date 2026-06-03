@@ -42,4 +42,8 @@ export class ModalidadeService {
   delete(id: string): Observable<BaseResponse<void>> {
     return this.http.delete<BaseResponse<void>>(`${this.api}/${id}`);
   }
+
+  seed(): Observable<{ sucesso: boolean; mensagem: string }> {
+    return this.http.post<{ sucesso: boolean; mensagem: string }>(`${this.api}/seed`, {});
+  }
 }

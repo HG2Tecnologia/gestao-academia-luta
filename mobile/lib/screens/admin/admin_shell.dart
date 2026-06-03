@@ -13,6 +13,7 @@ class AdminShell extends StatelessWidget {
     (icon: Icons.groups_rounded, label: 'Turmas', route: '/admin/turmas'),
     (icon: Icons.badge_rounded, label: 'Equipe', route: '/admin/equipe'),
     (icon: Icons.credit_card_rounded, label: 'Financeiro', route: '/admin/financeiro'),
+    (icon: Icons.emoji_events_rounded, label: 'Ranking', route: '/admin/ranking'),
   ];
 
   @override

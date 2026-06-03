@@ -16,6 +16,10 @@ public class AlunoDto
     public string? Matricula { get; set; }
     public string? FaixaAtualNome { get; set; }
     public string? FaixaAtualCor { get; set; }
+    public string? FaixaAtualCorBarra { get; set; }
+    public bool FaixaAtualTemGraus { get; set; }
+    public int FaixaAtualMaxGraus { get; set; } = 4;
+    public int GrauAtual { get; set; }
     public List<string> Turmas { get; set; } = [];
     public List<TurmaResumoDto> TurmasDetalhes { get; set; } = [];
     public bool Ativo { get; set; }

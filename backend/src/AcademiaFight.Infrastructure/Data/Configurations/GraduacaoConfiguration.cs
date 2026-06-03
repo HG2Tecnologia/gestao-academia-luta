@@ -19,6 +19,7 @@ public class GraduacaoConfiguration : IEntityTypeConfiguration<Graduacao>
         builder.Property(g => g.DataExame).HasColumnName("data_exame").IsRequired();
         builder.Property(g => g.Aprovado).HasColumnName("aprovado").IsRequired();
         builder.Property(g => g.ProfessorId).HasColumnName("professor_id").IsRequired();
+        builder.Property(g => g.Grau).HasColumnName("grau").HasDefaultValue(0);
         builder.Property(g => g.Observacoes).HasColumnName("observacoes").HasMaxLength(1000);
         builder.Property(g => g.CertificadoUrl).HasColumnName("certificado_url").HasMaxLength(500);
         builder.Property(g => g.CriadoEm).HasColumnName("criado_em");

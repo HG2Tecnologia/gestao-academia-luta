@@ -5,7 +5,10 @@ import { RouterLink } from '@angular/router';
 import { RankingService } from '../../../../core/services/ranking.service';
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { LeaderboardCustomDto, LancamentoPontoDto, RankingCustomDto } from '../../../../core/models/ranking.model';
+import {
+  LeaderboardDto, LeaderboardCustomDto, LancamentoPontoDto,
+  RankingCustomDto, NIVEL_CONFIG
+} from '../../../../core/models/ranking.model';
 
 @Component({
   selector: 'app-leaderboard',
@@ -14,6 +17,17 @@ import { LeaderboardCustomDto, LancamentoPontoDto, RankingCustomDto } from '../.
   templateUrl: './leaderboard.component.html',
 })
 export class LeaderboardComponent implements OnInit {
+  // ─── Aba ativa ───────────────────────────────────────────────────────────
+  abaAtiva = signal<'geral' | 'custom'>('geral');
+
+  // ─── Aba Geral (XP) ──────────────────────────────────────────────────────
+  periodoGeral = signal<'mensal' | 'historico'>('mensal');
+  leaderboardGeral = signal<LeaderboardDto | null>(null);
+  carregandoGeral = signal(false);
+  erroGeral = signal('');
+  readonly nivelConfig = NIVEL_CONFIG;
+
+  // ─── Aba Personalizados ──────────────────────────────────────────────────
   rankings = signal<RankingCustomDto[]>([]);
   rankingSelecionado = signal<RankingCustomDto | null>(null);
   leaderboard = signal<LeaderboardCustomDto | null>(null);
@@ -60,6 +74,7 @@ export class LeaderboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.carregarLeaderboardGeral();
     this.carregarRankings();
     this.carregarAlunos();
   }
@@ -69,6 +84,32 @@ export class LeaderboardComponent implements OnInit {
     const p = this.authService.currentUser()?.perfil;
     return p === 'Professor' || p === 'Admin';
   }
+
+  // ─── Aba Geral ───────────────────────────────────────────────────────────
+
+  mudarAba(aba: 'geral' | 'custom'): void {
+    this.abaAtiva.set(aba);
+  }
+
+  mudarPeriodo(p: 'mensal' | 'historico'): void {
+    this.periodoGeral.set(p);
+    this.carregarLeaderboardGeral();
+  }
+
+  carregarLeaderboardGeral(): void {
+    this.carregandoGeral.set(true);
+    this.erroGeral.set('');
+    this.rankingService.getLeaderboardAcademia(this.periodoGeral()).subscribe({
+      next: lb => { this.leaderboardGeral.set(lb); this.carregandoGeral.set(false); },
+      error: () => { this.erroGeral.set('Erro ao carregar ranking geral.'); this.carregandoGeral.set(false); },
+    });
+  }
+
+  corNivel(nivel: string): string {
+    return this.nivelConfig[nivel]?.cor ?? '#94a3b8';
+  }
+
+  // ─── Aba Personalizados ──────────────────────────────────────────────────
 
   carregarRankings(): void {
     this.carregando.set(true);

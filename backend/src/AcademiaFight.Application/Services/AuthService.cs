@@ -15,6 +15,7 @@ public class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
+    private readonly IModalidadeSeedService _modalidadeSeed;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -22,12 +23,14 @@ public class AuthService : IAuthService
         ITokenService tokenService,
         IPasswordHasher passwordHasher,
         IEmailService emailService,
+        IModalidadeSeedService modalidadeSeed,
         ILogger<AuthService> logger)
     {
         _db = db;
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
         _emailService = emailService;
+        _modalidadeSeed = modalidadeSeed;
         _logger = logger;
     }
 
@@ -150,6 +153,9 @@ public class AuthService : IAuthService
 
             await _db.Usuarios.AddAsync(usuario, ct);
             await _db.SaveChangesAsync(ct);
+
+            // Semear modalidades pré-definidas para a nova academia
+            await _modalidadeSeed.SeedParaAcademiaAsync(academia.Id, ct);
 
             // Gerar access token após salvar para ter o Id do usuário
             accessToken = _tokenService.GerarAccessToken(usuario);

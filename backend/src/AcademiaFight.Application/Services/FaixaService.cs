@@ -51,7 +51,10 @@ public class FaixaService : IFaixaService
             Ordem = request.Ordem,
             RequisitosMesesMinimos = request.RequisitosMesesMinimos,
             RequisitosPresencasMinimas = request.RequisitosPresencasMinimas,
-            Descricao = request.Descricao
+            Descricao = request.Descricao,
+            TemGraus = request.TemGraus,
+            MaxGraus = request.TemGraus ? request.MaxGraus : 0,
+            CorBarra = request.CorBarra
         };
 
         await _db.Faixas.AddAsync(faixa, ct);
@@ -81,6 +84,9 @@ public class FaixaService : IFaixaService
         faixa.RequisitosMesesMinimos = request.RequisitosMesesMinimos;
         faixa.RequisitosPresencasMinimas = request.RequisitosPresencasMinimas;
         faixa.Descricao = request.Descricao;
+        faixa.TemGraus = request.TemGraus;
+        faixa.MaxGraus = request.TemGraus ? request.MaxGraus : 0;
+        faixa.CorBarra = request.CorBarra;
 
         await _db.SaveChangesAsync(ct);
         return BaseResponse<FaixaDto>.Ok(MapearDto(faixa), "Faixa atualizada com sucesso.");
@@ -128,6 +134,9 @@ public class FaixaService : IFaixaService
         Ordem = f.Ordem,
         RequisitosMesesMinimos = f.RequisitosMesesMinimos,
         RequisitosPresencasMinimas = f.RequisitosPresencasMinimas,
-        Descricao = f.Descricao
+        Descricao = f.Descricao,
+        TemGraus = f.TemGraus,
+        MaxGraus = f.MaxGraus,
+        CorBarra = f.CorBarra
     };
 }

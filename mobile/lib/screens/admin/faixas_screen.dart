@@ -331,7 +331,9 @@ class _Tag extends StatelessWidget {
       children: [
         Icon(icon, size: 11, color: color),
         const SizedBox(width: 3),
-        Text(text, style: TextStyle(color: color, fontSize: 11)),
+        Flexible(
+          child: Text(text, style: TextStyle(color: color, fontSize: 11), overflow: TextOverflow.ellipsis),
+        ),
       ],
     );
   }

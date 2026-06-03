@@ -21,6 +21,9 @@ public class FaixaConfiguration : IEntityTypeConfiguration<Faixa>
         builder.Property(f => f.RequisitosMesesMinimos).HasColumnName("requisitos_meses_minimos");
         builder.Property(f => f.RequisitosPresencasMinimas).HasColumnName("requisitos_presencas_minimas");
         builder.Property(f => f.Descricao).HasColumnName("descricao").HasMaxLength(500);
+        builder.Property(f => f.TemGraus).HasColumnName("tem_graus").HasDefaultValue(false);
+        builder.Property(f => f.MaxGraus).HasColumnName("max_graus").HasDefaultValue(4);
+        builder.Property(f => f.CorBarra).HasColumnName("cor_barra").HasMaxLength(20).HasDefaultValue("#000000");
         builder.Property(f => f.CriadoEm).HasColumnName("criado_em");
         builder.Property(f => f.AtualizadoEm).HasColumnName("atualizado_em");
 

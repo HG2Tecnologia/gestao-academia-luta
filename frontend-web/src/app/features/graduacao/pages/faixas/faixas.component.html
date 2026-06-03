@@ -182,23 +182,66 @@
   <!-- Modal: criar/editar faixa -->
   @if (modalAberto()) {
     <div class="modal-backdrop" (click)="fecharModal()"></div>
-    <div class="modal">
+    <div class="modal" style="max-width:500px;">
       <div class="modal-header">
         <h3>{{ editandoId() ? 'Editar Faixa' : 'Nova Faixa' }}</h3>
         <button class="modal-close" (click)="fecharModal()">✕</button>
       </div>
       @if (erro()) { <div class="alert-error">{{ erro() }}</div> }
       <form [formGroup]="form" (ngSubmit)="salvar()" class="modal-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Nome *</label>
-            <input formControlName="nome" class="form-input" />
+        <!-- Preview do cinto -->
+        <div class="belt-preview">
+          <div class="belt-preview__bar"
+            [style.background-color]="form.get('cor')?.value || '#fff'">
           </div>
-          <div class="form-group" style="max-width:100px;">
-            <label class="form-label">Cor</label>
+          <div class="belt-preview__tip"
+            [style.background-color]="form.get('corBarra')?.value || '#000'"
+            *ngIf="form.get('temGraus')?.value">
+            @for (i of [1,2,3,4]; track i) {
+              <div class="belt-preview__stripe"
+                [class.belt-preview__stripe--active]="i <= 2"></div>
+            }
+          </div>
+          <span class="belt-preview__label">
+            {{ form.get('nome')?.value || 'Nome da faixa' }}
+            @if (form.get('temGraus')?.value) { <span style="color:var(--app-text-2)"> · até {{ form.get('maxGraus')?.value }} graus</span> }
+          </span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Nome *</label>
+            <input formControlName="nome" class="form-input" placeholder="ex: Azul" />
+          </div>
+          <div class="form-group" style="max-width:90px;">
+            <label class="form-label">Cor da faixa</label>
             <input formControlName="cor" type="color" class="form-input color-input" />
           </div>
         </div>
+
+        <!-- Seção de graus -->
+        <div class="section-divider">Sistema de Graus (listras)</div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="temGraus" class="checkbox-input" />
+            <span>Esta faixa tem graus (listras)</span>
+          </label>
+          <p class="form-hint">Ative para modalidades como BJJ, Luta Livre, onde o aluno recebe listras progressivas antes de mudar de faixa.</p>
+        </div>
+        @if (form.get('temGraus')?.value) {
+          <div class="form-row">
+            <div class="form-group" style="max-width:130px;">
+              <label class="form-label">Máx. graus</label>
+              <input formControlName="maxGraus" type="number" class="form-input" min="1" max="10" />
+            </div>
+            <div class="form-group" style="max-width:130px;">
+              <label class="form-label">Cor da barinha</label>
+              <input formControlName="corBarra" type="color" class="form-input color-input" />
+            </div>
+          </div>
+        }
+
+        <div class="section-divider">Requisitos para promoção</div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Ordem</label>
@@ -227,6 +270,22 @@
 </div>
 
 <style>
+  /* Belt preview no modal */
+  .belt-preview { display: flex; align-items: center; gap: 12px; background: var(--app-bg); border: 1px solid var(--app-border); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+  .belt-preview__bar { height: 20px; flex: 1; border-radius: 3px 0 0 3px; border: 1.5px solid rgba(255,255,255,0.25); min-width: 60px; }
+  .belt-preview__tip { height: 20px; display: flex; align-items: center; gap: 3px; padding: 0 5px; border-radius: 0 3px 3px 0; flex-shrink: 0; }
+  .belt-preview__stripe { width: 3px; height: 13px; border-radius: 1px; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.2); }
+  .belt-preview__stripe--active { background: rgba(255,255,255,0.85); border-color: transparent; }
+  .belt-preview__label { font-size: 13px; font-weight: 600; color: var(--app-text-1); white-space: nowrap; }
+
+  /* Section divider */
+  .section-divider { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-text-3); border-bottom: 1px solid var(--app-border); padding-bottom: 6px; margin: 16px 0 12px; }
+
+  /* Checkbox */
+  .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--app-text-1); }
+  .checkbox-input { width: 16px; height: 16px; cursor: pointer; accent-color: #6366f1; flex-shrink: 0; }
+  .form-hint { font-size: 12px; color: var(--app-text-3); margin-top: 4px; line-height: 1.5; }
+
   .faixa-bolinha { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.15); flex-shrink: 0; }
   .drag-cell { color: var(--app-text-3); text-align: center; }
   .icon-btn { background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; padding: 5px 6px; color: var(--app-text-3); display: inline-flex; align-items: center; transition: all 0.15s; }

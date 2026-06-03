@@ -80,14 +80,44 @@
 
     @if (faixaSelecionada()) {
       <div class="requisitos-card">
-        <h4>Requisitos da Faixa</h4>
         <div class="req-row">
-          <app-badge-faixa [cor]="faixaSelecionada()!.cor" [nome]="faixaSelecionada()!.nome" tamanho="lg" />
-          <span>{{ faixaSelecionada()!.nome }}</span>
+          <app-badge-faixa
+            [cor]="faixaSelecionada()!.cor"
+            [corBarra]="faixaSelecionada()!.corBarra"
+            [nome]="faixaSelecionada()!.nome"
+            [temGraus]="faixaSelecionada()!.temGraus"
+            [grau]="form.get('grau')?.value || 0"
+            [maxGraus]="faixaSelecionada()!.maxGraus"
+            tamanho="lg" />
+          <div>
+            <span class="req-nome">{{ faixaSelecionada()!.nome }}</span>
+            @if (faixaSelecionada()!.temGraus && form.get('grau')?.value) {
+              <span class="req-grau">{{ form.get('grau')?.value }}º grau</span>
+            }
+          </div>
         </div>
-        <p>Meses mínimos: <strong>{{ faixaSelecionada()!.requisitosMesesMinimos }}</strong></p>
-        <p>Presenças mínimas: <strong>{{ faixaSelecionada()!.requisitosPresencasMinimas }}</strong></p>
+        <div class="req-info">
+          <span>Meses mín.: <strong>{{ faixaSelecionada()!.requisitosMesesMinimos }}</strong></span>
+          <span>Presenças mín.: <strong>{{ faixaSelecionada()!.requisitosPresencasMinimas }}</strong></span>
+        </div>
       </div>
+
+      @if (faixaSelecionada()!.temGraus) {
+        <div class="form-group">
+          <label class="form-label">Grau / Listra</label>
+          <div class="grau-selector">
+            @for (g of grausDisponiveis; track g) {
+              <button
+                type="button"
+                class="grau-btn"
+                [class.grau-btn--active]="form.get('grau')?.value === g"
+                (click)="form.patchValue({ grau: g })">
+                @if (g === 0) { Sem grau } @else { {{ g }}º }
+              </button>
+            }
+          </div>
+        </div>
+      }
     }
 
     <div class="form-row">
@@ -123,8 +153,8 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: var(--color-surface, #1e1e1e);
-    border: 1px solid var(--color-border, #333);
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     z-index: 50;
@@ -143,5 +173,16 @@
     transition: background 0.15s;
   }
   .autocomplete-item:hover { background: rgba(255,255,255,0.05); }
-  .input-error { border-color: var(--color-danger, #ef4444) !important; }
+  .input-error { border-color: #ef4444 !important; }
+
+  .requisitos-card { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; }
+  .req-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .req-nome { font-size: 15px; font-weight: 600; color: var(--app-text-1); display: block; }
+  .req-grau { font-size: 12px; color: #6366f1; font-weight: 600; }
+  .req-info { display: flex; gap: 20px; font-size: 13px; color: var(--app-text-2); flex-wrap: wrap; }
+
+  .grau-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .grau-btn { padding: 6px 14px; border: 1.5px solid var(--app-border); border-radius: 8px; background: var(--app-surface); color: var(--app-text-2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .grau-btn:hover { border-color: #6366f1; color: #6366f1; }
+  .grau-btn--active { background: #6366f1; border-color: #6366f1; color: #fff; }
 </style>

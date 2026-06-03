@@ -14,7 +14,7 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Database=academiafight;Username=postgres;Password=postgres123",
+            "Host=localhost;Database=academiafight;Username=postgres;Password=academia123",
             npgsql => npgsql.MigrationsAssembly("AcademiaFight.Infrastructure"));
 
         // TenantContext vazio para uso nas migrations

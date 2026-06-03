@@ -8,10 +8,14 @@ public class GraduacaoDto
     public Guid FaixaId { get; set; }
     public string NomeFaixa { get; set; } = string.Empty;
     public string CorFaixa { get; set; } = "#FFFFFF";
+    public string CorBarraFaixa { get; set; } = "#000000";
+    public bool FaixaTemGraus { get; set; }
+    public int FaixaMaxGraus { get; set; }
     public Guid ModalidadeId { get; set; }
     public string NomeModalidade { get; set; } = string.Empty;
     public DateOnly DataExame { get; set; }
     public bool Aprovado { get; set; }
+    public int Grau { get; set; }
     public Guid ProfessorId { get; set; }
     public string NomeProfessor { get; set; } = string.Empty;
     public string? Observacoes { get; set; }
@@ -26,6 +30,7 @@ public class RegistrarGraduacaoRequest
     public DateOnly DataExame { get; set; }
     public Guid ProfessorId { get; set; }
     public bool Aprovado { get; set; }
+    public int Grau { get; set; } = 0;
     public string? Observacoes { get; set; }
 }
 

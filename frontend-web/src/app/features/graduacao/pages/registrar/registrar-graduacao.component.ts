@@ -48,11 +48,18 @@ export class RegistrarGraduacaoComponent implements OnDestroy {
     alunoId: ['', Validators.required],
     modalidadeId: ['', Validators.required],
     faixaId: ['', Validators.required],
+    grau: [0],
     dataExame: ['', Validators.required],
     professorId: ['', Validators.required],
     aprovado: [true],
     observacoes: [''],
   });
+
+  get grausDisponiveis(): number[] {
+    const f = this.faixaSelecionada();
+    if (!f?.temGraus) return [];
+    return Array.from({ length: f.maxGraus + 1 }, (_, i) => i);
+  }
 
   constructor() {
     this.modalidadeService.getAll().subscribe({ next: r => this.modalidades.set(r.dados ?? []) });
@@ -112,7 +119,9 @@ export class RegistrarGraduacaoComponent implements OnDestroy {
 
   onFaixaChange(): void {
     const faixaId = this.form.get('faixaId')?.value;
-    this.faixaSelecionada.set(this.faixas().find((f) => f.id === faixaId) ?? null);
+    const faixa = this.faixas().find((f) => f.id === faixaId) ?? null;
+    this.faixaSelecionada.set(faixa);
+    this.form.patchValue({ grau: 0 });
   }
 
   submit(): void {
@@ -123,6 +132,7 @@ export class RegistrarGraduacaoComponent implements OnDestroy {
     this.graduacaoService.registrar({
       alunoId: v.alunoId!,
       faixaId: v.faixaId!,
+      grau: +v.grau!,
       dataExame: v.dataExame!,
       professorId: v.professorId!,
       aprovado: v.aprovado!,

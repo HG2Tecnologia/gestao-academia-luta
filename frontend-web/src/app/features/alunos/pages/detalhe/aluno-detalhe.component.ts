@@ -335,6 +335,7 @@ export class AlunoDetalheComponent implements OnInit {
       professorId: this.gradProfessorId(),
       dataExame: this.gradData(),
       aprovado: true,
+      grau: 0,
       observacoes: this.gradObservacoes() || undefined,
     };
 

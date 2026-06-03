@@ -12,6 +12,9 @@ public class Faixa : EntityBase
     public int RequisitosMesesMinimos { get; set; }
     public int RequisitosPresencasMinimas { get; set; }
     public string? Descricao { get; set; }
+    public bool TemGraus { get; set; } = false;
+    public int MaxGraus { get; set; } = 4;
+    public string CorBarra { get; set; } = "#000000";
 
     public Academia Academia { get; set; } = null!;
     public Modalidade Modalidade { get; set; } = null!;

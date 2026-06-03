@@ -59,7 +59,7 @@ public class UsuarioService : IUsuarioService
 
         var graduacoes = await _db.Graduacoes
             .Where(g => ids.Contains(g.AlunoId) && g.Aprovado)
-            .Select(g => new { g.AlunoId, FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor, FaixaOrdem = g.Faixa.Ordem })
+            .Select(g => new { g.AlunoId, FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor, FaixaOrdem = g.Faixa.Ordem, g.Grau })
             .ToListAsync(ct);
 
         var pagamentos = await _db.Pagamentos
@@ -73,7 +73,7 @@ public class UsuarioService : IUsuarioService
 
         var faixaDict = graduacoes
             .GroupBy(g => g.AlunoId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.FaixaOrdem).First());
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.FaixaOrdem).ThenByDescending(x => x.Grau).First());
 
         var pagamentosDict = pagamentos
             .GroupBy(p => p.AlunoId)
@@ -97,6 +97,7 @@ public class UsuarioService : IUsuarioService
             Turmas = turmasDict.GetValueOrDefault(u.Id, []),
             FaixaAtualNome = faixaDict.TryGetValue(u.Id, out var f) ? f.FaixaNome : null,
             FaixaAtualCor = faixaDict.TryGetValue(u.Id, out var f2) ? f2.FaixaCor : null,
+            GrauAtual = faixaDict.TryGetValue(u.Id, out var f3) ? f3.Grau : 0,
             SituacaoFinanceira = ResolverSituacaoFinanceira(pagamentosDict.GetValueOrDefault(u.Id)),
         }).ToList();
 
@@ -137,7 +138,8 @@ public class UsuarioService : IUsuarioService
         var faixa = await _db.Graduacoes
             .Where(g => g.AlunoId == id && g.Aprovado)
             .OrderByDescending(g => g.Faixa.Ordem)
-            .Select(g => new { FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor })
+            .ThenByDescending(g => g.Grau)
+            .Select(g => new { FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor, FaixaCorBarra = g.Faixa.CorBarra, FaixaTemGraus = g.Faixa.TemGraus, FaixaMaxGraus = g.Faixa.MaxGraus, g.Grau })
             .FirstOrDefaultAsync(ct);
 
         var statuses = await _db.Pagamentos
@@ -150,6 +152,10 @@ public class UsuarioService : IUsuarioService
         dto.TurmasDetalhes = turmasDetalhes;
         dto.FaixaAtualNome = faixa?.FaixaNome;
         dto.FaixaAtualCor = faixa?.FaixaCor;
+        dto.FaixaAtualCorBarra = faixa?.FaixaCorBarra;
+        dto.FaixaAtualTemGraus = faixa?.FaixaTemGraus ?? false;
+        dto.FaixaAtualMaxGraus = faixa?.FaixaMaxGraus ?? 4;
+        dto.GrauAtual = faixa?.Grau ?? 0;
         dto.PlanoNome = u.Plano?.Nome;
         dto.SituacaoFinanceira = ResolverSituacaoFinanceira(statuses);
         return BaseResponse<AlunoDto>.Ok(dto);

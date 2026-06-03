@@ -153,7 +153,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
     this.registrandoGrad.set(true);
     this.erroGrad.set('');
     this.gradSucesso.set(false);
-    this.graduacaoService.registrar({ alunoId, faixaId, dataExame: this.dataGrad(), professorId, aprovado: true }).subscribe({
+    this.graduacaoService.registrar({ alunoId, faixaId, dataExame: this.dataGrad(), professorId, aprovado: true, grau: 0 }).subscribe({
       next: () => {
         this.registrandoGrad.set(false);
         this.gradSucesso.set(true);
@@ -236,6 +236,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
         dataExame: hoje,
         professorId,
         aprovado: true,
+        grau: 0,
       }).toPromise());
     }
 

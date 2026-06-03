@@ -2,9 +2,9 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Rankings</h1>
-      <p class="page-subtitle">Classificação por pontos configuráveis</p>
+      <p class="page-subtitle">Classificação geral e rankings personalizados</p>
     </div>
-    @if (isAdmin) {
+    @if (isAdmin && abaAtiva() === 'custom') {
       <button class="btn-primary" (click)="abrirCriar()">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:6px"><path d="M12 5v14M5 12h14"/></svg>
         Novo ranking
@@ -12,194 +12,284 @@
     }
   </div>
 
-  @if (carregando()) {
-    <div class="skeleton-list">
-      @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
-    </div>
-  } @else if (erro()) {
-    <div class="empty-state">
-      <p>{{ erro() }}</p>
-      <button class="btn-secondary" (click)="carregarRankings()">Tentar novamente</button>
-    </div>
-  } @else if (rankings().length === 0) {
-    <div class="empty-state">
-      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-      </svg>
-      <p>Nenhum ranking criado ainda.</p>
-      @if (isAdmin) {
-        <button class="btn-primary" (click)="abrirCriar()">Criar primeiro ranking</button>
+  <!-- Tabs -->
+  <div class="tabs-nav">
+    <button class="tab-btn" [class.active]="abaAtiva() === 'geral'" (click)="mudarAba('geral')">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+      Ranking Geral
+    </button>
+    <button class="tab-btn" [class.active]="abaAtiva() === 'custom'" (click)="mudarAba('custom')">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Personalizados
+      @if (rankings().length > 0) {
+        <span class="tab-badge">{{ rankings().length }}</span>
       }
-    </div>
-  } @else {
-    <div style="display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start;">
+    </button>
+  </div>
 
-      <!-- Lista de rankings -->
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        @for (r of rankings(); track r.id) {
-          <div
-            class="ranking-tab-item"
-            [class.active]="rankingSelecionado()?.id === r.id"
-            [class.inativo]="!r.ativo"
-            (click)="selecionarRanking(r)"
-          >
-            <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;">
-              <div style="min-width:0;">
-                <div class="font-medium" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.nome }}</div>
-                @if (tagPeriodo(r)) {
-                  <div style="font-size:11px;color:#f59e0b;margin-top:2px;">📅 {{ tagPeriodo(r) }}</div>
-                }
-                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
-                  @if (r.incluirPresencas) {
-                    <span class="badge-tag" style="font-size:10px;padding:1px 6px;">Presenças ×{{ r.pesoPresencas }}</span>
+  <!-- ─── ABA GERAL ─────────────────────────────────────────────────────── -->
+  @if (abaAtiva() === 'geral') {
+    <!-- Filtros de período -->
+    <div class="periodo-chips">
+      <button class="chip" [class.active]="periodoGeral() === 'mensal'" (click)="mudarPeriodo('mensal')">
+        📅 Mensal
+      </button>
+      <button class="chip" [class.active]="periodoGeral() === 'historico'" (click)="mudarPeriodo('historico')">
+        🏆 Histórico (todo período)
+      </button>
+    </div>
+
+    @if (erroGeral()) {
+      <div class="alert-error">{{ erroGeral() }} <button class="btn-secondary" style="font-size:12px;margin-left:8px;" (click)="carregarLeaderboardGeral()">Tentar novamente</button></div>
+    } @else if (carregandoGeral()) {
+      <div class="skeleton-list">
+        @for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skeleton-row"></div> }
+      </div>
+    } @else if (!leaderboardGeral()?.items?.length) {
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+        </svg>
+        <p>Sem dados para o período selecionado.</p>
+        <p style="font-size:13px;color:var(--app-text-2);">Os alunos aparecem aqui conforme registram presenças e conquistam pontos XP.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:56px;">#</th>
+              <th>Aluno</th>
+              <th>Nível</th>
+              <th style="text-align:right;">
+                {{ periodoGeral() === 'mensal' ? 'XP este mês' : 'XP total' }}
+              </th>
+              <th style="text-align:right;">Conquistas</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of leaderboardGeral()!.items; track item.alunoId) {
+              <tr [class.podium-row]="item.posicao <= 3">
+                <td style="font-weight:700;font-size:16px;text-align:center;">{{ medalha(item.posicao) }}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="presenca-avatar">{{ (item.nomeAluno || 'U').charAt(0).toUpperCase() }}</div>
+                    <span class="font-medium">{{ item.nomeAluno }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="nivel-badge" [style.background-color]="corNivel(item.nivel) + '22'" [style.color]="corNivel(item.nivel)">
+                    {{ item.nivel }}
+                  </span>
+                </td>
+                <td style="text-align:right;font-weight:700;font-size:15px;">
+                  {{ periodoGeral() === 'mensal' ? item.xpPeriodo : item.xpTotal }} XP
+                </td>
+                <td style="text-align:right;">
+                  @if (item.totalConquistas > 0) {
+                    <span class="conquista-badge">🏅 {{ item.totalConquistas }}</span>
+                  } @else {
+                    <span style="color:var(--app-text-3);">—</span>
                   }
-                  @if (r.incluirPontosManuais) {
-                    <span style="display:inline-flex;padding:1px 6px;border-radius:99px;font-size:10px;background:#dcfce7;color:#166534;">Manual ×{{ r.pesoManuais }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="summary-card" style="margin-top:12px;">
+        {{ leaderboardGeral()?.totalParticipantes }} participantes · {{ periodoGeral() === 'mensal' ? 'Ranking mensal' : 'Ranking histórico' }}
+      </div>
+    }
+  }
+
+  <!-- ─── ABA PERSONALIZADOS ───────────────────────────────────────────── -->
+  @if (abaAtiva() === 'custom') {
+    @if (carregando()) {
+      <div class="skeleton-list">
+        @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
+      </div>
+    } @else if (erro()) {
+      <div class="empty-state">
+        <p>{{ erro() }}</p>
+        <button class="btn-secondary" (click)="carregarRankings()">Tentar novamente</button>
+      </div>
+    } @else if (rankings().length === 0) {
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+        </svg>
+        <p>Nenhum ranking personalizado criado.</p>
+        <p style="font-size:13px;color:var(--app-text-2);">Rankings personalizados permitem definir uma fórmula própria de pontuação (presenças × peso + pontos manuais).</p>
+        @if (isAdmin) {
+          <button class="btn-primary" (click)="abrirCriar()">Criar ranking personalizado</button>
+        }
+      </div>
+    } @else {
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start;">
+
+        <!-- Lista de rankings -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          @for (r of rankings(); track r.id) {
+            <div
+              class="ranking-tab-item"
+              [class.active]="rankingSelecionado()?.id === r.id"
+              [class.inativo]="!r.ativo"
+              (click)="selecionarRanking(r)"
+            >
+              <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;">
+                <div style="min-width:0;">
+                  <div class="font-medium" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.nome }}</div>
+                  @if (tagPeriodo(r)) {
+                    <div style="font-size:11px;color:#f59e0b;margin-top:2px;">📅 {{ tagPeriodo(r) }}</div>
                   }
-                  @if (!r.ativo) {
-                    <span class="badge-inativo" style="font-size:10px;padding:1px 6px;">Inativo</span>
-                  }
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+                    @if (r.incluirPresencas) {
+                      <span class="badge-tag" style="font-size:10px;padding:1px 6px;">Presenças ×{{ r.pesoPresencas }}</span>
+                    }
+                    @if (r.incluirPontosManuais) {
+                      <span style="display:inline-flex;padding:1px 6px;border-radius:99px;font-size:10px;background:#dcfce7;color:#166534;">Manual ×{{ r.pesoManuais }}</span>
+                    }
+                    @if (!r.ativo) {
+                      <span class="badge-inativo" style="font-size:10px;padding:1px 6px;">Inativo</span>
+                    }
+                  </div>
                 </div>
+                @if (isAdmin) {
+                  <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;" (click)="$event.stopPropagation()">
+                    <button class="action-link" style="font-size:11px;" (click)="abrirEditar(r)">Editar</button>
+                    @if (r.ativo) {
+                      <button class="action-link danger" style="font-size:11px;" (click)="desativarRanking(r)">Desativar</button>
+                    }
+                  </div>
+                }
               </div>
-              @if (isAdmin) {
-                <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;" (click)="$event.stopPropagation()">
-                  <button class="action-link" style="font-size:11px;" (click)="abrirEditar(r)">Editar</button>
-                  @if (r.ativo) {
-                    <button class="action-link danger" style="font-size:11px;" (click)="desativarRanking(r)">Desativar</button>
-                  }
+            </div>
+          }
+        </div>
+
+        <!-- Leaderboard do ranking selecionado -->
+        @if (rankingSelecionado(); as r) {
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+              <div>
+                <h2 style="font-size:18px;font-weight:700;margin:0;">{{ r.nome }}</h2>
+                @if (r.descricao) {
+                  <p style="font-size:13px;color:var(--app-text-2);margin:4px 0 0;">{{ r.descricao }}</p>
+                }
+                @if (tagPeriodo(r)) {
+                  <p style="font-size:12px;color:#f59e0b;margin:4px 0 0;">📅 {{ tagPeriodo(r) }}</p>
+                }
+              </div>
+              <div style="display:flex;gap:8px;">
+                @if (isProfessor && r.incluirPontosManuais) {
+                  <button class="btn-primary" style="font-size:13px;padding:8px 14px;" (click)="abrirPontuar()">
+                    + Lançar pontos
+                  </button>
+                }
+                @if (isProfessor && r.incluirPontosManuais) {
+                  <button class="btn-secondary" style="font-size:13px;padding:8px 14px;" (click)="toggleLancamentos()">
+                    {{ showLancamentos() ? 'Ver leaderboard' : 'Ver lançamentos' }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (!showLancamentos()) {
+              @if (carregandoLb()) {
+                <div class="skeleton-list">
+                  @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
+                </div>
+              } @else if (!leaderboard()?.items?.length) {
+                <div class="empty-state" style="padding:40px 0;">
+                  <p>Nenhum participante neste ranking.</p>
+                </div>
+              } @else {
+                <div class="table-wrapper">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th style="width:60px;">#</th>
+                        <th>Aluno</th>
+                        @if (leaderboard()!.incluirPresencas) {
+                          <th style="text-align:right;">Presenças</th>
+                        }
+                        @if (leaderboard()!.incluirPontosManuais) {
+                          <th style="text-align:right;">Pts manuais</th>
+                        }
+                        <th style="text-align:right;">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of leaderboard()!.items; track item.alunoId) {
+                        <tr>
+                          <td style="font-weight:700;font-size:16px;">{{ medalha(item.posicao) }}</td>
+                          <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                              <div class="presenca-avatar">{{ (item.nomeAluno || 'U').charAt(0).toUpperCase() }}</div>
+                              <span class="font-medium">{{ item.nomeAluno }}</span>
+                            </div>
+                          </td>
+                          @if (leaderboard()!.incluirPresencas) {
+                            <td style="text-align:right;">{{ item.pontosPresencas }}</td>
+                          }
+                          @if (leaderboard()!.incluirPontosManuais) {
+                            <td style="text-align:right;">{{ item.pontosManuais }}</td>
+                          }
+                          <td style="text-align:right;font-weight:700;font-size:15px;">{{ item.totalPontos }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="summary-card" style="margin-top:12px;">
+                  {{ leaderboard()?.totalParticipantes }} participantes
                 </div>
               }
-            </div>
+            } @else {
+              @if (carregandoLanc()) {
+                <div class="skeleton-list">
+                  @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
+                </div>
+              } @else if (lancamentos().length === 0) {
+                <div class="empty-state" style="padding:40px 0;"><p>Nenhum lançamento de pontos.</p></div>
+              } @else {
+                <div class="table-wrapper">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Aluno</th>
+                        <th style="text-align:right;">Pontos</th>
+                        <th>Motivo</th>
+                        <th>Por</th>
+                        <th>Data</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (l of lancamentos(); track l.id) {
+                        <tr>
+                          <td class="font-medium">{{ l.nomeAluno }}</td>
+                          <td style="text-align:right;font-weight:700;">+{{ l.pontos }}</td>
+                          <td style="color:var(--app-text-2);font-size:13px;">{{ l.descricao || '—' }}</td>
+                          <td style="font-size:13px;">{{ l.nomeRegistradoPor }}</td>
+                          <td style="font-size:13px;">{{ fmtData(l.data) }}</td>
+                          <td>
+                            @if (isProfessor) {
+                              <button class="action-link danger" (click)="removerLancamento(l.id)">Remover</button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
           </div>
         }
       </div>
-
-      <!-- Leaderboard do ranking selecionado -->
-      @if (rankingSelecionado(); as r) {
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-            <div>
-              <h2 style="font-size:18px;font-weight:700;margin:0;">{{ r.nome }}</h2>
-              @if (r.descricao) {
-                <p style="font-size:13px;color:var(--app-text-2);margin:4px 0 0;">{{ r.descricao }}</p>
-              }
-              @if (tagPeriodo(r)) {
-                <p style="font-size:12px;color:#f59e0b;margin:4px 0 0;">📅 {{ tagPeriodo(r) }}</p>
-              }
-            </div>
-            <div style="display:flex;gap:8px;">
-              @if (isProfessor && r.incluirPontosManuais) {
-                <button class="btn-primary" style="font-size:13px;padding:8px 14px;" (click)="abrirPontuar()">
-                  + Lançar pontos
-                </button>
-              }
-              @if (isProfessor && r.incluirPontosManuais) {
-                <button class="btn-secondary" style="font-size:13px;padding:8px 14px;" (click)="toggleLancamentos()">
-                  {{ showLancamentos() ? 'Ver leaderboard' : 'Ver lançamentos' }}
-                </button>
-              }
-            </div>
-          </div>
-
-          @if (!showLancamentos()) {
-            <!-- Leaderboard -->
-            @if (carregandoLb()) {
-              <div class="skeleton-list">
-                @for (i of [1,2,3,4,5]; track i) { <div class="skeleton-row"></div> }
-              </div>
-            } @else if (!leaderboard()?.items?.length) {
-              <div class="empty-state" style="padding:40px 0;">
-                <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                  <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-                </svg>
-                <p>Nenhum participante neste ranking.</p>
-              </div>
-            } @else {
-              <div class="table-wrapper">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th style="width:60px;">#</th>
-                      <th>Aluno</th>
-                      @if (leaderboard()!.incluirPresencas) {
-                        <th style="text-align:right;">Presenças</th>
-                      }
-                      @if (leaderboard()!.incluirPontosManuais) {
-                        <th style="text-align:right;">Pts manuais</th>
-                      }
-                      <th style="text-align:right;">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (item of leaderboard()!.items; track item.alunoId) {
-                      <tr>
-                        <td style="font-weight:700;font-size:16px;">{{ medalha(item.posicao) }}</td>
-                        <td>
-                          <div style="display:flex;align-items:center;gap:10px;">
-                            <div class="presenca-avatar">{{ (item.nomeAluno || 'U').charAt(0).toUpperCase() }}</div>
-                            <span class="font-medium">{{ item.nomeAluno }}</span>
-                          </div>
-                        </td>
-                        @if (leaderboard()!.incluirPresencas) {
-                          <td style="text-align:right;">{{ item.pontosPresencas }}</td>
-                        }
-                        @if (leaderboard()!.incluirPontosManuais) {
-                          <td style="text-align:right;">{{ item.pontosManuais }}</td>
-                        }
-                        <td style="text-align:right;font-weight:700;font-size:15px;">{{ item.totalPontos }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-              <div class="summary-card" style="margin-top:12px;">
-                {{ leaderboard()?.totalParticipantes }} participantes
-              </div>
-            }
-          } @else {
-            <!-- Lançamentos -->
-            @if (carregandoLanc()) {
-              <div class="skeleton-list">
-                @for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }
-              </div>
-            } @else if (lancamentos().length === 0) {
-              <div class="empty-state" style="padding:40px 0;"><p>Nenhum lançamento de pontos.</p></div>
-            } @else {
-              <div class="table-wrapper">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Aluno</th>
-                      <th style="text-align:right;">Pontos</th>
-                      <th>Motivo</th>
-                      <th>Por</th>
-                      <th>Data</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (l of lancamentos(); track l.id) {
-                      <tr>
-                        <td class="font-medium">{{ l.nomeAluno }}</td>
-                        <td style="text-align:right;font-weight:700;">+{{ l.pontos }}</td>
-                        <td style="color:var(--app-text-2);font-size:13px;">{{ l.descricao || '—' }}</td>
-                        <td style="font-size:13px;">{{ l.nomeRegistradoPor }}</td>
-                        <td style="font-size:13px;">{{ fmtData(l.data) }}</td>
-                        <td>
-                          @if (isProfessor) {
-                            <button class="action-link danger" (click)="removerLancamento(l.id)">Remover</button>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          }
-        </div>
-      }
-    </div>
+    }
   }
 </div>
 
@@ -208,7 +298,7 @@
   <div class="modal-backdrop" (click)="showModalCriar.set(false)"></div>
   <div class="modal" style="max-width:540px;max-height:90vh;display:flex;flex-direction:column;" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ editandoId() ? 'Editar ranking' : 'Novo ranking' }}</h3>
+      <h3>{{ editandoId() ? 'Editar ranking' : 'Novo ranking personalizado' }}</h3>
       <button class="modal-close" (click)="showModalCriar.set(false)">✕</button>
     </div>
     <form [formGroup]="formCriar" (ngSubmit)="salvarRanking()" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
@@ -229,7 +319,7 @@
         <div>
           <label class="form-label" style="margin-bottom:8px;display:block;">
             Período de validade
-            <span style="font-weight:400;color:var(--app-text-2);">(opcional — sem datas = ranking permanente)</span>
+            <span style="font-weight:400;color:var(--app-text-2);">(opcional — sem datas = permanente)</span>
           </label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div class="form-group" style="gap:4px;">
@@ -303,7 +393,7 @@
   <div class="modal-backdrop" (click)="showModalPontuar.set(false)"></div>
   <div class="modal" style="max-width:440px;" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Lançar pontos</h3>
+      <h3>Lançar pontos — {{ rankingSelecionado()?.nome }}</h3>
       <button class="modal-close" (click)="showModalPontuar.set(false)">✕</button>
     </div>
     <form [formGroup]="formPontuar" (ngSubmit)="salvarPontos()">
@@ -347,15 +437,27 @@
 }
 
 <style>
-  .ranking-tab-item {
-    padding: 12px 14px;
-    border: 1px solid var(--app-border);
-    border-radius: 10px;
-    cursor: pointer;
-    background: var(--app-surface);
-    transition: border-color 0.15s, background 0.15s;
-  }
+  /* Tabs */
+  .tabs-nav { display: flex; gap: 4px; border-bottom: 1px solid var(--app-border); margin-bottom: 20px; padding-bottom: 0; }
+  .tab-btn { display: flex; align-items: center; gap: 6px; padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--app-text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 6px 6px 0 0; transition: all 0.15s; }
+  .tab-btn:hover { color: var(--app-text-1); background: var(--app-border-light); }
+  .tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; background: rgba(99,102,241,0.05); }
+  .tab-badge { background: #6366f1; color: #fff; border-radius: 99px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
+
+  /* Período chips */
+  .periodo-chips { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .chip { padding: 6px 16px; border: 1.5px solid var(--app-border); border-radius: 99px; background: var(--app-surface); color: var(--app-text-2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: #6366f1; color: #6366f1; }
+  .chip.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+  /* Ranking rows */
+  .ranking-tab-item { padding: 12px 14px; border: 1px solid var(--app-border); border-radius: 10px; cursor: pointer; background: var(--app-surface); transition: border-color 0.15s, background 0.15s; }
   .ranking-tab-item:hover { border-color: #6366f1; }
   .ranking-tab-item.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
   .ranking-tab-item.inativo { opacity: 0.55; }
+
+  /* Geral table enhancements */
+  .podium-row { background: rgba(99,102,241,0.03); }
+  .nivel-badge { display: inline-flex; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .conquista-badge { font-size: 12px; color: #f59e0b; }
 </style>

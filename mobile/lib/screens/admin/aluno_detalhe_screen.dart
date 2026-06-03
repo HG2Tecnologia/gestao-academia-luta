@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/widgets.dart';
 
 class AdminAlunoDetalheScreen extends StatefulWidget {
   final String alunoId;
@@ -43,13 +44,19 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       for (final g in graduacoes) {
         final modNome = g['nomeModalidade']?.toString() ?? 'Sem modalidade';
         final faixaOrdem = (g['faixaOrdem'] as num?)?.toInt() ?? 0;
+        final grau = (g['grau'] as num?)?.toInt() ?? 0;
         final existing = faixasMod[modNome];
         final existingOrdem = (existing?['_faixaOrdem'] as int?) ?? -1;
-        if (existing == null || faixaOrdem > existingOrdem) {
+        final existingGrau = (existing?['grau'] as int?) ?? -1;
+        if (existing == null || faixaOrdem > existingOrdem || (faixaOrdem == existingOrdem && grau > existingGrau)) {
           faixasMod[modNome] = {
             'nome': g['nomeFaixa'] ?? '',
             'cor': g['corFaixa'] ?? '#FFFFFF',
+            'corBarra': g['corBarraFaixa'] ?? '#000000',
+            'temGraus': g['faixaTemGraus'] == true,
+            'maxGraus': (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
             '_faixaOrdem': faixaOrdem,
+            'grau': grau,
           };
         }
       }
@@ -144,6 +151,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     int step = mods.length <= 1 ? 1 : 0;
     Map<String, dynamic>? modSel = mods.length <= 1 && mods.isNotEmpty ? mods.first : null;
     Map<String, dynamic>? faixaSel;
+    int grauSel = 0;
     final obsCtrl = TextEditingController();
     bool gerarCobranca = false;
     final valorCtrl = TextEditingController();
@@ -242,6 +250,43 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     Text('${modSel?['nome']} · ${faixaSel?['nome'] ?? ''}', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                   ]),
                 ),
+                if (faixaSel != null && faixaSel!['temGraus'] == true) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Icon(Icons.grade_rounded, size: 14, color: kText2),
+                        const SizedBox(width: 6),
+                        Text('Grau', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Text(grauSel == 0 ? 'Sem grau' : '${grauSel}° Grau', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                      ]),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: List.generate((faixaSel!['maxGraus'] as num? ?? 4).toInt() + 1, (i) {
+                          final sel = grauSel == i;
+                          return GestureDetector(
+                            onTap: () => setModal(() => grauSel = i),
+                            child: Container(
+                              width: 44, height: 36,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: sel ? kPrimary : kSurface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: sel ? kPrimary : kBorder),
+                              ),
+                              child: Text(i == 0 ? '—' : '$i°', style: TextStyle(color: sel ? Colors.white : kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+                            ),
+                          );
+                        }),
+                      ),
+                    ]),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextField(
                   controller: obsCtrl,
@@ -295,12 +340,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       try {
                         final hoje = DateTime.now();
                         final dataExame = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+                        final temGraus = faixaSel!['temGraus'] == true;
                         await dio.post('/api/graduacoes', data: {
                           'alunoId': widget.alunoId,
                           'faixaId': faixaSel!['id'],
                           'dataExame': dataExame,
                           'professorId': _meId,
                           'aprovado': true,
+                          'grau': temGraus ? grauSel : 0,
                           'observacoes': obsCtrl.text.trim(),
                         });
                         if (gerarCobranca && valorCtrl.text.isNotEmpty) {
@@ -613,21 +660,33 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               _row('Faixa atual', a['faixaAtualNome'])
                             else
                               ..._faixasPorModalidade.entries.map((e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(child: Text(e.key, style: TextStyle(color: kText2, fontSize: 12))),
-                                    Row(children: [
-                                      Container(
-                                        width: 10, height: 10,
-                                        margin: const EdgeInsets.only(right: 6),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: _parseCor(e.value['cor']?.toString()),
+                                    Text(e.key, style: TextStyle(color: kText2, fontSize: 12)),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        BeltBadge(
+                                          cor: _parseCor(e.value['cor']?.toString()),
+                                          corBarra: _parseCor(e.value['corBarra']?.toString() ?? '#000000'),
+                                          temGraus: e.value['temGraus'] == true,
+                                          grau: (e.value['grau'] as num?)?.toInt() ?? 0,
+                                          maxGraus: (e.value['maxGraus'] as num?)?.toInt() ?? 4,
+                                          height: 14,
+                                          minWidth: 32,
                                         ),
-                                      ),
-                                      Text(e.value['nome']?.toString() ?? '-', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                                    ]),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          (e.value['grau'] as num? ?? 0).toInt() > 0
+                                              ? '${e.value['nome']} · ${(e.value['grau'] as num).toInt()}° Grau'
+                                              : e.value['nome']?.toString() ?? '-',
+                                          style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               )),
@@ -672,6 +731,26 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                 ),
                               )),
                           ]),
+                                          const SizedBox(height: 12),
+                          _buildCard([
+                            Row(
+                              children: [
+                                Expanded(child: _sectionTitle('Rankings')),
+                                TextButton.icon(
+                                  onPressed: _abrirLancarPontos,
+                                  icon: Icon(Icons.add_circle_outline_rounded, size: 16, color: kPrimary),
+                                  label: Text('Pontos', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text('Toque em "Pontos" para lançar pontos em um ranking personalizado.',
+                                style: TextStyle(color: kText2, fontSize: 12)),
+                          ]),
                           if (a['contatoEmergenciaNome'] != null) ...[
                             const SizedBox(height: 12),
                             _buildCard([
@@ -684,6 +763,156 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ],
                       ),
                     ),
+    );
+  }
+
+  // ── Lançar Pontos em Ranking ─────────────────────────
+  Future<void> _abrirLancarPontos() async {
+    List<Map<String, dynamic>> rankings = [];
+    try {
+      final res = await dio.get('/api/ranking/custom');
+      final data = res.data;
+      final list = data is List
+          ? data.cast<Map<String, dynamic>>()
+          : (data is Map ? ((data['dados'] ?? data['itens'] ?? []) as List).cast<Map<String, dynamic>>() : <Map<String, dynamic>>[]);
+      rankings = list.where((r) => r['incluirPontosManuais'] == true && r['ativo'] != false).toList();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    if (rankings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Nenhum ranking com pontos manuais ativo.'),
+        backgroundColor: kWarning,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    Map<String, dynamic>? rankingSel = rankings.length == 1 ? rankings.first : null;
+    final pontosCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    bool salvando = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text('Lançar Pontos', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
+                ]),
+                Text(_aluno?['nome'] ?? '', style: TextStyle(color: kText2, fontSize: 13)),
+                const Divider(height: 20),
+                if (rankings.length > 1) ...[
+                  Text('Ranking', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  ...rankings.map((r) {
+                    final sel = rankingSel?['id'] == r['id'];
+                    return GestureDetector(
+                      onTap: () => setModal(() => rankingSel = r),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: sel ? kPrimary.withOpacity(0.12) : kBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: sel ? kPrimary : kBorder),
+                        ),
+                        child: Row(children: [
+                          Expanded(child: Text(r['nome'] ?? '', style: TextStyle(color: sel ? kPrimary : kText1, fontSize: 13, fontWeight: FontWeight.w600))),
+                          if (sel) Icon(Icons.check_circle_rounded, color: kPrimary, size: 18),
+                        ]),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                ] else if (rankings.length == 1) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: kPrimary.withOpacity(0.3))),
+                    child: Text(rankingSel?['nome'] ?? '', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                TextField(
+                  controller: pontosCtrl,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(color: kText1),
+                  decoration: InputDecoration(
+                    hintText: 'Quantidade de pontos',
+                    hintStyle: TextStyle(color: kText2),
+                    filled: true, fillColor: kBg,
+                    contentPadding: const EdgeInsets.all(14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descCtrl,
+                  style: TextStyle(color: kText1),
+                  decoration: InputDecoration(
+                    hintText: 'Descrição (opcional)',
+                    hintStyle: TextStyle(color: kText2),
+                    filled: true, fillColor: kBg,
+                    contentPadding: const EdgeInsets.all(14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity, height: 50,
+                  child: ElevatedButton(
+                    onPressed: (salvando || rankingSel == null || pontosCtrl.text.trim().isEmpty) ? null : () async {
+                      final pts = int.tryParse(pontosCtrl.text.trim());
+                      if (pts == null || pts <= 0) return;
+                      setModal(() => salvando = true);
+                      try {
+                        await dio.post('/api/ranking/custom/${rankingSel!['id']}/pontuar', data: {
+                          'alunoId': widget.alunoId,
+                          'pontos': pts,
+                          'descricao': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                        });
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('$pts pontos lançados com sucesso!'),
+                          backgroundColor: kSuccess,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      } catch (e) {
+                        String msg = 'Erro ao lançar pontos.';
+                        try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
+                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+                      } finally {
+                        setModal(() => salvando = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: salvando
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Lançar Pontos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

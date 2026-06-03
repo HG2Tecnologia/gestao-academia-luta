@@ -129,6 +129,9 @@ final _router = GoRouter(
             ],
           ),
         ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/admin/ranking', builder: (_, __) => const ProfRankingScreen()),
+        ]),
       ],
     ),
 

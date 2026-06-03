@@ -4,6 +4,7 @@ import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/widgets.dart';
 import 'aluno_qrcode_sheet.dart';
 
 class AlunoPerfilScreen extends StatefulWidget {
@@ -183,6 +184,15 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     }
   }
 
+  Color _parseHex(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.black;
+    try {
+      return Color(int.parse(hex.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return Colors.black;
+    }
+  }
+
   void _mostrarQrCode() {
     showModalBottomSheet(
       context: context,
@@ -308,6 +318,10 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
     final faixaCor = _faixaCor();
     final faixaNome = a['faixaAtualNome'] as String? ?? 'Sem faixa';
+    final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
+    final faixaCorBarra = _parseHex(a['faixaAtualCorBarra'] as String?);
+    final faixaTemGraus = a['faixaAtualTemGraus'] as bool? ?? false;
+    final faixaMaxGraus = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
     final turmasDetalhes = (a['turmasDetalhes'] as List? ?? []).cast<Map<String, dynamic>>();
     final finRaw = a['situacaoFinanceira'] as String?;
     final fin = finRaw == 'EmDia' ? 'Em Dia' : finRaw;
@@ -319,10 +333,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
       return kText2;
     }
 
-    // Belt color visibility adjustment for dark bg
-    final beltColor = faixaCor == const Color(0xFFFFFFFF) || faixaCor == Colors.white
-        ? const Color(0xFFDDDDDD)
-        : faixaCor;
+    // Use kPrimary for very light belts (white, cinza) to keep the dark theme readable
+    final beltColor = faixaCor.computeLuminance() > 0.5 ? kPrimary : faixaCor;
     final accentLight = Color.lerp(beltColor, Colors.white, 0.25)!;
 
     return Scaffold(
@@ -419,18 +431,29 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                       const SizedBox(height: 8),
                       // Belt badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: beltColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: beltColor.withOpacity(0.5)),
                         ),
-                        child: Row(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.military_tech_rounded, size: 14, color: accentLight),
-                            const SizedBox(width: 5),
-                            Text(faixaNome, style: TextStyle(color: accentLight, fontSize: 13, fontWeight: FontWeight.w700)),
+                            Text(
+                              grauAtual > 0 ? '$faixaNome · ${grauAtual}° Grau' : faixaNome,
+                              style: TextStyle(color: accentLight, fontSize: 13, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 6),
+                            BeltBadge(
+                              cor: faixaCor,
+                              corBarra: faixaCorBarra,
+                              temGraus: faixaTemGraus,
+                              grau: grauAtual,
+                              maxGraus: faixaMaxGraus,
+                              height: 14,
+                              minWidth: 52,
+                            ),
                           ],
                         ),
                       ),

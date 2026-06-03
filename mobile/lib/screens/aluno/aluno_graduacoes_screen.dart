@@ -116,23 +116,45 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                             border: Border.all(color: aprovado && isFirst ? cor.withOpacity(0.4) : kBorder),
                           ),
                           child: Row(children: [
-                            Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 12), decoration: BoxDecoration(shape: BoxShape.circle, color: cor)),
+                            BeltBadge(
+                              cor: cor,
+                              corBarra: _hexCor(g['corBarraFaixa'] as String? ?? '#000000'),
+                              temGraus: g['faixaTemGraus'] == true,
+                              grau: (g['grau'] as num?)?.toInt() ?? 0,
+                              maxGraus: (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
+                              height: 14,
+                              minWidth: 32,
+                            ),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(g['nomeFaixa'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
+                                Row(children: [
+                                  Flexible(child: Text(g['nomeFaixa'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)),
+                                  if (g['faixaTemGraus'] == true && ((g['grau'] as num?)?.toInt() ?? 0) > 0) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                                      child: Text('${(g['grau'] as num?)?.toInt()}° grau', style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
+                                    ),
+                                  ],
+                                ]),
                                 if (g['nomeProfessor'] != null)
                                   Text('Prof. ${g['nomeProfessor']}', style: TextStyle(color: kText2, fontSize: 11)),
                               ]),
                             ),
-                            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                              Text(_fmtData(g['dataExame']?.toString()), style: TextStyle(color: kText2, fontSize: 12)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: (aprovado ? kSuccess : kDanger).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                                child: Text(aprovado ? 'Aprovado' : 'Reprovado', style: TextStyle(color: aprovado ? kSuccess : kDanger, fontSize: 11, fontWeight: FontWeight.w700)),
-                              ),
-                            ]),
+                            Flexible(
+                              flex: 0,
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                Text(_fmtData(g['dataExame']?.toString()), style: TextStyle(color: kText2, fontSize: 12)),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(color: (aprovado ? kSuccess : kDanger).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                                  child: Text(aprovado ? 'Aprovado' : 'Reprovado', style: TextStyle(color: aprovado ? kSuccess : kDanger, fontSize: 11, fontWeight: FontWeight.w700)),
+                                ),
+                              ]),
+                            ),
                           ]),
                         ),
                       ),
@@ -153,7 +175,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
   }
 
-  String _fmtData(String? s) {
+String _fmtData(String? s) {
     if (s == null) return '';
     try {
       final parts = s.split('-');
@@ -169,6 +191,10 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
 
     final faixaAtual = _faixaAtual;
     final corFaixa = _hexCor(faixaAtual?['corFaixa'] as String?);
+    final corBarra = _hexCor(faixaAtual?['corBarraFaixa'] as String? ?? '#000000');
+    final temGraus = faixaAtual?['faixaTemGraus'] == true;
+    final grauAtual = (faixaAtual?['grau'] as num?)?.toInt() ?? 0;
+    final maxGraus = (faixaAtual?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
     final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
     final aprovadas = _graduacoes.where((g) => g['aprovado'] == true).toList();
 
@@ -213,15 +239,15 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: corFaixa.withOpacity(0.2),
-                              border: Border.all(color: corFaixa.withOpacity(0.5), width: 2),
-                            ),
-                            child: Icon(Icons.military_tech_rounded, color: accentLight, size: 28),
+                          // Belt visual
+                          BeltBadge(
+                            cor: corFaixa,
+                            corBarra: corBarra,
+                            temGraus: temGraus,
+                            grau: grauAtual,
+                            maxGraus: maxGraus,
+                            height: 22,
+                            minWidth: 52,
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -230,8 +256,14 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                               children: [
                                 Text('Faixa atual', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
                                 Text(faixaAtual['nomeFaixa'] ?? '', style: TextStyle(color: accentLight, fontSize: 20, fontWeight: FontWeight.w900)),
-                                if (faixaAtual['nomeModalidade'] != null)
-                                  Text(faixaAtual['nomeModalidade'], style: TextStyle(color: kText2, fontSize: 12)),
+                                Row(children: [
+                                  if (faixaAtual['nomeModalidade'] != null)
+                                    Text(faixaAtual['nomeModalidade'], style: TextStyle(color: kText2, fontSize: 12)),
+                                  if (temGraus && grauAtual > 0) ...[
+                                    Text(' · ', style: TextStyle(color: kText2, fontSize: 12)),
+                                    Text('$grauAtual° grau', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                                  ],
+                                ]),
                               ],
                             ),
                           ),
@@ -239,7 +271,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text('${aprovadas.length}', style: TextStyle(color: corFaixa, fontSize: 28, fontWeight: FontWeight.w900)),
-                              Text('gradua${aprovadas.length == 1 ? 'ação' : 'ções'}', style: TextStyle(color: kText2, fontSize: 11)),
+                              Text('gradua${aprovadas.length == 1 ? 'ção' : 'ções'}', style: TextStyle(color: kText2, fontSize: 11)),
                             ],
                           ),
                         ],

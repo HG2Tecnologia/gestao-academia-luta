@@ -1,5 +1,7 @@
 using AcademiaFight.Application.DTOs.Modalidade;
 using AcademiaFight.Application.Interfaces;
+using AcademiaFight.Application.Services;
+using AcademiaFight.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +13,17 @@ namespace AcademiaFight.API.Controllers;
 public class ModalidadeController : ControllerBase
 {
     private readonly IModalidadeService _modalidadeService;
+    private readonly IModalidadeSeedService _seedService;
+    private readonly ITenantContext _tenant;
 
-    public ModalidadeController(IModalidadeService modalidadeService)
+    public ModalidadeController(
+        IModalidadeService modalidadeService,
+        IModalidadeSeedService seedService,
+        ITenantContext tenant)
     {
         _modalidadeService = modalidadeService;
+        _seedService = seedService;
+        _tenant = tenant;
     }
 
     [HttpGet]
@@ -73,5 +82,17 @@ public class ModalidadeController : ControllerBase
                 : BadRequest(resultado);
 
         return Ok(resultado);
+    }
+
+    /// <summary>
+    /// Popula as modalidades pré-definidas do sistema para a academia atual.
+    /// Idempotente: não faz nada se a academia já possui modalidades cadastradas.
+    /// </summary>
+    [HttpPost("seed")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Seed(CancellationToken ct)
+    {
+        await _seedService.SeedParaAcademiaAsync(_tenant.AcademiaId, ct);
+        return Ok(new { sucesso = true, mensagem = "Modalidades pré-definidas carregadas com sucesso." });
     }
 }

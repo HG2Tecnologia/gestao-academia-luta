@@ -16,7 +16,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   final _emailCtrl = TextEditingController();
   final _telefoneCtrl = TextEditingController();
   final _cnpjCtrl = TextEditingController();
-  final _logoUrlCtrl = TextEditingController();
 
   bool _loading = true;
   bool _salvando = false;
@@ -35,7 +34,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     _emailCtrl.dispose();
     _telefoneCtrl.dispose();
     _cnpjCtrl.dispose();
-    _logoUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -49,7 +47,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _emailCtrl.text = dados['email'] as String? ?? '';
       _telefoneCtrl.text = dados['telefone'] as String? ?? '';
       _cnpjCtrl.text = dados['cnpj'] as String? ?? '';
-      _logoUrlCtrl.text = dados['logoUrl'] as String? ?? '';
       _subdominio = dados['subdominio'] as String? ?? '';
       if (mounted) setState(() { _loading = false; });
     } catch (_) {
@@ -66,7 +63,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
         'email': _emailCtrl.text.trim(),
         'telefone': _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
         'cnpj': _cnpjCtrl.text.trim().isEmpty ? null : _cnpjCtrl.text.trim(),
-        'logoUrl': _logoUrlCtrl.text.trim().isEmpty ? null : _logoUrlCtrl.text.trim(),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -184,31 +180,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           icon: Icons.business_rounded,
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 24),
-                        _SectionLabel('Identidade Visual'),
-                        const SizedBox(height: 12),
-                        _Field(
-                          controller: _logoUrlCtrl,
-                          label: 'URL do Logo',
-                          icon: Icons.image_rounded,
-                          keyboardType: TextInputType.url,
-                        ),
-                        if (_logoUrlCtrl.text.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              _logoUrlCtrl.text,
-                              height: 80,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 80,
-                                decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(12)),
-                                child: Center(child: Icon(Icons.broken_image_rounded, color: kText2)),
-                              ),
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 24),
                         _SectionLabel('Graduações'),
                         const SizedBox(height: 12),

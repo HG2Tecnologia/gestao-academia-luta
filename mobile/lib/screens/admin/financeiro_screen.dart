@@ -75,6 +75,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Color _statusCor(String? s) {
     if (s == 'Pago') return kSuccess;
     if (s == 'Pendente') return kWarning;
+    if (s == 'Previsto') return kText2;
     return kDanger;
   }
 
