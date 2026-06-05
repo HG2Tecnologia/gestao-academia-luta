@@ -5,7 +5,7 @@
   --fg-2: #c9c8c2;
   --fg-3: #8a8985;
   --line: #232323;
-  --accent: #6c3fff;
+  --accent: #C9A020;
 }
 
 :host-context(html:not(.dark)) {
@@ -14,7 +14,7 @@
   --fg-2: #475569;
   --fg-3: #94a3b8;
   --line: #e2e8f0;
-  --accent: #6366f1;
+  --accent: #C9A020;
 }
 
 .topbar {
@@ -175,7 +175,7 @@
 
 .notif-item:last-child { border-bottom: none; }
 
-.notif-nao-lida { background: rgba(99,102,241,0.05); }
+.notif-nao-lida { background: rgba(201,160,32,0.05); }
 
 .notif-icone {
   font-size: 20px;

@@ -120,7 +120,7 @@ html.dark {
   .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
   .form-label { font-size: 0.875rem; font-weight: 500; color: var(--app-text-1); }
   .form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--app-input-border); border-radius: 8px; font-size: 0.875rem; background: var(--app-input-bg); color: var(--app-text-1); outline: none; transition: border-color 0.15s; }
-  .form-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+  .form-input:focus { border-color: #C9A020; box-shadow: 0 0 0 3px rgba(201,160,32,0.1); }
   .form-input option { background: var(--app-input-bg); color: var(--app-text-1); }
   .form-error { font-size: 0.75rem; color: #ef4444; }
   .form-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
@@ -150,12 +150,12 @@ html.dark {
   /* Tabs */
   .tabs { display: flex; border-bottom: 1px solid var(--app-border); margin-bottom: 20px; gap: 0; }
   .tab { padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: var(--app-text-2); transition: all 0.15s; }
-  .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+  .tab.active { color: #C9A020; border-bottom-color: #C9A020; }
   .tab-content { min-height: 120px; }
 
   /* Breadcrumb */
   .breadcrumb { font-size: 0.75rem; color: var(--app-text-3); margin-bottom: 4px; }
-  .breadcrumb-link { color: #6366f1; text-decoration: none; }
+  .breadcrumb-link { color: #C9A020; text-decoration: none; }
   .breadcrumb-link:hover { text-decoration: underline; }
 
   /* Horarios */
@@ -172,7 +172,7 @@ html.dark {
   .presenca-lista { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
   .presenca-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; cursor: pointer; border: 1px solid var(--app-border); background: var(--app-surface); transition: all 0.15s; }
   .presenca-item.presente { background: #f0fdf4; border-color: #86efac; }
-  .presenca-avatar { width: 36px; height: 36px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0; }
+  .presenca-avatar { width: 36px; height: 36px; border-radius: 50%; background: #fef9c3; color: #B8860B; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0; }
   .presenca-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .presenca-nome { font-weight: 500; font-size: 0.875rem; color: var(--app-text-1); }
   .presenca-email { font-size: 0.75rem; color: var(--app-text-3); }

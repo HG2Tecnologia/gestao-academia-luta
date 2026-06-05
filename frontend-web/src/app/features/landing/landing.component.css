@@ -1,15 +1,15 @@
 :host {
   display: block;
-  --bg: #f8f7ff;
-  --bg-2: #f0eefb;
-  --bg-3: #e8e4f8;
+  --bg: #fefce8;
+  --bg-2: #fef9c3;
+  --bg-3: #fef08a;
   --fg: #0d0a1e;
   --fg-2: #3b3659;
   --fg-3: #7a759e;
-  --line: #ddd9f2;
-  --line-2: #ccc7ea;
-  --accent: #6c3fff;
-  --accent-2: #8b67ff;
+  --line: #e5d68a;
+  --line-2: #d4c060;
+  --accent: #C9A020;
+  --accent-2: #D4AF37;
   --good: #16a34a;
   --display: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
   --mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;

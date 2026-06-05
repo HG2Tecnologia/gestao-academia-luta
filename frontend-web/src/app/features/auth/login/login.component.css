@@ -8,8 +8,8 @@
   --fg-3: #7a759e;
   --line: #ddd9f2;
   --line-2: #ccc7ea;
-  --accent: #6c3fff;
-  --accent-2: #8b67ff;
+  --accent: #C9A020;
+  --accent-2: #D4AF37;
   --display: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
   --mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-family: var(--display);
@@ -107,7 +107,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #8b67ff;
+  color: #D4AF37;
   flex-shrink: 0;
 }
 

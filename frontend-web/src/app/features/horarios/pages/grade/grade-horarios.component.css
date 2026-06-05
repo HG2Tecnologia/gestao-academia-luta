@@ -38,7 +38,7 @@
 .aula-card {
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #e2e8f0);
-  border-left: 4px solid #6366f1;
+  border-left: 4px solid #C9A020;
   border-radius: 6px;
   padding: 8px 10px;
   cursor: pointer;
@@ -97,5 +97,5 @@
   border: 1.5px solid var(--app-border); background: none; cursor: pointer;
   color: var(--app-text-2); transition: all 0.15s;
 }
-.dia-chip:hover { border-color: #6366f1; color: #6366f1; }
-.dia-chip.selected { background: #6366f1; border-color: #6366f1; color: #fff; }
+.dia-chip:hover { border-color: #C9A020; color: #C9A020; }
+.dia-chip.selected { background: #C9A020; border-color: #C9A020; color: #fff; }

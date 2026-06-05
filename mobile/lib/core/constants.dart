@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-const String kApiUrl = 'http://10.0.10.186:5226';
+const String kApiUrl = 'https://academia-fight-api.fly.dev';
 
-const Color kPrimary = Color(0xFF6C3FFF);
+const Color kPrimary = Color(0xFFC9A020);
 const Color kBg = Color(0xFF0F172A);
 const Color kSurface = Color(0xFF1E293B);
 const Color kBorder = Color(0xFF334155);

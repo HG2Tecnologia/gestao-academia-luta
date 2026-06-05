@@ -199,6 +199,13 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
     Authorization = [new HangfireAuthorizationFilter()]
 });
 
+// Rodar migrations automaticamente no startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 // Registrar job recorrente: reset XP mensal no dia 1 de cada mês às 00:01 (UTC)
 RecurringJob.AddOrUpdate<RankingMensalResetJob>(
     "ranking-reset-mensal",

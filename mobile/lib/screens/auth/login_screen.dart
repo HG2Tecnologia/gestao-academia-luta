@@ -153,9 +153,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'TATAKAI',
+                  'SENSEI MANAGER',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 4),
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 3),
                 ),
                 const SizedBox(height: 4),
                 Text(

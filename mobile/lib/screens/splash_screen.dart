@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../core/auth_storage.dart';
 import '../core/constants.dart';
 
-const _letters = ['T', 'A', 'T', 'A', 'K', 'A', 'I'];
+const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -257,8 +257,8 @@ class _BeltPainter extends CustomPainter {
       borderPaint,
     );
 
-    // Tarja vermelha na ponta (grau professor/coral BJJ)
-    final tipPaint = Paint()..color = const Color(0xFFCC1414);
+    // Tarja dourada na ponta
+    final tipPaint = Paint()..color = const Color(0xFFC9A020);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(size.width - 38, 0, 38, size.height),

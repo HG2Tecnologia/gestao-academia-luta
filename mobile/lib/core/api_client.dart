@@ -4,8 +4,8 @@ import 'constants.dart';
 
 final dio = Dio(BaseOptions(
   baseUrl: kApiUrl,
-  connectTimeout: const Duration(seconds: 10),
-  receiveTimeout: const Duration(seconds: 15),
+  connectTimeout: const Duration(seconds: 20),
+  receiveTimeout: const Duration(seconds: 25),
 ));
 
 bool _refreshing = false;
