@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const String kApiUrl = 'https://academia-fight-api.fly.dev';
+const String kApiUrl = 'https://gestao-academia-luta.onrender.com';
 
 const Color kPrimary = Color(0xFFC9A020);
 const Color kBg = Color(0xFF0F172A);
