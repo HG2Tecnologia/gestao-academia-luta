@@ -186,12 +186,12 @@ public class ModalidadeSeedService(IAppDbContext db) : IModalidadeSeedService
         new("Boxe",
             "Graduação adaptada para academias — sem sistema de faixas oficial na modalidade.",
             [
-                new("Luva Branca",    "#FFFFFF", "#1A1A1A", Descricao: "Iniciante"),
-                new("Luva Amarela",   "#F9A825", "#1A1A1A", MesesMinimos: 6,  Descricao: "Básico"),
-                new("Luva Verde",     "#2E7D32", "#1A1A1A", MesesMinimos: 12, Descricao: "Intermediário"),
-                new("Luva Azul",      "#1565C0", "#1A1A1A", MesesMinimos: 24, Descricao: "Avançado"),
-                new("Luva Vermelha",  "#C62828", "#1A1A1A", MesesMinimos: 36, Descricao: "Competidor"),
-                new("Luva Preta",     "#212121", "#C62828", MesesMinimos: 60, Descricao: "Elite/Profissional"),
+                new("Iniciante",         "#FFFFFF", "#1A1A1A", Descricao: "Fundamentos e postura"),
+                new("Básico",            "#F9A825", "#1A1A1A", MesesMinimos: 6,  Descricao: "Combinações e defesa"),
+                new("Intermediário",     "#2E7D32", "#1A1A1A", MesesMinimos: 12, Descricao: "Sparring e estratégia"),
+                new("Avançado",          "#1565C0", "#1A1A1A", MesesMinimos: 24, Descricao: "Técnica refinada"),
+                new("Competidor",        "#C62828", "#1A1A1A", MesesMinimos: 36, Descricao: "Preparo para competição"),
+                new("Elite/Profissional","#212121", "#C62828", MesesMinimos: 60, Descricao: "Alto rendimento"),
             ]),
 
         new("Capoeira",

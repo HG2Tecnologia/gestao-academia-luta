@@ -1,0 +1,16 @@
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/bin/Release/net9.0/AcademiaFight.Application.deps.json
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/bin/Release/net9.0/AcademiaFight.Application.dll
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/bin/Release/net9.0/AcademiaFight.Application.pdb
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/bin/Release/net9.0/AcademiaFight.Domain.dll
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/bin/Release/net9.0/AcademiaFight.Domain.pdb
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.csproj.AssemblyReference.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.AssemblyInfoInputs.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.AssemblyInfo.cs
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.csproj.CoreCompileInputs.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.sourcelink.json
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/Academia.298AA3FD.Up2Date
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.dll
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/refint/AcademiaFight.Application.dll
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/AcademiaFight.Application.pdb
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/Release/net9.0/ref/AcademiaFight.Application.dll

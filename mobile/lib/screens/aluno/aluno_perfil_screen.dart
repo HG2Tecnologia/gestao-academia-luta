@@ -307,6 +307,30 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     if (mounted) context.go('/login');
   }
 
+  Future<void> _excluirConta() async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Excluir conta?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text('Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirma != true || !mounted) return;
+    try {
+      await dio.delete('/api/usuarios/me');
+      await AuthStorage.clear();
+      if (mounted) context.go('/login');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir conta.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -396,6 +420,22 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                                   Icon(Icons.logout_rounded, size: 14, color: kText2),
                                   const SizedBox(width: 4),
                                   Text('Sair', style: TextStyle(color: kText2, fontSize: 12)),
+                                ]),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: _excluirConta,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: kDanger.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(children: [
+                                  Icon(Icons.delete_forever_rounded, size: 14, color: kDanger),
+                                  const SizedBox(width: 4),
+                                  Text('Excluir conta', style: TextStyle(color: kDanger, fontSize: 12)),
                                 ]),
                               ),
                             ),

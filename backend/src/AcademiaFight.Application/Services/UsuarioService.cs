@@ -369,4 +369,28 @@ public class UsuarioService : IUsuarioService
         await _db.SaveChangesAsync(ct);
         return BaseResponse.Ok("Token FCM registrado.");
     }
+
+    public async Task<BaseResponse> ExcluirMinhaContaAsync(Guid usuarioId, CancellationToken ct = default)
+    {
+        var usuario = await _db.Usuarios.FindAsync([usuarioId], ct);
+        if (usuario is null)
+            return BaseResponse.Falha("Usuário não encontrado.");
+
+        // Anonimiza os dados pessoais em vez de deletar o registro,
+        // preservando integridade referencial (matrículas, pagamentos, presenças).
+        usuario.Nome = "Conta Excluída";
+        usuario.Email = null;
+        usuario.Telefone = null;
+        usuario.DataNascimento = null;
+        usuario.ContatoEmergenciaNome = null;
+        usuario.ContatoEmergenciaTelefone = null;
+        usuario.SenhaHash = string.Empty;
+        usuario.RefreshToken = null;
+        usuario.RefreshTokenExpiry = null;
+        usuario.FcmToken = null;
+        usuario.Ativo = false;
+
+        await _db.SaveChangesAsync(ct);
+        return BaseResponse.Ok("Conta excluída com sucesso.");
+    }
 }

@@ -53,6 +53,16 @@ public class UsuariosController : ControllerBase
         var resultado = await _usuarioService.RegistrarFcmTokenAsync(usuarioId, request.Token, ct);
         return Ok(resultado);
     }
+
+    [HttpDelete("me")]
+    public async Task<IActionResult> ExcluirMinhaConta(CancellationToken ct)
+    {
+        var sub = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                  ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(sub, out var usuarioId)) return Unauthorized();
+        var resultado = await _usuarioService.ExcluirMinhaContaAsync(usuarioId, ct);
+        return Ok(resultado);
+    }
 }
 
 public class FcmTokenRequest

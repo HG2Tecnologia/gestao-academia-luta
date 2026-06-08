@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 
 class AdminConfiguracoesScreen extends StatefulWidget {
@@ -321,6 +322,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                                 : const Text('Salvar Configurações', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                           ),
                         ),
+                        const SizedBox(height: 32),
+                        _SectionLabel('Zona de Perigo'),
+                        const SizedBox(height: 12),
+                        _BotaoExcluirConta(),
                         const SizedBox(height: 20),
                       ],
                     ),
@@ -338,6 +343,71 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(text, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w800,
         letterSpacing: 0.4));
+  }
+}
+
+class _BotaoExcluirConta extends StatefulWidget {
+  @override
+  State<_BotaoExcluirConta> createState() => _BotaoExcluirContaState();
+}
+
+class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
+  bool _loading = false;
+
+  Future<void> _excluir() async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Excluir conta?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.',
+          style: TextStyle(color: kText2),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirma != true || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await dio.delete('/api/usuarios/me');
+      await AuthStorage.clear();
+      if (!mounted) return;
+      context.go('/login');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erro ao excluir conta. Tente novamente.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: _loading ? null : _excluir,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kDanger,
+          side: BorderSide(color: kDanger.withOpacity(0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: _loading
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kDanger))
+            : const Text('Excluir minha conta', style: TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
   }
 }
 

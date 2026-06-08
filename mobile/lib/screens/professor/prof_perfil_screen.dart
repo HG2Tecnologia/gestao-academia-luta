@@ -53,6 +53,30 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
     if (mounted) context.go('/login');
   }
 
+  Future<void> _excluirConta(BuildContext context) async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Excluir conta?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text('Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirma != true || !mounted) return;
+    try {
+      await dio.delete('/api/usuarios/me');
+      await AuthStorage.clear();
+      if (mounted) context.go('/login');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir conta.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
   @override
   void dispose() {
     _nomeCtrl.dispose();
@@ -118,6 +142,17 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Sair', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () => _excluirConta(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kDanger,
+                      side: BorderSide(color: kDanger.withOpacity(0.3)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Excluir minha conta', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
