@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/paywall_modal.dart';
 
 class AdminTurmasScreen extends StatefulWidget {
   const AdminTurmasScreen({super.key});
@@ -329,11 +330,21 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      String msg = _editando ? 'Erro ao editar turma' : 'Erro ao criar turma';
       try {
         final data = (e as dynamic).response?.data;
-        if (data is Map && data['mensagem'] != null) msg = data['mensagem'].toString();
+        if (data is Map && data['codigo'] == 'LIMITE_PLANO_GRATUITO') {
+          setState(() => _salvando = false);
+          mostrarPaywall(context);
+          return;
+        }
+        if (data is Map && data['mensagem'] != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['mensagem'].toString()), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+          );
+          return;
+        }
       } catch (_) {}
+      final msg = _editando ? 'Erro ao editar turma' : 'Erro ao criar turma';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );

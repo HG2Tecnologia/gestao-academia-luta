@@ -1,8 +1,8 @@
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.GeneratedMSBuildEditorConfig.editorconfig
-/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.AssemblyInfoInputs.cache
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/bin/Debug/net9.0/AcademiaFight.Domain.deps.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/bin/Debug/net9.0/AcademiaFight.Domain.dll
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/bin/Debug/net9.0/AcademiaFight.Domain.pdb
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.AssemblyInfoInputs.cache
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.AssemblyInfo.cs
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.csproj.CoreCompileInputs.cache
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/Debug/net9.0/AcademiaFight.Domain.sourcelink.json

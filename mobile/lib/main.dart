@@ -45,6 +45,8 @@ import 'screens/aluno/aluno_conquistas_screen.dart';
 import 'screens/alterar_senha_screen.dart';
 import 'screens/shared/qr_scan_screen.dart';
 
+final routerKey = GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setupDio();
@@ -52,6 +54,7 @@ void main() {
 }
 
 final _router = GoRouter(
+  navigatorKey: routerKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),

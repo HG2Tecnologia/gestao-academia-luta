@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 import 'auth_storage.dart';
 import 'constants.dart';
+import '../main.dart' show routerKey;
 
 final dio = Dio(BaseOptions(
   baseUrl: kApiUrl,
@@ -25,7 +27,8 @@ void setupDio() {
           final refreshToken = await AuthStorage.getRefreshToken();
           if (refreshToken == null) {
             await AuthStorage.clear();
-            handler.next(error);
+            final ctx = routerKey.currentContext;
+            if (ctx != null) ctx.go('/login');
             return;
           }
 
@@ -53,6 +56,9 @@ void setupDio() {
           }
 
           await AuthStorage.clear();
+          final ctx = routerKey.currentContext;
+          if (ctx != null) ctx.go('/login');
+          return;
         }
         handler.next(error);
       },

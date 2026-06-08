@@ -5,6 +5,7 @@ using AcademiaFight.Application.Helpers;
 using AcademiaFight.Application.Interfaces;
 using AcademiaFight.Domain.Entities;
 using AcademiaFight.Domain.Enums;
+using AcademiaFight.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -16,11 +17,13 @@ public class TurmaService : ITurmaService
         ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
     private readonly IAppDbContext _db;
+    private readonly ITenantContext _tenant;
     private readonly ILogger<TurmaService> _logger;
 
-    public TurmaService(IAppDbContext db, ILogger<TurmaService> logger)
+    public TurmaService(IAppDbContext db, ITenantContext tenant, ILogger<TurmaService> logger)
     {
         _db = db;
+        _tenant = tenant;
         _logger = logger;
     }
 
@@ -120,6 +123,20 @@ public class TurmaService : ITurmaService
 
     public async Task<BaseResponse<TurmaDto>> CriarAsync(CreateTurmaRequest request, CancellationToken ct = default)
     {
+        if (_tenant.IsSet)
+        {
+            var academia = await _db.Academias.FindAsync([_tenant.AcademiaId], ct);
+            if (academia?.PlanoTipo == PlanoAcademia.Gratuito)
+            {
+                var totalTurmas = await _db.Turmas
+                    .CountAsync(t => t.AcademiaId == _tenant.AcademiaId && t.Ativo, ct);
+                if (totalTurmas >= PlanoLimites.MaxTurmasGratuito)
+                    return BaseResponse<TurmaDto>.Falha(
+                        $"Limite de {PlanoLimites.MaxTurmasGratuito} turmas atingido no plano gratuito.",
+                        PlanoLimites.CodigoLimitePlano);
+            }
+        }
+
         var modalidadeExiste = await _db.Modalidades
             .AnyAsync(m => m.Id == request.ModalidadeId && m.Ativo, ct);
 

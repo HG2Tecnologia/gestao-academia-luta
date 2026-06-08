@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/paywall_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
@@ -97,7 +98,16 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       });
       if (mounted) context.pop();
     } catch (e) {
-      if (mounted) setState(() => _erro = 'Erro ao cadastrar aluno. Verifique os dados.');
+      if (!mounted) return;
+      try {
+        final data = (e as dynamic).response?.data;
+        if (data is Map && data['codigo'] == 'LIMITE_PLANO_GRATUITO') {
+          setState(() => _salvando = false);
+          mostrarPaywall(context);
+          return;
+        }
+      } catch (_) {}
+      setState(() => _erro = 'Erro ao cadastrar aluno. Verifique os dados.');
     } finally {
       if (mounted) setState(() => _salvando = false);
     }

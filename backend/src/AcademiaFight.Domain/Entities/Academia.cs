@@ -1,4 +1,5 @@
 using AcademiaFight.Domain.Entities.Base;
+using AcademiaFight.Domain.Enums;
 
 namespace AcademiaFight.Domain.Entities;
 
@@ -12,6 +13,8 @@ public class Academia : EntityBase
     public bool Ativo { get; set; } = true;
     public string? Cnpj { get; set; }
     public string? TemplateContrato { get; set; }
+    public PlanoAcademia PlanoTipo { get; set; } = PlanoAcademia.Gratuito;
+    public DateTime? PlanoExpiracao { get; set; }
 
     public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
     public ICollection<Modalidade> Modalidades { get; set; } = new List<Modalidade>();

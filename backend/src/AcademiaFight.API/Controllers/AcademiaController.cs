@@ -45,4 +45,12 @@ public class AcademiaController : ControllerBase
         var resultado = await _academiaService.AtualizarTemplateContratoAsync(request.Template, ct);
         return Ok(resultado);
     }
+
+    [HttpPost("plano/pro")]
+    public async Task<IActionResult> AtivarPlanoPro([FromBody] AtivarPlanoProRequest request, CancellationToken ct)
+    {
+        var resultado = await _academiaService.AtivarPlanoProAsync(request.Expiracao, ct);
+        if (!resultado.Sucesso) return BadRequest(resultado);
+        return Ok(resultado);
+    }
 }

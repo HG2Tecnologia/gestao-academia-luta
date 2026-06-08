@@ -163,6 +163,20 @@ public class UsuarioService : IUsuarioService
 
     public async Task<BaseResponse<AlunoDto>> CriarAlunoAsync(CreateAlunoDto request, Guid academiaId, CancellationToken ct = default)
     {
+        var academia = await _db.Academias.FindAsync([academiaId], ct);
+        if (academia is null)
+            return BaseResponse<AlunoDto>.Falha("Academia não encontrada.");
+
+        if (academia.PlanoTipo == PlanoAcademia.Gratuito)
+        {
+            var totalAlunos = await _db.Usuarios
+                .CountAsync(u => u.AcademiaId == academiaId && u.Perfil == PerfilUsuario.Aluno && u.Ativo, ct);
+            if (totalAlunos >= PlanoLimites.MaxAlunosGratuito)
+                return BaseResponse<AlunoDto>.Falha(
+                    $"Limite de {PlanoLimites.MaxAlunosGratuito} alunos atingido no plano gratuito.",
+                    PlanoLimites.CodigoLimitePlano);
+        }
+
         var aluno = new Usuario
         {
             AcademiaId = academiaId,
