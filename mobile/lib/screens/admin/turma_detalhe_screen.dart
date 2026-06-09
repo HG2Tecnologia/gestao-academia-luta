@@ -127,49 +127,37 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
 
   Future<void> _mostrarQrTurma() async {
     final turmaId = widget.turmaId;
-    String? qrData;
-    String? errMsg;
-    try {
-      final res = await dio.get('/api/presencas/turma-qr/$turmaId');
-      qrData = res.data['dados']?.toString();
-    } catch (e) {
-      try { errMsg = ((e as dynamic).response?.data as Map?)?['mensagem'] as String?; } catch (_) {}
-      errMsg ??= 'Falha ao conectar ao servidor.';
-    }
-
+    // turmaId já é suficiente como dado do QR — o check-in valida autenticação no backend
+    final qrData = turmaId;
     if (!mounted) return;
-    if (qrData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: ${errMsg ?? "QR inválido"}'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
-      );
-      return;
-    }
 
     final nomeTurma = _turma?['nome'] ?? 'Turma';
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Text('QR Code da Turma', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
-          const SizedBox(height: 20),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-              child: QrImageView(data: 'TURMA:$qrData', version: QrVersions.auto, size: 220),
+      builder: (_) => SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            Text('QR Code da Turma', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                child: QrImageView(data: 'TURMA:$qrData', version: QrVersions.auto, size: 200),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text('Alunos escaneiam para registrar presença', style: TextStyle(color: kText2, fontSize: 12), textAlign: TextAlign.center),
-          Text('Válido apenas no horário da aula', style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-        ]),
+            const SizedBox(height: 12),
+            Text('Alunos escaneiam para registrar presença', style: TextStyle(color: kText2, fontSize: 12), textAlign: TextAlign.center),
+            Text('Válido apenas no horário da aula', style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
+          ]),
+        ),
       ),
     );
   }
