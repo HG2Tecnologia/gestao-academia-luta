@@ -423,22 +423,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                                 ]),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: _excluirConta,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: kDanger.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(children: [
-                                  Icon(Icons.delete_forever_rounded, size: 14, color: kDanger),
-                                  const SizedBox(width: 4),
-                                  Text('Excluir conta', style: TextStyle(color: kDanger, fontSize: 12)),
-                                ]),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -771,7 +755,16 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: TextButton.icon(
+                onPressed: _excluirConta,
+                icon: Icon(Icons.delete_forever_rounded, size: 16, color: kDanger.withOpacity(0.6)),
+                label: Text('Excluir minha conta', style: TextStyle(color: kDanger.withOpacity(0.6), fontSize: 12)),
+              ),
+            ),
+          ),
         ],
       ),
     ),

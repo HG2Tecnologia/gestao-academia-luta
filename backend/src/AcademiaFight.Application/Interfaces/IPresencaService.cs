@@ -11,4 +11,6 @@ public interface IPresencaService
     Task<BaseResponse<IEnumerable<PresencaDto>>> GetPresencasAulaAsync(Guid horarioId, DateOnly data, CancellationToken ct = default);
     Task<BaseResponse<PresencaRelatorioDto>> GetRelatorioFrequenciaAsync(Guid turmaId, DateOnly de, DateOnly ate, CancellationToken ct = default);
     Task<BaseResponse<QrTokenResponse>> GerarTokenQrAlunoAsync(Guid alunoId, CancellationToken ct = default);
+    Task<BaseResponse<AlunoQrInfoDto>> GetAlunoQrInfoAsync(string tokenQr, CancellationToken ct = default);
+    Task<BaseResponse<PresencaDto>> CheckinSelfAsync(Guid alunoId, CancellationToken ct = default);
 }

@@ -75,6 +75,28 @@ public class PresencaController : ControllerBase
             return BadRequest(resultado);
         return Ok(resultado);
     }
+
+    [HttpGet("qr-info")]
+    public async Task<IActionResult> GetAlunoQrInfo([FromQuery] string token, CancellationToken ct)
+    {
+        var resultado = await _presencaService.GetAlunoQrInfoAsync(token, ct);
+        if (!resultado.Sucesso)
+            return BadRequest(resultado);
+        return Ok(resultado);
+    }
+
+    [HttpPost("checkin-self")]
+    public async Task<IActionResult> CheckinSelf(CancellationToken ct)
+    {
+        var idStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                 ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (!Guid.TryParse(idStr, out var alunoId))
+            return Unauthorized();
+        var resultado = await _presencaService.CheckinSelfAsync(alunoId, ct);
+        if (!resultado.Sucesso)
+            return BadRequest(resultado);
+        return Ok(resultado);
+    }
 }
 
 public class QrCodeRequest

@@ -221,6 +221,81 @@ public class PresencaService : IPresencaService
         return BaseResponse<QrTokenResponse>.Ok(token);
     }
 
+    public async Task<BaseResponse<AlunoQrInfoDto>> GetAlunoQrInfoAsync(string tokenQr, CancellationToken ct = default)
+    {
+        var alunoId = _qrToken.ValidarToken(tokenQr);
+        if (alunoId is null)
+            return BaseResponse<AlunoQrInfoDto>.Falha("Token QR inválido ou expirado.");
+
+        var aluno = await _db.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == alunoId.Value && u.Ativo, ct);
+
+        if (aluno is null)
+            return BaseResponse<AlunoQrInfoDto>.Falha("Aluno não encontrado.");
+
+        var faixa = await _db.Graduacoes
+            .Include(g => g.Faixa)
+            .Where(g => g.AlunoId == alunoId.Value)
+            .OrderByDescending(g => g.Faixa.Ordem).ThenByDescending(g => g.Grau)
+            .Select(g => new { g.Faixa.Nome, g.Faixa.Cor })
+            .FirstOrDefaultAsync(ct);
+
+        var turmas = await _db.Matriculas
+            .Include(m => m.Turma)
+            .Where(m => m.AlunoId == alunoId.Value && m.Ativo)
+            .Select(m => m.Turma.Nome)
+            .ToListAsync(ct);
+
+        var inicioMes = new DateOnly(DateTimeHelper.Hoje().Year, DateTimeHelper.Hoje().Month, 1);
+        var totalMes = await _db.Presencas
+            .CountAsync(p => p.AlunoId == alunoId.Value && p.Data >= inicioMes, ct);
+
+        var agora = DateTimeHelper.Agora();
+        var horaAgora = TimeOnly.FromDateTime(agora);
+        var horarioAtivo = await _db.Horarios
+            .Where(h => h.DiaSemana == (DiaSemana)((int)agora.DayOfWeek)
+                && h.HoraInicio <= horaAgora.AddMinutes(30)
+                && h.HoraFim >= horaAgora.AddMinutes(-30))
+            .FirstOrDefaultAsync(ct);
+
+        return BaseResponse<AlunoQrInfoDto>.Ok(new AlunoQrInfoDto
+        {
+            AlunoId = aluno.Id,
+            Nome = aluno.Nome,
+            FaixaNome = faixa?.Nome ?? "Sem faixa",
+            FaixaCor = faixa?.Cor ?? "#888888",
+            Turmas = turmas,
+            TotalPresencasMes = totalMes,
+            TemAulaAgora = horarioAtivo is not null,
+            HorarioAtivoId = horarioAtivo?.Id,
+        });
+    }
+
+    public async Task<BaseResponse<PresencaDto>> CheckinSelfAsync(Guid alunoId, CancellationToken ct = default)
+    {
+        var agora = DateTimeHelper.Agora();
+        var horaAgora = TimeOnly.FromDateTime(agora);
+        var hoje = DateOnly.FromDateTime(agora);
+
+        var horario = await _db.Horarios
+            .Include(h => h.Turma)
+            .Where(h => h.DiaSemana == (DiaSemana)((int)agora.DayOfWeek)
+                && h.HoraInicio <= horaAgora.AddMinutes(30)
+                && h.HoraFim >= horaAgora.AddMinutes(-30))
+            .FirstOrDefaultAsync(ct);
+
+        if (horario is null)
+            return BaseResponse<PresencaDto>.Falha("Nenhuma aula ativa no momento para check-in.");
+
+        return await RegistrarAsync(new RegistrarPresencaRequest
+        {
+            AlunoId = alunoId,
+            HorarioId = horario.Id,
+            Data = hoje,
+            MetodoCheckin = (int)MetodoCheckin.QrCode
+        }, ct);
+    }
+
     private static PresencaDto MapearDto(Presenca p) => new()
     {
         Id = p.Id,
