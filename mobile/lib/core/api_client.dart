@@ -6,8 +6,8 @@ import '../main.dart' show routerKey;
 
 final dio = Dio(BaseOptions(
   baseUrl: kApiUrl,
-  connectTimeout: const Duration(seconds: 20),
-  receiveTimeout: const Duration(seconds: 25),
+  connectTimeout: const Duration(seconds: 60),
+  receiveTimeout: const Duration(seconds: 70),
 ));
 
 bool _refreshing = false;

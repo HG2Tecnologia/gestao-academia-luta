@@ -135,29 +135,26 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            Text('QR Code da Turma', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                child: QrImageView(data: 'TURMA:$qrData', version: QrVersions.auto, size: 200),
-              ),
+      builder: (_) => Container(
+        decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).padding.bottom + 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('QR Code da Turma', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
+          const SizedBox(height: 16),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              child: QrImageView(data: 'TURMA:$qrData', version: QrVersions.auto, size: 190),
             ),
-            const SizedBox(height: 12),
-            Text('Alunos escaneiam para registrar presença', style: TextStyle(color: kText2, fontSize: 12), textAlign: TextAlign.center),
-            Text('Válido apenas no horário da aula', style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
-          ]),
-        ),
+          ),
+          const SizedBox(height: 12),
+          Text('Alunos escaneiam para registrar presença', style: TextStyle(color: kText2, fontSize: 12), textAlign: TextAlign.center),
+          Text('Válido apenas no horário da aula', style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
+        ]),
       ),
     );
   }
