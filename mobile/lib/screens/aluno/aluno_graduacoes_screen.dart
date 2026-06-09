@@ -119,7 +119,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                             BeltBadge(
                               cor: cor,
                               corBarra: _hexCor(g['corBarraFaixa'] as String? ?? '#000000'),
-                              temGraus: g['faixaTemGraus'] == true,
+                              temGraus: g['faixaTemGraus'] == true || ((g['grau'] as num?)?.toInt() ?? 0) > 0,
                               grau: (g['grau'] as num?)?.toInt() ?? 0,
                               maxGraus: (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
                               height: 14,
@@ -192,7 +192,7 @@ String _fmtData(String? s) {
     final faixaAtual = _faixaAtual;
     final corFaixa = _hexCor(faixaAtual?['corFaixa'] as String?);
     final corBarra = _hexCor(faixaAtual?['corBarraFaixa'] as String? ?? '#000000');
-    final temGraus = faixaAtual?['faixaTemGraus'] == true;
+    final temGraus = faixaAtual?['faixaTemGraus'] == true || ((faixaAtual?['grau'] as num?)?.toInt() ?? 0) > 0;
     final grauAtual = (faixaAtual?['grau'] as num?)?.toInt() ?? 0;
     final maxGraus = (faixaAtual?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
     final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;

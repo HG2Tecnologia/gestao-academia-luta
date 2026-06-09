@@ -59,7 +59,7 @@ public class UsuarioService : IUsuarioService
 
         var graduacoes = await _db.Graduacoes
             .Where(g => ids.Contains(g.AlunoId) && g.Aprovado)
-            .Select(g => new { g.AlunoId, FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor, FaixaOrdem = g.Faixa.Ordem, g.Grau })
+            .Select(g => new { g.AlunoId, FaixaNome = g.Faixa.Nome, FaixaCor = g.Faixa.Cor, FaixaCorBarra = g.Faixa.CorBarra, FaixaTemGraus = g.Faixa.TemGraus, FaixaMaxGraus = g.Faixa.MaxGraus, FaixaOrdem = g.Faixa.Ordem, g.Grau })
             .ToListAsync(ct);
 
         var pagamentos = await _db.Pagamentos
@@ -97,6 +97,9 @@ public class UsuarioService : IUsuarioService
             Turmas = turmasDict.GetValueOrDefault(u.Id, []),
             FaixaAtualNome = faixaDict.TryGetValue(u.Id, out var f) ? f.FaixaNome : null,
             FaixaAtualCor = faixaDict.TryGetValue(u.Id, out var f2) ? f2.FaixaCor : null,
+            FaixaAtualCorBarra = faixaDict.TryGetValue(u.Id, out var f4) ? f4.FaixaCorBarra : "#000000",
+            FaixaAtualTemGraus = faixaDict.TryGetValue(u.Id, out var f5) ? f5.FaixaTemGraus : false,
+            FaixaAtualMaxGraus = faixaDict.TryGetValue(u.Id, out var f6) ? f6.FaixaMaxGraus : 4,
             GrauAtual = faixaDict.TryGetValue(u.Id, out var f3) ? f3.Grau : 0,
             SituacaoFinanceira = ResolverSituacaoFinanceira(pagamentosDict.GetValueOrDefault(u.Id)),
         }).ToList();

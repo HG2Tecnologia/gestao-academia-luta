@@ -296,6 +296,40 @@ public class PresencaService : IPresencaService
         }, ct);
     }
 
+    public async Task<BaseResponse<PresencaDto>> CheckinTurmaAsync(Guid alunoId, Guid turmaId, CancellationToken ct = default)
+    {
+        var agora = DateTimeHelper.Agora();
+        var horaAgora = TimeOnly.FromDateTime(agora);
+        var hoje = DateOnly.FromDateTime(agora);
+
+        var horario = await _db.Horarios
+            .Include(h => h.Turma)
+            .Where(h => h.TurmaId == turmaId
+                && h.DiaSemana == (DiaSemana)((int)agora.DayOfWeek)
+                && h.HoraInicio <= horaAgora.AddMinutes(30)
+                && h.HoraFim >= horaAgora.AddMinutes(-30))
+            .FirstOrDefaultAsync(ct);
+
+        if (horario is null)
+            return BaseResponse<PresencaDto>.Falha("Nenhuma aula ativa no momento para esta turma.");
+
+        return await RegistrarAsync(new RegistrarPresencaRequest
+        {
+            AlunoId = alunoId,
+            HorarioId = horario.Id,
+            Data = hoje,
+            MetodoCheckin = (int)MetodoCheckin.QrCode
+        }, ct);
+    }
+
+    public async Task<BaseResponse<string>> GetQrCodeTurmaAsync(Guid turmaId, CancellationToken ct = default)
+    {
+        var turma = await _db.Turmas.FirstOrDefaultAsync(t => t.Id == turmaId, ct);
+        if (turma is null)
+            return BaseResponse<string>.Falha("Turma não encontrada.");
+        return BaseResponse<string>.Ok(turmaId.ToString());
+    }
+
     private static PresencaDto MapearDto(Presenca p) => new()
     {
         Id = p.Id,

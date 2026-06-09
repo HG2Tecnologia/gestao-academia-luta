@@ -5,6 +5,7 @@ using AcademiaFight.Application.Interfaces;
 using AcademiaFight.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using AcademiaFight.Application.DTOs.Graduacao;
 
 namespace AcademiaFight.Application.Services;
 
@@ -81,5 +82,87 @@ public class DashboardService : IDashboardService
             .ToList();
 
         return BaseResponse<IEnumerable<FrequenciaDiariaDto>>.Ok(resultado);
+    }
+
+    public async Task<BaseResponse<IEnumerable<AlunoProximoGraduacaoDto>>> GetAlunosProximosGraduacaoAsync(CancellationToken ct = default)
+    {
+        // Para cada faixa com requisito de presença > 0, encontra alunos que têm >= 60% do mínimo
+        var faixas = await _db.Faixas
+            .Where(f => f.RequisitosPresencasMinimas > 0)
+            .Include(f => f.Modalidade)
+            .ToListAsync(ct);
+
+        var resultado = new List<AlunoProximoGraduacaoDto>();
+
+        foreach (var faixa in faixas)
+        {
+            var matriculas = await _db.Matriculas
+                .Include(m => m.Aluno)
+                .Where(m => m.Ativo && m.Turma.ModalidadeId == faixa.ModalidadeId)
+                .ToListAsync(ct);
+
+            var alunoIds = matriculas.Select(m => m.AlunoId).Distinct().ToList();
+
+            // Exclui quem já tem faixa igual ou superior
+            var comFaixaSuperior = await _db.Graduacoes
+                .Include(g => g.Faixa)
+                .Where(g => alunoIds.Contains(g.AlunoId)
+                    && g.Aprovado
+                    && g.Faixa.ModalidadeId == faixa.ModalidadeId
+                    && g.Faixa.Ordem >= faixa.Ordem)
+                .Select(g => g.AlunoId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            // Faixa atual de cada aluno (mais alta aprovada nesta modalidade)
+            var faixaAtualDict = await _db.Graduacoes
+                .Include(g => g.Faixa)
+                .Where(g => alunoIds.Contains(g.AlunoId)
+                    && g.Aprovado
+                    && g.Faixa.ModalidadeId == faixa.ModalidadeId)
+                .GroupBy(g => g.AlunoId)
+                .Select(g => new { AlunoId = g.Key, Faixa = g.OrderByDescending(x => x.Faixa.Ordem).First() })
+                .ToDictionaryAsync(x => x.AlunoId, x => x.Faixa, ct);
+
+            var candidatos = matriculas
+                .Where(m => !comFaixaSuperior.Contains(m.AlunoId))
+                .GroupBy(m => m.AlunoId)
+                .Select(g => g.OrderBy(m => m.DataInicio).First())
+                .ToList();
+
+            var presencas = await _db.Presencas
+                .Where(p => candidatos.Select(c => c.AlunoId).Contains(p.AlunoId))
+                .GroupBy(p => p.AlunoId)
+                .Select(g => new { AlunoId = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.AlunoId, x => x.Total, ct);
+
+            foreach (var m in candidatos)
+            {
+                var total = presencas.GetValueOrDefault(m.AlunoId, 0);
+                var pct = faixa.RequisitosPresencasMinimas > 0
+                    ? (int)Math.Round((double)total / faixa.RequisitosPresencasMinimas * 100)
+                    : 0;
+
+                if (pct >= 60)
+                {
+                    var faixaAtualInfo = faixaAtualDict.TryGetValue(m.AlunoId, out var fa) ? fa : null;
+                    resultado.Add(new AlunoProximoGraduacaoDto
+                    {
+                        AlunoId = m.AlunoId,
+                        NomeAluno = m.Aluno?.Nome ?? string.Empty,
+                        NomeModalidade = faixa.Modalidade?.Nome ?? string.Empty,
+                        NomeFaixaAtual = faixaAtualInfo?.Faixa?.Nome ?? "Sem faixa",
+                        CorFaixaAtual = faixaAtualInfo?.Faixa?.Cor ?? "#888888",
+                        TotalPresencas = total,
+                        PresencasNecessarias = faixa.RequisitosPresencasMinimas,
+                        JaApto = total >= faixa.RequisitosPresencasMinimas,
+                        Percentual = Math.Min(pct, 100),
+                    });
+                }
+            }
+        }
+
+        return BaseResponse<IEnumerable<AlunoProximoGraduacaoDto>>.Ok(
+            resultado.OrderByDescending(a => a.JaApto).ThenByDescending(a => a.Percentual).Take(15));
     }
 }

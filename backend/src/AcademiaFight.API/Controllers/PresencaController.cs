@@ -97,9 +97,36 @@ public class PresencaController : ControllerBase
             return BadRequest(resultado);
         return Ok(resultado);
     }
+
+    [HttpPost("checkin-turma")]
+    public async Task<IActionResult> CheckinTurma([FromBody] CheckinTurmaRequest request, CancellationToken ct)
+    {
+        var idStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                 ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (!Guid.TryParse(idStr, out var alunoId))
+            return Unauthorized();
+        var resultado = await _presencaService.CheckinTurmaAsync(alunoId, request.TurmaId, ct);
+        if (!resultado.Sucesso)
+            return BadRequest(resultado);
+        return Ok(resultado);
+    }
+
+    [HttpGet("turma-qr/{turmaId:guid}")]
+    public async Task<IActionResult> GetQrCodeTurma(Guid turmaId, CancellationToken ct)
+    {
+        var resultado = await _presencaService.GetQrCodeTurmaAsync(turmaId, ct);
+        if (!resultado.Sucesso)
+            return BadRequest(resultado);
+        return Ok(resultado);
+    }
 }
 
 public class QrCodeRequest
 {
     public string Token { get; set; } = string.Empty;
+}
+
+public class CheckinTurmaRequest
+{
+    public Guid TurmaId { get; set; }
 }

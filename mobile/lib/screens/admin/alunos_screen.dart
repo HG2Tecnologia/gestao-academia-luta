@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/widgets.dart';
 
 class AdminAlunosScreen extends StatefulWidget {
   const AdminAlunosScreen({super.key});
@@ -122,6 +123,14 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final a = _alunos[i];
                                   final ativo = a['ativo'] == true;
                                   final fin = a['situacaoFinanceira'] as String?;
+                                  final faixaCor = a['faixaAtualCor'] as String?;
+                                  final faixaCorBarra = a['faixaAtualCorBarra'] as String?;
+                                  final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
+                                  final maxGraus = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+                                  final temGraus = a['faixaAtualTemGraus'] == true || grauAtual > 0;
+                                  Color parseCor(String? hex) {
+                                    try { return Color(int.parse((hex ?? '').replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
+                                  }
                                   return GestureDetector(
                                     onTap: () async {
                                       await context.push('/admin/alunos/${a['id']}');
@@ -142,14 +151,29 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(a['nome'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  [
-                                                    a['faixaAtualNome'],
-                                                    (a['turmas'] as List?)?.isNotEmpty == true ? (a['turmas'] as List).first.toString() : null,
-                                                  ].where((s) => s != null && s != '').join(' · '),
-                                                  style: TextStyle(color: kText2, fontSize: 12),
-                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(children: [
+                                                  if (faixaCor != null) ...[
+                                                    BeltBadge(
+                                                      cor: parseCor(faixaCor),
+                                                      corBarra: parseCor(faixaCorBarra ?? '#000000'),
+                                                      temGraus: temGraus,
+                                                      grau: grauAtual,
+                                                      maxGraus: maxGraus,
+                                                      height: 10,
+                                                      minWidth: 24,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                  ],
+                                                  Flexible(child: Text(
+                                                    [
+                                                      a['faixaAtualNome'],
+                                                      (a['turmas'] as List?)?.isNotEmpty == true ? (a['turmas'] as List).first.toString() : null,
+                                                    ].where((s) => s != null && s != '').join(' · '),
+                                                    style: TextStyle(color: kText2, fontSize: 12),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  )),
+                                                ]),
                                               ],
                                             ),
                                           ),

@@ -13,4 +13,6 @@ public interface IPresencaService
     Task<BaseResponse<QrTokenResponse>> GerarTokenQrAlunoAsync(Guid alunoId, CancellationToken ct = default);
     Task<BaseResponse<AlunoQrInfoDto>> GetAlunoQrInfoAsync(string tokenQr, CancellationToken ct = default);
     Task<BaseResponse<PresencaDto>> CheckinSelfAsync(Guid alunoId, CancellationToken ct = default);
+    Task<BaseResponse<PresencaDto>> CheckinTurmaAsync(Guid alunoId, Guid turmaId, CancellationToken ct = default);
+    Task<BaseResponse<string>> GetQrCodeTurmaAsync(Guid turmaId, CancellationToken ct = default);
 }

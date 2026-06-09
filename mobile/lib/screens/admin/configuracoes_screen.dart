@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
@@ -323,6 +324,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         const SizedBox(height: 32),
+                        _SectionLabel('Conta'),
+                        const SizedBox(height: 12),
+                        _BotaoSair(),
+                        const SizedBox(height: 16),
                         _SectionLabel('Zona de Perigo'),
                         const SizedBox(height: 12),
                         _BotaoExcluirConta(),
@@ -346,6 +351,59 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+class _BotaoSair extends StatefulWidget {
+  @override
+  State<_BotaoSair> createState() => _BotaoSairState();
+}
+
+class _BotaoSairState extends State<_BotaoSair> {
+  bool _loading = false;
+
+  Future<void> _sair() async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Sair', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text('Deseja encerrar sua sessão?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text('Sair', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirma != true || !mounted) return;
+    setState(() => _loading = true);
+    try { await dio.post('/api/auth/logout'); } on DioException catch (_) {}
+    await AuthStorage.clear();
+    if (!mounted) return;
+    context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _sair,
+        icon: _loading
+            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kDanger))
+            : Icon(Icons.logout_rounded, color: kDanger, size: 18),
+        label: const Text('Sair da conta', style: TextStyle(fontWeight: FontWeight.w700)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kDanger,
+          side: BorderSide(color: kDanger.withOpacity(0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+}
+
 class _BotaoExcluirConta extends StatefulWidget {
   @override
   State<_BotaoExcluirConta> createState() => _BotaoExcluirContaState();
@@ -357,7 +415,7 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
   Future<void> _excluir() async {
     final confirma = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: kSurface,
         title: Text('Excluir conta?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
         content: Text(
@@ -365,9 +423,9 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
           style: TextStyle(color: kText2),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
           ),
         ],

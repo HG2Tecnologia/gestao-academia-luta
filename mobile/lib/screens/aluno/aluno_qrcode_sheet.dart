@@ -221,7 +221,13 @@ class _EscanearTabState extends State<_EscanearTab> {
     await _ctrl.stop();
 
     try {
-      final res = await dio.post('/api/presencas/checkin-self');
+      Response res;
+      if (codigo.startsWith('TURMA:')) {
+        final turmaId = codigo.substring('TURMA:'.length);
+        res = await dio.post('/api/presencas/checkin-turma', data: {'turmaId': turmaId});
+      } else {
+        res = await dio.post('/api/presencas/checkin-self');
+      }
       final body = res.data as Map<String, dynamic>;
       setState(() {
         _sucesso = body['sucesso'] == true;

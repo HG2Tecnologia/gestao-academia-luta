@@ -31,4 +31,11 @@ public class DashboardController : ControllerBase
         var resultado = await _dashboardService.GetFrequenciaDiariaAsync(dias, ct);
         return Ok(resultado);
     }
+
+    [HttpGet("proximos-graduacao")]
+    public async Task<IActionResult> GetProximosGraduacao(CancellationToken ct)
+    {
+        var resultado = await _dashboardService.GetAlunosProximosGraduacaoAsync(ct);
+        return Ok(resultado);
+    }
 }

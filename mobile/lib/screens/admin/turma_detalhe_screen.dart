@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import 'turmas_screen.dart' show TurmaFormSheet;
@@ -25,6 +27,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   DateTime _dataSel = DateTime.now();
   Set<String> _presentesNaData = {};
   final Set<String> _marcando = {};
+
+  Set<String> _aptosGraduar = {};
 
   bool _loading = true;
   bool _loadingPresenca = false;
@@ -84,12 +88,33 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
       final horariosData = horariosRes.data['dados'];
       final horariosList = horariosData is List ? horariosData.cast<Map<String, dynamic>>() : <Map<String, dynamic>>[];
 
+      // Fetch aptos para cada faixa da modalidade desta turma
+      Set<String> aptosSet = {};
+      try {
+        final modalidadeId = (dados['modalidadeId'] as String?) ?? '';
+        if (modalidadeId.isNotEmpty) {
+          final faixasRes = await dio.get('/api/faixas', queryParameters: {'modalidadeId': modalidadeId});
+          final faixasList = (faixasRes.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+          for (final f in faixasList) {
+            final faixaId = f['id']?.toString() ?? '';
+            if (faixaId.isEmpty) continue;
+            final aptosRes = await dio.get('/api/graduacoes/aptos', queryParameters: {'faixaId': faixaId});
+            final aptosList = (aptosRes.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+            for (final ap in aptosList) {
+              final id = ap['alunoId']?.toString() ?? '';
+              if (id.isNotEmpty) aptosSet.add(id);
+            }
+          }
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _turma = dados;
           _alunos = alunosList;
           _presencaCount = countMap;
           _horarios = horariosList;
+          _aptosGraduar = aptosSet;
           _filtrar();
         });
       }
@@ -98,6 +123,55 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _mostrarQrTurma() async {
+    final turmaId = widget.turmaId;
+    String? qrData;
+    String? errMsg;
+    try {
+      final res = await dio.get('/api/presencas/turma-qr/$turmaId');
+      qrData = res.data['dados']?.toString();
+    } catch (e) {
+      try { errMsg = ((e as dynamic).response?.data as Map?)?['mensagem'] as String?; } catch (_) {}
+      errMsg ??= 'Falha ao conectar ao servidor.';
+    }
+
+    if (!mounted) return;
+    if (qrData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: ${errMsg ?? "QR inválido"}'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    final nomeTurma = _turma?['nome'] ?? 'Turma';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          Text('QR Code da Turma', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
+          const SizedBox(height: 20),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              child: QrImageView(data: 'TURMA:$qrData', version: QrVersions.auto, size: 220),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Alunos escaneiam para registrar presença', style: TextStyle(color: kText2, fontSize: 12), textAlign: TextAlign.center),
+          Text('Válido apenas no horário da aula', style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   void _filtrar() {
@@ -224,6 +298,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         backgroundColor: kSurface,
         foregroundColor: kText1,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          onPressed: () => context.pop(),
+        ),
         title: Text(t?['nome'] ?? 'Turma', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
         actions: [
           if (t != null)
@@ -302,14 +380,27 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
               Text('${_filtrados.length}', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
               GestureDetector(
+                onTap: _mostrarQrTurma,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(color: kSuccess.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.qr_code_rounded, color: kSuccess, size: 16),
+                    const SizedBox(width: 5),
+                    Text('QR', style: TextStyle(color: kSuccess, fontSize: 13, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
                 onTap: _abrirMatricula,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.person_add_rounded, color: kPrimary, size: 14),
-                    const SizedBox(width: 4),
-                    Text('Matricular', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                    Icon(Icons.person_add_rounded, color: kPrimary, size: 16),
+                    const SizedBox(width: 5),
+                    Text('Matricular', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                   ]),
                 ),
               ),
@@ -379,6 +470,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     final alunoId = a['alunoId']?.toString() ?? '';
     final nome = a['nomeAluno'] as String? ?? '';
     final count = _presencaCount[alunoId] ?? 0;
+    final apto = _aptosGraduar.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
 
     return Dismissible(
@@ -395,33 +487,47 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         await _desmatricularAluno(a);
         return false;
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: kPrimary.withOpacity(0.2),
-              child: Text(initials.isEmpty ? '?' : initials,
-                  style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Column(
-                children: [
-                  Text('$count', style: TextStyle(color: kPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
-                  Text('presenças', style: TextStyle(color: kText2, fontSize: 9)),
-                ],
+      child: GestureDetector(
+        onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: apto ? kSuccess.withOpacity(0.05) : kSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: apto ? kSuccess.withOpacity(0.4) : kBorder),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: (apto ? kSuccess : kPrimary).withOpacity(0.2),
+                child: Text(initials.isEmpty ? '?' : initials,
+                    style: TextStyle(color: apto ? kSuccess : kPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                    if (apto)
+                      Text('Apto para graduar', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  children: [
+                    Text('$count', style: TextStyle(color: kPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+                    Text('presenças', style: TextStyle(color: kText2, fontSize: 9)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

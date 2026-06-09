@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/widgets.dart';
@@ -50,6 +51,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         final existingGrau = (existing?['grau'] as int?) ?? -1;
         if (existing == null || faixaOrdem > existingOrdem || (faixaOrdem == existingOrdem && grau > existingGrau)) {
           faixasMod[modNome] = {
+            'id': g['faixaId']?.toString() ?? '',
             'nome': g['nomeFaixa'] ?? '',
             'cor': g['corFaixa'] ?? '#FFFFFF',
             'corBarra': g['corBarraFaixa'] ?? '#000000',
@@ -103,6 +105,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     }
   }
 
+  // ── Helpers ──────────────────────────────────────────
+
+  int _maxGrausFaixa(String? nomeFaixa) {
+    final nome = (nomeFaixa ?? '').toLowerCase().trim();
+    if (nome.contains('vermelha')) return 9;
+    if (nome.contains('coral')) return 8;
+    if (nome.contains('preta')) return 6;
+    return 4;
+  }
+
   // ── Graduar ──────────────────────────────────────────
 
   Future<void> _abrirGraduar() async {
@@ -148,10 +160,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           .sort((a, b) => (a['ordem'] as int? ?? 0).compareTo(b['ordem'] as int? ?? 0));
     }
 
-    int step = mods.length <= 1 ? 1 : 0;
+    // step -1: choose type (dar grau / nova faixa)
+    // step 0: select modality (skip if only 1)
+    // step 1: select belt (skip for "dar grau")
+    // step 2: confirm degree / details
+    String? tipoGraduacao; // 'darGrau' or 'novaFaixa'
+    int step = -1;
     Map<String, dynamic>? modSel = mods.length <= 1 && mods.isNotEmpty ? mods.first : null;
     Map<String, dynamic>? faixaSel;
     int grauSel = 0;
+    int currentGrauForDarGrau = 0; // grau que o aluno já tem (chips ≤ esse ficam desabilitados)
     final obsCtrl = TextEditingController();
     bool gerarCobranca = false;
     final valorCtrl = TextEditingController();
@@ -164,12 +182,97 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) {
-          final totalSteps = mods.length <= 1 ? 2 : 3;
-          final activeStep = mods.length <= 1 ? step - 1 : step;
-          final canGoBack = step > 0 && !(mods.length <= 1 && step == 1);
+          // for progress indicator: step -1 maps to 0, 0 → 1, 1 → 2, 2 → 3
+          final totalSteps = tipoGraduacao == 'darGrau' ? 2 : (mods.length <= 1 ? 3 : 4);
+          final activeStep = step + 1;
+          final canGoBack = step >= 0;
 
           Widget stepContent;
-          if (step == 0) {
+          if (step == -1) {
+            // Choose graduation type
+            final temFaixaAtual = _faixasPorModalidade.isNotEmpty;
+            stepContent = Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('O que deseja fazer?', style: TextStyle(color: kText2, fontSize: 13)),
+                const SizedBox(height: 14),
+                GestureDetector(
+                  onTap: temFaixaAtual ? () {
+                    setModal(() {
+                      tipoGraduacao = 'darGrau';
+                      // Auto-select modality if only 1 modality
+                      if (_faixasPorModalidade.length == 1) {
+                        final modNome = _faixasPorModalidade.keys.first;
+                        final faixaAtual = _faixasPorModalidade[modNome]!;
+                        // Match from loaded faixas list
+                        faixaSel = faixas.firstWhere(
+                          (f) => f['id']?.toString() == faixaAtual['id']?.toString(),
+                          orElse: () => faixaAtual,
+                        );
+                        // Ensure temGraus and maxGraus come from current belt data
+                        final currentGrau = (faixaAtual['grau'] as num?)?.toInt() ?? 0;
+                        if (faixaAtual['temGraus'] == true || currentGrau > 0) {
+                          final apiMax = (faixaAtual['maxGraus'] as num?)?.toInt() ?? 0;
+                          final nameMax = _maxGrausFaixa(faixaAtual['nome']?.toString());
+                          final effectiveMax = apiMax > 0 ? apiMax : nameMax;
+                          faixaSel = Map<String, dynamic>.from(faixaSel!)
+                            ..['temGraus'] = true
+                            ..['maxGraus'] = effectiveMax.clamp(1, 99);
+                        }
+                        final apiMaxG = (faixaAtual['maxGraus'] as num?)?.toInt() ?? 0;
+                        final maxG = (apiMaxG > 0 ? apiMaxG : _maxGrausFaixa(faixaAtual['nome']?.toString())).clamp(1, 99);
+                        currentGrauForDarGrau = currentGrau;
+                        grauSel = (currentGrau + 1).clamp(1, maxG);
+                        modSel = mods.isNotEmpty ? mods.first : null;
+                      }
+                      step = mods.length <= 1 ? 2 : 0;
+                    });
+                  } : null,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: temFaixaAtual ? kBg : kBorder.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: temFaixaAtual ? kPrimary.withOpacity(0.4) : kBorder),
+                    ),
+                    child: Row(children: [
+                      Container(width: 40, height: 40, decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.grade_rounded, color: temFaixaAtual ? kPrimary : kText2, size: 22)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Dar Grau', style: TextStyle(color: temFaixaAtual ? kText1 : kText2, fontSize: 15, fontWeight: FontWeight.w700)),
+                        Text('Incrementar grau na mesma faixa atual', style: TextStyle(color: kText2, fontSize: 11)),
+                      ])),
+                      Icon(Icons.chevron_right_rounded, color: temFaixaAtual ? kText2 : kBorder),
+                    ]),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setModal(() {
+                    tipoGraduacao = 'novaFaixa';
+                    faixaSel = null;
+                    step = mods.length <= 1 ? 1 : 0;
+                  }),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kWarning.withOpacity(0.4))),
+                    child: Row(children: [
+                      Container(width: 40, height: 40, decoration: BoxDecoration(color: kWarning.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.military_tech_rounded, color: kWarning, size: 22)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Nova Faixa', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700)),
+                        Text('Selecionar uma faixa diferente', style: TextStyle(color: kText2, fontSize: 11)),
+                      ])),
+                      Icon(Icons.chevron_right_rounded, color: kText2),
+                    ]),
+                  ),
+                ),
+              ],
+            );
+          } else if (step == 0) {
             stepContent = Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +280,33 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 Text('Selecione a modalidade', style: TextStyle(color: kText2, fontSize: 13)),
                 const SizedBox(height: 14),
                 ...mods.map((m) => GestureDetector(
-                  onTap: () => setModal(() { modSel = m; step = 1; }),
+                  onTap: () => setModal(() {
+                    modSel = m;
+                    step = tipoGraduacao == 'darGrau' ? 2 : 1;
+                    if (tipoGraduacao == 'darGrau') {
+                      final modNome = m['nome']?.toString() ?? '';
+                      final faixaAtual = _faixasPorModalidade[modNome];
+                      if (faixaAtual != null) {
+                        faixaSel = faixas.firstWhere(
+                          (f) => f['id']?.toString() == faixaAtual['id']?.toString(),
+                          orElse: () => faixaAtual,
+                        );
+                        final currentGrau2 = (faixaAtual['grau'] as num?)?.toInt() ?? 0;
+                        if (faixaAtual['temGraus'] == true || currentGrau2 > 0) {
+                          final apiMax2 = (faixaAtual['maxGraus'] as num?)?.toInt() ?? 0;
+                          final nameMax2 = _maxGrausFaixa(faixaAtual['nome']?.toString());
+                          final eff2 = apiMax2 > 0 ? apiMax2 : nameMax2;
+                          faixaSel = Map<String, dynamic>.from(faixaSel!)
+                            ..['temGraus'] = true
+                            ..['maxGraus'] = eff2.clamp(1, 99);
+                        }
+                        final apiMaxG2 = (faixaAtual['maxGraus'] as num?)?.toInt() ?? 0;
+                        final maxG2 = (apiMaxG2 > 0 ? apiMaxG2 : _maxGrausFaixa(faixaAtual['nome']?.toString())).clamp(1, 99);
+                        currentGrauForDarGrau = currentGrau2;
+                        grauSel = (currentGrau2 + 1).clamp(1, maxG2);
+                      }
+                    }
+                  }),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(16),
@@ -267,19 +396,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: List.generate((faixaSel!['maxGraus'] as num? ?? 4).toInt() + 1, (i) {
+                        children: List.generate(((faixaSel!['maxGraus'] as num? ?? 4).toInt().clamp(1, 99)) + 1, (i) {
                           final sel = grauSel == i;
+                          // Para "darGrau": desabilita "–" e qualquer grau já conquistado
+                          final isDisabled = tipoGraduacao == 'darGrau' && (i == 0 || i <= currentGrauForDarGrau);
                           return GestureDetector(
-                            onTap: () => setModal(() => grauSel = i),
+                            onTap: isDisabled ? null : () => setModal(() => grauSel = i),
                             child: Container(
                               width: 44, height: 36,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: sel ? kPrimary : kSurface,
+                                color: sel ? kPrimary : isDisabled ? kBorder.withOpacity(0.25) : kSurface,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: sel ? kPrimary : kBorder),
+                                border: Border.all(color: sel ? kPrimary : isDisabled ? kBorder.withOpacity(0.4) : kBorder),
                               ),
-                              child: Text(i == 0 ? '—' : '$i°', style: TextStyle(color: sel ? Colors.white : kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+                              child: Text(i == 0 ? '—' : '$i°', style: TextStyle(
+                                color: sel ? Colors.white : isDisabled ? kText2.withOpacity(0.4) : kText1,
+                                fontSize: 13, fontWeight: FontWeight.w700,
+                                decoration: isDisabled && i > 0 ? TextDecoration.lineThrough : null,
+                              )),
                             ),
                           );
                         }),
@@ -405,16 +540,27 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       if (canGoBack)
                         GestureDetector(
                           onTap: () => setModal(() {
-                            step--;
-                            if (step == 0) { modSel = null; faixaSel = null; }
-                            else if (step == 1) faixaSel = null;
+                            if (tipoGraduacao == 'darGrau' && step == 2) {
+                              // "darGrau" skips step 1 (faixa selection), so back goes to modality or type select
+                              step = mods.length <= 1 ? -1 : 0;
+                              if (step == -1) { tipoGraduacao = null; modSel = mods.length <= 1 && mods.isNotEmpty ? mods.first : null; faixaSel = null; grauSel = 0; }
+                              else { modSel = null; faixaSel = null; grauSel = 0; }
+                            } else {
+                              step--;
+                              if (step == -1) { tipoGraduacao = null; modSel = mods.length <= 1 && mods.isNotEmpty ? mods.first : null; faixaSel = null; grauSel = 0; }
+                              else if (step == 0) { modSel = null; faixaSel = null; }
+                              else if (step == 1) faixaSel = null;
+                            }
                           }),
                           child: const Padding(
                             padding: EdgeInsets.only(right: 8),
                             child: Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF94A3B8), size: 18),
                           ),
                         ),
-                      Text('Graduar Aluno', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text(
+                        step == -1 ? 'Graduar Aluno' : tipoGraduacao == 'darGrau' ? 'Dar Grau' : 'Nova Faixa',
+                        style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800),
+                      ),
                       const Spacer(),
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -598,6 +744,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         backgroundColor: kSurface,
         foregroundColor: kText1,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          onPressed: () => context.pop(),
+        ),
         title: Text(a?['nome'] ?? 'Aluno', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
         actions: [
           if (a != null)
@@ -659,7 +809,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             if (_faixasPorModalidade.isEmpty)
                               _row('Faixa atual', a['faixaAtualNome'])
                             else
-                              ..._faixasPorModalidade.entries.map((e) => Padding(
+                              ..._faixasPorModalidade.entries.map((e) {
+                                final eGrau = (e.value['grau'] as num?)?.toInt() ?? 0;
+                                final eMaxGraus = (e.value['maxGraus'] as num?)?.toInt() ?? 4;
+                                final eEffectiveMax = eMaxGraus > 0 ? eMaxGraus : (eGrau > 0 ? eGrau : 4);
+                                return Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -672,16 +826,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                         BeltBadge(
                                           cor: _parseCor(e.value['cor']?.toString()),
                                           corBarra: _parseCor(e.value['corBarra']?.toString() ?? '#000000'),
-                                          temGraus: e.value['temGraus'] == true,
-                                          grau: (e.value['grau'] as num?)?.toInt() ?? 0,
-                                          maxGraus: (e.value['maxGraus'] as num?)?.toInt() ?? 4,
+                                          temGraus: e.value['temGraus'] == true || eGrau > 0,
+                                          grau: eGrau,
+                                          maxGraus: eEffectiveMax,
                                           height: 14,
                                           minWidth: 32,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          (e.value['grau'] as num? ?? 0).toInt() > 0
-                                              ? '${e.value['nome']} · ${(e.value['grau'] as num).toInt()}° Grau'
+                                          eGrau > 0
+                                              ? '${e.value['nome']} · $eGrau° Grau'
                                               : e.value['nome']?.toString() ?? '-',
                                           style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
                                         ),
@@ -689,7 +843,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                     ),
                                   ],
                                 ),
-                              )),
+                              );
+                              }),
                             _row('Nível / XP', a['nivel'] != null ? '${a['nivel']} · ${a['xpTotal'] ?? 0} XP' : null),
                           ]),
                           const SizedBox(height: 12),
