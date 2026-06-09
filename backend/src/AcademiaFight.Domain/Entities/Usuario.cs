@@ -31,6 +31,9 @@ public class Usuario : EntityBase
     public NivelAluno Nivel { get; set; } = NivelAluno.Iniciante;
     public DateTime? NivelAtualizadoEm { get; set; }
 
+    // Vínculo com dispositivo de acesso (catraca Toletus)
+    public int? CatracaDeviceUserId { get; set; }
+
     public Academia Academia { get; set; } = null!;
     public Plano? Plano { get; set; }
 }

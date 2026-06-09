@@ -18,6 +18,21 @@ export interface CatracaAberturaDto {
   operadorNome: string;
 }
 
+export interface CatracaAlunoVinculoDto {
+  alunoId: string;
+  nomeAluno: string;
+  email: string | null;
+  deviceUserId: number | null;
+  vinculado: boolean;
+}
+
+export interface CatracaAgentConfigDto {
+  backendUrl: string;
+  apiKey: string;
+  academiaId: string;
+  toletusCatracaIp: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CatracaService {
   private readonly http = inject(HttpClient);
@@ -29,5 +44,21 @@ export class CatracaService {
 
   abrirManualmente(): Observable<BaseResponse<CatracaAberturaDto>> {
     return this.http.post<BaseResponse<CatracaAberturaDto>>(`${this.api}/abrir`, {});
+  }
+
+  listarVinculos(): Observable<BaseResponse<CatracaAlunoVinculoDto[]>> {
+    return this.http.get<BaseResponse<CatracaAlunoVinculoDto[]>>(`${this.api}/vinculos`);
+  }
+
+  vincularAluno(alunoId: string, deviceUserId?: number): Observable<BaseResponse<CatracaAlunoVinculoDto>> {
+    return this.http.post<BaseResponse<CatracaAlunoVinculoDto>>(`${this.api}/vincular`, { alunoId, deviceUserId });
+  }
+
+  desvincularAluno(alunoId: string): Observable<BaseResponse<boolean>> {
+    return this.http.delete<BaseResponse<boolean>>(`${this.api}/vincular/${alunoId}`);
+  }
+
+  getAgentConfig(): Observable<CatracaAgentConfigDto> {
+    return this.http.get<CatracaAgentConfigDto>(`${this.api}/agent/config`);
   }
 }

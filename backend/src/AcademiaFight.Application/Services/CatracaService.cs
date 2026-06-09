@@ -13,28 +13,43 @@ public class CatracaService : ICatracaService
     private readonly IAppDbContext _db;
     private readonly IXpService _xp;
     private readonly ILogger<CatracaService> _logger;
+    private readonly ICatracaAgentNotifier _agentNotifier;
 
-    public CatracaService(IAppDbContext db, IXpService xp, ILogger<CatracaService> logger)
+    public CatracaService(
+        IAppDbContext db,
+        IXpService xp,
+        ILogger<CatracaService> logger,
+        ICatracaAgentNotifier agentNotifier)
     {
         _db = db;
         _xp = xp;
         _logger = logger;
+        _agentNotifier = agentNotifier;
     }
+
+    // ── Validar acesso ────────────────────────────────────────────────────────
 
     public async Task<BaseResponse<CatracaValidacaoDto>> ValidarAcessoAsync(
         string identificador, Guid academiaId, CancellationToken ct = default)
     {
         var id = identificador.Trim();
 
-        // Busca por e-mail (exato) ou por nome (contém, case-insensitive)
         var query = _db.Usuarios
             .Where(u => u.AcademiaId == academiaId && u.Perfil == PerfilUsuario.Aluno);
 
         List<Usuario> candidatos;
-        if (id.Contains('@'))
+
+        // 1. ID numérico do dispositivo (digital ou teclado Toletus → envia o CatracaDeviceUserId)
+        if (int.TryParse(id, out var deviceId))
+        {
+            candidatos = await query.Where(u => u.CatracaDeviceUserId == deviceId).ToListAsync(ct);
+        }
+        // 2. E-mail exato
+        else if (id.Contains('@'))
         {
             candidatos = await query.Where(u => u.Email == id).ToListAsync(ct);
         }
+        // 3. Nome (substring, case-insensitive — fallback)
         else
         {
             var idLower = id.ToLower();
@@ -54,28 +69,118 @@ public class CatracaService : ICatracaService
         if (candidatos.Count > 1)
         {
             var nomes = string.Join(", ", candidatos.Select(c => c.Nome));
-            _logger.LogInformation("Catraca: múltiplos alunos encontrados para '{Id}': {Nomes}", id, nomes);
             return BaseResponse<CatracaValidacaoDto>.Ok(
-                new CatracaValidacaoDto(false, null, $"Múltiplos alunos encontrados: {nomes}. Use o e-mail para identificar."));
+                new CatracaValidacaoDto(false, null, $"Múltiplos alunos: {nomes}. Use o e-mail ou cadastre a digital."));
         }
 
         var aluno = candidatos[0];
 
         if (!aluno.Ativo)
         {
-            _logger.LogInformation("Catraca: aluno '{Nome}' está inativo — acesso negado", aluno.Nome);
+            _logger.LogInformation("Catraca: aluno '{Nome}' inativo — acesso negado", aluno.Nome);
             return BaseResponse<CatracaValidacaoDto>.Ok(
                 new CatracaValidacaoDto(false, aluno.Nome, "Aluno inativo"));
         }
 
         _logger.LogInformation("Catraca: acesso liberado para '{Nome}'", aluno.Nome);
-
-        // Registra presença automaticamente no horário mais próximo do dia atual
         var (presencaRegistrada, turmaNome) = await RegistrarPresencaAutomaticaAsync(aluno.Id, academiaId, ct);
 
         return BaseResponse<CatracaValidacaoDto>.Ok(
             new CatracaValidacaoDto(true, aluno.Nome, null, presencaRegistrada, turmaNome));
     }
+
+    // ── Abrir manualmente ─────────────────────────────────────────────────────
+
+    public async Task<BaseResponse<CatracaAberturaManuaDto>> AbrirManualmenteAsync(
+        Guid academiaId, Guid operadorId, CancellationToken ct = default)
+    {
+        var operador = await _db.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == operadorId && u.AcademiaId == academiaId, ct);
+
+        var nomeOperador = operador?.Nome ?? "Desconhecido";
+        var agora = DateTime.UtcNow;
+
+        await _agentNotifier.EnviarAbrirPortaAsync(academiaId, ct);
+        _logger.LogInformation("Catraca: comando AbrirPorta enviado por '{Operador}'", nomeOperador);
+
+        return BaseResponse<CatracaAberturaManuaDto>.Ok(
+            new CatracaAberturaManuaDto(true, agora, nomeOperador),
+            "Comando enviado ao agente local");
+    }
+
+    // ── Vínculos aluno ↔ dispositivo ──────────────────────────────────────────
+
+    public async Task<BaseResponse<List<CatracaAlunoVinculoDto>>> ListarVinculosAsync(
+        Guid academiaId, CancellationToken ct = default)
+    {
+        var alunos = await _db.Usuarios
+            .Where(u => u.AcademiaId == academiaId && u.Perfil == PerfilUsuario.Aluno && u.Ativo)
+            .OrderBy(u => u.Nome)
+            .Select(u => new CatracaAlunoVinculoDto(
+                u.Id, u.Nome, u.Email, u.CatracaDeviceUserId, u.CatracaDeviceUserId.HasValue))
+            .ToListAsync(ct);
+
+        return BaseResponse<List<CatracaAlunoVinculoDto>>.Ok(alunos);
+    }
+
+    public async Task<BaseResponse<CatracaAlunoVinculoDto>> VincularAlunoAsync(
+        Guid alunoId, Guid academiaId, int? deviceUserId, CancellationToken ct = default)
+    {
+        var aluno = await _db.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == alunoId && u.AcademiaId == academiaId, ct);
+
+        if (aluno == null)
+            return BaseResponse<CatracaAlunoVinculoDto>.Falha("Aluno não encontrado");
+
+        // Gerar próximo ID disponível se não foi informado
+        if (!deviceUserId.HasValue)
+        {
+            var maxExistente = await _db.Usuarios
+                .Where(u => u.AcademiaId == academiaId && u.CatracaDeviceUserId.HasValue)
+                .MaxAsync(u => (int?)u.CatracaDeviceUserId, ct);
+            deviceUserId = (maxExistente ?? 0) + 1;
+        }
+        else
+        {
+            var conflito = await _db.Usuarios
+                .AnyAsync(u => u.AcademiaId == academiaId && u.CatracaDeviceUserId == deviceUserId && u.Id != alunoId, ct);
+            if (conflito)
+                return BaseResponse<CatracaAlunoVinculoDto>.Falha($"ID {deviceUserId} já está em uso por outro aluno");
+        }
+
+        aluno.CatracaDeviceUserId = deviceUserId;
+        await _db.SaveChangesAsync(ct);
+
+        // Enviar comando de enrollment ao agente
+        await _agentNotifier.EnviarCadastrarUsuarioAsync(academiaId, deviceUserId.Value, ct);
+        _logger.LogInformation("Catraca: aluno '{Nome}' vinculado com DeviceUserId={Id}", aluno.Nome, deviceUserId);
+
+        var dto = new CatracaAlunoVinculoDto(aluno.Id, aluno.Nome, aluno.Email, deviceUserId, true);
+        return BaseResponse<CatracaAlunoVinculoDto>.Ok(dto,
+            $"Aluno vinculado com ID {deviceUserId}. Solicite ao aluno que escaneie a digital no dispositivo.");
+    }
+
+    public async Task<BaseResponse<bool>> DesvincularAlunoAsync(
+        Guid alunoId, Guid academiaId, CancellationToken ct = default)
+    {
+        var aluno = await _db.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == alunoId && u.AcademiaId == academiaId, ct);
+
+        if (aluno == null)
+            return BaseResponse<bool>.Falha("Aluno não encontrado");
+
+        var deviceUserId = aluno.CatracaDeviceUserId;
+        aluno.CatracaDeviceUserId = null;
+        await _db.SaveChangesAsync(ct);
+
+        if (deviceUserId.HasValue)
+            await _agentNotifier.EnviarRemoverUsuarioAsync(academiaId, deviceUserId.Value, ct);
+
+        _logger.LogInformation("Catraca: aluno '{Nome}' desvinculado (DeviceUserId={Id})", aluno.Nome, deviceUserId);
+        return BaseResponse<bool>.Ok(true, "Aluno desvinculado da catraca");
+    }
+
+    // ── Presença automática ────────────────────────────────────────────────────
 
     private async Task<(bool registrada, string? turmaNome)> RegistrarPresencaAutomaticaAsync(
         Guid alunoId, Guid academiaId, CancellationToken ct)
@@ -86,7 +191,6 @@ public class CatracaService : ICatracaService
             var agora = TimeOnly.FromDateTime(DateTime.UtcNow);
             var diaSemana = (DiaSemana)(int)DateTime.UtcNow.DayOfWeek;
 
-            // Busca horários de hoje onde o aluno está matriculado
             var horariosDoDia = await _db.Horarios
                 .Include(h => h.Turma)
                 .Where(h => h.AcademiaId == academiaId
@@ -98,12 +202,10 @@ public class CatracaService : ICatracaService
             if (horariosDoDia.Count == 0)
                 return (false, null);
 
-            // Pega o horário mais próximo (em andamento ou o próximo a começar)
             var horario = horariosDoDia
                 .OrderBy(h => Math.Abs((h.HoraInicio - agora).TotalMinutes))
                 .First();
 
-            // Evita presença duplicada
             var jaRegistrado = await _db.Presencas
                 .AnyAsync(p => p.AlunoId == alunoId && p.HorarioId == horario.Id && p.Data == hoje, ct);
 
@@ -121,10 +223,8 @@ public class CatracaService : ICatracaService
 
             await _db.Presencas.AddAsync(presenca, ct);
             await _db.SaveChangesAsync(ct);
-
             await _xp.AdicionarXpAsync(alunoId, TipoEventoXp.Presenca, 10, presenca.Id, ct);
 
-            _logger.LogInformation("Catraca: presença auto-registrada para aluno {AlunoId} na turma '{Turma}'", alunoId, horario.Turma.Nome);
             return (true, horario.Turma.Nome);
         }
         catch (Exception ex)
@@ -132,26 +232,5 @@ public class CatracaService : ICatracaService
             _logger.LogError(ex, "Catraca: erro ao registrar presença automática para aluno {AlunoId}", alunoId);
             return (false, null);
         }
-    }
-
-    public async Task<BaseResponse<CatracaAberturaManuaDto>> AbrirManualmenteAsync(
-        Guid academiaId, Guid operadorId, CancellationToken ct = default)
-    {
-        var operador = await _db.Usuarios
-            .FirstOrDefaultAsync(u => u.Id == operadorId && u.AcademiaId == academiaId, ct);
-
-        var nomeOperador = operador?.Nome ?? "Desconhecido";
-        var agora = DateTime.UtcNow;
-
-        _logger.LogInformation("Catraca: abertura manual por '{Operador}' às {Hora} na academia {AcademiaId}",
-            nomeOperador, agora, academiaId);
-
-        // TODO: quando a catraca estiver conectada, enviar comando HTTP/TCP aqui.
-        // Exemplo para catraca Control iD:
-        //   await _httpClient.PostAsync("http://<ip-catraca>/access/open", ...);
-
-        return BaseResponse<CatracaAberturaManuaDto>.Ok(
-            new CatracaAberturaManuaDto(true, agora, nomeOperador),
-            "Catraca liberada");
     }
 }

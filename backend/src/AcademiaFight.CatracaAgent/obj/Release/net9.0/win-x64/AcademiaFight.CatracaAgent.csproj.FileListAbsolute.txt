@@ -1,0 +1,6 @@
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.csproj.AssemblyReference.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.GeneratedMSBuildEditorConfig.editorconfig
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.AssemblyInfoInputs.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.AssemblyInfo.cs
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.csproj.CoreCompileInputs.cache
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/obj/Release/net9.0/win-x64/AcademiaFight.CatracaAgent.sourcelink.json

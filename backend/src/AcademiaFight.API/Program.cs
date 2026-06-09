@@ -63,10 +63,13 @@ builder.Services.AddScoped<IContratoService, ContratoService>();
 builder.Services.AddScoped<IModeloContratoService, ModeloContratoService>();
 builder.Services.AddScoped<INotificacaoService, NotificacaoService>();
 builder.Services.AddScoped<IRankingNotifier, RankingNotifier>();
+builder.Services.AddScoped<ICatracaAgentNotifier, CatracaAgentNotifier>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<RankingMensalResetJob>();
 builder.Services.AddScoped<ICatracaService, CatracaService>();
+builder.Services.AddScoped<IToletusCatracaClient, ToletusCatracaClient>();
+builder.Services.AddHttpClient("toletus");  // HttpClient nomeado para chamadas ao dispositivo Toletus
 
 // 5. TenantContext (Scoped)
 builder.Services.AddScoped<ITenantContext, TenantContext>();
@@ -192,6 +195,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<RankingHub>("/hubs/ranking");
+app.MapHub<CatracaHub>("/hubs/catraca");
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
