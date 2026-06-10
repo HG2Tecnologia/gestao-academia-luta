@@ -476,3 +476,4 @@
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/obj/Debug/net9.0/ref/AcademiaFight.Tests.dll
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/bin/Debug/net9.0/appsettings.Testing.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/bin/Debug/net9.0/xunit.runner.json
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/tests/AcademiaFight.Tests/bin/Debug/net9.0/AcademiaFight.API.staticwebassets.runtime.json

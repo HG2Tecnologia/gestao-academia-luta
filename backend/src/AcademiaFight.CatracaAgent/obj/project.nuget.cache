@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "qX+zW68PtEM=",
+  "dgSpecHash": "KdbZANGsjPM=",
   "success": true,
   "projectFilePath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.CatracaAgent/AcademiaFight.CatracaAgent.csproj",
   "expectedPackageFiles": [
@@ -14,6 +14,7 @@
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration/9.0.0/microsoft.extensions.configuration.9.0.0.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration.abstractions/9.0.0/microsoft.extensions.configuration.abstractions.9.0.0.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration.binder/9.0.0/microsoft.extensions.configuration.binder.9.0.0.nupkg.sha512",
+    "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration.environmentvariables/9.0.0/microsoft.extensions.configuration.environmentvariables.9.0.0.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration.fileextensions/9.0.0/microsoft.extensions.configuration.fileextensions.9.0.0.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.configuration.json/9.0.0/microsoft.extensions.configuration.json.9.0.0.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/microsoft.extensions.dependencyinjection/9.0.0/microsoft.extensions.dependencyinjection.9.0.0.nupkg.sha512",

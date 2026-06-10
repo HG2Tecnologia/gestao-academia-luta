@@ -180,6 +180,7 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 app.UseCors("PoliticaPadrao");
+app.UseStaticFiles();
 
 app.UseMiddleware<ExceptionMiddleware>();
 

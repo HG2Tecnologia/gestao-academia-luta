@@ -1,0 +1,21 @@
+# Build outputs
+**/bin/
+**/obj/
+**/publish/
+
+
+# Node / Angular
+**/node_modules/
+frontend-web/dist/
+
+# .NET
+*.user
+*.suo
+.vs/
+
+# Env
+.env
+.env.local
+
+# macOS
+.DS_Store

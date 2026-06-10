@@ -21,11 +21,16 @@
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-      <button class="btn-primary" (click)="baixarConfig()" [disabled]="!agentConfig()">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:6px;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Baixar appsettings.json
+      <button class="btn-primary" (click)="baixarPacote()" [disabled]="baixandoPacote()">
+        @if (baixandoPacote()) {
+          <span class="spinner" style="border-color:rgba(255,255,255,0.4);border-top-color:white;"></span>
+          Gerando pacote...
+        } @else {
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:6px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Baixar SenseiManagerAgente.zip
+        }
       </button>
       <button class="btn-outline" (click)="showConfig.set(!showConfig())">
         {{ showConfig() ? 'Ocultar' : 'Ver' }} configuração
@@ -49,9 +54,10 @@
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       <span style="font-size:12px;">
-        <strong>Como usar:</strong> 1. Baixe o <code>SenseiManagerCatracaAgent.exe</code> do repositório →
-        2. Coloque na mesma pasta que o <code>appsettings.json</code> baixado acima →
-        3. Execute como Administrador no PC da academia (com o cabo Toletus conectado)
+        <strong>Como usar:</strong> 1. Clique em "Baixar SenseiManagerAgente.zip" →
+        2. Extraia o ZIP em uma pasta no PC Windows da academia →
+        3. Execute <code>SenseiManagerCatracaAgent.exe</code> como Administrador (com o cabo Toletus conectado) →
+        4. O agente se conecta automaticamente ao sistema — pronto!
       </span>
     </div>
   </div>

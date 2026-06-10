@@ -1,3 +1,6 @@
+using System.IO.Compression;
+using System.Text;
+using System.Text.Json;
 using AcademiaFight.Application.DTOs.Catraca;
 using AcademiaFight.Application.Interfaces;
 using AcademiaFight.Domain.Interfaces;
@@ -113,6 +116,70 @@ public class CatracaController : ControllerBase
         );
 
         return Ok(config);
+    }
+
+    /// <summary>
+    /// Gera e retorna um ZIP contendo o executável do agente local + appsettings.json
+    /// já configurado para esta academia. O usuário baixa, extrai e executa o .exe.
+    /// </summary>
+    [HttpGet("agent/pacote")]
+    [Authorize]
+    public async Task<IActionResult> DownloadAgentPacote(
+        [FromServices] IWebHostEnvironment env)
+    {
+        var exePath = Path.Combine(env.WebRootPath, "agent", "SenseiManagerCatracaAgent.exe");
+        if (!System.IO.File.Exists(exePath))
+            return NotFound(new
+            {
+                mensagem = "Executável do agente não encontrado no servidor. " +
+                           "Execute 'dotnet publish' no projeto CatracaAgent e copie o .exe para wwwroot/agent/."
+            });
+
+        var backendUrl = $"{Request.Scheme}://{Request.Host}";
+        var apiKey     = _config["Catraca:ApiKey"] ?? "";
+        var toletus    = _config["Catraca:ToletusCatracaIp"] ?? "169.254.37.21";
+        var academiaId = _tenant.AcademiaId.ToString();
+
+        var configJson = JsonSerializer.Serialize(new
+        {
+            Backend = new { Url = backendUrl, ApiKey = apiKey, AcademiaId = academiaId },
+            Toletus = new { CatracaIp = toletus }
+        }, new JsonSerializerOptions { WriteIndented = true });
+
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            // Executável (sem compressão — binário já comprimido)
+            var exeEntry = zip.CreateEntry("SenseiManagerCatracaAgent.exe", CompressionLevel.NoCompression);
+            await using var exeOut = exeEntry.Open();
+            await using var exeIn  = System.IO.File.OpenRead(exePath);
+            await exeIn.CopyToAsync(exeOut);
+
+            // Configuração já preenchida para esta academia
+            var cfgEntry = zip.CreateEntry("appsettings.json", CompressionLevel.Fastest);
+            await using var cfgOut = cfgEntry.Open();
+            await cfgOut.WriteAsync(Encoding.UTF8.GetBytes(configJson));
+
+            // Instruções rápidas de uso
+            var readme = $"""
+                SenseiManager — Agente Local de Catraca
+                =========================================
+                1. Extraia os dois arquivos nesta pasta para uma pasta no PC Windows da academia.
+                2. Execute SenseiManagerCatracaAgent.exe (duplo-clique ou via terminal).
+                3. O agente se conectará automaticamente ao backend e ficará aguardando comandos.
+                4. Para rodar como serviço Windows: sc create SenseiAgent binPath="C:\caminho\SenseiManagerCatracaAgent.exe"
+
+                Configuração (appsettings.json já pré-configurada):
+                  Backend URL : {backendUrl}
+                  Academia ID : {academiaId}
+                  Catraca IP  : {toletus}
+                """;
+            var readmeEntry = zip.CreateEntry("LEIAME.txt", CompressionLevel.Fastest);
+            await using var readmeOut = readmeEntry.Open();
+            await readmeOut.WriteAsync(Encoding.UTF8.GetBytes(readme));
+        }
+
+        return File(ms.ToArray(), "application/zip", "SenseiManagerAgente.zip");
     }
 }
 

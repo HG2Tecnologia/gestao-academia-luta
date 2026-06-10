@@ -61,4 +61,8 @@ export class CatracaService {
   getAgentConfig(): Observable<CatracaAgentConfigDto> {
     return this.http.get<CatracaAgentConfigDto>(`${this.api}/agent/config`);
   }
+
+  downloadAgentPacote(): Observable<Blob> {
+    return this.http.get(`${this.api}/agent/pacote`, { responseType: 'blob' });
+  }
 }

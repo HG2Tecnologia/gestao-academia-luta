@@ -40,6 +40,7 @@ export class CatracaComponent implements OnInit {
   // Agente
   readonly agentConfig = signal<CatracaAgentConfigDto | null>(null);
   readonly showConfig = signal(false);
+  readonly baixandoPacote = signal(false);
 
   ngOnInit(): void {
     this.carregarVinculos();
@@ -158,20 +159,23 @@ export class CatracaComponent implements OnInit {
     });
   }
 
-  baixarConfig(): void {
-    const cfg = this.agentConfig();
-    if (!cfg) return;
-    const json = JSON.stringify({
-      Backend: { Url: cfg.backendUrl, ApiKey: cfg.apiKey, AcademiaId: cfg.academiaId },
-      Toletus: { CatracaIp: cfg.toletusCatracaIp }
-    }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'appsettings.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  baixarPacote(): void {
+    this.baixandoPacote.set(true);
+    this.catracaService.downloadAgentPacote().subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'SenseiManagerAgente.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        this.baixandoPacote.set(false);
+      },
+      error: () => {
+        alert('Executável do agente ainda não está disponível no servidor. Entre em contato com o suporte.');
+        this.baixandoPacote.set(false);
+      },
+    });
   }
 
   copiarApiKey(): void {
