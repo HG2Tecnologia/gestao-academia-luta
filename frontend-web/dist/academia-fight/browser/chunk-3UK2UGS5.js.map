@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/alunos/alunos.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const alunosRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/lista/alunos-lista.component').then(m => m.AlunosListaComponent),\n    title: 'Alunos — Academia Fight',\n  },\n  {\n    path: 'novo',\n    loadComponent: () =>\n      import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),\n    title: 'Novo Aluno — Academia Fight',\n  },\n  {\n    path: ':id/editar',\n    loadComponent: () =>\n      import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),\n    title: 'Editar Aluno — Academia Fight',\n  },\n  {\n    path: ':id',\n    loadComponent: () =>\n      import('./pages/detalhe/aluno-detalhe.component').then(m => m.AlunoDetalheComponent),\n    title: 'Detalhe do Aluno — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,eAAuB;EAClC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAsC,EAAE,KAAK,OAAK,EAAE,oBAAoB;IACjF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAmC,EAAE,KAAK,OAAK,EAAE,kBAAkB;IAC5E,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAmC,EAAE,KAAK,OAAK,EAAE,kBAAkB;IAC5E,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAyC,EAAE,KAAK,OAAK,EAAE,qBAAqB;IACrF,OAAO;;;",
-  "names": []
-}

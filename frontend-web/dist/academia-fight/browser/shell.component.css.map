@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/shared/layout/shell/shell.component.css"],
-  "sourcesContent": [":host { display: block; }\n\n.shell {\n  display: flex;\n  height: 100vh;\n  background: var(--app-bg, #0a0a0a);\n  overflow: hidden;\n}\n\n.shell-main {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  min-width: 0;\n  overflow: hidden;\n}\n\n.shell-content {\n  flex: 1;\n  overflow-y: auto;\n  padding: 32px;\n  background: var(--app-content-bg, #f8fafc);\n}\n\n.sidebar-overlay {\n  display: none;\n}\n\n@media (max-width: 768px) {\n  .shell-content { padding: 16px; }\n\n  .sidebar-overlay {\n    display: block;\n    position: fixed;\n    inset: 0;\n    z-index: 199;\n    background: rgba(0, 0, 0, 0.45);\n  }\n}\n"],
-  "mappings": ";AAAA;AAAQ,WAAS;AAAO;AAExB,CAAC;AACC,WAAS;AACT,UAAQ;AACR,cAAY,IAAI,QAAQ,EAAE;AAC1B,YAAU;AACZ;AAEA,CAAC;AACC,QAAM;AACN,WAAS;AACT,kBAAgB;AAChB,aAAW;AACX,YAAU;AACZ;AAEA,CAAC;AACC,QAAM;AACN,cAAY;AACZ,WAAS;AACT,cAAY,IAAI,gBAAgB,EAAE;AACpC;AAEA,CAAC;AACC,WAAS;AACX;AAEA,OAAO,CAAC,SAAS,EAAE;AACjB,GAZD;AAYkB,aAAS;AAAM;AAEhC,GAPD;AAQG,aAAS;AACT,cAAU;AACV,WAAO;AACP,aAAS;AACT,gBAAY,KAAK,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE;AAC5B;AACF;",
-  "names": []
-}

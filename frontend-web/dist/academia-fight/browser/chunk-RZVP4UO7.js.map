@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/environments/environment.ts"],
-  "sourcesContent": ["export const environment = {\n  production: false,\n  apiUrl: 'http://localhost:5226',\n  tenantFallback: 'dev',\n};\n"],
-  "mappings": ";AAAO,IAAM,cAAc;EACzB,YAAY;EACZ,QAAQ;EACR,gBAAgB;;",
-  "names": []
-}

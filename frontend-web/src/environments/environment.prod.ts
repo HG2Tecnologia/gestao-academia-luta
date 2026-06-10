@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.suaplataforma.com',
+  apiUrl: 'https://gestao-academia-luta.onrender.com',
   tenantFallback: '',
 };

@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/presencas/presencas.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const presencasRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/checkin/checkin.component').then((m) => m.CheckinComponent),\n    title: 'Check-in — Academia Fight',\n  },\n  {\n    path: 'historico',\n    loadComponent: () =>\n      import('./pages/historico/historico-presencas.component').then((m) => m.HistoricoPresencasComponent),\n    title: 'Histórico de Presenças — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,kBAA0B;EACrC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAmC,EAAE,KAAK,CAAC,MAAM,EAAE,gBAAgB;IAC5E,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAiD,EAAE,KAAK,CAAC,MAAM,EAAE,2BAA2B;IACrG,OAAO;;;",
-  "names": []
-}

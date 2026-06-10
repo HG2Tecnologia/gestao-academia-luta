@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/turmas/turmas.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const turmasRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/lista/turmas-lista.component').then((m) => m.TurmasListaComponent),\n    title: 'Turmas — Academia Fight',\n  },\n  {\n    path: 'novo',\n    loadComponent: () =>\n      import('./pages/form/turma-form.component').then((m) => m.TurmaFormComponent),\n    title: 'Nova Turma — Academia Fight',\n  },\n  {\n    path: ':id/editar',\n    loadComponent: () =>\n      import('./pages/form/turma-form.component').then((m) => m.TurmaFormComponent),\n    title: 'Editar Turma — Academia Fight',\n  },\n  {\n    path: ':id',\n    loadComponent: () =>\n      import('./pages/detalhe/turma-detalhe.component').then((m) => m.TurmaDetalheComponent),\n    title: 'Detalhe da Turma — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,eAAuB;EAClC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAsC,EAAE,KAAK,CAAC,MAAM,EAAE,oBAAoB;IACnF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAmC,EAAE,KAAK,CAAC,MAAM,EAAE,kBAAkB;IAC9E,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAmC,EAAE,KAAK,CAAC,MAAM,EAAE,kBAAkB;IAC9E,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAyC,EAAE,KAAK,CAAC,MAAM,EAAE,qBAAqB;IACvF,OAAO;;;",
-  "names": []
-}

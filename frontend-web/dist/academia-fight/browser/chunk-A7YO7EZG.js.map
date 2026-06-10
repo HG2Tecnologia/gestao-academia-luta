@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/modalidades/modalidades.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const modalidadesRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/lista/modalidades-lista.component').then(m => m.ModalidadesListaComponent),\n    title: 'Modalidades — Academia Fight',\n  },\n  {\n    path: 'novo',\n    loadComponent: () =>\n      import('./pages/form/modalidade-form.component').then(m => m.ModalidadeFormComponent),\n    title: 'Nova Modalidade — Academia Fight',\n  },\n  {\n    path: ':id/editar',\n    loadComponent: () =>\n      import('./pages/form/modalidade-form.component').then(m => m.ModalidadeFormComponent),\n    title: 'Editar Modalidade — Academia Fight',\n  },\n  {\n    path: ':id',\n    loadComponent: () =>\n      import('./pages/detalhe/modalidade-detalhe.component').then(m => m.ModalidadeDetalheComponent),\n    title: 'Modalidade — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,oBAA4B;EACvC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA2C,EAAE,KAAK,OAAK,EAAE,yBAAyB;IAC3F,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAwC,EAAE,KAAK,OAAK,EAAE,uBAAuB;IACtF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAwC,EAAE,KAAK,OAAK,EAAE,uBAAuB;IACtF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA8C,EAAE,KAAK,OAAK,EAAE,0BAA0B;IAC/F,OAAO;;;",
-  "names": []
-}

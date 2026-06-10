@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/planos/planos.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const planosRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () => import('./pages/lista/planos-lista.component').then(m => m.PlanosListaComponent),\n    title: 'Planos — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,eAAuB;EAClC;IACE,MAAM;IACN,eAAe,MAAM,OAAO,qBAAsC,EAAE,KAAK,OAAK,EAAE,oBAAoB;IACpG,OAAO;;;",
-  "names": []
-}

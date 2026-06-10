@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;5d2bff3c5d9eebe15445aec1cce8e36ba49eaddbf7614f92d72a95a17fea726e;/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/frontend-web/src/app/shared/components/xp-progress/xp-progress.component.ts"],
-  "sourcesContent": ["\n    .xp-wrap { display: flex; flex-direction: column; gap: 6px; }\n    .xp-labels { display: flex; justify-content: space-between; font-size: 0.75rem; }\n    .xp-atual { font-weight: 700; color: var(--app-text-1); }\n    .xp-meta { color: var(--app-text-3); }\n    .xp-bar-bg { height: 8px; background: var(--app-border); border-radius: 99px; overflow: hidden; }\n    .xp-bar-fill { height: 100%; border-radius: 99px; transition: width 1s ease; }\n  "],
-  "mappings": ";AACI,CAAC;AAAU,WAAS;AAAM,kBAAgB;AAAQ,OAAK;AAAK;AAC5D,CAAC;AAAY,WAAS;AAAM,mBAAiB;AAAe,aAAW;AAAS;AAChF,CAAC;AAAW,eAAa;AAAK,SAAO,IAAI;AAAe;AACxD,CAAC;AAAU,SAAO,IAAI;AAAe;AACrC,CAAC;AAAY,UAAQ;AAAK,cAAY,IAAI;AAAe,iBAAe;AAAM,YAAU;AAAQ;AAChG,CAAC;AAAc,UAAQ;AAAM,iBAAe;AAAM,cAAY,MAAM,GAAG;AAAM;",
-  "names": []
-}

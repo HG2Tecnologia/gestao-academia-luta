@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/contratos/contratos.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const contratosRoutes: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/lista/contratos-lista.component').then((m) => m.ContratosListaComponent),\n    title: 'Contratos — Academia Fight',\n  },\n  {\n    path: 'modelos',\n    loadComponent: () =>\n      import('./pages/modelos/contratos-modelos.component').then((m) => m.ContratosModelosComponent),\n    title: 'Modelos de Contrato — Academia Fight',\n  },\n  {\n    path: ':id',\n    loadComponent: () =>\n      import('./pages/detalhe/contrato-detalhe.component').then((m) => m.ContratoDetalheComponent),\n    title: 'Contrato — Academia Fight',\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,kBAA0B;EACrC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAyC,EAAE,KAAK,CAAC,MAAM,EAAE,uBAAuB;IACzF,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA6C,EAAE,KAAK,CAAC,MAAM,EAAE,yBAAyB;IAC/F,OAAO;;EAET;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA4C,EAAE,KAAK,CAAC,MAAM,EAAE,wBAAwB;IAC7F,OAAO;;;",
-  "names": []
-}

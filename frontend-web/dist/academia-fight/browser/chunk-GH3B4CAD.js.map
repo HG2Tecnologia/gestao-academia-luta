@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/features/ranking/ranking.routes.ts"],
-  "sourcesContent": ["import { Routes } from '@angular/router';\n\nexport const RANKING_ROUTES: Routes = [\n  {\n    path: '',\n    loadComponent: () =>\n      import('./pages/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),\n  },\n  {\n    path: 'perfil/:alunoId',\n    loadComponent: () =>\n      import('./pages/perfil-gamificado/perfil-gamificado.component').then(m => m.PerfilGamificadoComponent),\n  },\n];\n"],
-  "mappings": ";;;AAEO,IAAM,iBAAyB;EACpC;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAA2C,EAAE,KAAK,OAAK,EAAE,oBAAoB;;EAExF;IACE,MAAM;IACN,eAAe,MACb,OAAO,qBAAuD,EAAE,KAAK,OAAK,EAAE,yBAAyB;;;",
-  "names": []
-}
