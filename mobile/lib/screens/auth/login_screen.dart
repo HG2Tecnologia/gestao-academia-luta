@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -123,7 +126,13 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _erro = body['mensagem'] ?? 'Credenciais inválidas.');
       }
     } on DioException catch (e) {
-      setState(() => _erro = e.response?.data?['mensagem'] ?? 'Erro de conexão.');
+      final isTimeout = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError;
+      setState(() => _erro = isTimeout
+          ? 'Servidor iniciando. Aguarde alguns segundos e tente novamente.'
+          : (e.response?.data?['mensagem'] ?? 'Não foi possível conectar ao servidor. Verifique sua internet.'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -251,7 +260,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: () => context.push('/cadastrar'),
+                  onPressed: () {
+                    if (!kIsWeb && Platform.isIOS) {
+                      launchUrl(Uri.parse(kWebCadastroUrl), mode: LaunchMode.externalApplication);
+                    } else {
+                      context.push('/cadastrar');
+                    }
+                  },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kPrimary,
                     side: BorderSide(color: kPrimary.withOpacity(0.4)),
