@@ -96,6 +96,32 @@ public class AcademiaService : IAcademiaService
         return BaseResponse<AcademiaDto>.Ok(await MapearDtoAsync(academia, ct), "Plano PRO ativado com sucesso.");
     }
 
+    public async Task<BaseResponse<AcademiaDto>> AtivarPlanoIapAsync(
+        string productId, string purchaseToken, string platform, CancellationToken ct = default)
+    {
+        var academia = await _db.Academias.FirstOrDefaultAsync(a => a.Id == _tenant.AcademiaId, ct);
+        if (academia is null)
+            return BaseResponse<AcademiaDto>.Falha("Academia não encontrada.");
+
+        var expiracao = productId switch
+        {
+            var id when id.Contains("mensal")     => DateTime.UtcNow.AddMonths(1),
+            var id when id.Contains("trimestral") => DateTime.UtcNow.AddMonths(3),
+            var id when id.Contains("anual")      => DateTime.UtcNow.AddYears(1),
+            _                                     => DateTime.UtcNow.AddMonths(1),
+        };
+
+        academia.PlanoTipo = PlanoAcademia.Pro;
+        academia.PlanoExpiracao = expiracao;
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Plano PRO ativado via IAP ({ProductId}/{Platform}) para academia {AcademiaId} até {Expiracao}",
+            productId, platform, _tenant.AcademiaId, expiracao);
+
+        return BaseResponse<AcademiaDto>.Ok(await MapearDtoAsync(academia, ct), "Plano PRO ativado com sucesso.");
+    }
+
     private async Task<AcademiaDto> MapearDtoAsync(Domain.Entities.Academia academia, CancellationToken ct)
     {
         var isGratuito = academia.PlanoTipo == PlanoAcademia.Gratuito;

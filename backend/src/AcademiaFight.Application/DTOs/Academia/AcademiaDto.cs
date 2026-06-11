@@ -24,3 +24,10 @@ public class AtivarPlanoProRequest
 {
     public DateTime? Expiracao { get; set; }
 }
+
+public class ValidarIapRequest
+{
+    public string ProductId { get; set; } = string.Empty;
+    public string PurchaseToken { get; set; } = string.Empty;
+    public string Platform { get; set; } = string.Empty;
+}

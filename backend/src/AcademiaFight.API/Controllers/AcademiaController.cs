@@ -53,4 +53,13 @@ public class AcademiaController : ControllerBase
         if (!resultado.Sucesso) return BadRequest(resultado);
         return Ok(resultado);
     }
+
+    [HttpPost("plano/iap")]
+    public async Task<IActionResult> AtivarPlanoIap([FromBody] ValidarIapRequest request, CancellationToken ct)
+    {
+        var resultado = await _academiaService.AtivarPlanoIapAsync(
+            request.ProductId, request.PurchaseToken, request.Platform, ct);
+        if (!resultado.Sucesso) return BadRequest(resultado);
+        return Ok(resultado);
+    }
 }

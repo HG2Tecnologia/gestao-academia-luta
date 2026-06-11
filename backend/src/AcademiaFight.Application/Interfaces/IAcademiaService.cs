@@ -9,4 +9,5 @@ public interface IAcademiaService
     Task<BaseResponse<AcademiaDto>> AtualizarAsync(UpdateAcademiaRequest request, CancellationToken ct = default);
     Task<BaseResponse> AtualizarTemplateContratoAsync(string? template, CancellationToken ct = default);
     Task<BaseResponse<AcademiaDto>> AtivarPlanoProAsync(DateTime? expiracao, CancellationToken ct = default);
+    Task<BaseResponse<AcademiaDto>> AtivarPlanoIapAsync(string productId, string purchaseToken, string platform, CancellationToken ct = default);
 }

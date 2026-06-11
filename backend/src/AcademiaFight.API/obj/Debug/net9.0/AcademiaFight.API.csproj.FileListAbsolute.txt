@@ -1,6 +1,7 @@
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/appsettings.Development.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/appsettings.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/appsettings.Testing.json
+/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/AcademiaFight.API.staticwebassets.runtime.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/AcademiaFight.API.staticwebassets.endpoints.json
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/AcademiaFight.API
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/AcademiaFight.API.deps.json
@@ -152,4 +153,3 @@
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/obj/Debug/net9.0/AcademiaFight.API.pdb
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/obj/Debug/net9.0/AcademiaFight.API.genruntimeconfig.cache
 /Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/obj/Debug/net9.0/ref/AcademiaFight.API.dll
-/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/bin/Debug/net9.0/AcademiaFight.API.staticwebassets.runtime.json

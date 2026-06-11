@@ -1,10 +1,7 @@
-import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -225,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: kDanger.withOpacity(0.12),
+                      color: kDanger.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
@@ -260,16 +257,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: () {
-                    if (!kIsWeb && Platform.isIOS) {
-                      launchUrl(Uri.parse(kWebCadastroUrl), mode: LaunchMode.externalApplication);
-                    } else {
-                      context.push('/cadastrar');
-                    }
-                  },
+                  onPressed: () => context.push('/cadastrar'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kPrimary,
-                    side: BorderSide(color: kPrimary.withOpacity(0.4)),
+                    side: BorderSide(color: kPrimary.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
