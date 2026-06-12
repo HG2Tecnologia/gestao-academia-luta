@@ -91,7 +91,7 @@ public class GraduacaoService : IGraduacaoService
             FaixaId = request.FaixaId,
             DataExame = request.DataExame,
             Aprovado = request.Aprovado,
-            Grau = faixa.TemGraus ? request.Grau : 0,
+            Grau = request.Grau,
             ProfessorId = request.ProfessorId,
             Observacoes = request.Observacoes
         };

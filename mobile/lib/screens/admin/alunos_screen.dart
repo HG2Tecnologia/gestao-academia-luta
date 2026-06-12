@@ -126,8 +126,10 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final faixaCor = a['faixaAtualCor'] as String?;
                                   final faixaCorBarra = a['faixaAtualCorBarra'] as String?;
                                   final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
-                                  final maxGraus = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+                                  final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+                                  final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
                                   final temGraus = a['faixaAtualTemGraus'] == true || grauAtual > 0;
+                                  final faixaNome = a['faixaAtualNome'] as String?;
                                   Color parseCor(String? hex) {
                                     try { return Color(int.parse((hex ?? '').replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
                                   }
@@ -160,14 +162,17 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                                       temGraus: temGraus,
                                                       grau: grauAtual,
                                                       maxGraus: maxGraus,
-                                                      height: 10,
-                                                      minWidth: 24,
+                                                      height: 14,
+                                                      minWidth: 32,
                                                     ),
                                                     const SizedBox(width: 6),
                                                   ],
                                                   Flexible(child: Text(
                                                     [
-                                                      a['faixaAtualNome'],
+                                                      if (faixaNome != null)
+                                                        grauAtual > 0
+                                                            ? '$faixaNome · $grauAtual° Grau'
+                                                            : faixaNome,
                                                       (a['turmas'] as List?)?.isNotEmpty == true ? (a['turmas'] as List).first.toString() : null,
                                                     ].where((s) => s != null && s != '').join(' · '),
                                                     style: TextStyle(color: kText2, fontSize: 12),

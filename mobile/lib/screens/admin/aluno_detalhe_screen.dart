@@ -20,6 +20,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   String? _erro;
   // Faixa mais recente aprovada por modalidade: { nomeModalidade -> { nome, cor } }
   Map<String, Map<String, dynamic>> _faixasPorModalidade = {};
+  List<Map<String, dynamic>> _graduacoes = [];
+  String? _histModFiltro; // null = todas as modalidades
 
   @override
   void initState() {
@@ -67,6 +69,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         _aluno = body['dados'] as Map<String, dynamic>?;
         _meId = (meBody['dados'] as Map<String, dynamic>?)?['id']?.toString();
         _faixasPorModalidade = faixasMod;
+        _graduacoes = List.of(graduacoes)
+          ..sort((a, b) {
+            try {
+              return DateTime.parse(b['dataExame'].toString())
+                  .compareTo(DateTime.parse(a['dataExame'].toString()));
+            } catch (_) {
+              return 0;
+            }
+          });
       });
     } catch (_) {
       if (mounted) setState(() => _erro = 'Erro ao carregar aluno.');
@@ -379,7 +390,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     Text('${modSel?['nome']} · ${faixaSel?['nome'] ?? ''}', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                   ]),
                 ),
-                if (faixaSel != null && faixaSel!['temGraus'] == true) ...[
+                if (faixaSel != null && (faixaSel!['temGraus'] == true || tipoGraduacao == 'darGrau')) ...[
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -482,7 +493,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           'dataExame': dataExame,
                           'professorId': _meId,
                           'aprovado': true,
-                          'grau': temGraus ? grauSel : 0,
+                          'grau': (tipoGraduacao == 'darGrau' || temGraus) ? grauSel : 0,
                           'observacoes': obsCtrl.text.trim(),
                         });
                         if (gerarCobranca && valorCtrl.text.isNotEmpty) {
@@ -856,6 +867,71 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ]),
                           // Turmas com botão vincular
                           const SizedBox(height: 12),
+                          // Histórico de graduações
+                          _buildCard([
+                            _sectionTitle('Histórico de Graduações'),
+                            if (_graduacoes.isNotEmpty) ...[
+                              Builder(builder: (_) {
+                                final mods = _graduacoes
+                                    .map((g) => g['nomeModalidade']?.toString() ?? '')
+                                    .where((m) => m.isNotEmpty)
+                                    .toSet()
+                                    .toList()
+                                  ..sort();
+                                if (mods.length <= 1) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () => setState(() => _histModFiltro = null),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: _histModFiltro == null ? kPrimary : kBorder.withOpacity(0.3),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text('Todas', style: TextStyle(
+                                            color: _histModFiltro == null ? Colors.white : kText2,
+                                            fontSize: 11, fontWeight: FontWeight.w700,
+                                          )),
+                                        ),
+                                      ),
+                                      ...mods.map((m) {
+                                        final sel = _histModFiltro == m;
+                                        final short = m.contains(' — ') ? m.split(' — ').last : m;
+                                        return GestureDetector(
+                                          onTap: () => setState(() => _histModFiltro = sel ? null : m),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: sel ? kPrimary : kBorder.withOpacity(0.3),
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(short, style: TextStyle(
+                                              color: sel ? Colors.white : kText2,
+                                              fontSize: 11, fontWeight: FontWeight.w700,
+                                            )),
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            if (_graduacoes.isEmpty)
+                              Text('Nenhuma graduação registrada.',
+                                  style: TextStyle(color: kText2, fontSize: 13))
+                            else
+                              ...(_histModFiltro == null
+                                  ? _graduacoes
+                                  : _graduacoes.where((g) => g['nomeModalidade']?.toString() == _histModFiltro).toList()
+                              ).map((g) => _buildGraduacaoItem(g)),
+                          ]),
+                          const SizedBox(height: 12),
                           _buildCard([
                             Row(
                               children: [
@@ -1067,6 +1143,93 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGraduacaoItem(Map<String, dynamic> g) {
+    final grau = (g['grau'] as num?)?.toInt() ?? 0;
+    final nomeFaixa = g['nomeFaixa']?.toString() ?? '-';
+    final nomeMod = g['nomeModalidade']?.toString() ?? '';
+    final nomeProfessor = g['nomeProfessor']?.toString() ?? '';
+    final aprovado = g['aprovado'] == true;
+    final corFaixa = _parseCor(g['corFaixa']?.toString());
+    final corBarra = _parseCor(g['corBarraFaixa']?.toString() ?? '#000000');
+    final temGraus = g['faixaTemGraus'] == true || grau > 0;
+    final maxGraus = (g['faixaMaxGraus'] as num?)?.toInt() ?? 4;
+    final dataStr = _formatDate(g['dataExame']) ?? '';
+    final label = grau > 0 ? '$nomeFaixa · $grau° Grau' : nomeFaixa;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline dot + line
+          Column(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: aprovado ? corFaixa : kBorder,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    BeltBadge(
+                      cor: corFaixa,
+                      corBarra: corBarra,
+                      temGraus: temGraus,
+                      grau: grau,
+                      maxGraus: maxGraus,
+                      height: 10,
+                      minWidth: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!aprovado)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: kWarning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('Pendente', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    if (nomeMod.isNotEmpty) nomeMod,
+                    if (dataStr.isNotEmpty) dataStr,
+                    if (nomeProfessor.isNotEmpty) 'Prof. $nomeProfessor',
+                  ].join(' · '),
+                  style: TextStyle(color: kText2, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
