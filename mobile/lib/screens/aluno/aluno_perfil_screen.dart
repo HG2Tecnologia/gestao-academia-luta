@@ -345,7 +345,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
     final faixaCorBarra = _parseHex(a['faixaAtualCorBarra'] as String?);
     final faixaTemGraus = (a['faixaAtualTemGraus'] as bool? ?? false) || grauAtual > 0;
-    final faixaMaxGraus = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+    final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+    final faixaMaxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
     final turmasDetalhes = (a['turmasDetalhes'] as List? ?? []).cast<Map<String, dynamic>>();
     final finRaw = a['situacaoFinanceira'] as String?;
     final fin = finRaw == 'EmDia' ? 'Em Dia' : finRaw;

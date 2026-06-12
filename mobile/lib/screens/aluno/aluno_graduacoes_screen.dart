@@ -16,6 +16,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
   Map<String, dynamic>? _faixaAtual;
   bool _loading = true;
   bool _erro = false;
+  String? _histModFiltro;
 
   @override
   void initState() {
@@ -50,10 +51,20 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     }
   }
 
-  List<Widget> _buildHistoricoByMod() {
+  int _effectiveMaxGraus(Map<String, dynamic> g) {
+    final mr = (g['faixaMaxGraus'] as num?)?.toInt() ?? 0;
+    final gr = (g['grau'] as num?)?.toInt() ?? 0;
+    return mr > 0 ? mr : (gr > 0 ? gr : 4);
+  }
+
+  List<Widget> _buildHistoricoByMod([String? modFiltro]) {
+    final source = modFiltro == null
+        ? _graduacoes
+        : _graduacoes.where((g) => g['nomeModalidade']?.toString() == modFiltro).toList();
+
     // Group by modality preserving insertion order (already sorted by date desc)
     final Map<String, List<Map<String, dynamic>>> byMod = {};
-    for (final g in _graduacoes) {
+    for (final g in source) {
       final mod = g['nomeModalidade']?.toString() ?? 'Sem modalidade';
       byMod.putIfAbsent(mod, () => []).add(g);
     }
@@ -121,7 +132,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                               corBarra: _hexCor(g['corBarraFaixa'] as String? ?? '#000000'),
                               temGraus: g['faixaTemGraus'] == true || ((g['grau'] as num?)?.toInt() ?? 0) > 0,
                               grau: (g['grau'] as num?)?.toInt() ?? 0,
-                              maxGraus: (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
+                              maxGraus: _effectiveMaxGraus(g),
                               height: 14,
                               minWidth: 32,
                             ),
@@ -130,7 +141,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
                                   Flexible(child: Text(g['nomeFaixa'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)),
-                                  if (g['faixaTemGraus'] == true && ((g['grau'] as num?)?.toInt() ?? 0) > 0) ...[
+                                  if (((g['grau'] as num?)?.toInt() ?? 0) > 0) ...[
                                     const SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -139,8 +150,6 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                                     ),
                                   ],
                                 ]),
-                                if (g['nomeProfessor'] != null)
-                                  Text('Prof. ${g['nomeProfessor']}', style: TextStyle(color: kText2, fontSize: 11)),
                               ]),
                             ),
                             Flexible(
@@ -194,9 +203,19 @@ String _fmtData(String? s) {
     final corBarra = _hexCor(faixaAtual?['corBarraFaixa'] as String? ?? '#000000');
     final temGraus = faixaAtual?['faixaTemGraus'] == true || ((faixaAtual?['grau'] as num?)?.toInt() ?? 0) > 0;
     final grauAtual = (faixaAtual?['grau'] as num?)?.toInt() ?? 0;
-    final maxGraus = (faixaAtual?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
+    final maxGrausRaw = (faixaAtual?['faixaMaxGraus'] as num?)?.toInt() ?? 0;
+    final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
     final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
     final aprovadas = _graduacoes.where((g) => g['aprovado'] == true).toList();
+
+    // Modality filter
+    final mods = _graduacoes
+        .map((g) => g['nomeModalidade']?.toString() ?? '')
+        .where((m) => m.isNotEmpty)
+        .toSet()
+        .toList()..sort();
+    final multiMod = mods.length > 1;
+    final modSelected = multiMod && mods.contains(_histModFiltro) ? _histModFiltro : null;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -280,15 +299,42 @@ String _fmtData(String? s) {
                   ),
                 ),
 
+              // ── Dropdown de modalidade ────────────────
+              if (multiMod)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: DropdownButtonFormField<String>(
+                      value: mods.contains(_histModFiltro) ? _histModFiltro : mods.first,
+                      onChanged: (v) { if (v != null) setState(() => _histModFiltro = v); },
+                      dropdownColor: kSurface,
+                      style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        filled: true,
+                        fillColor: kBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                      ),
+                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
+                      items: mods.map((m) => DropdownMenuItem<String>(
+                        value: m,
+                        child: Text(m, overflow: TextOverflow.ellipsis, style: TextStyle(color: kText1, fontSize: 13)),
+                      )).toList(),
+                    ),
+                  ),
+                ),
+
               // ── Timeline ──────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                   child: Text('HISTÓRICO', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
                 ),
               ),
 
-                      if (_graduacoes.isEmpty)
+              if (_graduacoes.isEmpty)
                 SliverToBoxAdapter(
                   child: ListaVazia(
                     icon: Icons.military_tech_outlined,
@@ -296,7 +342,7 @@ String _fmtData(String? s) {
                     subtitulo: 'Seu histórico de faixas aparecerá aqui.',
                   ),
                 )
-              else ..._buildHistoricoByMod(),
+              else ..._buildHistoricoByMod(modSelected),
 
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],

@@ -98,14 +98,13 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
     try {
       final hoje = DateTime.now();
       final dataExame = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
-      final temGraus = _faixaSel!['temGraus'] == true;
       await dio.post('/api/graduacoes', data: {
         'alunoId': _alunoSel!['id'],
         'faixaId': _faixaSel!['id'],
         'dataExame': dataExame,
         'professorId': _profId,
         'aprovado': true,
-        'grau': temGraus ? _grauSel : 0,
+        'grau': _grauSel,
         'observacoes': _obsCtrl.text.trim(),
       });
       if (mounted) {

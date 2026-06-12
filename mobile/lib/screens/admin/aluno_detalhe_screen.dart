@@ -870,7 +870,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           // Histórico de graduações
                           _buildCard([
                             _sectionTitle('Histórico de Graduações'),
-                            if (_graduacoes.isNotEmpty) ...[
+                            if (_graduacoes.isEmpty)
+                              Text('Nenhuma graduação registrada.',
+                                  style: TextStyle(color: kText2, fontSize: 13))
+                            else
                               Builder(builder: (_) {
                                 final mods = _graduacoes
                                     .map((g) => g['nomeModalidade']?.toString() ?? '')
@@ -878,58 +881,43 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                     .toSet()
                                     .toList()
                                   ..sort();
-                                if (mods.length <= 1) return const SizedBox.shrink();
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () => setState(() => _histModFiltro = null),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: _histModFiltro == null ? kPrimary : kBorder.withOpacity(0.3),
-                                            borderRadius: BorderRadius.circular(20),
+                                final multiMod = mods.length > 1;
+                                final selected = multiMod
+                                    ? (mods.contains(_histModFiltro) ? _histModFiltro! : mods.first)
+                                    : null;
+                                final filtered = selected == null
+                                    ? _graduacoes
+                                    : _graduacoes.where((g) => g['nomeModalidade']?.toString() == selected).toList();
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (multiMod)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 12),
+                                        child: DropdownButtonFormField<String>(
+                                          value: selected,
+                                          onChanged: (v) { if (v != null) setState(() => _histModFiltro = v); },
+                                          dropdownColor: kSurface,
+                                          style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
+                                          decoration: InputDecoration(
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                            filled: true,
+                                            fillColor: kBg,
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
                                           ),
-                                          child: Text('Todas', style: TextStyle(
-                                            color: _histModFiltro == null ? Colors.white : kText2,
-                                            fontSize: 11, fontWeight: FontWeight.w700,
-                                          )),
+                                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
+                                          items: mods.map((m) => DropdownMenuItem<String>(
+                                            value: m,
+                                            child: Text(m, overflow: TextOverflow.ellipsis, style: TextStyle(color: kText1, fontSize: 13)),
+                                          )).toList(),
                                         ),
                                       ),
-                                      ...mods.map((m) {
-                                        final sel = _histModFiltro == m;
-                                        final short = m.contains(' — ') ? m.split(' — ').last : m;
-                                        return GestureDetector(
-                                          onTap: () => setState(() => _histModFiltro = sel ? null : m),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                            decoration: BoxDecoration(
-                                              color: sel ? kPrimary : kBorder.withOpacity(0.3),
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: Text(short, style: TextStyle(
-                                              color: sel ? Colors.white : kText2,
-                                              fontSize: 11, fontWeight: FontWeight.w700,
-                                            )),
-                                          ),
-                                        );
-                                      }),
-                                    ],
-                                  ),
+                                    ...filtered.map((g) => _buildGraduacaoItem(g)),
+                                  ],
                                 );
                               }),
-                            ],
-                            if (_graduacoes.isEmpty)
-                              Text('Nenhuma graduação registrada.',
-                                  style: TextStyle(color: kText2, fontSize: 13))
-                            else
-                              ...(_histModFiltro == null
-                                  ? _graduacoes
-                                  : _graduacoes.where((g) => g['nomeModalidade']?.toString() == _histModFiltro).toList()
-                              ).map((g) => _buildGraduacaoItem(g)),
                           ]),
                           const SizedBox(height: 12),
                           _buildCard([
@@ -1156,7 +1144,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final corFaixa = _parseCor(g['corFaixa']?.toString());
     final corBarra = _parseCor(g['corBarraFaixa']?.toString() ?? '#000000');
     final temGraus = g['faixaTemGraus'] == true || grau > 0;
-    final maxGraus = (g['faixaMaxGraus'] as num?)?.toInt() ?? 4;
+    final maxGrausRaw = (g['faixaMaxGraus'] as num?)?.toInt() ?? 0;
+    final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grau > 0 ? grau : 4);
     final dataStr = _formatDate(g['dataExame']) ?? '';
     final label = grau > 0 ? '$nomeFaixa · $grau° Grau' : nomeFaixa;
 
@@ -1206,7 +1195,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (!aprovado)
+                    if (dataStr.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(dataStr, style: TextStyle(color: kText2, fontSize: 11)),
+                    ],
+                    if (!aprovado) ...[
+                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
@@ -1215,16 +1209,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ),
                         child: Text('Pendente', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
+                    ],
                   ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  [
-                    if (nomeMod.isNotEmpty) nomeMod,
-                    if (dataStr.isNotEmpty) dataStr,
-                    if (nomeProfessor.isNotEmpty) 'Prof. $nomeProfessor',
-                  ].join(' · '),
-                  style: TextStyle(color: kText2, fontSize: 11),
                 ),
               ],
             ),
