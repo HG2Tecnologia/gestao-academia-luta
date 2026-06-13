@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AcademiaFight.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d0ec3d6c36530adf0fac79e6e206193d8e695101")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9ff57dfe21222b254f16731bcc6d6c8d23975cd2")]
 [assembly: System.Reflection.AssemblyProductAttribute("AcademiaFight.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AcademiaFight.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
