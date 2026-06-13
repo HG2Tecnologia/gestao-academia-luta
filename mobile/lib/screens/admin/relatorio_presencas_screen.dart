@@ -83,7 +83,6 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: DateTimeRange(start: _de, end: _ate),
-      locale: const Locale('pt', 'BR'),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: ColorScheme.dark(
