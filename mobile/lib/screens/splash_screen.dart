@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth_storage.dart';
 import '../core/constants.dart';
+import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
 
 const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
@@ -110,6 +111,9 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
       await PlanService.instance.load();
+      if (mounted && PlanService.instance.showAds) {
+        await mostrarPaywall(context);
+      }
     }
     if (!mounted) return;
     switch (user?.perfil) {

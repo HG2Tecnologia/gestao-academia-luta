@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -267,14 +266,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: () => launchUrl(Uri.parse(kWebCadastroUrl), mode: LaunchMode.externalApplication),
+                  onPressed: () => context.push('/cadastrar'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kPrimary,
                     side: BorderSide(color: kPrimary.withValues(alpha: 0.4)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Criar minha academia grátis', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  child: const Text('Criar conta', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 ),
               ],
             ),

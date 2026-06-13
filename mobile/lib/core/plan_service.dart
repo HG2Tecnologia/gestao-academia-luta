@@ -57,4 +57,10 @@ class PlanService {
   }
 
   bool get isLoaded => _loaded;
+
+  String get planDisplayName {
+    if (isPro) return 'Sensei PRO';
+    if (isInTrial) return 'Trial Gratuito';
+    return 'Plano Gratuito';
+  }
 }

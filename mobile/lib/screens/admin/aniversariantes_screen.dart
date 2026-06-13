@@ -137,7 +137,7 @@ class _AdminAniversariantesScreenState extends State<AdminAniversariantesScreen>
                               child: ListView.builder(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 itemCount: _alunos.length,
-                                itemBuilder: (_, i) => _AlunoCard(a: _alunos[i], mesAtual: _ehMesAtual),
+                                itemBuilder: (_, i) => _AlunoCard(a: _alunos[i], mes: _mes, mesAtual: _ehMesAtual),
                               ),
                             ),
             ),
@@ -150,9 +150,10 @@ class _AdminAniversariantesScreenState extends State<AdminAniversariantesScreen>
 
 class _AlunoCard extends StatelessWidget {
   final Map<String, dynamic> a;
+  final int mes;
   final bool mesAtual;
 
-  const _AlunoCard({required this.a, required this.mesAtual});
+  const _AlunoCard({required this.a, required this.mes, required this.mesAtual});
 
   bool get _ehHoje {
     if (!mesAtual) return false;
@@ -164,6 +165,7 @@ class _AlunoCard extends StatelessWidget {
     final dia = a['diaNascimento'] as int? ?? 0;
     final nome = a['nome'] as String? ?? '—';
     final initials = nome.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join();
+    final dataFormatada = '${dia.toString().padLeft(2, '0')}/${mes.toString().padLeft(2, '0')}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -187,14 +189,14 @@ class _AlunoCard extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
-          Text('Dia $dia', style: TextStyle(color: kText2, fontSize: 12)),
+          Text(dataFormatada, style: TextStyle(color: kText2, fontSize: 12)),
         ])),
         if (_ehHoje) ...[
           Text('🎂', style: const TextStyle(fontSize: 22)),
           const SizedBox(width: 4),
         ],
         if (!_ehHoje)
-          Text('$dia', style: TextStyle(color: kText2, fontSize: 20, fontWeight: FontWeight.w700)),
+          Text(dataFormatada, style: TextStyle(color: kText2, fontSize: 16, fontWeight: FontWeight.w700)),
       ]),
     );
   }

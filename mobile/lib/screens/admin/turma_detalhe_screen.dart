@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import 'turmas_screen.dart' show TurmaFormSheet;
@@ -320,12 +321,19 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
           ? Center(child: CircularProgressIndicator(color: kPrimary))
           : _erro != null
               ? Center(child: Text(_erro!, style: TextStyle(color: kDanger)))
-              : TabBarView(
-                  controller: _tabCtrl,
+              : Column(
                   children: [
-                    _abaAlunos(),
-                    _abaPresenca(),
-                    _abaHorarios(),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabCtrl,
+                        children: [
+                          _abaAlunos(),
+                          _abaPresenca(),
+                          _abaHorarios(),
+                        ],
+                      ),
+                    ),
+                    const AdBannerWidget(),
                   ],
                 ),
     );

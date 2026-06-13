@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'core/ad_service.dart';
 import 'core/api_client.dart';
 import 'core/constants.dart';
-import 'core/plan_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/primeiro_acesso_screen.dart';

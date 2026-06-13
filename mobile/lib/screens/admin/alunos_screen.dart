@@ -104,7 +104,6 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                 ),
               ),
             ),
-            const AdBannerWidget(),
             const SizedBox(height: 12),
             Expanded(
               child: _loading
@@ -214,6 +213,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                               ),
                             ),
             ),
+            const AdBannerWidget(),
           ],
         ),
       ),

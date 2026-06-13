@@ -5,6 +5,8 @@ import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
 import '../../core/widgets.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -131,6 +133,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(child: _buildHeader()),
+            SliverToBoxAdapter(child: _buildPlanStatus()),
             if (_loading)
               const SliverToBoxAdapter(
                 child: Padding(
@@ -153,6 +156,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  // ─── PLANO STATUS ────────────────────────────────────────────────────────────
+
+  Widget _buildPlanStatus() {
+    final plan = PlanService.instance;
+    if (plan.isPro) return const SizedBox.shrink();
+
+    Future<void> openPaywall() async {
+      final ok = await mostrarPaywall(context);
+      if (ok == true && mounted) {
+        await PlanService.instance.refresh();
+        setState(() {});
+      }
+    }
+
+    if (plan.isInTrial) {
+      final days = plan.daysLeftInTrial;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: GestureDetector(
+          onTap: openPaywall,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFF1A0F3C), kPrimary.withOpacity(0.35)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kPrimary.withOpacity(0.45)),
+            ),
+            child: Row(children: [
+              Icon(Icons.hourglass_top_rounded, color: kPrimary, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Trial gratuito ativo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                Text(days <= 1 ? 'Último dia do trial!' : '$days dias restantes', style: TextStyle(color: kText2, fontSize: 11)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(8)),
+                child: const Text('Ver planos', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    // Plano gratuito (trial expirado)
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: GestureDetector(
+        onTap: openPaywall,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: kWarning.withOpacity(0.55)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(color: kWarning.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.lock_outline_rounded, color: kWarning, size: 19),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Plano Gratuito', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+              Text('Limite: 3 turmas · 10 alunos/turma · anúncios', style: TextStyle(color: kText2, fontSize: 11)),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Assinar PRO', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          ]),
         ),
       ),
     );
@@ -277,7 +366,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final actions = [
       (label: 'Novo aluno', icon: Icons.person_add_rounded, color: kPrimary, onTap: () => context.push('/admin/alunos/novo')),
       (label: 'Nova turma', icon: Icons.groups_rounded, color: const Color(0xFF0EA5E9), onTap: () => context.push('/admin/turmas')),
-      (label: 'Presenças', icon: Icons.qr_code_scanner_rounded, color: kSuccess, onTap: () => context.push('/scan-qr')),
+      (label: 'Presenças', icon: Icons.qr_code_scanner_rounded, color: kSuccess, onTap: () async {
+        if (PlanService.instance.showAds) {
+          final ok = await mostrarPaywall(context);
+          if (ok) { PlanService.instance.refresh(); setState(() {}); }
+          return;
+        }
+        if (mounted) context.push('/scan-qr');
+      }),
       (label: 'Financeiro', icon: Icons.account_balance_wallet_rounded, color: kWarning, onTap: () => context.go('/admin/financeiro')),
     ];
 
@@ -530,12 +626,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 12),
           ..._aniversariantes.take(5).map((a) {
             final nome = a['nome']?.toString() ?? '';
-            final dt = a['dataNascimento']?.toString() ?? '';
-            String dataLabel = '';
-            if (dt.length >= 10) {
-              final parts = dt.substring(0, 10).split('-');
-              if (parts.length == 3) dataLabel = '${parts[2]}/${parts[1]}';
-            }
+            final dia = a['diaNascimento'] as int? ?? 0;
+            final mes = DateTime.now().month;
+            final dataLabel = dia > 0
+                ? '${dia.toString().padLeft(2, '0')}/${mes.toString().padLeft(2, '0')}'
+                : '';
             final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
             return Container(
               margin: const EdgeInsets.only(bottom: 8),

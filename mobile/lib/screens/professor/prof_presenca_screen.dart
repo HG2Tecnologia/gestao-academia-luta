@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
 
 class ProfPresencaScreen extends StatefulWidget {
   const ProfPresencaScreen({super.key});
@@ -147,7 +149,13 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
                 ],
                 Expanded(child: Text('Registrar Presença', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
                 IconButton(
-                  onPressed: () => context.push('/scan-qr'),
+                  onPressed: () async {
+                    if (PlanService.instance.showAds) {
+                      await mostrarPaywall(context);
+                      return;
+                    }
+                    if (context.mounted) context.push('/scan-qr');
+                  },
                   icon: Icon(Icons.qr_code_scanner_rounded, color: kPrimary, size: 26),
                   tooltip: 'Escanear QR Code',
                 ),

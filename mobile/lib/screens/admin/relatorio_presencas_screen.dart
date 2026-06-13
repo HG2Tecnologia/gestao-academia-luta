@@ -138,54 +138,43 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_turmas.length > 1) ...[
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _turmas.map((t) {
-                                  final id = t['id']?.toString();
-                                  final sel = id == _turmaId;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: ChoiceChip(
-                                      label: Text(t['nome']?.toString() ?? ''),
-                                      selected: sel,
-                                      onSelected: (_) {
-                                        setState(() { _turmaId = id; });
-                                        _loadRelatorio();
-                                      },
-                                      selectedColor: kPrimary.withOpacity(0.18),
-                                      labelStyle: TextStyle(
-                                        color: sel ? kPrimary : kText2,
-                                        fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                                        fontSize: 12,
-                                      ),
-                                      backgroundColor: kBg,
-                                      side: BorderSide(color: sel ? kPrimary : kBorder),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: kBg,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: kPrimary.withOpacity(0.5)),
                             ),
-                            const SizedBox(height: 10),
-                          ] else
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                _turmas.first['nome']?.toString() ?? '',
-                                style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 14),
-                              ),
+                            child: DropdownButton<String>(
+                              value: _turmaId,
+                              isExpanded: true,
+                              dropdownColor: kSurface,
+                              underline: const SizedBox(),
+                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: kPrimary),
+                              style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13),
+                              items: _turmas.map((t) {
+                                final id = t['id']?.toString();
+                                return DropdownMenuItem<String>(
+                                  value: id,
+                                  child: Text(t['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 13)),
+                                );
+                              }).toList(),
+                              onChanged: (id) {
+                                setState(() => _turmaId = id);
+                                _loadRelatorio();
+                              },
                             ),
-                          Row(
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              ..._presets.map((p) => Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: _PresetChip(
-                                  label: p.$1,
-                                  onTap: () => _aplicarPreset(p.$2),
-                                ),
+                              ..._presets.map((p) => _PresetChip(
+                                label: p.$1,
+                                onTap: () => _aplicarPreset(p.$2),
                               )),
-                              const Spacer(),
                               GestureDetector(
                                 onTap: _selecionarPeriodo,
                                 child: Container(

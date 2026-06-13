@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
 
 class AdminConfiguracoesScreen extends StatefulWidget {
   const AdminConfiguracoesScreen({super.key});
@@ -148,6 +150,8 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _PlanStatusTile(),
+                        const SizedBox(height: 24),
                         _SectionLabel('Informações Gerais'),
                         const SizedBox(height: 12),
                         _Field(
@@ -465,6 +469,87 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
             ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kDanger))
             : const Text('Excluir minha conta', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
+    );
+  }
+}
+
+// ─── Plan status tile ────────────────────────────────────────────────────────
+
+class _PlanStatusTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final plan = PlanService.instance;
+    final isPro = plan.isPro;
+    final isInTrial = plan.isInTrial;
+    final days = plan.daysLeftInTrial;
+    final displayName = plan.planDisplayName;
+
+    final Color borderColor = isPro
+        ? const Color(0xFF6C3FFF)
+        : isInTrial
+            ? const Color(0xFF6C3FFF)
+            : kWarning;
+    final Color iconColor = isPro ? const Color(0xFFFFD700) : isInTrial ? kPrimary : kWarning;
+    final IconData icon = isPro
+        ? Icons.workspace_premium_rounded
+        : isInTrial
+            ? Icons.hourglass_top_rounded
+            : Icons.lock_outline_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor.withOpacity(0.5)),
+        gradient: isPro
+            ? LinearGradient(
+                colors: [const Color(0xFF1A0F3C), kSurface],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+      ),
+      child: Row(children: [
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(displayName,
+              style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w800)),
+          if (isPro)
+            Text('Acesso completo sem anúncios', style: TextStyle(color: kText2, fontSize: 12))
+          else if (isInTrial)
+            Text(days <= 1 ? 'Último dia do trial!' : '$days dias restantes no trial',
+                style: TextStyle(color: kText2, fontSize: 12))
+          else
+            Text('3 turmas · 10 alunos/turma · anúncios', style: TextStyle(color: kText2, fontSize: 12)),
+        ])),
+        if (!isPro) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () async {
+              final ok = await mostrarPaywall(context);
+              if (ok == true) await PlanService.instance.refresh();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Assinar PRO',
+                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ]),
     );
   }
 }

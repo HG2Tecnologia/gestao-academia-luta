@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 
@@ -58,26 +59,33 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
           IconButton(icon: const Icon(Icons.add_rounded), onPressed: _novoRanking, tooltip: 'Novo ranking'),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _rankings.isEmpty
-              ? _empty()
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _rankings.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _RankingCard(
-                      ranking: _rankings[i],
-                      onTap: () async {
-                        await context.push('/admin/rankings/${_rankings[i]['id']}', extra: _rankings[i]);
-                        _load();
-                      },
-                      onToggleAtivo: () => _toggleAtivo(_rankings[i]),
-                    ),
-                  ),
-                ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _rankings.isEmpty
+                    ? _empty()
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _rankings.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (_, i) => _RankingCard(
+                            ranking: _rankings[i],
+                            onTap: () async {
+                              await context.push('/admin/rankings/${_rankings[i]['id']}', extra: _rankings[i]);
+                              _load();
+                            },
+                            onToggleAtivo: () => _toggleAtivo(_rankings[i]),
+                          ),
+                        ),
+                      ),
+          ),
+          const AdBannerWidget(),
+        ],
+      ),
     );
   }
 

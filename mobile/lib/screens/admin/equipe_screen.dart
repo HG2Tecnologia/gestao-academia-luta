@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 
@@ -160,6 +161,7 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                               ),
                             ),
             ),
+            const AdBannerWidget(),
           ],
         ),
       ),

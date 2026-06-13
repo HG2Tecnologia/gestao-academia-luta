@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/paywall_modal.dart';
@@ -202,6 +203,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                           ),
                         ),
             ),
+            const AdBannerWidget(),
           ],
         ),
       ),

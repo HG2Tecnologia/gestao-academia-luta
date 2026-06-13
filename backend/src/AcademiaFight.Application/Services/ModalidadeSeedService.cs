@@ -54,7 +54,7 @@ public class ModalidadeSeedService(IAppDbContext db) : IModalidadeSeedService
 
     private static readonly ModalidadeTemplate[] Templates =
     [
-        new("Jiu-Jitsu Brasileiro — Adulto",
+        new("Jiu Jitsu",
             "Sistema de faixas IBJJF para praticantes com 16 anos ou mais.",
             [
                 new("Branca",          "#FFFFFF", "#1A1A1A", TemGraus: true,  MaxGraus: 4, MesesMinimos: 0),
@@ -70,7 +70,7 @@ public class ModalidadeSeedService(IAppDbContext db) : IModalidadeSeedService
                     Descricao: "10° grau — Grão-Mestre"),
             ]),
 
-        new("Jiu-Jitsu Brasileiro — Infanto-Juvenil",
+        new("Jiu Jitsu (Infantil)",
             "Sistema de faixas IBJJF para praticantes com até 15 anos de idade.",
             [
                 new("Branca",           "#FFFFFF", "#1A1A1A", TemGraus: true, MaxGraus: 4),
@@ -88,7 +88,7 @@ public class ModalidadeSeedService(IAppDbContext db) : IModalidadeSeedService
                 new("Verde e Preta",    "#2E7D32", "#1A1A1A", TemGraus: true, MaxGraus: 4, MesesMinimos: 42),
             ]),
 
-        new("Luta Livre",
+        new("Luta Livre Esportiva",
             "Sistema de graduação por faixas para Luta Livre Esportiva.",
             [
                 new("Branca",  "#FFFFFF", "#1A1A1A", TemGraus: true, MaxGraus: 4),

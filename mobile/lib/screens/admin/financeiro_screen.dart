@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/tab_refresh.dart';
@@ -77,6 +78,195 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (s == 'Pendente') return kWarning;
     if (s == 'Previsto') return kText2;
     return kDanger;
+  }
+
+  Future<void> _criarCobrancaAvulsa() async {
+    List<Map<String, dynamic>> alunos = [];
+    try {
+      final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 200, 'status': 'Ativo'});
+      final dados = res.data['dados'];
+      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      alunos = list.cast<Map<String, dynamic>>();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    String? alunoId;
+    int tipo = 1;
+    final valorCtrl = TextEditingController();
+    DateTime vencimento = DateTime.now().add(const Duration(days: 5));
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+              Row(children: [
+                Icon(Icons.add_circle_outline_rounded, color: kPrimary, size: 22),
+                const SizedBox(width: 10),
+                Text('Nova cobrança', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+              ]),
+              const SizedBox(height: 20),
+              Text('Aluno', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                child: DropdownButton<String>(
+                  value: alunoId,
+                  isExpanded: true,
+                  dropdownColor: kSurface,
+                  underline: const SizedBox(),
+                  hint: Text('Selecione o aluno', style: TextStyle(color: kText2, fontSize: 13)),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
+                  items: alunos.map((a) => DropdownMenuItem<String>(
+                    value: a['id']?.toString(),
+                    child: Text(a['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 13)),
+                  )).toList(),
+                  onChanged: (v) => setModal(() => alunoId = v),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Tipo', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                child: DropdownButton<int>(
+                  value: tipo,
+                  isExpanded: true,
+                  dropdownColor: kSurface,
+                  underline: const SizedBox(),
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('Mensalidade')),
+                    DropdownMenuItem(value: 2, child: Text('Taxa de Matrícula')),
+                  ],
+                  onChanged: (v) => setModal(() => tipo = v ?? 1),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Valor (R\$)', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: valorCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: kText1, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: '0,00',
+                  hintStyle: TextStyle(color: kText2),
+                  filled: true,
+                  fillColor: kBg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Vencimento', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: vencimento,
+                    firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    locale: const Locale('pt', 'BR'),
+                    builder: (c, child) => Theme(
+                      data: Theme.of(c).copyWith(colorScheme: ColorScheme.dark(primary: kPrimary, surface: kSurface, onSurface: kText1)),
+                      child: child!,
+                    ),
+                  );
+                  if (picked != null) setModal(() => vencimento = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                  child: Row(children: [
+                    Icon(Icons.calendar_today_rounded, color: kText2, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${vencimento.day.toString().padLeft(2,'0')}/${vencimento.month.toString().padLeft(2,'0')}/${vencimento.year}',
+                      style: TextStyle(color: kText1, fontSize: 14),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: alunoId == null ? null : () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  disabledBackgroundColor: kPrimary.withOpacity(0.3),
+                ),
+                child: const Text('Gerar cobrança', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kText2,
+                  side: BorderSide(color: kBorder),
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Cancelar'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (ok != true || alunoId == null || !mounted) return;
+    final valorStr = valorCtrl.text.trim().replaceAll(',', '.');
+    final valor = double.tryParse(valorStr) ?? 0;
+    if (valor <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Informe um valor válido.'),
+        backgroundColor: kDanger,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    final dataStr = '${vencimento.year}-${vencimento.month.toString().padLeft(2,'0')}-${vencimento.day.toString().padLeft(2,'0')}';
+    try {
+      await dio.post('/api/financeiro', data: {
+        'alunoId': alunoId,
+        'tipo': tipo,
+        'valor': valor,
+        'dataVencimento': dataStr,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Cobrança criada com sucesso!'),
+          backgroundColor: kSuccess,
+          behavior: SnackBarBehavior.floating,
+        ));
+        _load();
+      }
+    } catch (e) {
+      String msg = 'Erro ao criar cobrança.';
+      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: kDanger,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Future<void> _gerarCobrancas() async {
@@ -227,6 +417,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final isAtual = DateTime.now().year == _ano && DateTime.now().month == _mes;
     return Scaffold(
       backgroundColor: kBg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _criarCobrancaAvulsa,
+        backgroundColor: kPrimary,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         color: kPrimary,
@@ -419,6 +614,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       childCount: _cobrancas.length,
                     ),
                   ),
+                  const SliverToBoxAdapter(child: AdBannerWidget()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   ], // end else
             ],
