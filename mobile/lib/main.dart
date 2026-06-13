@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/ad_service.dart';
 import 'core/api_client.dart';
 import 'core/constants.dart';
+import 'core/plan_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/primeiro_acesso_screen.dart';
@@ -47,9 +49,10 @@ import 'screens/shared/qr_scan_screen.dart';
 
 final routerKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupDio();
+  await AdService.instance.init();
   runApp(const TatameApp());
 }
 

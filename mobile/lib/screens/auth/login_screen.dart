@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -84,52 +85,61 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_senhaCtrl.text.isEmpty) { setState(() => _erro = 'Informe sua senha.'); return; }
 
     setState(() { _loading = true; _erro = null; });
-    try {
-      final payload = _mode == _InputMode.telefone ? _rawPhone() : _idCtrl.text.trim();
-      final res = await dio.post('/api/auth/login', data: {
-        'emailOuTelefone': payload,
-        'senha': _senhaCtrl.text,
-      });
-      final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] == true) {
-        final d = body['dados'] as Map<String, dynamic>;
-        final token = d['accessToken'] as String;
-        final refreshToken = d['refreshToken'] as String?;
-        final id = AuthStorage.subFromJwt(token) ?? '';
-        await AuthStorage.save(
-          token,
-          StoredUser(
-            id: id,
-            nome: d['nome'] ?? '',
-            email: d['email'] ?? '',
-            perfil: d['perfil'] ?? '',
-            academiaId: d['academiaId']?.toString(),
-          ),
-          refreshToken: refreshToken,
-        );
-        if (!mounted) return;
-        switch (d['perfil']) {
-          case 'Admin':
-          case 'Secretaria':
-            context.go('/admin/dashboard');
-          case 'Professor':
-            context.go('/professor/turmas');
-          case 'Aluno':
-            context.go('/aluno/perfil');
-          default:
-            context.go('/login');
+    final payload = _mode == _InputMode.telefone ? _rawPhone() : _idCtrl.text.trim();
+    final data = {'emailOuTelefone': payload, 'senha': _senhaCtrl.text};
+
+    Future<void> attempt({bool isRetry = false}) async {
+      try {
+        final res = await dio.post('/api/auth/login', data: data);
+        final body = res.data as Map<String, dynamic>;
+        if (body['sucesso'] == true) {
+          final d = body['dados'] as Map<String, dynamic>;
+          final token = d['accessToken'] as String;
+          final refreshToken = d['refreshToken'] as String?;
+          final id = AuthStorage.subFromJwt(token) ?? '';
+          await AuthStorage.save(
+            token,
+            StoredUser(
+              id: id,
+              nome: d['nome'] ?? '',
+              email: d['email'] ?? '',
+              perfil: d['perfil'] ?? '',
+              academiaId: d['academiaId']?.toString(),
+            ),
+            refreshToken: refreshToken,
+          );
+          if (!mounted) return;
+          switch (d['perfil']) {
+            case 'Admin':
+            case 'Secretaria':
+              context.go('/admin/dashboard');
+            case 'Professor':
+              context.go('/professor/turmas');
+            case 'Aluno':
+              context.go('/aluno/perfil');
+            default:
+              context.go('/login');
+          }
+        } else {
+          if (mounted) setState(() => _erro = body['mensagem'] ?? 'Credenciais inválidas.');
         }
-      } else {
-        setState(() => _erro = body['mensagem'] ?? 'Credenciais inválidas.');
+      } on DioException catch (e) {
+        final isConnErr = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError;
+        if (isConnErr && !isRetry) {
+          if (mounted) setState(() => _erro = 'Conectando ao servidor...');
+          await Future.delayed(const Duration(seconds: 8));
+          if (mounted) await attempt(isRetry: true);
+        } else {
+          if (mounted) setState(() => _erro = e.response?.data?['mensagem'] ?? 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
+        }
       }
-    } on DioException catch (e) {
-      final isTimeout = e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.connectionError;
-      setState(() => _erro = isTimeout
-          ? 'Servidor iniciando. Aguarde alguns segundos e tente novamente.'
-          : (e.response?.data?['mensagem'] ?? 'Não foi possível conectar ao servidor. Verifique sua internet.'));
+    }
+
+    try {
+      await attempt();
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -257,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: () => context.push('/cadastrar'),
+                  onPressed: () => launchUrl(Uri.parse(kWebCadastroUrl), mode: LaunchMode.externalApplication),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: kPrimary,
                     side: BorderSide(color: kPrimary.withValues(alpha: 0.4)),

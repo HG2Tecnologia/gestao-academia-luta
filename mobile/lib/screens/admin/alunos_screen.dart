@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/widgets.dart';
@@ -103,6 +104,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                 ),
               ),
             ),
+            const AdBannerWidget(),
             const SizedBox(height: 12),
             Expanded(
               child: _loading

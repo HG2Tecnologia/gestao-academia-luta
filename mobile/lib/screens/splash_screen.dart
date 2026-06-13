@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth_storage.dart';
 import '../core/constants.dart';
+import '../core/plan_service.dart';
 
 const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
 
@@ -106,6 +107,10 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _redirect() async {
     if (!mounted) return;
     final user = await AuthStorage.getUser();
+    if (!mounted) return;
+    if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
+      await PlanService.instance.load();
+    }
     if (!mounted) return;
     switch (user?.perfil) {
       case 'Admin':

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -148,6 +149,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildProximosGraduacao()),
               if (_frequencia.isNotEmpty)
                 SliverToBoxAdapter(child: _buildFrequenciaChart()),
+              const SliverToBoxAdapter(child: AdBannerWidget()),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ],
