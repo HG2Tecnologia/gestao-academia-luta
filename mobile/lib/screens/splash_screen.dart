@@ -4,6 +4,7 @@ import '../core/auth_storage.dart';
 import '../core/constants.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
+import '../core/version_check_service.dart';
 
 const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
 
@@ -106,6 +107,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _redirect() async {
+    if (!mounted) return;
+    await VersionCheckService.check(context);
     if (!mounted) return;
     final user = await AuthStorage.getUser();
     if (!mounted) return;

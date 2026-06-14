@@ -158,9 +158,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     if (matches.isEmpty) return meta.precoMesFallback;
 
     final p = matches.first;
+    if (p.currencyCode != 'BRL') return meta.precoMesFallback;
+
     final months = index == 0 ? 1 : (index == 1 ? 3 : 12);
     final perMonth = p.rawPrice / months;
-    return '${p.currencySymbol}${perMonth.toStringAsFixed(2).replaceAll('.', ',')}';
+    return 'R\$${perMonth.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   String _precoTotal(int index) {
@@ -171,7 +173,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 
     final matches = products.where((p) => p.id == meta.id);
     if (matches.isEmpty) return meta.precoTotalFallback;
-    return '${matches.first.price} total';
+
+    final p = matches.first;
+    if (p.currencyCode != 'BRL') return meta.precoTotalFallback;
+
+    return '${p.price} total';
   }
 
   @override

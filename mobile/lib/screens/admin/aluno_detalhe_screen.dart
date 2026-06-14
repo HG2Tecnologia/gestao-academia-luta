@@ -746,6 +746,199 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     return s ?? '';
   }
 
+  // ── Editar Aluno ─────────────────────────────────────
+
+  String? _isoToDdMmAaaa(dynamic raw) {
+    if (raw == null) return null;
+    try {
+      final dt = DateTime.parse(raw.toString());
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    } catch (_) { return null; }
+  }
+
+  String _toIsoDate(String ddmmaaaa) {
+    final parts = ddmmaaaa.split('/');
+    if (parts.length != 3) return ddmmaaaa;
+    return '${parts[2]}-${parts[1]}-${parts[0]}';
+  }
+
+  Widget _editSection(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 8, top: 4),
+    child: Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+  );
+
+  Widget _editField(TextEditingController ctrl, String hint, {TextInputType? keyboard, List<TextInputFormatter>? formatters}) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: TextField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      inputFormatters: formatters,
+      style: TextStyle(color: kText1),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: kText2, fontSize: 14),
+        filled: true, fillColor: kBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+      ),
+    ),
+  );
+
+  Future<void> _editarAluno() async {
+    final a = _aluno;
+    if (a == null) return;
+
+    List<Map<String, dynamic>> planos = [];
+    try {
+      final res = await dio.get('/api/planos');
+      final body = res.data as Map<String, dynamic>;
+      final dados = body['dados'];
+      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      planos = list.cast<Map<String, dynamic>>();
+    } catch (_) {}
+    if (!mounted) return;
+
+    final nomeCtrl = TextEditingController(text: a['nome']?.toString() ?? '');
+    final emailCtrl = TextEditingController(text: a['email']?.toString() ?? '');
+    final telefoneCtrl = TextEditingController(text: a['telefone']?.toString() ?? '');
+    final nascCtrl = TextEditingController(text: _isoToDdMmAaaa(a['dataNascimento']) ?? '');
+    final emergNomeCtrl = TextEditingController(text: a['contatoEmergenciaNome']?.toString() ?? '');
+    final emergTelCtrl = TextEditingController(text: a['contatoEmergenciaTelefone']?.toString() ?? '');
+    final diaVencCtrl = TextEditingController(text: a['diaVencimento']?.toString() ?? '');
+    String? planoIdSel = a['planoId']?.toString();
+    bool salvando = false;
+    String? erro;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text('Editar Aluno', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
+                ]),
+                Text(a['nome']?.toString() ?? '', style: TextStyle(color: kText2, fontSize: 13)),
+                const Divider(height: 20),
+                _editSection('Dados pessoais'),
+                _editField(nomeCtrl, 'Nome completo *'),
+                _editField(emailCtrl, 'E-mail', keyboard: TextInputType.emailAddress),
+                _editField(telefoneCtrl, 'Telefone', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
+                _editField(nascCtrl, 'Data de nascimento (DD/MM/AAAA)', keyboard: TextInputType.number, formatters: [_DateMaskFormatter()]),
+                _editSection('Contato de emergência'),
+                _editField(emergNomeCtrl, 'Nome do contato'),
+                _editField(emergTelCtrl, 'Telefone do contato', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
+                _editSection('Plano financeiro'),
+                if (planos.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String?>(
+                        value: planoIdSel,
+                        dropdownColor: kSurface,
+                        isExpanded: true,
+                        style: TextStyle(color: kText1, fontSize: 14),
+                        hint: Text('Selecionar plano', style: TextStyle(color: kText2, fontSize: 14)),
+                        items: [
+                          DropdownMenuItem<String?>(value: null, child: Text('Sem plano', style: TextStyle(color: kText2))),
+                          ...planos.map((p) => DropdownMenuItem<String?>(
+                            value: p['id']?.toString(),
+                            child: Text(p['nome']?.toString() ?? '', style: TextStyle(color: kText1)),
+                          )),
+                        ],
+                        onChanged: (v) => setModal(() => planoIdSel = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                _editField(diaVencCtrl, 'Dia de vencimento (1-31)', keyboard: TextInputType.number),
+                if (erro != null) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: kDanger.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                    child: Text(erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity, height: 50,
+                  child: ElevatedButton(
+                    onPressed: salvando ? null : () async {
+                      if (nomeCtrl.text.trim().isEmpty) {
+                        setModal(() => erro = 'Nome é obrigatório.');
+                        return;
+                      }
+                      setModal(() { salvando = true; erro = null; });
+                      try {
+                        final nascText = nascCtrl.text.trim();
+                        await dio.put('/api/alunos/${widget.alunoId}', data: {
+                          'nome': nomeCtrl.text.trim(),
+                          'email': emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
+                          'telefone': telefoneCtrl.text.trim(),
+                          if (nascText.length == 10) 'dataNascimento': _toIsoDate(nascText),
+                          if (emergNomeCtrl.text.trim().isNotEmpty) 'contatoEmergenciaNome': emergNomeCtrl.text.trim(),
+                          if (emergTelCtrl.text.trim().isNotEmpty) 'contatoEmergenciaTelefone': emergTelCtrl.text.trim(),
+                          'planoId': planoIdSel,
+                          if (diaVencCtrl.text.trim().isNotEmpty) 'diaVencimento': int.tryParse(diaVencCtrl.text.trim()),
+                          'ativo': a['ativo'] == true,
+                        });
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: const Text('Aluno atualizado com sucesso!'),
+                            backgroundColor: kSuccess,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                          _load();
+                        }
+                      } catch (e) {
+                        String msg = 'Erro ao atualizar aluno.';
+                        try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
+                        setModal(() { salvando = false; erro = msg; });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: salvando
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Salvar alterações', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    nomeCtrl.dispose();
+    emailCtrl.dispose();
+    telefoneCtrl.dispose();
+    nascCtrl.dispose();
+    emergNomeCtrl.dispose();
+    emergTelCtrl.dispose();
+    diaVencCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = _aluno;
@@ -761,7 +954,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         ),
         title: Text(a?['nome'] ?? 'Aluno', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
         actions: [
-          if (a != null)
+          if (a != null) ...[
+            IconButton(
+              onPressed: _editarAluno,
+              icon: Icon(Icons.edit_rounded, color: kPrimary, size: 20),
+              tooltip: 'Editar',
+            ),
             TextButton(
               onPressed: _toggleAtivo,
               child: Text(
@@ -769,6 +967,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 style: TextStyle(color: a['ativo'] == true ? kDanger : kSuccess, fontWeight: FontWeight.w700),
               ),
             ),
+          ],
         ],
       ),
       body: _loading
@@ -1274,5 +1473,38 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     } catch (_) {
       return raw.toString();
     }
+  }
+}
+
+class _PhoneMaskFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+    final digits = next.text.replaceAll(RegExp(r'\D'), '');
+    final d = digits.length > 11 ? digits.substring(0, 11) : digits;
+    final buf = StringBuffer();
+    for (var i = 0; i < d.length; i++) {
+      if (i == 0) buf.write('(');
+      if (i == 2) buf.write(') ');
+      if (d.length == 11 && i == 7) buf.write('-');
+      if (d.length <= 10 && i == 6) buf.write('-');
+      buf.write(d[i]);
+    }
+    final text = buf.toString();
+    return next.copyWith(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+class _DateMaskFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+    final digits = next.text.replaceAll(RegExp(r'\D'), '');
+    final d = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buf = StringBuffer();
+    for (var i = 0; i < d.length; i++) {
+      if (i == 2 || i == 4) buf.write('/');
+      buf.write(d[i]);
+    }
+    final text = buf.toString();
+    return next.copyWith(text: text, selection: TextSelection.collapsed(offset: text.length));
   }
 }
