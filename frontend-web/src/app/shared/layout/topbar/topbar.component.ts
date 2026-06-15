@@ -25,6 +25,8 @@ export class TopbarComponent implements OnInit {
 
   readonly dropdownAberto = signal(false);
   readonly notifAberto = signal(false);
+  readonly planoGratuito = signal(true);
+  readonly upgradeAberto = signal(false);
   readonly notificacoes = signal<NotificacaoDto[]>([]);
   readonly carregandoNotif = signal(false);
 
@@ -85,6 +87,12 @@ export class TopbarComponent implements OnInit {
     };
 
     return segmentos.map((s) => mapa[s] ?? s).join(' / ');
+  }
+
+  abrirUpgrade(): void {
+    this.upgradeAberto.set(true);
+    if (this.dropdownAberto()) this.dropdownAberto.set(false);
+    if (this.notifAberto()) this.notifAberto.set(false);
   }
 
   alternarDropdown(): void {

@@ -4,7 +4,7 @@
   <nav class="nav">
     <div class="nav-inner">
       <a routerLink="/" class="brand">
-        <img src="images/logo_sistema.png" alt="Tatakai" class="brand-logo">
+        <img src="images/logo_sistema.png" alt="Sensei Manager" class="brand-logo">
       </a>
       <div class="nav-links">
         <a href="#problema">Problema</a>
@@ -44,14 +44,14 @@
         <div class="dash">
           <div class="dash-chrome">
             <div class="dash-dots"><span></span><span></span><span></span></div>
-            <div class="dash-url">app.tatame.com.br/dashboard</div>
+            <div class="dash-url">app.senseimanager.com.br</div>
             <div style="width: 56px"></div>
           </div>
           <div class="dash-body">
             <aside class="dash-sidebar">
               <div class="dash-side-brand">
-                <img src="images/logo_app.png" alt="Tatakai" style="width:18px;height:18px;object-fit:contain;border-radius:4px">
-                Tatakai
+                <img src="images/logo_app.png" alt="Sensei Manager" style="width:18px;height:18px;object-fit:contain;border-radius:4px">
+                Sensei Manager
               </div>
               <div class="dash-side-item active">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9M5 10v10h14V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -207,7 +207,7 @@
             enquanto você cuida do tatame.
           </h2>
           <p class="lead" style="margin-top: 28px" data-reveal>
-            Tatakai é a única plataforma feita exclusivamente pra academias de luta. Cobra sozinho, engaja seus alunos, e mostra todo dia onde você pode crescer.
+            Sensei Manager é a única plataforma feita exclusivamente pra academias de luta. Cobra sozinho, engaja seus alunos, e mostra todo dia onde você pode crescer.
           </p>
           <div class="transform-list" data-reveal>
             @for (row of transforms; track $index) {
@@ -220,10 +220,7 @@
           </div>
         </div>
         <div data-reveal>
-          <div class="img-ph">
-            <span>ATLETA · TREINO</span>
-            <span style="align-self:flex-end">JIU-JITSU</span>
-          </div>
+          <img src="images/dashboard-sistema-web.png" alt="Dashboard Sensei Manager" class="solution-img">
         </div>
       </div>
     </div>
@@ -250,9 +247,7 @@
           </div>
           <div class="feat-title">Gestão de alunos completa</div>
           <div class="feat-body">Cadastro com foto, contato, faixa, graduação, histórico médico, contrato digital assinado. Tudo num só lugar, acessível em qualquer dispositivo.</div>
-          <div style="background:var(--bg-3);border:1px solid var(--line);border-radius:8px;padding:20px;flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:0.08em;text-transform:uppercase">
-            CARDS DE ALUNOS · UI
-          </div>
+          <img src="images/alunos-sistema-web.png" alt="Gestão de alunos" class="feat-screenshot">
         </div>
 
         <div class="feature-card span-3 tall">
@@ -317,92 +312,16 @@
           <!-- Phone back: Ranking -->
           <div class="phone phone-back">
             <div class="phone-notch"></div>
-            <div class="phone-screen">
-              <div class="app-bar">
-                <span class="app-bar-title">Ranking · Maio</span>
-                <span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--good)"></span>
-              </div>
-              <div class="app-ranking">
-                <div class="app-rank-row gold">
-                  <span class="app-rank-pos">1</span>
-                  <span class="app-rank-info"><b>Bruno Y.</b><small>Faixa Roxa</small></span>
-                  <span class="app-rank-pts">1.284 pts</span>
-                </div>
-                <div class="app-rank-row silver">
-                  <span class="app-rank-pos">2</span>
-                  <span class="app-rank-info"><b>Letícia A.</b><small>Faixa Azul</small></span>
-                  <span class="app-rank-pts">1.247 pts</span>
-                </div>
-                <div class="app-rank-row bronze">
-                  <span class="app-rank-pos">3</span>
-                  <span class="app-rank-info"><b>Diego F.</b><small>Faixa Roxa</small></span>
-                  <span class="app-rank-pts">1.198 pts</span>
-                </div>
-                <div class="app-rank-row">
-                  <span class="app-rank-pos">4</span>
-                  <span class="app-rank-info"><b>Rafael C.</b><small>Faixa Azul</small></span>
-                  <span class="app-rank-pts">1.142 pts</span>
-                </div>
-                <div class="app-rank-row me">
-                  <span class="app-rank-pos">5</span>
-                  <span class="app-rank-info"><b>Você</b><small>Faixa Branca</small></span>
-                  <span class="app-rank-pts">1.098 pts</span>
-                </div>
-              </div>
+            <div class="phone-screen" style="padding:0;overflow:hidden">
+              <img src="images/ranking-app.png" alt="Ranking app" style="width:100%;height:100%;object-fit:cover;object-position:top">
             </div>
           </div>
 
-          <!-- Phone front: Home -->
+          <!-- Phone front: Dashboard -->
           <div class="phone phone-front">
             <div class="phone-notch"></div>
-            <div class="phone-screen">
-              <div class="app-bar">
-                <span class="app-bar-title">Olá, Rafael 👊</span>
-              </div>
-              <div class="app-home">
-                <div class="app-card-belt">
-                  <div class="app-belt-dot" style="background:#3b82f6"></div>
-                  <div>
-                    <div class="app-card-label">Faixa atual</div>
-                    <div class="app-card-val">Faixa Azul</div>
-                  </div>
-                  <div style="margin-left:auto;text-align:right">
-                    <div class="app-card-label">Pontos</div>
-                    <div class="app-card-val" style="color:var(--accent)">1.142</div>
-                  </div>
-                </div>
-                <div class="app-stats-row">
-                  <div class="app-stat-box">
-                    <div class="app-stat-num">32</div>
-                    <div class="app-stat-lbl">Presenças</div>
-                  </div>
-                  <div class="app-stat-box">
-                    <div class="app-stat-num">#4</div>
-                    <div class="app-stat-lbl">Ranking</div>
-                  </div>
-                  <div class="app-stat-box">
-                    <div class="app-stat-num">3</div>
-                    <div class="app-stat-lbl">Gradua&shy;ções</div>
-                  </div>
-                </div>
-                <div class="app-section-label">PRÓXIMAS AULAS</div>
-                <div class="app-aula-row">
-                  <div class="app-aula-time">Seg 19h</div>
-                  <div class="app-aula-name">Jiu-Jitsu Gi</div>
-                </div>
-                <div class="app-aula-row">
-                  <div class="app-aula-time">Qua 19h</div>
-                  <div class="app-aula-name">Jiu-Jitsu No-Gi</div>
-                </div>
-                <div class="app-aula-row">
-                  <div class="app-aula-time">Sex 18h</div>
-                  <div class="app-aula-name">Muay Thai</div>
-                </div>
-                <div class="app-qr-btn">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M14 14h2M20 14v2M14 20h2M18 18h2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  Bater presença por QR
-                </div>
-              </div>
+            <div class="phone-screen" style="padding:0;overflow:hidden">
+              <img src="images/dasboardh-app.png" alt="Dashboard app" style="width:100%;height:100%;object-fit:cover;object-position:top">
             </div>
           </div>
         </div>
@@ -479,7 +398,7 @@
         <em style="font-style:normal;color:var(--accent)">Todas as artes.</em>
       </h2>
       <p class="lead" data-reveal style="max-width: 52ch; margin-top: 16px; margin-bottom: 48px">
-        Do tatame ao ringue, o Tatakai foi construído para gerenciar qualquer arte marcial — com graduações, turmas e métricas específicas para cada modalidade.
+        Do tatame ao ringue, o Sensei Manager foi construído para gerenciar qualquer arte marcial — com graduações, turmas e métricas específicas para cada modalidade.
       </p>
       <div class="modalities-grid" data-reveal>
         <div class="modality-card">
@@ -514,10 +433,90 @@
     </div>
   </section>
 
-  <!-- DIFFERENTIALS -->
+  <!-- SCREENSHOTS -->
+  <section class="section">
+    <div class="container">
+      <div class="section-num">06 — O Sistema por dentro</div>
+      <div class="two-col-head">
+        <h2 class="h-1" data-reveal>
+          Cada tela pensada<br>
+          <em style="font-style:normal;color:var(--accent)">pra quem treina.</em>
+        </h2>
+        <p class="lead" data-reveal>
+          Não é software genérico com o nome da academia colado. É um sistema feito do zero pra gestão de artes marciais — cada tela, cada dado, cada alerta foi pensado dentro de um tatame.
+        </p>
+      </div>
+      <div class="screenshots-grid" data-reveal>
+        <div class="screenshot-card">
+          <img src="images/financeiro-sistema-web.png" alt="Financeiro">
+          <div class="screenshot-card-label">Financeiro</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/grade-horario-sistema-web.png" alt="Grade de horários">
+          <div class="screenshot-card-label">Grade de Horários</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/gestao-faixa-sistema-web.png" alt="Gestão de faixas">
+          <div class="screenshot-card-label">Gestão de Faixas</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/turma-sistema-web.png" alt="Turmas">
+          <div class="screenshot-card-label">Turmas</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/perfil-aluno-sistema-web.png" alt="Perfil do aluno">
+          <div class="screenshot-card-label">Perfil do Aluno</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/alunos-sistema-web.png" alt="Lista de alunos">
+          <div class="screenshot-card-label">Lista de Alunos</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDENT APP SCREENSHOTS -->
   <section class="section" style="background: var(--bg-2)">
     <div class="container">
-      <div class="section-num">06 — Por que Tatakai</div>
+      <div class="section-num">07 — App na visão do aluno</div>
+      <div class="two-col-head">
+        <h2 class="h-1" data-reveal>
+          O aluno também tem<br>
+          <em style="font-style:normal;color:var(--accent)">o app dele.</em>
+        </h2>
+        <p class="lead" data-reveal>
+          Cada aluno acessa o próprio perfil, acompanha presença, vê o histórico de faixas, confere os horários e disputa o ranking — tudo no mesmo app, sem precisar pedir nada ao professor.
+        </p>
+      </div>
+      <div class="screenshots-grid" data-reveal>
+        <div class="screenshot-card">
+          <img src="images/perfil-login-aluno.png" alt="Perfil do aluno logado">
+          <div class="screenshot-card-label">Perfil do Aluno</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/presencas-aluno-login-aluno.png" alt="Presenças do aluno">
+          <div class="screenshot-card-label">Minhas Presenças</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/historico-graduacao-login-aluno.png" alt="Histórico de graduação">
+          <div class="screenshot-card-label">Histórico de Faixas</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/horarios-turmas-vinculado-login-aluno.png" alt="Horários e turmas">
+          <div class="screenshot-card-label">Horários & Turmas</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="images/financeiro-aluno-login-aluno.png" alt="Financeiro do aluno">
+          <div class="screenshot-card-label">Meu Financeiro</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIFFERENTIALS -->
+  <section class="section">
+    <div class="container">
+      <div class="section-num">08 — Por que Sensei Manager</div>
       <h2 class="h-1" data-reveal style="max-width: 16ch">
         Não é mais um sistema de gestão.<br>
         É uma <em style="font-style:normal;color:var(--accent)">arma de crescimento</em>.
@@ -537,7 +536,7 @@
   <!-- HOW IT WORKS -->
   <section id="como-funciona" class="section">
     <div class="container">
-      <div class="section-num">07 — Como funciona</div>
+      <div class="section-num">09 — Como funciona</div>
       <h2 class="h-1" data-reveal style="max-width: 18ch">
         Você está rodando<br>em <em style="font-style:normal;color:var(--accent)">menos de 24 horas</em>.
       </h2>
@@ -559,7 +558,7 @@
   <!-- BENEFITS + ROI -->
   <section class="section">
     <div class="container">
-      <div class="section-num">08 — Resultado</div>
+      <div class="section-num">10 — Resultado</div>
       <h2 class="h-1" data-reveal style="max-width: 16ch">
         Em <em style="font-style:normal;color:var(--accent)">90 dias</em> sua academia<br>não vai parecer a mesma.
       </h2>
@@ -607,7 +606,7 @@
               <span>{{ fmtBrl(roiResult().growth) }}</span>
             </div>
             <div class="roi-line" style="border-top: 1px solid var(--line); color: var(--accent)">
-              <span>Investimento Tatakai</span>
+              <span>Investimento Sensei Manager</span>
               <span style="font-family:var(--mono)">R$ 149</span>
             </div>
           </div>
@@ -619,57 +618,111 @@
   <!-- PRICING -->
   <section id="precos" class="section">
     <div class="container">
-      <div class="section-num">09 — Preços</div>
+      <div class="section-num">11 — Planos</div>
       <div style="text-align: center; max-width: 720px; margin: 0 auto">
         <h2 class="h-1" data-reveal>
-          Um plano. <em style="font-style:normal;color:var(--accent)">Tudo dentro.</em>
+          Comece grátis.<br>
+          <em style="font-style:normal;color:var(--accent)">Cresça quando quiser.</em>
         </h2>
         <p class="lead" style="margin: 24px auto 0; text-align: center" data-reveal>
-          Sem trial limitado. Sem feature trancada. Sem upgrade forçado. Você paga uma coisa só, simples e justa.
+          Teste sem pressa. Quando a academia crescer, você assina dentro do app com um toque — e tudo já reflete no sistema web automaticamente.
         </p>
       </div>
 
-      <div class="pricing-card" data-reveal>
-        <div class="pricing-head">
-          <div>
-            <div class="eyebrow">Plano único · Tudo incluso</div>
-            <div class="h-2" style="margin-top: 8px">Tatakai Pro</div>
-          </div>
-          <div class="toggle-period">
-            <button [class.active]="!pricingAnual()" (click)="pricingAnual.set(false)">Mensal</button>
-            <button [class.active]="pricingAnual()" (click)="pricingAnual.set(true)">
-              Anual <span class="save">−20%</span>
-            </button>
-          </div>
-        </div>
+      <div class="pricing-plans" data-reveal>
 
-        <div class="price-was">de R$ {{ pricingWas() }}/mês</div>
-        <div class="price-row">
-          <span class="price-currency">R$</span>
-          <span class="price-amount">{{ pricingPreco() }}</span>
-          <span class="price-period">/mês{{ pricingAnual() ? ' · cobrado anualmente' : '' }}</span>
-        </div>
-        <p style="color: var(--fg-2); font-size: 16px; line-height: 1.55; max-width: 60ch">
-          Alunos ilimitados. Sem taxa por matrícula. Sem letra miúda. Cancele com um clique se não amar.
-        </p>
-
-        <ul class="feature-list">
-          @for (f of priceFeatures; track f) {
+        <!-- FREE -->
+        <div class="plan-card plan-free">
+          <div class="plan-badge-label free">Plano Gratuito</div>
+          <div class="plan-name">Grátis</div>
+          <div class="plan-desc">Para quem está começando e quer testar sem compromisso.</div>
+          <div class="plan-price-row">
+            <span class="plan-price-currency">R$</span>
+            <span class="plan-price-amount">0</span>
+            <span class="plan-price-period">/mês</span>
+          </div>
+          <div class="plan-price-note">Para sempre gratuito · Sem cartão</div>
+          <ul class="plan-features">
             <li>
-              <span class="fcheck">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              {{ f }}
+              <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Até 20 alunos ativos
             </li>
-          }
-        </ul>
-
-        <div class="pricing-cta">
-          <a class="btn btn-primary btn-lg" routerLink="/cadastro">Começar 30 dias grátis →</a>
-          <a class="btn btn-ghost btn-lg" routerLink="/cadastro">Falar com vendas</a>
+            <li>
+              <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Até 2 turmas
+            </li>
+            <li>
+              <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Presença por QR Code
+            </li>
+            <li>
+              <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              App iOS e Android para alunos
+            </li>
+            <li>
+              <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Gestão de graduações e faixas
+            </li>
+            <li>
+              <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <span class="plan-feat-locked">Cobrança automática (PRO)</span>
+            </li>
+            <li>
+              <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <span class="plan-feat-locked">Relatórios avançados (PRO)</span>
+            </li>
+            <li>
+              <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <span class="plan-feat-locked">Contratos digitais (PRO)</span>
+            </li>
+          </ul>
+          <div class="plan-cta">
+            <a class="plan-cta-primary" routerLink="/cadastro">Criar conta grátis →</a>
+          </div>
         </div>
-        <div class="pricing-fine">SEM CARTÃO DE CRÉDITO · MIGRAÇÃO GRÁTIS · SEU TIME EM MENOS DE 24H</div>
+
+        <!-- PRO -->
+        <div class="plan-card plan-pro">
+          <div class="plan-badge-label pro">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Plano PRO
+          </div>
+          <div class="plan-name">PRO</div>
+          <div class="plan-desc">Para academias que querem crescer sem limite e com tudo automatizado.</div>
+          <div class="plan-price-row">
+            <span class="plan-price-currency">R$</span>
+            <span class="plan-price-amount">149</span>
+            <span class="plan-price-period">/mês</span>
+          </div>
+          <div class="plan-price-note">Assine pelo app · Cancele quando quiser</div>
+          <ul class="plan-features">
+            @for (f of priceFeatures; track f) {
+              <li>
+                <svg class="plan-feat-check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {{ f }}
+              </li>
+            }
+          </ul>
+          <div class="plan-divider"></div>
+          <p class="plan-upgrade-note" style="margin-bottom:12px">Assine diretamente pelo app — <strong>já reflete aqui no sistema</strong></p>
+          <div class="plan-cta">
+            <a href="https://apps.apple.com/app/id6745397960" target="_blank" rel="noopener" class="plan-cta-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+              Baixar na App Store
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=br.com.hg2tecnologia.senseimanager" target="_blank" rel="noopener" class="plan-cta-primary" style="background:var(--bg-3);color:var(--fg);border:1px solid var(--line-2)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.77c.34.19.72.23 1.08.12l12.35-12.35L13.5 8.43 3.18 23.77zm16.52-11.4L17 10.8l-3.5 3.5 3.5 3.5 2.7-1.57c.77-.45.77-1.61 0-2.06zM2.5.73L13.5 11.7 16.61 8.6 4.26.13C3.89-.08 3.5-.03 3.18.16L2.5.73zm8.65 11.7L4.26 5.88 3.18 7.1c-.34.19-.68.58-.68 1.43v7.3c0 .84.34 1.24.68 1.43l1.08.78 7-5.61z"/></svg>
+              Baixar no Google Play
+            </a>
+            <a href="https://wa.me/5521991639889?text=Ol%C3%A1%2C+tenho+interesse+em+contratar+o+plano+PRO+do+Sensei+Manager" target="_blank" rel="noopener" class="plan-cta-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              Falar pelo WhatsApp · (21) 99163-9889
+            </a>
+          </div>
+        </div>
+
       </div>
+      <div class="pricing-fine" style="text-align:center;margin-top:24px">SEM CARTÃO PARA O PLANO GRÁTIS · ASSINE PELO APP · SUPORTE EM PORTUGUÊS</div>
     </div>
   </section>
 
@@ -693,9 +746,9 @@
   <!-- FOOTER -->
   <footer class="footer">
     <div class="container footer-inner">
-      <div>© 2026 Tatakai. Feito por quem treina, pra quem treina.</div>
+      <div>© 2026 Sensei Manager. Feito por quem treina, pra quem treina.</div>
       <a routerLink="/" class="brand" style="justify-content: center">
-        <img src="images/logo_sistema.png" alt="Tatakai" class="brand-logo">
+        <img src="images/logo_sistema.png" alt="Sensei Manager" class="brand-logo">
       </a>
       <div class="footer-links">
         <a href="#">Termos</a>

@@ -5,24 +5,24 @@ export const alunosRoutes: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/lista/alunos-lista.component').then(m => m.AlunosListaComponent),
-    title: 'Alunos — Tatakai',
+    title: 'Alunos — Sensei Manager',
   },
   {
     path: 'novo',
     loadComponent: () =>
       import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),
-    title: 'Novo Aluno — Tatakai',
+    title: 'Novo Aluno — Sensei Manager',
   },
   {
     path: ':id/editar',
     loadComponent: () =>
       import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),
-    title: 'Editar Aluno — Tatakai',
+    title: 'Editar Aluno — Sensei Manager',
   },
   {
     path: ':id',
     loadComponent: () =>
       import('./pages/detalhe/aluno-detalhe.component').then(m => m.AlunoDetalheComponent),
-    title: 'Detalhe do Aluno — Tatakai',
+    title: 'Detalhe do Aluno — Sensei Manager',
   },
 ];

@@ -5,18 +5,18 @@ export const contratosRoutes: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/lista/contratos-lista.component').then((m) => m.ContratosListaComponent),
-    title: 'Contratos — Tatakai',
+    title: 'Contratos — Sensei Manager',
   },
   {
     path: 'modelos',
     loadComponent: () =>
       import('./pages/modelos/contratos-modelos.component').then((m) => m.ContratosModelosComponent),
-    title: 'Modelos de Contrato — Tatakai',
+    title: 'Modelos de Contrato — Sensei Manager',
   },
   {
     path: ':id',
     loadComponent: () =>
       import('./pages/detalhe/contrato-detalhe.component').then((m) => m.ContratoDetalheComponent),
-    title: 'Contrato — Tatakai',
+    title: 'Contrato — Sensei Manager',
   },
 ];

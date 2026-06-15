@@ -5,6 +5,6 @@ export const configuracoesRoutes: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/geral/configuracoes-geral.component').then(m => m.ConfiguracoesGeralComponent),
-    title: 'Configurações — Tatakai',
+    title: 'Configurações — Sensei Manager',
   },
 ];

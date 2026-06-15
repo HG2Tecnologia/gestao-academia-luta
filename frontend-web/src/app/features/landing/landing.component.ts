@@ -165,13 +165,13 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     'Ranking gamificado',
     'Controle de presença por QR',
     'Dashboard financeiro completo',
-    'App para alunos (iOS + Android)',
-    'WhatsApp automático',
-    'Múltiplas unidades',
+    'App iOS e Android incluso (alunos + equipe)',
+    'Contratos digitais com assinatura',
     'Relatórios personalizados',
-    'Suporte humano em até 2h',
-    'Importação grátis de planilhas',
-    '30 dias grátis. Cancele quando quiser',
+    'Grade de horários completa',
+    'Gestão de faixas e graduações',
+    'Alertas de inadimplência e churn',
+    'Suporte humano em português, 7 dias',
   ];
 
   ngOnInit(): void {

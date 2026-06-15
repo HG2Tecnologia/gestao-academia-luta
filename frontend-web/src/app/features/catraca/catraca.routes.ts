@@ -5,6 +5,6 @@ export const catracaRoutes: Routes = [
     path: '',
     loadComponent: () =>
       import('./catraca.component').then((m) => m.CatracaComponent),
-    title: 'Catraca — Tatakai',
+    title: 'Catraca — Sensei Manager',
   },
 ];

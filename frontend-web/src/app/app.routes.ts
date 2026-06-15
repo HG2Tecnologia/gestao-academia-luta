@@ -8,21 +8,21 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./features/landing/landing.component').then((m) => m.LandingComponent),
-    title: 'Tatakai — Gestão inteligente para artes marciais',
+    title: 'Sensei Manager — Gestão inteligente para artes marciais',
   },
   {
     path: 'login',
     loadComponent: () =>
       import('./features/auth/login/login.component').then((m) => m.LoginComponent),
     canActivate: [guestGuard],
-    title: 'Entrar — Tatakai',
+    title: 'Entrar — Sensei Manager',
   },
   {
     path: 'cadastro',
     loadComponent: () =>
       import('./features/auth/cadastro/cadastro.component').then((m) => m.CadastroComponent),
     canActivate: [guestGuard],
-    title: 'Criar conta — Tatakai',
+    title: 'Criar conta — Sensei Manager',
   },
   {
     path: 'forgot-password',
@@ -30,7 +30,7 @@ export const routes: Routes = [
       import('./features/auth/forgot-password/forgot-password.component').then(
         (m) => m.ForgotPasswordComponent
       ),
-    title: 'Recuperar senha — Tatakai',
+    title: 'Recuperar senha — Sensei Manager',
   },
   {
     path: 'reset-password',
@@ -38,7 +38,7 @@ export const routes: Routes = [
       import('./features/auth/reset-password/reset-password.component').then(
         (m) => m.ResetPasswordComponent
       ),
-    title: 'Nova senha — Tatakai',
+    title: 'Nova senha — Sensei Manager',
   },
   {
     path: 'app',
@@ -49,7 +49,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
         path: 'dashboard',
-        title: 'Dashboard — Tatakai',
+        title: 'Dashboard — Sensei Manager',
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
       },

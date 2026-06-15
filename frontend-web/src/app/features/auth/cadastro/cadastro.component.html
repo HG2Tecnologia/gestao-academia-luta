@@ -3,8 +3,8 @@
   <!-- Left panel -->
   <div class="auth-left">
     <a routerLink="/" class="auth-brand">
-      <img src="images/logo_app.png" alt="Tatakai" class="auth-brand-logo">
-      Tatakai
+      <img src="images/logo_app.png" alt="Sensei Manager" class="auth-brand-logo">
+      Sensei Manager
     </a>
 
     <div class="auth-center">
@@ -46,6 +46,12 @@
           </span>
           Suporte em português 7 dias por semana
         </li>
+        <li>
+          <span class="benefit-check">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          App iOS e Android incluso para toda equipe e alunos
+        </li>
       </ul>
 
       <div class="auth-trust">
@@ -61,8 +67,8 @@
 
       <!-- Mobile brand -->
       <a routerLink="/" class="auth-mobile-brand">
-        <span class="brand-mark">T</span>
-        Tatame
+        <img src="images/logo_app.png" alt="Sensei Manager" class="auth-brand-logo">
+        Sensei Manager
       </a>
 
       <!-- Steps indicator -->
@@ -167,7 +173,7 @@
         <!-- ETAPA 2 -->
         @if (etapa() === 2) {
           <h1 class="auth-title">Sua academia</h1>
-          <p class="auth-sub">Onde o tatame encontra a tecnologia.</p>
+          <p class="auth-sub">Acesso incluso no app iOS e Android.</p>
 
           <div class="form-group">
             <div class="form-label">Nome da academia</div>
@@ -184,7 +190,7 @@
             <div class="subdomain-group">
               <input class="form-input" [class.has-error]="campo('subdominio')"
                      type="text" formControlName="subdominio" placeholder="minha-academia">
-              <span class="subdomain-suffix">.tatame.com.br</span>
+              <span class="subdomain-suffix">.senseimanager.com.br</span>
             </div>
             @if (campo('subdominio')) {
               <p class="form-error">Use apenas letras minúsculas, números e hífens.</p>
@@ -215,7 +221,7 @@
 
       </form>
 
-      <div class="auth-footer">© {{ year }} Tatakai. Todos os direitos reservados.</div>
+      <div class="auth-footer">© {{ year }} Sensei Manager. Todos os direitos reservados.</div>
     </div>
   </div>
 

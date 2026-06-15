@@ -5,6 +5,6 @@ export const horariosRoutes: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/grade/grade-horarios.component').then((m) => m.GradeHorariosComponent),
-    title: 'Grade de Horários — Tatakai',
+    title: 'Grade de Horários — Sensei Manager',
   },
 ];
