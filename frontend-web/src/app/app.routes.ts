@@ -146,6 +146,18 @@ export const routes: Routes = [
     title: 'Assinar Contrato',
   },
   {
+    path: 'privacidade',
+    loadComponent: () =>
+      import('./features/legal/privacidade.component').then((m) => m.PrivacidadeComponent),
+    title: 'Política de Privacidade — Sensei Manager',
+  },
+  {
+    path: 'termos',
+    loadComponent: () =>
+      import('./features/legal/termos.component').then((m) => m.TermosComponent),
+    title: 'Termos de Uso — Sensei Manager',
+  },
+  {
     path: '**',
     redirectTo: '',
   },

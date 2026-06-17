@@ -79,6 +79,13 @@ public class UsuarioService : IUsuarioService
             .GroupBy(p => p.AlunoId)
             .ToDictionary(g => g.Key, g => g.Select(p => p.Status).ToList());
 
+        var atestados = await _db.AtestadosMedicos
+            .Where(a => ids.Contains(a.AlunoId))
+            .Select(a => new { a.AlunoId, a.Status, a.DataValidade })
+            .ToListAsync(ct);
+
+        var atestadoDict = atestados.ToDictionary(a => a.AlunoId);
+
         var itens = alunosBase.Select(u => new AlunoDto
         {
             Id = u.Id,
@@ -102,6 +109,8 @@ public class UsuarioService : IUsuarioService
             FaixaAtualMaxGraus = faixaDict.TryGetValue(u.Id, out var f6) ? f6.FaixaMaxGraus : 4,
             GrauAtual = faixaDict.TryGetValue(u.Id, out var f3) ? f3.Grau : 0,
             SituacaoFinanceira = ResolverSituacaoFinanceira(pagamentosDict.GetValueOrDefault(u.Id)),
+            StatusAtestado = atestadoDict.TryGetValue(u.Id, out var at) ? at.Status : null,
+            AtestadoValidade = atestadoDict.TryGetValue(u.Id, out var at2) ? at2.DataValidade : null,
         }).ToList();
 
         return BaseResponse<PagedResult<AlunoDto>>.Ok(new PagedResult<AlunoDto>

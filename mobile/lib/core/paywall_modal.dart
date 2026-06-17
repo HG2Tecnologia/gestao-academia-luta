@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'constants.dart';
 import 'iap_service.dart';
 
@@ -344,6 +346,30 @@ class _PaywallSheetState extends State<_PaywallSheet> {
               'A cobrança é feita pela App Store ou Google Play. Cancele quando quiser.',
               textAlign: TextAlign.center,
               style: TextStyle(color: kText2.withValues(alpha: 0.6), fontSize: 10, height: 1.5),
+            ),
+            const SizedBox(height: 12),
+            Text.rich(
+              TextSpan(
+                style: TextStyle(color: kText2.withValues(alpha: 0.55), fontSize: 10, height: 1.6),
+                children: [
+                  const TextSpan(text: 'Ao assinar, você concorda com os nossos '),
+                  TextSpan(
+                    text: 'Termos de Uso',
+                    style: TextStyle(color: kPrimary, decoration: TextDecoration.underline),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => launchUrl(Uri.parse(kTermosUrl), mode: LaunchMode.externalApplication),
+                  ),
+                  const TextSpan(text: ' e '),
+                  TextSpan(
+                    text: 'Política de Privacidade',
+                    style: TextStyle(color: kPrimary, decoration: TextDecoration.underline),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => launchUrl(Uri.parse(kPrivacidadeUrl), mode: LaunchMode.externalApplication),
+                  ),
+                  const TextSpan(text: '. A assinatura renova automaticamente até ser cancelada.'),
+                ],
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

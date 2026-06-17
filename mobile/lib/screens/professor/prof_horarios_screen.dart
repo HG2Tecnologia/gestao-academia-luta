@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 
 class ProfHorariosScreen extends StatefulWidget {
   const ProfHorariosScreen({super.key});
@@ -52,7 +53,11 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-              child: Text('Meus Horários', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+              child: Row(children: [
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                const SizedBox(width: 14),
+                Text('Meus Horários', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+              ]),
             ),
             Expanded(
               child: _loading

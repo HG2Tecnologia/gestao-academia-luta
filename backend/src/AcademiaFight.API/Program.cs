@@ -67,6 +67,10 @@ builder.Services.AddScoped<ICatracaAgentNotifier, CatracaAgentNotifier>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<RankingMensalResetJob>();
+builder.Services.AddScoped<IAtestadoService, AtestadoService>();
+builder.Services.AddScoped<AtestadoVencimentoJob>();
+builder.Services.AddScoped<INoticiaService, NoticiaService>();
+builder.Services.AddScoped<ParQService>();
 builder.Services.AddScoped<ICatracaService, CatracaService>();
 builder.Services.AddScoped<IToletusCatracaClient, ToletusCatracaClient>();
 builder.Services.AddHttpClient("toletus");  // HttpClient nomeado para chamadas ao dispositivo Toletus
@@ -216,6 +220,13 @@ RecurringJob.AddOrUpdate<RankingMensalResetJob>(
     "ranking-reset-mensal",
     job => job.ExecutarAsync(),
     "1 0 1 * *",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+// Verificar vencimentos de atestados médicos diariamente às 08:00 (UTC)
+RecurringJob.AddOrUpdate<AtestadoVencimentoJob>(
+    "atestado-vencimento-diario",
+    job => job.ExecutarAsync(),
+    "0 8 * * *",
     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();

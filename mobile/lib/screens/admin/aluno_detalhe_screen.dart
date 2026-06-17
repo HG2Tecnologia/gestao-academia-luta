@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -15,9 +18,11 @@ class AdminAlunoDetalheScreen extends StatefulWidget {
 
 class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, dynamic>? _aluno;
+  Map<String, dynamic>? _atestado;
   String? _meId;
   bool _loading = true;
   String? _erro;
+  bool _uploadingAtestado = false;
   // Faixa mais recente aprovada por modalidade: { nomeModalidade -> { nome, cor } }
   Map<String, Map<String, dynamic>> _faixasPorModalidade = {};
   List<Map<String, dynamic>> _graduacoes = [];
@@ -36,6 +41,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         dio.get('/api/alunos/${widget.alunoId}'),
         dio.get('/api/usuarios/me'),
         dio.get('/api/graduacoes', queryParameters: {'alunoId': widget.alunoId}),
+        dio.get('/api/atestados/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
       ]);
       final body = results[0].data as Map<String, dynamic>;
       final meBody = results[1].data as Map<String, dynamic>;
@@ -65,8 +71,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         }
       }
 
+      final atestadoData = results.length > 3
+          ? (results[3].data['dados'] as Map<String, dynamic>?)
+          : null;
+
       if (mounted) setState(() {
         _aluno = body['dados'] as Map<String, dynamic>?;
+        _atestado = atestadoData;
         _meId = (meBody['dados'] as Map<String, dynamic>?)?['id']?.toString();
         _faixasPorModalidade = faixasMod;
         _graduacoes = List.of(graduacoes)
@@ -114,6 +125,172 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         );
       }
     }
+  }
+
+  // ── Atestado Médico ──────────────────────────────────
+
+  Future<void> _avaliarAtestado(bool aprovado) async {
+    if (_atestado == null) return;
+    String? motivo;
+
+    if (!aprovado) {
+      final ctrl = TextEditingController();
+      motivo = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text('Motivo da rejeição', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+          content: TextField(
+            controller: ctrl,
+            style: TextStyle(color: kText1),
+            decoration: InputDecoration(
+              hintText: 'Ex: atestado inválido, fora da validade...',
+              hintStyle: TextStyle(color: kText2),
+              filled: true,
+              fillColor: kBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+            ),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancelar', style: TextStyle(color: kText2))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: Text('Rejeitar', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (motivo == null || motivo.isEmpty) return;
+    }
+
+    try {
+      await dio.patch('/api/atestados/${_atestado!['id']}/avaliar', data: {
+        'aprovado': aprovado,
+        if (!aprovado) 'motivoRejeicao': motivo,
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(aprovado ? 'Atestado aprovado!' : 'Atestado rejeitado.'),
+          backgroundColor: aprovado ? kSuccess : kDanger,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _enviarLembrete() async {
+    try {
+      await dio.post('/api/atestados/aluno/${widget.alunoId}/lembrete');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Lembrete enviado ao aluno.'),
+          backgroundColor: kSuccess,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _uploadAtestadoAcademia() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+    if (file.size > 5 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Arquivo muito grande. Máx 5 MB.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+      return;
+    }
+    setState(() => _uploadingAtestado = true);
+    try {
+      final mime = file.extension?.toLowerCase() == 'pdf' ? 'application/pdf'
+          : file.extension?.toLowerCase() == 'png' ? 'image/png' : 'image/jpeg';
+      await dio.post('/api/atestados/academia', data: {
+        'alunoId': widget.alunoId,
+        'arquivoBase64': base64Encode(file.bytes!),
+        'arquivoMimeType': mime,
+        'arquivoNome': file.name,
+      });
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Atestado anexado e aprovado!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao anexar atestado.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _uploadingAtestado = false);
+    }
+  }
+
+  Widget _buildAtestadoCard() {
+    final at = _atestado;
+    final status = at?['status'] as int?;
+
+    final (label, color) = at == null
+        ? ('Sem atestado', kDanger)
+        : switch (status) {
+            0 => ('Aguardando aprovação', kWarning),
+            1 => ('Aprovado', kSuccess),
+            2 => ('Rejeitado', kDanger),
+            3 => ('Expirado', kDanger),
+            _ => ('Desconhecido', kText2),
+          };
+
+    final dataValidade = at != null ? DateTime.tryParse(at['dataValidade']?.toString() ?? '') : null;
+    final fmt = dataValidade != null
+        ? '${dataValidade.day.toString().padLeft(2,'0')}/${dataValidade.month.toString().padLeft(2,'0')}/${dataValidade.year}'
+        : null;
+
+    return _buildCard([
+      Row(children: [
+        Expanded(child: _sectionTitle('Atestado Médico')),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.4))),
+          child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+      if (fmt != null) _row('Validade', fmt),
+      if (at?['motivoRejeicao'] != null) _row('Motivo', at!['motivoRejeicao']),
+      const SizedBox(height: 10),
+      if (status == 0) ...[
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _avaliarAtestado(true),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text('Aprovar'),
+            style: OutlinedButton.styleFrom(foregroundColor: kSuccess, side: BorderSide(color: kSuccess.withOpacity(0.5))),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _avaliarAtestado(false),
+            icon: const Icon(Icons.close_rounded, size: 16),
+            label: const Text('Rejeitar'),
+            style: OutlinedButton.styleFrom(foregroundColor: kDanger, side: BorderSide(color: kDanger.withOpacity(0.5))),
+          )),
+        ]),
+      ],
+      Row(children: [
+        Expanded(child: OutlinedButton.icon(
+          onPressed: _uploadingAtestado ? null : _uploadAtestadoAcademia,
+          icon: _uploadingAtestado
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.upload_file_rounded, size: 16),
+          label: const Text('Anexar'),
+          style: OutlinedButton.styleFrom(foregroundColor: kPrimary, side: BorderSide(color: kPrimary.withOpacity(0.4))),
+        )),
+        const SizedBox(width: 8),
+        Expanded(child: OutlinedButton.icon(
+          onPressed: _enviarLembrete,
+          icon: const Icon(Icons.notifications_outlined, size: 16),
+          label: const Text('Lembrar'),
+          style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder)),
+        )),
+      ]),
+    ]);
   }
 
   // ── Helpers ──────────────────────────────────────────
@@ -1064,6 +1241,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             _row('Tipo', a['tipoPlano']),
                             _row('Vencimento', a['diaVencimento'] != null ? 'Dia ${a['diaVencimento']}' : null),
                           ]),
+                          const SizedBox(height: 12),
+                          _buildAtestadoCard(),
                           // Turmas com botão vincular
                           const SizedBox(height: 12),
                           // Histórico de graduações

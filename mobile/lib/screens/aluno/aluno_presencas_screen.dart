@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/widgets.dart';
 
 class AlunoPresencasScreen extends StatefulWidget {
@@ -129,8 +130,11 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Presenças',
-                        style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
+                    Row(children: [
+                      GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                      const SizedBox(width: 14),
+                      Text('Presenças', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
+                    ]),
                     const SizedBox(height: 4),
                     Text('Seu histórico de treinos',
                         style: TextStyle(color: kText2, fontSize: 13)),

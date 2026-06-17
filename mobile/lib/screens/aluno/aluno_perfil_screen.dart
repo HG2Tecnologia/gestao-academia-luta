@@ -1,10 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
+import 'aluno_atestado_screen.dart';
 import 'aluno_qrcode_sheet.dart';
 
 class AlunoPerfilScreen extends StatefulWidget {
@@ -16,6 +19,7 @@ class AlunoPerfilScreen extends StatefulWidget {
 
 class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _aluno;
+  Map<String, dynamic>? _atestado;
   List<Map<String, dynamic>> _contratos = [];
   bool _loading = true;
 
@@ -38,9 +42,18 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
   Future<void> _load() async {
     try {
-      final res = await dio.get('/api/alunos/me');
+      final results = await Future.wait([
+        dio.get('/api/alunos/me'),
+        dio.get('/api/atestados/meu').catchError((_) => Response(requestOptions: RequestOptions(path: '/api/atestados/meu'), data: {'dados': null})),
+      ]);
+
+      final res = results[0];
       final dados = res.data['dados'] as Map<String, dynamic>?;
       if (mounted) setState(() => _aluno = dados);
+
+      final atestadoDados = results[1].data['dados'] as Map<String, dynamic>?;
+      if (mounted) setState(() => _atestado = atestadoDados);
+
       if (dados != null) {
         final alunoId = dados['id']?.toString() ?? '';
         try {
@@ -301,6 +314,29 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     );
   }
 
+  bool _deveExibirBannerAtestado() {
+    if (_atestado == null) return true; // sem atestado = pendência
+    final status = _atestado!['status'] as int? ?? 0;
+    if (status == 2 || status == 3) return true; // rejeitado ou expirado
+    if (status == 1) {
+      // aprovado mas vencendo em breve?
+      final val = _atestado!['dataValidade'] as String?;
+      if (val == null) return false;
+      final dt = DateTime.tryParse(val);
+      if (dt == null) return false;
+      return dt.isBefore(DateTime.now().add(const Duration(days: 7)));
+    }
+    return false;
+  }
+
+  String _labelAtestado() {
+    if (_atestado == null) return 'Atestado médico pendente';
+    final status = _atestado!['status'] as int? ?? 0;
+    if (status == 2) return 'Atestado rejeitado — envie um novo';
+    if (status == 3) return 'Atestado expirado — envie um novo';
+    return 'Atestado vencendo em breve';
+  }
+
   Future<void> _sair() async {
     try { await dio.post('/api/auth/logout'); } catch (_) {}
     await AuthStorage.clear();
@@ -391,8 +427,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            GestureDetector(onTap: openAppDrawer, child: const Icon(Icons.menu_rounded, color: Colors.white, size: 26)),
+                            const Spacer(),
                             GestureDetector(
                               onTap: () => context.push('/alterar-senha'),
                               child: Container(
@@ -561,6 +598,41 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
+          // ── Banner de atestado médico ────────────────────────
+          if (_deveExibirBannerAtestado())
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AlunoAtestadoScreen())).then((_) => _load()),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: kDanger.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kDanger.withOpacity(0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.medical_information_rounded, color: kDanger, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_labelAtestado(), style: TextStyle(color: kDanger, fontSize: 13, fontWeight: FontWeight.w700)),
+                              Text('Toque para resolver', style: TextStyle(color: kText2, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: kDanger, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // ── Graduações ───────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
@@ -590,6 +662,71 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                       Icon(Icons.chevron_right, color: kText2, size: 20),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Notícias ────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: GestureDetector(
+                onTap: () => context.push('/noticias'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.newspaper_rounded, color: const Color(0xFF8B5CF6), size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Notícias', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+                            Text('Comunicados e novidades da academia', style: TextStyle(color: kText2, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: kText2, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── PAR-Q ───────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: GestureDetector(
+                onTap: () => context.push('/aluno/parq'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(color: const Color(0xFF059669).withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFF059669), size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('PAR-Q', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text('Questionário de prontidão física', style: TextStyle(color: kText2, fontSize: 11)),
+                    ])),
+                    Icon(Icons.chevron_right, color: kText2, size: 20),
+                  ]),
                 ),
               ),
             ),

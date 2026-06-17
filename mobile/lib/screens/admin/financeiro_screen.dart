@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/tab_refresh.dart';
 
 class AdminFinanceiroScreen extends StatefulWidget {
@@ -438,9 +439,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Financeiro', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                          GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                          const SizedBox(width: 14),
+                          Expanded(child: Text('Financeiro', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
                           Row(
                             children: [
                               IconButton(

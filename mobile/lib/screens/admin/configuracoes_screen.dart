@@ -6,6 +6,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import 'modalidades_screen.dart';
 
 class AdminConfiguracoesScreen extends StatefulWidget {
   const AdminConfiguracoesScreen({super.key});
@@ -223,6 +224,39 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                         ),
                         const SizedBox(height: 12),
                         GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminModalidadesScreen())),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: kBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38, height: 38,
+                                  decoration: BoxDecoration(
+                                    color: kPrimary.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.category_rounded, color: kPrimary, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('Gestão de Modalidades', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+                                    Text('Ativar, desativar ou criar modalidades da academia',
+                                        style: TextStyle(color: kText2, fontSize: 11)),
+                                  ]),
+                                ),
+                                Icon(Icons.chevron_right_rounded, color: kText2),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        GestureDetector(
                           onTap: () => context.push('/admin/dashboard/contratos'),
                           child: Container(
                             padding: const EdgeInsets.all(16),
@@ -246,6 +280,41 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Text('Modelos de Contrato', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
                                     Text('Criar e editar templates de contrato',
+                                        style: TextStyle(color: kText2, fontSize: 11)),
+                                  ]),
+                                ),
+                                Icon(Icons.chevron_right_rounded, color: kText2),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _SectionLabel('Comunicação'),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => context.push('/admin/noticias'),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: kBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38, height: 38,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.newspaper_rounded, color: Color(0xFF8B5CF6), size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('Notícias', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+                                    Text('Publicar notícias e comunicados para alunos e professores',
                                         style: TextStyle(color: kText2, fontSize: 11)),
                                   ]),
                                 ),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../notificacoes_screen.dart';
 
 class ProfPerfilScreen extends StatefulWidget {
@@ -99,6 +100,8 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                   padding: const EdgeInsets.all(24),
                 children: [
                   Row(children: [
+                    GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                    const SizedBox(width: 14),
                     Expanded(child: Text('Meu Perfil', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
                     const SinoNotificacoes(),
                   ]),
@@ -119,6 +122,26 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                     child: _saving
                         ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                         : const Text('Salvar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => context.push('/noticias'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: kSurface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.newspaper_rounded, color: const Color(0xFF8B5CF6), size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text('Notícias da Academia', style: TextStyle(color: kText1, fontWeight: FontWeight.w600))),
+                          Icon(Icons.chevron_right, color: kText2, size: 18),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(

@@ -5,6 +5,7 @@ import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/widgets.dart';
@@ -270,6 +271,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
           child: Row(
             children: [
+              // Menu
+              GestureDetector(
+                onTap: openAppDrawer,
+                child: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 14),
               // Avatar
               Container(
                 width: 46,

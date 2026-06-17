@@ -27,9 +27,9 @@ public class ModalidadeController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Listar(CancellationToken ct)
+    public async Task<IActionResult> Listar([FromQuery] bool? ativo, CancellationToken ct)
     {
-        var resultado = await _modalidadeService.ListarAsync(ct);
+        var resultado = await _modalidadeService.ListarAsync(ativo, ct);
         return Ok(resultado);
     }
 
@@ -81,6 +81,15 @@ public class ModalidadeController : ControllerBase
                 ? NotFound(resultado)
                 : BadRequest(resultado);
 
+        return Ok(resultado);
+    }
+
+    [HttpPatch("{id:guid}/toggle-ativo")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ToggleAtivo(Guid id, CancellationToken ct)
+    {
+        var resultado = await _modalidadeService.ToggleAtivoAsync(id, ct);
+        if (!resultado.Sucesso) return resultado.Mensagem?.Contains("não encontrada") == true ? NotFound(resultado) : BadRequest(resultado);
         return Ok(resultado);
     }
 

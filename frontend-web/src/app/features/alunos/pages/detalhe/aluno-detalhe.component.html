@@ -62,6 +62,8 @@
       <button class="tab" [class.active]="tabAtiva()==='financeiro'" (click)="tabAtiva.set('financeiro')">Financeiro</button>
       <button class="tab" [class.active]="tabAtiva()==='ranking'" (click)="tabAtiva.set('ranking')">Ranking & XP</button>
       <button class="tab" [class.active]="tabAtiva()==='contratos'" (click)="tabAtiva.set('contratos'); carregarContratos(aluno()!.id)">Contratos</button>
+      <button class="tab" [class.active]="tabAtiva()==='atestado'" (click)="tabAtiva.set('atestado'); carregarAtestado(aluno()!.id)">Atestado</button>
+      <button class="tab" [class.active]="tabAtiva()==='parq'" (click)="tabAtiva.set('parq'); carregarParQ(aluno()!.id)">PAR-Q</button>
     </div>
 
     <!-- ABA: INFORMAÇÕES -->
@@ -435,6 +437,149 @@
       </div>
     }
 
+  </div>
+}
+
+<!-- ABA: ATESTADO MÉDICO -->
+@if (tabAtiva() === 'atestado') {
+  <div class="tab-content">
+    @if (carregandoAtestado()) {
+      <div class="skeleton-list">@for (i of [1,2]; track i) { <div class="skeleton-row"></div> }</div>
+    } @else if (erroAtestado()) {
+      <div class="alert-error">{{ erroAtestado() }}</div>
+    } @else {
+
+      <!-- Atestado existente -->
+      @if (atestado(); as a) {
+        <div class="secao-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+            <h3 class="secao-titulo" style="margin:0;">Atestado Médico</h3>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <span class="badge-pag" [ngClass]="atestadoStatusClass(a.status)">{{ atestadoStatusLabel(a.status) }}</span>
+              @if (a.vencendoEmBreve) {
+                <span style="font-size:11px;font-weight:600;color:#b45309;background:rgba(245,158,11,0.1);padding:2px 8px;border-radius:99px;">⚠ Vencendo em breve</span>
+              }
+            </div>
+          </div>
+          <div class="dados-grid">
+            <div class="dado-item">
+              <span class="dado-label">Arquivo</span>
+              <span class="dado-valor">{{ a.arquivoNome || 'atestado.' + (a.arquivoMimeType.includes('pdf') ? 'pdf' : 'imagem') }}</span>
+            </div>
+            <div class="dado-item">
+              <span class="dado-label">Enviado em</span>
+              <span class="dado-valor">{{ formatarData(a.dataUpload) }}</span>
+            </div>
+            <div class="dado-item">
+              <span class="dado-label">Validade</span>
+              <span class="dado-valor">{{ formatarData(a.dataValidade) }}</span>
+            </div>
+            <div class="dado-item">
+              <span class="dado-label">Enviado por</span>
+              <span class="dado-valor">{{ a.anexadoPorAcademia ? 'Academia' : 'Aluno' }}</span>
+            </div>
+          </div>
+          @if (a.motivoRejeicao) {
+            <div class="alert-error" style="margin-top:12px;">Motivo de rejeição: {{ a.motivoRejeicao }}</div>
+          }
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
+            <button class="btn-secondary" style="font-size:13px;" (click)="abrirArquivoAtestado()">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Visualizar arquivo
+            </button>
+            @if (a.status === 0) {
+              <button class="btn-primary" style="font-size:13px;" (click)="avaliarAtestado(true)" [disabled]="salvandoAtestado()">✓ Aprovar</button>
+              <button class="btn-danger" style="font-size:13px;" (click)="avaliarAtestado(false)" [disabled]="salvandoAtestado()">✕ Rejeitar</button>
+            }
+            <button class="btn-secondary" style="font-size:13px;" (click)="enviarLembreteAtestado()">Enviar lembrete ao aluno</button>
+          </div>
+          @if (a.status === 0) {
+            <div class="form-group" style="margin-top:12px;">
+              <label class="form-label">Motivo de rejeição (opcional)</label>
+              <input type="text" class="form-input" placeholder="Preencha para rejeitar com justificativa..." [ngModel]="motivoRejeicao()" (ngModelChange)="motivoRejeicao.set($event)" />
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <p style="color:var(--app-text-3);font-size:13px;margin:0 0 16px;">Nenhum atestado enviado por este aluno.</p>
+        </div>
+      }
+
+      <!-- Upload pela academia -->
+      <div class="secao-card" style="margin-top:16px;">
+        <h3 class="secao-titulo">Anexar atestado pela academia</h3>
+        <p style="font-size:13px;color:var(--app-text-2);margin:0 0 14px;">O atestado enviado pela academia é automaticamente aprovado.</p>
+        <div class="form-group">
+          <label class="form-label">Arquivo (PDF ou imagem, máx 5 MB)</label>
+          <input type="file" class="form-input" accept=".pdf,image/*" (change)="onAtestadoFileChange($event)" />
+        </div>
+        @if (uploadAtestadoBase64()) {
+          <div class="alert-success" style="margin-top:8px;">Arquivo selecionado: {{ uploadAtestadoNome() }}</div>
+        }
+        <button class="btn-primary" style="margin-top:12px;font-size:13px;" (click)="uploadAtestadoAcademia()" [disabled]="!uploadAtestadoBase64() || salvandoAtestado()">
+          {{ salvandoAtestado() ? 'Enviando...' : 'Enviar atestado' }}
+        </button>
+      </div>
+    }
+  </div>
+}
+
+<!-- ABA: PAR-Q -->
+@if (tabAtiva() === 'parq') {
+  <div class="tab-content">
+    @if (carregandoParQ()) {
+      <div class="skeleton-list">@for (i of [1,2,3]; track i) { <div class="skeleton-row"></div> }</div>
+    } @else if (erroParQ()) {
+      <div class="alert-error">{{ erroParQ() }}</div>
+    } @else if (!parq()) {
+      <div class="empty-state">
+        <p style="color:var(--app-text-3);font-size:13px;margin:0;">O aluno ainda não preencheu o PAR-Q.</p>
+      </div>
+    } @else {
+      <div class="secao-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+          <h3 class="secao-titulo" style="margin:0;">Questionário PAR-Q</h3>
+          @if (parq()!['requerAvaliacaoMedica']) {
+            <span style="font-size:11px;font-weight:600;color:#b45309;background:rgba(245,158,11,0.12);padding:3px 10px;border-radius:99px;">⚠ Avaliação médica recomendada</span>
+          } @else {
+            <span style="font-size:11px;font-weight:600;color:#15803d;background:rgba(34,197,94,0.12);padding:3px 10px;border-radius:99px;">✓ Sem indicações de risco</span>
+          }
+        </div>
+        <div class="dados-grid" style="margin-bottom:16px;">
+          <div class="dado-item">
+            <span class="dado-label">Nome (assinante)</span>
+            <span class="dado-valor">{{ parq()!['nomeCompleto'] }}</span>
+          </div>
+          <div class="dado-item">
+            <span class="dado-label">CPF</span>
+            <span class="dado-valor">{{ parq()!['cpf'] }}</span>
+          </div>
+          <div class="dado-item">
+            <span class="dado-label">Data de preenchimento</span>
+            <span class="dado-valor">{{ formatarDataHora($any(parq()!['dataPreenchimento'])) }}</span>
+          </div>
+        </div>
+        <table class="data-table" style="font-size:13px;">
+          <thead><tr><th>#</th><th>Pergunta</th><th style="text-align:center;">Resposta</th></tr></thead>
+          <tbody>
+            @for (num of [1,2,3,4,5,6,7,8,9,10]; track num) {
+              <tr>
+                <td style="color:var(--app-text-2);width:32px;">{{ num }}</td>
+                <td>{{ parqPergunta(num) }}</td>
+                <td style="text-align:center;">
+                  @if (parqResposta(num)) {
+                    <span style="color:#b45309;font-weight:700;font-size:12px;background:rgba(245,158,11,0.12);padding:2px 10px;border-radius:99px;">Sim</span>
+                  } @else {
+                    <span style="color:#15803d;font-weight:600;font-size:12px;background:rgba(34,197,94,0.1);padding:2px 10px;border-radius:99px;">Não</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </div>
 }
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/widgets.dart';
 
 class ProfRankingScreen extends StatefulWidget {
@@ -241,9 +242,11 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
         child: Column(children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(16, 20, 20, 0),
             child: Row(
               children: [
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                const SizedBox(width: 14),
                 Text('Rankings', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
                 const Spacer(),
                 if (_isAdmin)

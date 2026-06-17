@@ -25,5 +25,8 @@ public interface IAppDbContext
     DbSet<Notificacao> Notificacoes { get; }
     DbSet<RankingCustom> RankingsCustom { get; }
     DbSet<LancamentoPonto> LancamentosPonto { get; }
+    DbSet<AtestadoMedico> AtestadosMedicos { get; }
+    DbSet<Noticia> Noticias { get; }
+    DbSet<ParQ> ParQs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

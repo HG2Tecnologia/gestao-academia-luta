@@ -45,6 +45,9 @@ import 'screens/aluno/aluno_graduacoes_screen.dart';
 import 'screens/aluno/aluno_conquistas_screen.dart';
 import 'screens/alterar_senha_screen.dart';
 import 'screens/shared/qr_scan_screen.dart';
+import 'screens/noticias_screen.dart';
+import 'screens/admin/admin_noticias_screen.dart';
+import 'screens/aluno/aluno_parq_screen.dart';
 
 final routerKey = GlobalKey<NavigatorState>();
 
@@ -66,6 +69,9 @@ final _router = GoRouter(
     GoRoute(path: '/cadastrar', builder: (_, __) => const CadastroScreen()),
     GoRoute(path: '/esqueci-senha', builder: (_, __) => const EsqueciSenhaScreen()),
     GoRoute(path: '/scan-qr', builder: (_, __) => const QrScanScreen()),
+    GoRoute(path: '/noticias', builder: (_, __) => const NoticiasScreen()),
+    GoRoute(path: '/admin/noticias', builder: (_, __) => const AdminNoticiasScreen()),
+    GoRoute(path: '/aluno/parq', builder: (_, __) => const AlunoParQScreen()),
     GoRoute(
       path: '/admin/rankings',
       builder: (_, __) => const AdminRankingsScreen(),

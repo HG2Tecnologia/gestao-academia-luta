@@ -21,8 +21,12 @@ import { FaixaDto, GraduacaoDto, RegistrarGraduacaoRequest } from '../../../../c
 import { UsuarioResumoDto } from '../../../../core/models/usuario.model';
 import { ContratoDto, ContratoDetalheDto, ModeloContratoDto } from '../../../../core/models/contrato.model';
 import { NivelBadgeComponent } from '../../../../shared/components/nivel-badge/nivel-badge.component';
+import { AtestadoService } from '../../../../core/services/atestado.service';
+import { AtestadoMedicoComArquivoDto, AvaliarAtestadoRequest } from '../../../../core/models/atestado.model';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../../environments/environment';
 
-type Aba = 'info' | 'presencas' | 'financeiro' | 'ranking' | 'contratos';
+type Aba = 'info' | 'presencas' | 'financeiro' | 'ranking' | 'contratos' | 'atestado' | 'parq';
 
 @Component({
   selector: 'app-aluno-detalhe',
@@ -41,6 +45,8 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly usuarioService = inject(UsuarioService);
   private readonly contratoService = inject(ContratoService);
   private readonly modeloContratoService = inject(ModeloContratoService);
+  private readonly atestadoService = inject(AtestadoService);
+  private readonly http = inject(HttpClient);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -76,6 +82,22 @@ export class AlunoDetalheComponent implements OnInit {
   readonly contratoAvisoExistente = signal('');
   readonly modelos = signal<ModeloContratoDto[]>([]);
   readonly contratoModeloId = signal('');
+
+  // PAR-Q
+  readonly parq = signal<Record<string, unknown> | null>(null);
+  readonly carregandoParQ = signal(false);
+  readonly erroParQ = signal('');
+
+  // Atestado
+  readonly atestado = signal<AtestadoMedicoComArquivoDto | null>(null);
+  readonly carregandoAtestado = signal(false);
+  readonly erroAtestado = signal('');
+  readonly motivoRejeicao = signal('');
+  readonly uploadAtestadoBase64 = signal('');
+  readonly uploadAtestadoMime = signal('application/pdf');
+  readonly uploadAtestadoNome = signal('');
+  readonly uploadAtestadoValidade = signal('');
+  readonly salvandoAtestado = signal(false);
 
   // Graduation history
   readonly graduacoes = signal<GraduacaoDto[]>([]);
@@ -371,6 +393,128 @@ export class AlunoDetalheComponent implements OnInit {
       },
       error: err => { this.registrandoGrad.set(false); this.erroGrad.set(err.error?.mensagem ?? 'Erro ao registrar.'); },
     });
+  }
+
+  // ─── PAR-Q ───────────────────────────────────────────────────
+
+  carregarParQ(alunoId: string): void {
+    this.carregandoParQ.set(true);
+    this.erroParQ.set('');
+    this.http.get<{ sucesso: boolean; dados: Record<string, unknown> | null }>(`${environment.apiUrl}/api/parq/aluno/${alunoId}`).subscribe({
+      next: res => { this.parq.set(res.dados ?? null); this.carregandoParQ.set(false); },
+      error: () => { this.erroParQ.set('Erro ao carregar PAR-Q.'); this.carregandoParQ.set(false); },
+    });
+  }
+
+  parqPergunta(numero: number): string {
+    const p: Record<number, string> = {
+      1: 'Problema de coração/pressão com restrição médica',
+      2: 'Dores no peito ao praticar atividade física',
+      3: 'Dores no peito no último mês',
+      4: 'Desequilíbrio/tontura/perda de consciência',
+      5: 'Problema ósseo ou articular agravado por atividade física',
+      6: 'Medicação de uso contínuo',
+      7: 'Tratamento médico para pressão/problemas cardíacos',
+      8: 'Tratamento médico contínuo afetado por atividade física',
+      9: 'Cirurgia que comprometa atividade física',
+      10: 'Outra razão que pode comprometer a saúde',
+    };
+    return p[numero] ?? '';
+  }
+
+  parqResposta(numero: number): boolean {
+    return !!(this.parq() as Record<string, unknown>)?.[`r${numero}`];
+  }
+
+  // ─── Atestado ────────────────────────────────────────────────
+
+  carregarAtestado(alunoId: string): void {
+    this.carregandoAtestado.set(true);
+    this.erroAtestado.set('');
+    this.atestadoService.obterDoAluno(alunoId).subscribe({
+      next: res => { this.atestado.set(res.dados ?? null); this.carregandoAtestado.set(false); },
+      error: () => { this.erroAtestado.set('Erro ao carregar atestado.'); this.carregandoAtestado.set(false); },
+    });
+  }
+
+  avaliarAtestado(aprovado: boolean): void {
+    const a = this.atestado();
+    if (!a) return;
+    const req: AvaliarAtestadoRequest = { aprovado, motivoRejeicao: aprovado ? undefined : (this.motivoRejeicao() || undefined) };
+    this.salvandoAtestado.set(true);
+    this.atestadoService.avaliar(a.id, req).subscribe({
+      next: () => { this.salvandoAtestado.set(false); this.carregarAtestado(a.alunoId); this.toastService.success(aprovado ? 'Atestado aprovado!' : 'Atestado rejeitado.'); },
+      error: () => { this.salvandoAtestado.set(false); this.toastService.error('Erro ao avaliar atestado.'); },
+    });
+  }
+
+  onAtestadoFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { this.toastService.error('Arquivo muito grande (máx 5 MB).'); return; }
+    this.uploadAtestadoMime.set(file.type || 'application/pdf');
+    this.uploadAtestadoNome.set(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = (reader.result as string).split(',')[1] ?? '';
+      this.uploadAtestadoBase64.set(result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  uploadAtestadoAcademia(): void {
+    const alunoId = this.aluno()?.id;
+    if (!alunoId || !this.uploadAtestadoBase64()) return;
+    this.salvandoAtestado.set(true);
+    this.atestadoService.uploadPorAcademia({
+      alunoId,
+      arquivoBase64: this.uploadAtestadoBase64(),
+      arquivoMimeType: this.uploadAtestadoMime(),
+      arquivoNome: this.uploadAtestadoNome() || undefined,
+    }).subscribe({
+      next: () => {
+        this.salvandoAtestado.set(false);
+        this.uploadAtestadoBase64.set('');
+        this.uploadAtestadoNome.set('');
+        this.carregarAtestado(alunoId);
+        this.toastService.success('Atestado enviado!');
+      },
+      error: err => { this.salvandoAtestado.set(false); this.toastService.error(err.error?.mensagem ?? 'Erro ao enviar atestado.'); },
+    });
+  }
+
+  enviarLembreteAtestado(): void {
+    const alunoId = this.aluno()?.id;
+    if (!alunoId) return;
+    this.atestadoService.enviarLembrete(alunoId).subscribe({
+      next: () => this.toastService.success('Lembrete enviado!'),
+      error: () => this.toastService.error('Erro ao enviar lembrete.'),
+    });
+  }
+
+  atestadoStatusLabel(status: number): string {
+    const m: Record<number, string> = { 0: 'Pendente', 1: 'Aprovado', 2: 'Rejeitado', 3: 'Expirado' };
+    return m[status] ?? '—';
+  }
+
+  atestadoStatusClass(status: number): string {
+    const m: Record<number, string> = { 0: 'badge-pag-pendente', 1: 'badge-pag-pago', 2: 'badge-pag-atrasado', 3: 'badge-pag-cancelado' };
+    return m[status] ?? '';
+  }
+
+  abrirArquivoAtestado(): void {
+    const a = this.atestado();
+    if (!a?.arquivoBase64) return;
+    const blob = this.base64ToBlob(a.arquivoBase64, a.arquivoMimeType);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+
+  private base64ToBlob(b64: string, mime: string): Blob {
+    const byteChars = atob(b64);
+    const byteNums = Array.from(byteChars, c => c.charCodeAt(0));
+    return new Blob([new Uint8Array(byteNums)], { type: mime });
   }
 
   private recarregarAluno(): void {

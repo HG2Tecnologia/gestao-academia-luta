@@ -15,6 +15,7 @@ public class Academia : EntityBase
     public string? TemplateContrato { get; set; }
     public PlanoAcademia PlanoTipo { get; set; } = PlanoAcademia.Gratuito;
     public DateTime? PlanoExpiracao { get; set; }
+    public bool NoticiasAtivas { get; set; } = true;
 
     public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
     public ICollection<Modalidade> Modalidades { get; set; } = new List<Modalidade>();

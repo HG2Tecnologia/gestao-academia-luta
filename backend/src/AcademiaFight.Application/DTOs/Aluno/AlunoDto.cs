@@ -1,3 +1,5 @@
+using AcademiaFight.Domain.Enums;
+
 namespace AcademiaFight.Application.DTOs.Aluno;
 
 public class AlunoDto
@@ -27,6 +29,8 @@ public class AlunoDto
     public string Nivel { get; set; } = string.Empty;
     public DateTime CriadoEm { get; set; }
     public string? SituacaoFinanceira { get; set; } // "EmDia" | "Pendente" | "Inadimplente"
+    public StatusAtestado? StatusAtestado { get; set; }
+    public DateTime? AtestadoValidade { get; set; }
 }
 
 public class CreateAlunoDto

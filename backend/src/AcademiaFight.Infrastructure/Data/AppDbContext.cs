@@ -36,6 +36,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
     public DbSet<RankingCustom> RankingsCustom => Set<RankingCustom>();
     public DbSet<LancamentoPonto> LancamentosPonto => Set<LancamentoPonto>();
+    public DbSet<AtestadoMedico> AtestadosMedicos => Set<AtestadoMedico>();
+    public DbSet<Noticia> Noticias => Set<Noticia>();
+    public DbSet<ParQ> ParQs => Set<ParQ>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -108,6 +111,15 @@ public class AppDbContext : DbContext, IAppDbContext
 
         modelBuilder.Entity<LancamentoPonto>()
             .HasQueryFilter(l => l.AcademiaId == _tenantContext.AcademiaId);
+
+        modelBuilder.Entity<AtestadoMedico>()
+            .HasQueryFilter(a => a.AcademiaId == _tenantContext.AcademiaId);
+
+        modelBuilder.Entity<Noticia>()
+            .HasQueryFilter(n => n.AcademiaId == _tenantContext.AcademiaId);
+
+        modelBuilder.Entity<ParQ>()
+            .HasQueryFilter(p => p.AcademiaId == _tenantContext.AcademiaId);
 
         modelBuilder.Entity<Usuario>()
             .HasOne(u => u.Plano)

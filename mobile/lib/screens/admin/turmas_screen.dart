@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/paywall_modal.dart';
 
 class AdminTurmasScreen extends StatefulWidget {
@@ -89,9 +90,11 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                  const SizedBox(width: 14),
                   Text('Turmas', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                  const Spacer(),
                   IconButton(
                     onPressed: () => context.push('/admin/turmas/relatorio'),
                     icon: Icon(Icons.people_alt_rounded, color: kText2, size: 22),

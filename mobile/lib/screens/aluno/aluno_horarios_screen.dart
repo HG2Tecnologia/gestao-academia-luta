@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 
 class AlunoHorariosScreen extends StatefulWidget {
   const AlunoHorariosScreen({super.key});
@@ -88,9 +89,12 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
           children: [
             // ── Header ──────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
-              child: Text('Horários',
-                  style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
+              padding: const EdgeInsets.fromLTRB(16, 24, 20, 4),
+              child: Row(children: [
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                const SizedBox(width: 14),
+                Text('Horários', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
+              ]),
             ),
 
             // ── Day chips ───────────────────────────────

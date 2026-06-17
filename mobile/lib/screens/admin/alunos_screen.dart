@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunosScreen extends StatefulWidget {
@@ -84,7 +85,11 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-              child: Text('Alunos', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+              child: Row(children: [
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                const SizedBox(width: 14),
+                Text('Alunos', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+              ]),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -124,6 +129,10 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final a = _alunos[i];
                                   final ativo = a['ativo'] == true;
                                   final fin = a['situacaoFinanceira'] as String?;
+                                  final statusAtestado = a['statusAtestado'] as int?;
+                                  final atestadoValidade = a['atestadoValidade'] != null ? DateTime.tryParse(a['atestadoValidade']) : null;
+                                  final atestadoProblema = statusAtestado == null || statusAtestado == 2 || statusAtestado == 3
+                                      || (statusAtestado == 1 && atestadoValidade != null && atestadoValidade.isBefore(DateTime.now().add(const Duration(days: 7))));
                                   final faixaCor = a['faixaAtualCor'] as String?;
                                   final faixaCorBarra = a['faixaAtualCorBarra'] as String?;
                                   final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
@@ -200,6 +209,14 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                               if (fin != null) ...[
                                                 const SizedBox(height: 4),
                                                 Text(_formatFin(fin), style: TextStyle(color: _finCor(fin), fontSize: 12, fontWeight: FontWeight.w600)),
+                                              ],
+                                              if (atestadoProblema) ...[
+                                                const SizedBox(height: 4),
+                                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                                  Icon(Icons.medical_information_rounded, color: kWarning, size: 12),
+                                                  const SizedBox(width: 3),
+                                                  Text('Atestado', style: TextStyle(color: kWarning, fontSize: 11, fontWeight: FontWeight.w600)),
+                                                ]),
                                               ],
                                             ],
                                           ),

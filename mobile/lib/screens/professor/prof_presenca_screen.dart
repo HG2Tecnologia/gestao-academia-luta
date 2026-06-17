@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 
@@ -134,7 +135,9 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
               child: Row(children: [
-                if (_step > 0) ...[
+                if (_step == 0)
+                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26))
+                else
                   IconButton(
                     onPressed: () => setState(() {
                       _step = 0;
@@ -145,8 +148,7 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                  const SizedBox(width: 8),
-                ],
+                const SizedBox(width: 8),
                 Expanded(child: Text('Registrar Presença', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
                 IconButton(
                   onPressed: () async {

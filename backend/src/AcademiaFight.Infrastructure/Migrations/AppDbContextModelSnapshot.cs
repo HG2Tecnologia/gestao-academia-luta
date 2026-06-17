@@ -63,6 +63,9 @@ namespace AcademiaFight.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("nome");
 
+                    b.Property<bool>("NoticiasAtivas")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("PlanoExpiracao")
                         .HasColumnType("timestamp with time zone");
 
@@ -92,6 +95,87 @@ namespace AcademiaFight.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("academias", (string)null);
+                });
+
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.AtestadoMedico", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AcademiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("academia_id");
+
+                    b.Property<bool>("AlertaVencimentoEnviado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("alerta_vencimento_enviado");
+
+                    b.Property<Guid>("AlunoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aluno_id");
+
+                    b.Property<bool>("AnexadoPorAcademia")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("anexado_por_academia");
+
+                    b.Property<Guid?>("AnexadoPorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("anexado_por_id");
+
+                    b.Property<string>("ArquivoBase64")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("arquivo_base64");
+
+                    b.Property<string>("ArquivoMimeType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("arquivo_mime_type");
+
+                    b.Property<string>("ArquivoNome")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("arquivo_nome");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateTime>("DataUpload")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_upload");
+
+                    b.Property<DateTime>("DataValidade")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_validade");
+
+                    b.Property<string>("MotivoRejeicao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo_rejeicao");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcademiaId", "Status");
+
+                    b.HasIndex("AlunoId", "DataValidade");
+
+                    b.ToTable("atestados_medicos", (string)null);
                 });
 
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Conquista", b =>
@@ -753,6 +837,68 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.ToTable("ModelosContrato");
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.Noticia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AcademiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("academia_id");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid?>("AutorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("autor_id");
+
+                    b.Property<string>("Conteudo")
+                        .HasColumnType("text")
+                        .HasColumnName("conteudo");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<string>("ImagemBase64")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("imagem_base64");
+
+                    b.Property<bool>("Publicada")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("publicada");
+
+                    b.Property<DateTime?>("PublicadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("publicada_em");
+
+                    b.Property<string>("Resumo")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("resumo");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("titulo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AutorId");
+
+                    b.HasIndex("AcademiaId", "PublicadaEm");
+
+                    b.ToTable("noticias", (string)null);
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Notificacao", b =>
                 {
                     b.Property<Guid>("Id")
@@ -842,6 +988,95 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.HasIndex("AlunoId");
 
                     b.ToTable("Pagamentos");
+                });
+
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.ParQ", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AcademiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("academia_id");
+
+                    b.Property<Guid>("AlunoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aluno_id");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<string>("Cpf")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)")
+                        .HasColumnName("cpf");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateTime>("DataPreenchimento")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_preenchimento");
+
+                    b.Property<string>("NomeCompleto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("nome_completo");
+
+                    b.Property<bool>("R1")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r1");
+
+                    b.Property<bool>("R10")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r10");
+
+                    b.Property<bool>("R2")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r2");
+
+                    b.Property<bool>("R3")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r3");
+
+                    b.Property<bool>("R4")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r4");
+
+                    b.Property<bool>("R5")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r5");
+
+                    b.Property<bool>("R6")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r6");
+
+                    b.Property<bool>("R7")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r7");
+
+                    b.Property<bool>("R8")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r8");
+
+                    b.Property<bool>("R9")
+                        .HasColumnType("boolean")
+                        .HasColumnName("r9");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlunoId");
+
+                    b.HasIndex("AcademiaId", "AlunoId")
+                        .IsUnique();
+
+                    b.ToTable("par_qs", (string)null);
                 });
 
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Plano", b =>
@@ -1239,6 +1474,25 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.ToTable("usuarios", (string)null);
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.AtestadoMedico", b =>
+                {
+                    b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
+                        .WithMany()
+                        .HasForeignKey("AcademiaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AcademiaFight.Domain.Entities.Usuario", "Aluno")
+                        .WithMany()
+                        .HasForeignKey("AlunoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Academia");
+
+                    b.Navigation("Aluno");
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.ConquistaAluno", b =>
                 {
                     b.HasOne("AcademiaFight.Domain.Entities.Usuario", "Aluno")
@@ -1463,6 +1717,24 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.Navigation("Academia");
                 });
 
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.Noticia", b =>
+                {
+                    b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
+                        .WithMany()
+                        .HasForeignKey("AcademiaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AcademiaFight.Domain.Entities.Usuario", "Autor")
+                        .WithMany()
+                        .HasForeignKey("AutorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Academia");
+
+                    b.Navigation("Autor");
+                });
+
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Notificacao", b =>
                 {
                     b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
@@ -1475,6 +1747,25 @@ namespace AcademiaFight.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("AcademiaFight.Domain.Entities.Pagamento", b =>
+                {
+                    b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
+                        .WithMany()
+                        .HasForeignKey("AcademiaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AcademiaFight.Domain.Entities.Usuario", "Aluno")
+                        .WithMany()
+                        .HasForeignKey("AlunoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Academia");
+
+                    b.Navigation("Aluno");
+                });
+
+            modelBuilder.Entity("AcademiaFight.Domain.Entities.ParQ", b =>
                 {
                     b.HasOne("AcademiaFight.Domain.Entities.Academia", "Academia")
                         .WithMany()

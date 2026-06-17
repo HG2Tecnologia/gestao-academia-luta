@@ -18,12 +18,16 @@ public class ModalidadeService : IModalidadeService
         _logger = logger;
     }
 
-    public async Task<BaseResponse<IEnumerable<ModalidadeDto>>> ListarAsync(CancellationToken ct = default)
+    public async Task<BaseResponse<IEnumerable<ModalidadeDto>>> ListarAsync(bool? ativo = null, CancellationToken ct = default)
     {
         try
         {
-            var modalidades = await _db.Modalidades
-                .OrderBy(m => m.Nome)
+            var query = _db.Modalidades.AsQueryable();
+            if (ativo.HasValue) query = query.Where(m => m.Ativo == ativo.Value);
+
+            var modalidades = await query
+                .OrderBy(m => m.Ativo == false) // ativos primeiro
+                .ThenBy(m => m.Nome)
                 .Select(m => new ModalidadeDto
                 {
                     Id = m.Id,
@@ -41,6 +45,16 @@ public class ModalidadeService : IModalidadeService
             _logger.LogError(ex, "Erro ao listar modalidades");
             throw;
         }
+    }
+
+    public async Task<BaseResponse<ModalidadeDto>> ToggleAtivoAsync(Guid id, CancellationToken ct = default)
+    {
+        var modalidade = await _db.Modalidades.FirstOrDefaultAsync(m => m.Id == id, ct);
+        if (modalidade is null) return BaseResponse<ModalidadeDto>.Falha("Modalidade não encontrada.");
+
+        modalidade.Ativo = !modalidade.Ativo;
+        await _db.SaveChangesAsync(ct);
+        return BaseResponse<ModalidadeDto>.Ok(MapearDto(modalidade));
     }
 
     public async Task<BaseResponse<ModalidadeDto>> ObterPorIdAsync(Guid id, CancellationToken ct = default)
