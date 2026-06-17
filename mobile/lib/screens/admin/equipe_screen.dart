@@ -93,9 +93,9 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
               child: Row(children: [
-                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                const SizedBox(width: 14),
                 Text('Equipe', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
               ]),
             ),
             Expanded(

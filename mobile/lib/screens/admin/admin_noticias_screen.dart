@@ -230,7 +230,7 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
   final _resumoCtrl = TextEditingController();
   final _conteudoCtrl = TextEditingController();
   String? _imagemBase64;
-  bool _publicarAgora = false;
+  bool _publicarAgora = true;
   bool _salvando = false;
 
   bool get _editando => widget.noticia != null;

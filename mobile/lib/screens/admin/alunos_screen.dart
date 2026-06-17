@@ -86,9 +86,9 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Row(children: [
-                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                const SizedBox(width: 14),
                 Text('Alunos', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
               ]),
             ),
             Padding(

@@ -49,6 +49,16 @@ public class ParQController : ControllerBase
         return Ok(await _service.ObterDoAlunoAsync(alunoId, ct));
     }
 
+    // ── Gestor: preenche/atualiza PAR-Q de um aluno específico ───────────
+    [HttpPost("aluno/{alunoId:guid}")]
+    [Authorize(Roles = "Admin,Professor")]
+    public async Task<IActionResult> PreencherParaAluno(Guid alunoId, [FromBody] PreencherParQRequest request, CancellationToken ct)
+    {
+        var result = await _service.PreencherAsync(request, alunoId, ct);
+        if (!result.Sucesso) return BadRequest(result);
+        return Ok(result);
+    }
+
     // ── Gestor: lista todos os PAR-Qs da academia ──────────────────────────
     [HttpGet]
     [Authorize(Roles = "Admin,Professor")]

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/tab_refresh.dart';
@@ -93,6 +95,23 @@ class _AdminShellState extends State<AdminShell> {
                   ),
                 ],
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Column(children: [
+                const Divider(height: 16),
+                _DrawerItem(
+                  icon: Icons.logout_rounded,
+                  label: 'Sair',
+                  selected: false,
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    try { await dio.post('/api/auth/logout'); } catch (_) {}
+                    await AuthStorage.clear();
+                    if (context.mounted) context.go('/login');
+                  },
+                ),
+              ]),
             ),
           ],
         ),

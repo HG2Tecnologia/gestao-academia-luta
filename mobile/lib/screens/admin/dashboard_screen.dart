@@ -22,6 +22,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<Map<String, dynamic>> _frequencia = [];
   List<Map<String, dynamic>> _aniversariantes = [];
   List<Map<String, dynamic>> _proximosGraduacao = [];
+  List<Map<String, dynamic>> _noticias = [];
   StoredUser? _user;
   bool _loading = true;
   bool _erro = false;
@@ -89,6 +90,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         proximosGraduacao = ((proxRes.data['dados'] as List?) ?? []).cast<Map<String, dynamic>>();
       } catch (_) {}
 
+      List<Map<String, dynamic>> noticias = [];
+      try {
+        final notRes = await dio.get('/api/noticias', queryParameters: {'pagina': 1, 'tamanhoPagina': 5});
+        noticias = ((notRes.data['dados']?['items'] as List?) ?? []).cast<Map<String, dynamic>>();
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _user = user;
@@ -96,6 +103,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _frequencia = (freqBody['dados'] as List? ?? []).cast<Map<String, dynamic>>();
           _aniversariantes = aniversariantes;
           _proximosGraduacao = proximosGraduacao;
+          _noticias = noticias;
           _temModalidades = modalidadesList.isNotEmpty;
           _temPlanos = planosList.isNotEmpty;
           _temProfessores = professoresList.isNotEmpty;
@@ -153,6 +161,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildProximosGraduacao()),
               if (_frequencia.isNotEmpty)
                 SliverToBoxAdapter(child: _buildFrequenciaChart()),
+              if (_noticias.isNotEmpty)
+                SliverToBoxAdapter(child: _buildNoticias()),
               const SliverToBoxAdapter(child: AdBannerWidget()),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
@@ -271,12 +281,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
           child: Row(
             children: [
-              // Menu
-              GestureDetector(
-                onTap: openAppDrawer,
-                child: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
               // Avatar
               Container(
                 width: 46,
@@ -304,12 +308,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text('Visão geral da academia', style: TextStyle(color: kText2, fontSize: 12)),
                 ]),
               ),
-              // Actions
-              _HeaderIconButton(
-                icon: Icons.settings_rounded,
-                color: kText2,
-                onTap: () => context.push('/admin/dashboard/configuracoes'),
-                tooltip: 'Configurações',
+              // Menu
+              GestureDetector(
+                onTap: openAppDrawer,
+                child: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
               ),
             ],
           ),
@@ -724,6 +726,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ]),
                 ]),
               ),
+            );
+          }),
+        ]),
+      ),
+    );
+  }
+
+  // ─── NOTÍCIAS ─────────────────────────────────────────────────────────────────
+
+  Widget _buildNoticias() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kBorder.withOpacity(0.5)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.newspaper_rounded, color: kPrimary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Notícias', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700))),
+            GestureDetector(
+              onTap: () => context.push('/admin/noticias'),
+              child: Text('Gerenciar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ..._noticias.take(5).map((n) {
+            final titulo = n['titulo'] as String? ?? '';
+            final resumo = n['resumo'] as String? ?? '';
+            final publicada = n['publicada'] == true;
+            final publicadaEm = n['publicadaEm'] as String?;
+            String dataLabel = '';
+            if (publicadaEm != null) {
+              try {
+                final dt = DateTime.parse(publicadaEm).toLocal();
+                dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+              } catch (_) {}
+            }
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+              child: Row(children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: publicada ? kSuccess.withOpacity(0.12) : kWarning.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(publicada ? Icons.campaign_rounded : Icons.drafts_rounded,
+                    color: publicada ? kSuccess : kWarning, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (resumo.isNotEmpty)
+                    Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ])),
+                if (dataLabel.isNotEmpty)
+                  Text(dataLabel, style: TextStyle(color: kText2, fontSize: 11)),
+              ]),
             );
           }),
         ]),

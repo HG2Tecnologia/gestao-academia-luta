@@ -4,3 +4,6 @@ import 'package:flutter/foundation.dart';
 // é selecionada, permitindo que recarreguem dados ao ganhar foco.
 final alunoTabNotifier = ValueNotifier<int>(0);
 final adminTabNotifier = ValueNotifier<int>(0);
+
+// Ações disparadas pelo drawer do aluno para a tela de perfil
+final alunoDrawerActionNotifier = ValueNotifier<String>('');

@@ -438,18 +438,39 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                          const SizedBox(width: 14),
-                          Expanded(child: Text('Financeiro', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
                           Row(
                             children: [
-                              IconButton(
-                                onPressed: () => context.push('/admin/financeiro/relatorio'),
-                                icon: Icon(Icons.bar_chart_rounded, color: kText2, size: 22),
-                                tooltip: 'Relatório Anual',
+                              Text('Financeiro', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                              const Spacer(),
+                              GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => context.push('/admin/financeiro/relatorio'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: kSurface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: kBorder),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.bar_chart_rounded, color: kText2, size: 14),
+                                      const SizedBox(width: 5),
+                                      Text('Relatório', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               TextButton.icon(
                                 onPressed: _gerarCobrancas,
                                 icon: Icon(Icons.receipt_long_rounded, size: 16, color: kPrimary),

@@ -32,6 +32,24 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
   }
 
   Future<void> _toggle(Map<String, dynamic> m) async {
+    final ativo = m['ativo'] == true;
+    final acao = ativo ? 'inativar' : 'ativar';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('${ativo ? 'Inativar' : 'Ativar'} "${m['nome']}"?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text(ativo
+          ? 'Esta modalidade ficará oculta nas telas de turmas, faixas e criação de alunos.'
+          : 'Esta modalidade voltará a aparecer em todas as telas.',
+          style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(acao[0].toUpperCase() + acao.substring(1), style: TextStyle(color: ativo ? kWarning : kSuccess, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true) return;
     try {
       await dio.patch('/api/modalidades/${m['id']}/toggle-ativo');
       await _carregar();
@@ -208,19 +226,13 @@ class _ModalidadeCard extends StatelessWidget {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: onToggle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: ativo ? kSuccess.withValues(alpha: 0.12) : kBorder.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: ativo ? kSuccess.withValues(alpha: 0.4) : kBorder),
-              ),
-              child: Text(
-                ativo ? 'Ativa' : 'Inativa',
-                style: TextStyle(color: ativo ? kSuccess : kText2, fontSize: 12, fontWeight: FontWeight.w700),
-              ),
+          Transform.scale(
+            scale: 0.85,
+            child: Switch(
+              value: ativo,
+              onChanged: (_) => onToggle(),
+              activeColor: kSuccess,
+              trackOutlineColor: WidgetStatePropertyAll(kBorder),
             ),
           ),
           const SizedBox(width: 8),

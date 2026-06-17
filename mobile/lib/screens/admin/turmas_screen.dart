@@ -91,15 +91,29 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Row(
                 children: [
-                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                  const SizedBox(width: 14),
                   Text('Turmas', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
                   const Spacer(),
-                  IconButton(
-                    onPressed: () => context.push('/admin/turmas/relatorio'),
-                    icon: Icon(Icons.people_alt_rounded, color: kText2, size: 22),
-                    tooltip: 'Relatório de Presenças',
+                  GestureDetector(
+                    onTap: () => context.push('/admin/turmas/relatorio'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: kSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_alt_rounded, color: kText2, size: 14),
+                          const SizedBox(width: 5),
+                          Text('Presenças', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
                 ],
               ),
             ),
@@ -414,7 +428,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     decoration: _inputDecoration('Modalidade', Icons.sports_martial_arts_rounded),
                     dropdownColor: kSurface,
                     style: TextStyle(color: kText1, fontSize: 15),
-                    items: _modalidades.map((m) => DropdownMenuItem(
+                    items: (_editando ? _modalidades : _modalidades.where((m) => m['ativo'] == true).toList()).map((m) => DropdownMenuItem(
                       value: m['id']?.toString(),
                       child: Text(m['nome']?.toString() ?? '', style: TextStyle(color: kText1)),
                     )).toList(),
