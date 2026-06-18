@@ -158,8 +158,27 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     return _buildCard([
       Row(children: [
         Expanded(child: _sectionTitle('PAR-Q')),
+        if (p != null) ...[
+          GestureDetector(
+            onTap: () => _abrirParQForm(readOnly: true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: kSurface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: kBorder),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.visibility_rounded, size: 13, color: kText2),
+                const SizedBox(width: 4),
+                Text('Visualizar', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         GestureDetector(
-          onTap: () => _abrirParQForm(),
+          onTap: () => _abrirParQForm(readOnly: false),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -175,19 +194,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ),
         ),
       ]),
-      if (p == null) ...[
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: kWarning.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: kWarning.withOpacity(0.3))),
-          child: Row(children: [
-            Icon(Icons.warning_amber_rounded, color: kWarning, size: 16),
-            const SizedBox(width: 8),
-            Expanded(child: Text('PAR-Q não preenchido. Toque em "Preencher" para registrar.', style: TextStyle(color: kWarning, fontSize: 12))),
-          ]),
-        ),
-      ] else ...[
-        const SizedBox(height: 6),
+      const SizedBox(height: 6),
+      if (p == null)
+        Text('PAR-Q não preenchido.', style: TextStyle(color: kText2, fontSize: 13))
+      else
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
@@ -207,44 +217,24 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             ])),
           ]),
         ),
-        const SizedBox(height: 10),
-        _row('Nome', p['nomeCompleto']),
-        _row('CPF', p['cpf']),
-        const SizedBox(height: 8),
-        ...List.generate(_perguntas.length, (i) {
-          final resp = p['r${i + 1}'] as bool? ?? false;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                width: 20, height: 20,
-                decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(5)),
-                child: Center(child: Text('${i + 1}', style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w800))),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(_perguntas[i], style: TextStyle(color: kText2, fontSize: 11, height: 1.4))),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: resp ? kWarning.withOpacity(0.12) : kSuccess.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(resp ? 'Sim' : 'Não', style: TextStyle(color: resp ? kWarning : kSuccess, fontSize: 11, fontWeight: FontWeight.w700)),
-              ),
-            ]),
-          );
-        }),
-      ],
     ]);
   }
 
-  Future<void> _abrirParQForm() async {
+  Future<void> _abrirParQForm({bool readOnly = false}) async {
     final p = _parq;
     final respostas = List<bool>.generate(10, (i) => p?['r${i + 1}'] as bool? ?? false);
     final nomeCtrl = TextEditingController(text: p?['nomeCompleto'] as String? ?? (_aluno?['nome'] as String? ?? ''));
     final cpfCtrl = TextEditingController(text: p?['cpf'] as String? ?? '');
     bool salvando = false;
+
+    String titulo;
+    if (readOnly) {
+      titulo = 'PAR-Q';
+    } else if (p == null) {
+      titulo = 'Preencher PAR-Q';
+    } else {
+      titulo = 'Editar PAR-Q';
+    }
 
     await showModalBottomSheet(
       context: context,
@@ -262,106 +252,132 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Text(p == null ? 'Preencher PAR-Q' : 'Editar PAR-Q',
-                      style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                  Text(titulo, style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
                 ]),
                 Text(_aluno?['nome'] ?? '', style: TextStyle(color: kText2, fontSize: 13)),
                 const Divider(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: kPrimary.withOpacity(0.2))),
-                  child: Text('Responda "Sim" ou "Não" a cada pergunta. Preenchimento feito pela academia em nome do aluno.',
-                      style: TextStyle(color: kText2, fontSize: 12, height: 1.4)),
-                ),
-                const SizedBox(height: 16),
+                if (!readOnly) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: kPrimary.withOpacity(0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: kPrimary.withOpacity(0.2))),
+                    child: Text('Responda "Sim" ou "Não" a cada pergunta. Preenchimento feito pela academia em nome do aluno.',
+                        style: TextStyle(color: kText2, fontSize: 12, height: 1.4)),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text('QUESTIONÁRIO', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                 const SizedBox(height: 10),
                 ...List.generate(_perguntas.length, (i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: kBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: respostas[i] ? kWarning.withOpacity(0.4) : kBorder),
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Container(
-                          width: 22, height: 22,
-                          decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(5)),
-                          child: Center(child: Text('${i + 1}', style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
+                  child: readOnly
+                      ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Container(
+                            width: 22, height: 22,
+                            decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(5)),
+                            child: Center(child: Text('${i + 1}', style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(_perguntas[i], style: TextStyle(color: kText1, fontSize: 12, height: 1.4))),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: respostas[i] ? kWarning.withOpacity(0.12) : kSuccess.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(respostas[i] ? 'Sim' : 'Não',
+                                style: TextStyle(color: respostas[i] ? kWarning : kSuccess, fontSize: 11, fontWeight: FontWeight.w700)),
+                          ),
+                        ])
+                      : Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: kBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: respostas[i] ? kWarning.withOpacity(0.4) : kBorder),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Container(
+                                width: 22, height: 22,
+                                decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(5)),
+                                child: Center(child: Text('${i + 1}', style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(_perguntas[i], style: TextStyle(color: kText1, fontSize: 12, height: 1.4))),
+                            ]),
+                            const SizedBox(height: 10),
+                            Row(children: [
+                              _ParQOpcao(label: 'Não', selected: !respostas[i], cor: kSuccess,
+                                  onTap: () => setModal(() => respostas[i] = false)),
+                              const SizedBox(width: 8),
+                              _ParQOpcao(label: 'Sim', selected: respostas[i], cor: kWarning,
+                                  onTap: () => setModal(() => respostas[i] = true)),
+                            ]),
+                          ]),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(_perguntas[i], style: TextStyle(color: kText1, fontSize: 12, height: 1.4))),
-                      ]),
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        _ParQOpcao(label: 'Não', selected: !respostas[i], cor: kSuccess,
-                            onTap: () => setModal(() => respostas[i] = false)),
-                        const SizedBox(width: 8),
-                        _ParQOpcao(label: 'Sim', selected: respostas[i], cor: kWarning,
-                            onTap: () => setModal(() => respostas[i] = true)),
-                      ]),
-                    ]),
-                  ),
                 )),
                 const Divider(height: 24),
-                Text('TERMO DE RESPONSABILIDADE', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
-                  child: Text('Declaro que estou ciente de que é recomendável conversar com um médico, antes de iniciar ou aumentar o nível de atividade física pretendido, assumindo plena responsabilidade pela realização de qualquer atividade física sem o atendimento desta recomendação.',
-                      style: TextStyle(color: kText2, fontSize: 12, height: 1.5)),
-                ),
-                const SizedBox(height: 14),
-                _ParQCampo(ctrl: nomeCtrl, label: 'Nome completo *'),
-                const SizedBox(height: 10),
-                _ParQCampo(ctrl: cpfCtrl, label: 'CPF *', keyboard: TextInputType.number),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity, height: 50,
-                  child: ElevatedButton(
-                    onPressed: salvando ? null : () async {
-                      if (nomeCtrl.text.trim().isEmpty || cpfCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Preencha nome e CPF.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
-                        return;
-                      }
-                      setModal(() => salvando = true);
-                      try {
-                        await dio.post('/api/parq/aluno/${widget.alunoId}', data: {
-                          'r1': respostas[0], 'r2': respostas[1], 'r3': respostas[2],
-                          'r4': respostas[3], 'r5': respostas[4], 'r6': respostas[5],
-                          'r7': respostas[6], 'r8': respostas[7], 'r9': respostas[8],
-                          'r10': respostas[9],
-                          'nomeCompleto': nomeCtrl.text.trim(),
-                          'cpf': cpfCtrl.text.trim(),
-                        });
-                        if (ctx.mounted) Navigator.of(ctx).pop();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text('PAR-Q salvo com sucesso!'),
-                            backgroundColor: kSuccess,
-                            behavior: SnackBarBehavior.floating,
-                          ));
-                          _load();
-                        }
-                      } catch (_) {
-                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Erro ao salvar PAR-Q.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
-                      } finally {
-                        setModal(() => salvando = false);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: salvando
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(p == null ? 'Salvar PAR-Q' : 'Atualizar PAR-Q',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                if (readOnly) ...[
+                  _row('Nome', p?['nomeCompleto']),
+                  _row('CPF', p?['cpf']),
+                ] else ...[
+                  Text('TERMO DE RESPONSABILIDADE', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                    child: Text('Declaro que estou ciente de que é recomendável conversar com um médico, antes de iniciar ou aumentar o nível de atividade física pretendido, assumindo plena responsabilidade pela realização de qualquer atividade física sem o atendimento desta recomendação.',
+                        style: TextStyle(color: kText2, fontSize: 12, height: 1.5)),
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  _ParQCampo(ctrl: nomeCtrl, label: 'Nome completo *'),
+                  const SizedBox(height: 10),
+                  _ParQCampo(ctrl: cpfCtrl, label: 'CPF *', keyboard: TextInputType.number),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity, height: 50,
+                    child: ElevatedButton(
+                      onPressed: salvando ? null : () async {
+                        if (nomeCtrl.text.trim().isEmpty || cpfCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Preencha nome e CPF.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+                          return;
+                        }
+                        setModal(() => salvando = true);
+                        try {
+                          await dio.post('/api/parq/aluno/${widget.alunoId}', data: {
+                            'r1': respostas[0], 'r2': respostas[1], 'r3': respostas[2],
+                            'r4': respostas[3], 'r5': respostas[4], 'r6': respostas[5],
+                            'r7': respostas[6], 'r8': respostas[7], 'r9': respostas[8],
+                            'r10': respostas[9],
+                            'nomeCompleto': nomeCtrl.text.trim(),
+                            'cpf': cpfCtrl.text.trim(),
+                          });
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: const Text('PAR-Q salvo com sucesso!'),
+                              backgroundColor: kSuccess,
+                              behavior: SnackBarBehavior.floating,
+                            ));
+                            _load();
+                          }
+                        } catch (_) {
+                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Erro ao salvar PAR-Q.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+                        } finally {
+                          setModal(() => salvando = false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      child: salvando
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(p == null ? 'Salvar PAR-Q' : 'Atualizar PAR-Q',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
