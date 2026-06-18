@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/widgets.dart';
@@ -391,6 +393,47 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
   // ── Atestado Médico ──────────────────────────────────
 
+  Future<void> _visualizarAtestado() async {
+    final at = _atestado;
+    if (at == null) return;
+
+    final base64Str = at['arquivoBase64'] as String?;
+    final mime = at['arquivoMimeType'] as String? ?? 'application/pdf';
+
+    String? b64 = base64Str;
+    if (b64 == null || b64.isEmpty) {
+      try {
+        final res = await dio.get('/api/atestados/aluno/${widget.alunoId}');
+        final data = res.data['dados'] as Map<String, dynamic>?;
+        b64 = data?['arquivoBase64'] as String?;
+      } catch (_) {}
+    }
+
+    if (b64 == null || b64.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Arquivo não disponível.'), backgroundColor: kWarning, behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    try {
+      final bytes = base64Decode(b64);
+      final ext = mime.contains('pdf') ? 'pdf' : mime.contains('png') ? 'png' : 'jpg';
+      final tempFile = File('${Directory.systemTemp.path}/atestado_${widget.alunoId}.$ext');
+      await tempFile.writeAsBytes(bytes, flush: true);
+      final uri = Uri.file(tempFile.path);
+      if (!await launchUrl(uri)) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Não foi possível abrir o arquivo.'), backgroundColor: kWarning, behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erro ao abrir o arquivo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   Future<void> _avaliarAtestado(bool aprovado) async {
     if (_atestado == null) return;
     String? motivo;
@@ -518,6 +561,19 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       if (fmt != null) _row('Validade', fmt),
       if (at?['motivoRejeicao'] != null) _row('Motivo', at!['motivoRejeicao']),
       const SizedBox(height: 10),
+      if (at != null) ...[
+        OutlinedButton.icon(
+          onPressed: _visualizarAtestado,
+          icon: const Icon(Icons.visibility_rounded, size: 16),
+          label: const Text('Ver Atestado'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kPrimary,
+            side: BorderSide(color: kPrimary.withOpacity(0.4)),
+            minimumSize: const Size(double.infinity, 40),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
       if (status == 0) ...[
         Row(children: [
           Expanded(child: OutlinedButton.icon(
@@ -535,23 +591,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           )),
         ]),
       ],
-      Row(children: [
-        Expanded(child: OutlinedButton.icon(
-          onPressed: _uploadingAtestado ? null : _uploadAtestadoAcademia,
-          icon: _uploadingAtestado
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.upload_file_rounded, size: 16),
-          label: const Text('Anexar'),
-          style: OutlinedButton.styleFrom(foregroundColor: kPrimary, side: BorderSide(color: kPrimary.withOpacity(0.4))),
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: OutlinedButton.icon(
-          onPressed: _enviarLembrete,
-          icon: const Icon(Icons.notifications_outlined, size: 16),
-          label: const Text('Lembrar'),
-          style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder)),
-        )),
-      ]),
+      if (at == null) ...[
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(
+            onPressed: _uploadingAtestado ? null : _uploadAtestadoAcademia,
+            icon: _uploadingAtestado
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.upload_file_rounded, size: 16),
+            label: const Text('Anexar'),
+            style: OutlinedButton.styleFrom(foregroundColor: kPrimary, side: BorderSide(color: kPrimary.withOpacity(0.4))),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(
+            onPressed: _enviarLembrete,
+            icon: const Icon(Icons.notifications_outlined, size: 16),
+            label: const Text('Lembrar'),
+            style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder)),
+          )),
+        ]),
+      ],
     ]);
   }
 

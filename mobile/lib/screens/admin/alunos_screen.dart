@@ -131,7 +131,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final fin = a['situacaoFinanceira'] as String?;
                                   final statusAtestado = a['statusAtestado'] as int?;
                                   final atestadoValidade = a['atestadoValidade'] != null ? DateTime.tryParse(a['atestadoValidade']) : null;
-                                  final atestadoProblema = statusAtestado == null || statusAtestado == 2 || statusAtestado == 3
+                                  final atestadoProblema = statusAtestado == null || statusAtestado == 0 || statusAtestado == 2 || statusAtestado == 3
                                       || (statusAtestado == 1 && atestadoValidade != null && atestadoValidade.isBefore(DateTime.now().add(const Duration(days: 7))));
                                   final faixaCor = a['faixaAtualCor'] as String?;
                                   final faixaCorBarra = a['faixaAtualCorBarra'] as String?;
