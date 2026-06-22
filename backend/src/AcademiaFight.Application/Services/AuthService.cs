@@ -57,7 +57,7 @@ public class AuthService : IAuthService
                     (u.Email != null && u.Email.ToLower() == identificador ||
                      u.Telefone != null && (u.Telefone == identificador || u.Telefone == telefoneFormatado || u.Telefone == apenasDigitos)), ct);
 
-            if (usuario is null || !_passwordHasher.VerificarSenha(request.Senha, usuario.SenhaHash))
+            if (usuario is null || string.IsNullOrEmpty(usuario.SenhaHash) || !_passwordHasher.VerificarSenha(request.Senha, usuario.SenhaHash))
                 return BaseResponse<LoginResponse>.Falha("Credenciais inválidas.");
 
             var academia = await _db.Academias
