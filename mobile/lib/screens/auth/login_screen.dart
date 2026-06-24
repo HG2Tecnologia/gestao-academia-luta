@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
             e.type == DioExceptionType.connectionError;
         if (isConnErr && !isRetry) {
           if (mounted) setState(() => _erro = 'Conectando ao servidor...');
-          await Future.delayed(const Duration(seconds: 8));
+          await Future.delayed(const Duration(seconds: 4));
           if (mounted) await attempt(isRetry: true);
         } else {
           if (mounted) setState(() => _erro = e.response?.data?['mensagem'] ?? 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
