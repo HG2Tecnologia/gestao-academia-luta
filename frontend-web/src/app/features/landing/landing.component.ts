@@ -24,7 +24,7 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   private observer: IntersectionObserver | null = null;
 
   readonly tick = signal(0);
-  readonly pricingAnual = signal(false);
+  readonly billingPeriod = signal<'mensal' | 'trimestral' | 'anual'>('mensal');
   readonly menuAberto = signal(false);
   readonly roiStudents = signal(120);
   readonly roiFee = signal(220);
@@ -50,8 +50,59 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     { label: 'Sem turma', val: '7', delta: '−3' },
   ]);
 
-  readonly pricingPreco = computed(() => (this.pricingAnual() ? 119 : 149));
-  readonly pricingWas = computed(() => (this.pricingAnual() ? 149 : 199));
+  readonly chatOpen = signal(false);
+  readonly faqAberto = signal<number | null>(null);
+  toggleChat(): void { this.chatOpen.update(v => !v); }
+  toggleFaq(i: number): void { this.faqAberto.update(v => v === i ? null : i); }
+
+  readonly faqItems = [
+    {
+      q: 'Como funciona o período grátis?',
+      a: '30 dias com acesso completo ao plano Black Belt — sem cartão de crédito. Ao final, você assina pelo app ou continua no Grátis (até 20 alunos, sem app de aluno).',
+    },
+    {
+      q: 'Posso migrar minha planilha de alunos?',
+      a: 'Sim! Manda sua planilha e a gente importa tudo pra você sem custo, em até 4 horas.',
+    },
+    {
+      q: 'O app do aluno é incluso em todos os planos?',
+      a: 'O app do aluno é incluso no plano Black Belt. No Grátis, só o gestor e os professores têm acesso ao app — sem anúncios, sem limitações no sistema web.',
+    },
+    {
+      q: 'Funciona para qual modalidade?',
+      a: 'Qualquer uma. Jiu-Jitsu, Muay Thai, Boxe, MMA, Karatê, Judô, Taekwondo... feito para todas as artes marciais.',
+    },
+    {
+      q: 'Como funciona a cobrança automática?',
+      a: 'Você conecta sua conta Pix ou cartão, define o vencimento e pronto. O sistema cobra no dia, manda lembrete e segunda via automaticamente.',
+    },
+    {
+      q: 'Posso cancelar quando quiser?',
+      a: 'Sim. Cancele a qualquer momento direto no app, sem burocracia e sem taxa de cancelamento.',
+    },
+  ];
+
+  readonly blackBeltMensalEquiv = computed(() => {
+    switch (this.billingPeriod()) {
+      case 'trimestral': return '83,30';
+      case 'anual': return '66,66';
+      default: return '99,99';
+    }
+  });
+  readonly blackBeltTotalNote = computed(() => {
+    switch (this.billingPeriod()) {
+      case 'trimestral': return 'Cobrado R$ 249,90 trimestral · economia de 17%';
+      case 'anual': return 'Cobrado R$ 799,90 anual · economia de 33%';
+      default: return 'Assine pelo app · Cancele quando quiser';
+    }
+  });
+  readonly blackBeltSavings = computed(() => {
+    switch (this.billingPeriod()) {
+      case 'trimestral': return 'Economize R$ 50/trimestre vs mensal';
+      case 'anual': return 'Economize R$ 400/ano vs mensal';
+      default: return null;
+    }
+  });
 
   readonly roiResult = computed(() => {
     const students = this.roiStudents();
@@ -171,6 +222,22 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     'Grade de horários completa',
     'Gestão de faixas e graduações',
     'Alertas de inadimplência e churn',
+    'Suporte humano em português, 7 dias',
+  ];
+
+  readonly blackBeltFeatures = [
+    'Alunos ilimitados',
+    'Turmas ilimitadas',
+    'App do aluno (iOS e Android)',
+    'Cobrança automática (Pix + cartão)',
+    'Ranking gamificado por faixa',
+    'Dashboard financeiro completo',
+    'Contratos digitais com assinatura',
+    'Relatórios personalizados',
+    'Grade de horários completa',
+    'Gestão de faixas e graduações',
+    'Alertas de inadimplência e churn',
+    'Catraca integrada',
     'Suporte humano em português, 7 dias',
   ];
 
