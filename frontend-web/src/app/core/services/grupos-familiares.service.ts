@@ -40,7 +40,11 @@ export class GruposFamiliaresService {
   }
 
   adicionarMembro(grupoId: string, alunoId: string): Observable<BaseResponse<GrupoFamiliarDto>> {
-    return this.http.post<BaseResponse<GrupoFamiliarDto>>(`${this.api}/${grupoId}/membros`, { alunoId });
+    return this.http.post<BaseResponse<GrupoFamiliarDto>>(`${this.api}/${grupoId}/membros/${alunoId}`, {});
+  }
+
+  obterPorAluno(alunoId: string): Observable<BaseResponse<GrupoFamiliarDto | null>> {
+    return this.http.get<BaseResponse<GrupoFamiliarDto | null>>(`${this.api}/aluno/${alunoId}`);
   }
 
   removerMembro(grupoId: string, membroId: string): Observable<BaseResponse<void>> {

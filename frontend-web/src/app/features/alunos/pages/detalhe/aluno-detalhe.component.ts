@@ -23,6 +23,8 @@ import { ContratoDto, ContratoDetalheDto, ModeloContratoDto } from '../../../../
 import { NivelBadgeComponent } from '../../../../shared/components/nivel-badge/nivel-badge.component';
 import { AtestadoService } from '../../../../core/services/atestado.service';
 import { AtestadoMedicoComArquivoDto, AvaliarAtestadoRequest } from '../../../../core/models/atestado.model';
+import { GruposFamiliaresService, GrupoFamiliarDto, MembroDto } from '../../../../core/services/grupos-familiares.service';
+import { AlunoListaDto } from '../../../../core/models/aluno.model';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../environments/environment';
 
@@ -46,6 +48,7 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly contratoService = inject(ContratoService);
   private readonly modeloContratoService = inject(ModeloContratoService);
   private readonly atestadoService = inject(AtestadoService);
+  private readonly grupoFamiliarService = inject(GruposFamiliaresService);
   private readonly http = inject(HttpClient);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
@@ -115,6 +118,22 @@ export class AlunoDetalheComponent implements OnInit {
     return Array.from(map.values());
   });
 
+  // Grupo Familiar
+  readonly grupoFamiliar = signal<GrupoFamiliarDto | null>(null);
+  readonly carregandoGrupoFamiliar = signal(false);
+  readonly modalCriarGrupoAberto = signal(false);
+  readonly modalAssociarGrupoAberto = signal(false);
+  readonly modalAdicionarMembroGrupoAberto = signal(false);
+  readonly nomeGrupoModal = signal('');
+  readonly erroGrupoModal = signal('');
+  readonly salvandoGrupo = signal(false);
+  readonly listaGrupos = signal<GrupoFamiliarDto[]>([]);
+  readonly carregandoListaGrupos = signal(false);
+  readonly buscaAlunoGrupo = signal('');
+  readonly resultadosBuscaGrupo = signal<AlunoListaDto[]>([]);
+  readonly buscandoAlunoGrupo = signal(false);
+  private buscaGrupoTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Graduation modal (#7)
   readonly modalidades = signal<ModalidadeDto[]>([]);
   readonly professores = signal<UsuarioResumoDto[]>([]);
@@ -142,6 +161,7 @@ export class AlunoDetalheComponent implements OnInit {
           this.carregarPresencas(id);
           this.carregarPagamentos(id);
           this.carregarGraduacoes(id);
+          this.carregarGrupoFamiliar(id);
         }
       },
       error: () => { this.erro.set('Aluno não encontrado.'); this.carregando.set(false); },
@@ -520,6 +540,123 @@ export class AlunoDetalheComponent implements OnInit {
   private recarregarAluno(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.alunoService.getById(id).subscribe({ next: r => this.aluno.set(r.dados ?? null) });
+  }
+
+  // ─── Grupo Familiar ──────────────────────────────────────────
+
+  carregarGrupoFamiliar(alunoId: string): void {
+    this.carregandoGrupoFamiliar.set(true);
+    this.grupoFamiliarService.obterPorAluno(alunoId).subscribe({
+      next: res => { this.grupoFamiliar.set(res.dados ?? null); this.carregandoGrupoFamiliar.set(false); },
+      error: () => this.carregandoGrupoFamiliar.set(false),
+    });
+  }
+
+  abrirCriarGrupo(): void {
+    this.nomeGrupoModal.set('');
+    this.erroGrupoModal.set('');
+    this.modalCriarGrupoAberto.set(true);
+  }
+
+  confirmarCriarGrupo(): void {
+    if (!this.nomeGrupoModal().trim()) { this.erroGrupoModal.set('Nome é obrigatório.'); return; }
+    const alunoId = this.aluno()?.id;
+    if (!alunoId) return;
+    this.salvandoGrupo.set(true);
+    this.erroGrupoModal.set('');
+    this.grupoFamiliarService.criar(this.nomeGrupoModal().trim()).subscribe({
+      next: res => {
+        if (res.dados) {
+          this.grupoFamiliarService.adicionarMembro(res.dados.id, alunoId).subscribe({
+            next: () => { this.fecharModalGrupo(); this.carregarGrupoFamiliar(alunoId); this.salvandoGrupo.set(false); },
+            error: () => { this.erroGrupoModal.set('Grupo criado, mas erro ao vincular aluno.'); this.salvandoGrupo.set(false); },
+          });
+        }
+      },
+      error: () => { this.erroGrupoModal.set('Erro ao criar grupo.'); this.salvandoGrupo.set(false); },
+    });
+  }
+
+  abrirAssociarGrupo(): void {
+    this.erroGrupoModal.set('');
+    this.modalAssociarGrupoAberto.set(true);
+    this.carregandoListaGrupos.set(true);
+    this.grupoFamiliarService.listar().subscribe({
+      next: res => { this.listaGrupos.set(res.dados ?? []); this.carregandoListaGrupos.set(false); },
+      error: () => this.carregandoListaGrupos.set(false),
+    });
+  }
+
+  confirmarAssociarGrupo(grupoId: string): void {
+    const alunoId = this.aluno()?.id;
+    if (!alunoId) return;
+    this.salvandoGrupo.set(true);
+    this.erroGrupoModal.set('');
+    this.grupoFamiliarService.adicionarMembro(grupoId, alunoId).subscribe({
+      next: () => { this.fecharModalGrupo(); this.carregarGrupoFamiliar(alunoId); this.salvandoGrupo.set(false); },
+      error: () => { this.erroGrupoModal.set('Erro ao vincular ao grupo.'); this.salvandoGrupo.set(false); },
+    });
+  }
+
+  abrirAdicionarMembroGrupo(): void {
+    this.buscaAlunoGrupo.set('');
+    this.resultadosBuscaGrupo.set([]);
+    this.erroGrupoModal.set('');
+    this.modalAdicionarMembroGrupoAberto.set(true);
+  }
+
+  onBuscaAlunoGrupo(valor: string): void {
+    this.buscaAlunoGrupo.set(valor);
+    if (this.buscaGrupoTimer) clearTimeout(this.buscaGrupoTimer);
+    if (!valor.trim()) { this.resultadosBuscaGrupo.set([]); return; }
+    this.buscaGrupoTimer = setTimeout(() => {
+      this.buscandoAlunoGrupo.set(true);
+      this.alunoService.buscarPorNome(valor).subscribe({
+        next: res => { this.resultadosBuscaGrupo.set(res.dados?.itens ?? []); this.buscandoAlunoGrupo.set(false); },
+        error: () => this.buscandoAlunoGrupo.set(false),
+      });
+    }, 350);
+  }
+
+  confirmarAdicionarMembroGrupo(aluno: AlunoListaDto): void {
+    const grupo = this.grupoFamiliar();
+    if (!grupo) return;
+    this.salvandoGrupo.set(true);
+    this.grupoFamiliarService.adicionarMembro(grupo.id, aluno.id).subscribe({
+      next: () => {
+        this.fecharModalGrupo();
+        this.carregarGrupoFamiliar(this.aluno()!.id);
+        this.salvandoGrupo.set(false);
+      },
+      error: () => { this.erroGrupoModal.set('Erro ao adicionar membro.'); this.salvandoGrupo.set(false); },
+    });
+  }
+
+  sairDoGrupo(): void {
+    const grupo = this.grupoFamiliar();
+    const alunoId = this.aluno()?.id;
+    if (!grupo || !alunoId) return;
+    this.grupoFamiliarService.removerMembro(grupo.id, alunoId).subscribe({
+      next: () => { this.grupoFamiliar.set(null); },
+    });
+  }
+
+  removerMembroGrupo(membroId: string): void {
+    const grupo = this.grupoFamiliar();
+    if (!grupo) return;
+    this.grupoFamiliarService.removerMembro(grupo.id, membroId).subscribe({
+      next: () => this.carregarGrupoFamiliar(this.aluno()!.id),
+    });
+  }
+
+  fecharModalGrupo(): void {
+    this.modalCriarGrupoAberto.set(false);
+    this.modalAssociarGrupoAberto.set(false);
+    this.modalAdicionarMembroGrupoAberto.set(false);
+  }
+
+  iniciais(nome: string): string {
+    return nome.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
   }
 
   // ─── Utils ───────────────────────────────────────────────────

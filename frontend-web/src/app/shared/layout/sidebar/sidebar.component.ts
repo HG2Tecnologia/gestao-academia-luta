@@ -56,7 +56,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   readonly navItemsConfig: NavItem[] = [
     { label: 'Catraca',           rota: '/app/catraca',           icone: 'lock-open',        linkOptions: this.subsetMatch, permissao: 'Catraca' },
-    { label: 'Grupos Familiares', rota: '/app/grupos-familiares', icone: 'family',           linkOptions: this.subsetMatch, roles: ['Admin'] },
     { label: 'Modalidades',       rota: '/app/modalidades',       icone: 'shield-check',     linkOptions: this.subsetMatch, roles: ['Admin'] },
     { label: 'Funcionários',      rota: '/app/funcionarios',      icone: 'identification',   linkOptions: this.subsetMatch, roles: ['Admin'] },
     { label: 'Configurações',     rota: '/app/configuracoes',     icone: 'cog',              linkOptions: this.subsetMatch, permissao: 'Configurações' },

@@ -168,6 +168,150 @@
           </div>
         }
 
+        <!-- Grupo Familiar -->
+        <div class="secao-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <h3 class="secao-titulo" style="margin:0">Grupo Familiar</h3>
+            @if (carregandoGrupoFamiliar()) {
+              <span style="font-size:12px;color:var(--app-text-3)">Carregando...</span>
+            } @else if (grupoFamiliar()) {
+              <button class="btn-icon-sm-text" (click)="abrirAdicionarMembroGrupo()">+ Adicionar membro</button>
+            } @else {
+              <div style="display:flex;gap:8px;">
+                <button class="btn-icon-sm-text" (click)="abrirCriarGrupo()">+ Criar grupo</button>
+                <button class="btn-icon-sm-text" (click)="abrirAssociarGrupo()">Vincular existente</button>
+              </div>
+            }
+          </div>
+
+          @if (carregandoGrupoFamiliar()) {
+            <div class="skeleton-row" style="height:40px;border-radius:8px;"></div>
+          } @else if (grupoFamiliar()) {
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--app-bg);border-radius:10px;border:1px solid var(--app-border);margin-bottom:10px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#6366f1) 12%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="16" height="16" fill="none" stroke="var(--color-primary,#6366f1)" stroke-width="1.75" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:var(--app-text-1)">{{ grupoFamiliar()!.nome }}</div>
+                <div style="font-size:11px;color:var(--app-text-3)">{{ grupoFamiliar()!.membros.length }} membro{{ grupoFamiliar()!.membros.length !== 1 ? 's' : '' }}</div>
+              </div>
+              <button class="btn-icon-danger-sm" title="Sair do grupo" (click)="sairDoGrupo()">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              </button>
+            </div>
+            @for (m of grupoFamiliar()!.membros; track m.id) {
+              @if (m.id !== aluno()!.id) {
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#6366f1) 10%,transparent);color:var(--color-primary,#6366f1);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    {{ iniciais(m.nome) }}
+                  </div>
+                  <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ m.nome }}</div>
+                    @if (m.email) { <div style="font-size:11px;color:var(--app-text-3)">{{ m.email }}</div> }
+                  </div>
+                  <button class="btn-icon-danger-sm" title="Remover do grupo" (click)="removerMembroGrupo(m.id)">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              }
+            }
+          } @else {
+            <p style="font-size:13px;color:var(--app-text-3);margin:0;font-style:italic;">Este aluno não está em nenhum grupo familiar.</p>
+          }
+        </div>
+
+      </div>
+    }
+
+    <!-- Modal: criar grupo familiar -->
+    @if (modalCriarGrupoAberto()) {
+      <div class="modal-overlay" (click)="fecharModalGrupo()">
+        <div class="modal-box" (click)="$event.stopPropagation()">
+          <h2 class="modal-title">Criar Grupo Familiar</h2>
+          <p class="modal-desc">Um novo grupo será criado e <strong>{{ aluno()!.nome }}</strong> será adicionado automaticamente.</p>
+          <div class="form-group">
+            <label class="form-label">Nome do grupo</label>
+            <input class="form-input" [ngModel]="nomeGrupoModal()" (ngModelChange)="nomeGrupoModal.set($event)"
+                   placeholder="Ex: Família Silva" autofocus (keyup.enter)="confirmarCriarGrupo()" />
+          </div>
+          @if (erroGrupoModal()) { <p style="color:var(--app-danger,#ef4444);font-size:13px;margin-top:8px">{{ erroGrupoModal() }}</p> }
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="fecharModalGrupo()">Cancelar</button>
+            <button class="btn-primary" (click)="confirmarCriarGrupo()" [disabled]="salvandoGrupo()">
+              {{ salvandoGrupo() ? 'Criando...' : 'Criar e vincular' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Modal: associar a grupo existente -->
+    @if (modalAssociarGrupoAberto()) {
+      <div class="modal-overlay" (click)="fecharModalGrupo()">
+        <div class="modal-box" (click)="$event.stopPropagation()">
+          <h2 class="modal-title">Vincular a Grupo Existente</h2>
+          <p class="modal-desc">Selecione o grupo ao qual <strong>{{ aluno()!.nome }}</strong> será adicionado.</p>
+          @if (carregandoListaGrupos()) {
+            <p style="font-size:13px;color:var(--app-text-3);text-align:center">Carregando grupos...</p>
+          } @else if (listaGrupos().length === 0) {
+            <p style="font-size:13px;color:var(--app-text-3);text-align:center">Nenhum grupo cadastrado ainda.</p>
+          } @else {
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+              @for (g of listaGrupos(); track g.id) {
+                <button style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--app-border);background:var(--app-bg);cursor:pointer;text-align:left;transition:background .1s;"
+                        (click)="confirmarAssociarGrupo(g.id)" [disabled]="salvandoGrupo()">
+                  <div style="flex:1">
+                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ g.nome }}</div>
+                    <div style="font-size:11px;color:var(--app-text-3)">{{ g.membros.length }} membro{{ g.membros.length !== 1 ? 's' : '' }}</div>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="var(--app-text-3)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              }
+            </div>
+          }
+          @if (erroGrupoModal()) { <p style="color:var(--app-danger,#ef4444);font-size:13px;margin-top:8px">{{ erroGrupoModal() }}</p> }
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="fecharModalGrupo()">Fechar</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Modal: adicionar membro ao grupo -->
+    @if (modalAdicionarMembroGrupoAberto()) {
+      <div class="modal-overlay" (click)="fecharModalGrupo()">
+        <div class="modal-box" (click)="$event.stopPropagation()">
+          <h2 class="modal-title">Adicionar Membro ao Grupo</h2>
+          <p class="modal-desc">Busque um aluno para adicionar ao grupo <strong>{{ grupoFamiliar()?.nome }}</strong>.</p>
+          <div class="form-group">
+            <input class="form-input" [ngModel]="buscaAlunoGrupo()" (ngModelChange)="onBuscaAlunoGrupo($event)"
+                   placeholder="Nome do aluno..." autofocus />
+          </div>
+          @if (buscandoAlunoGrupo()) {
+            <p style="font-size:13px;color:var(--app-text-3);text-align:center">Buscando...</p>
+          } @else if (resultadosBuscaGrupo().length > 0) {
+            <div style="border:1px solid var(--app-border);border-radius:8px;overflow:hidden;margin-top:4px;">
+              @for (a of resultadosBuscaGrupo(); track a.id) {
+                <button style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:transparent;border:none;border-bottom:1px solid var(--app-border);cursor:pointer;text-align:left;transition:background .1s;"
+                        (click)="confirmarAdicionarMembroGrupo(a)" [disabled]="salvandoGrupo()">
+                  <div style="width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#6366f1) 10%,transparent);color:var(--color-primary,#6366f1);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    {{ iniciais(a.nome) }}
+                  </div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ a.nome }}</div>
+                    @if (a.email) { <div style="font-size:11px;color:var(--app-text-3)">{{ a.email }}</div> }
+                  </div>
+                </button>
+              }
+            </div>
+          } @else if (buscaAlunoGrupo().trim()) {
+            <p style="font-size:13px;color:var(--app-text-3);text-align:center">Nenhum aluno encontrado.</p>
+          }
+          @if (erroGrupoModal()) { <p style="color:var(--app-danger,#ef4444);font-size:13px;margin-top:8px">{{ erroGrupoModal() }}</p> }
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="fecharModalGrupo()">Fechar</button>
+          </div>
+        </div>
       </div>
     }
 
@@ -782,4 +926,17 @@
 
   /* Success alert */
   .alert-success { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); color:#16a34a; padding:10px 14px; border-radius:8px; font-size:13px; }
+
+  /* Grupo familiar inline buttons */
+  .btn-icon-sm-text { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; border:1px solid var(--app-border); background:transparent; color:var(--color-primary,#6366f1); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .btn-icon-sm-text:hover { background:color-mix(in srgb,var(--color-primary,#6366f1) 8%,transparent); border-color:color-mix(in srgb,var(--color-primary,#6366f1) 40%,transparent); }
+  .btn-icon-danger-sm { width:26px; height:26px; border-radius:6px; border:none; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--app-text-3); transition:all .15s; flex-shrink:0; }
+  .btn-icon-danger-sm:hover { background:rgba(239,68,68,0.1); color:#ef4444; }
+
+  /* Modal overlay (reutilizado nos modais de grupo) */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal-box { background:var(--app-surface); border-radius:14px; padding:24px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  .modal-title { font-size:17px; font-weight:800; color:var(--app-text-1); margin:0 0 16px; }
+  .modal-desc { font-size:14px; color:var(--app-text-2); margin:0 0 16px; }
+  .modal-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
 </style>
