@@ -41,7 +41,7 @@ class _ProfessorShellState extends State<ProfessorShell> {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [const Color(0xFF0F3460), const Color(0xFF0F172A)],
+                  colors: [const Color(0xFF161616), const Color(0xFF0A0A0A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -50,7 +50,7 @@ class _ProfessorShellState extends State<ProfessorShell> {
                 Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F3460),
+                    color: const Color(0xFF161616),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.blue.withOpacity(0.4)),
                   ),

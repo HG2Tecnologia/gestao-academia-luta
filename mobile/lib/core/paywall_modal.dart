@@ -53,7 +53,7 @@ const _planos = [
     precoTotalFallback: 'R\$249,90 a cada 3 meses',
     desconto: '17% OFF',
     topLabel: 'MAIS POPULAR',
-    topLabelColor: Color(0xFF6366F1),
+    topLabelColor: Color(0xFFC9A020),
     destaque: true,
   ),
   _PlanMeta(

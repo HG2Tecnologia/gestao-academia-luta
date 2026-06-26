@@ -167,9 +167,9 @@ class _SemAtestadoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+        color: const Color(0xFFC9A020).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+        border: Border.all(color: const Color(0xFFC9A020).withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

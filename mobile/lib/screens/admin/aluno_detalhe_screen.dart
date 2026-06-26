@@ -157,6 +157,224 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     'Sabe de alguma outra razão pela qual a atividade física possa eventualmente comprometer sua saúde?',
   ];
 
+  Future<void> _criarGrupoFamiliar() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Criar Grupo Familiar', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('O aluno será adicionado automaticamente ao grupo.', style: TextStyle(color: kText2, fontSize: 13)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            style: TextStyle(color: kText1),
+            decoration: InputDecoration(
+              hintText: 'Ex: Família Silva',
+              hintStyle: TextStyle(color: kText2),
+              filled: true, fillColor: kBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kPrimary)),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Criar', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true || ctrl.text.trim().isEmpty) return;
+    try {
+      final res = await dio.post('/api/grupos-familiares', data: {'nome': ctrl.text.trim()});
+      final novoGrupo = res.data['dados'] as Map<String, dynamic>;
+      await dio.post('/api/grupos-familiares/${novoGrupo['id']}/membros/${widget.alunoId}', data: {});
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao criar grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _vincularGrupoExistente() async {
+    List<Map<String, dynamic>> grupos = [];
+    try {
+      final res = await dio.get('/api/grupos-familiares');
+      grupos = (res.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+    } catch (_) {}
+    if (!mounted) return;
+    if (grupos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nenhum grupo cadastrado ainda.'), behavior: SnackBarBehavior.floating));
+      return;
+    }
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 12, bottom: 16), decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text('Selecionar Grupo', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700))),
+        const SizedBox(height: 8),
+        Flexible(
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: grupos.length,
+            itemBuilder: (_, i) {
+              final g = grupos[i];
+              final qtd = (g['membros'] as List? ?? []).length;
+              return ListTile(
+                leading: Icon(Icons.family_restroom_rounded, color: kPrimary),
+                title: Text(g['nome'] as String? ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w600)),
+                subtitle: Text('$qtd membro${qtd != 1 ? 's' : ''}', style: TextStyle(color: kText2, fontSize: 12)),
+                onTap: () => Navigator.of(ctx).pop(g),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+      ]),
+    );
+    if (selected == null) return;
+    try {
+      await dio.post('/api/grupos-familiares/${selected['id']}/membros/${widget.alunoId}', data: {});
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao vincular grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _adicionarMembroAoGrupo() async {
+    final grupo = _grupoFamiliar;
+    if (grupo == null) return;
+    List<Map<String, dynamic>> alunos = [];
+    try {
+      final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 1000});
+      final dados = res.data['dados'];
+      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
+      final membrosIds = (grupo['membros'] as List? ?? []).map((m) => m['id']?.toString()).toSet();
+      alunos = list.cast<Map<String, dynamic>>()
+          .where((a) => a['id']?.toString() != widget.alunoId && !membrosIds.contains(a['id']?.toString()))
+          .toList();
+    } catch (_) {}
+    if (!mounted) return;
+    String busca = '';
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setS) {
+        final filtrados = busca.isEmpty ? alunos : alunos.where((a) => (a['nome'] as String? ?? '').toLowerCase().contains(busca.toLowerCase())).toList();
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          builder: (_, sc) => Column(children: [
+            Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 12, bottom: 16), decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text('Adicionar Membro', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                autofocus: true,
+                style: TextStyle(color: kText1, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Buscar aluno...',
+                  hintStyle: TextStyle(color: kText2),
+                  filled: true, fillColor: kBg,
+                  prefixIcon: Icon(Icons.search_rounded, color: kText2, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kPrimary)),
+                ),
+                onChanged: (v) => setS(() => busca = v),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: filtrados.isEmpty
+                  ? Center(child: Text('Nenhum aluno encontrado.', style: TextStyle(color: kText2)))
+                  : ListView.builder(
+                      controller: sc,
+                      itemCount: filtrados.length,
+                      itemBuilder: (_, i) {
+                        final a = filtrados[i];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: kPrimary.withOpacity(0.15),
+                            child: Text((a['nome'] as String? ?? 'A').substring(0, 1).toUpperCase(), style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ),
+                          title: Text(a['nome'] as String? ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w500, fontSize: 14)),
+                          onTap: () => Navigator.of(ctx2).pop(a),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+          ]),
+        );
+      }),
+    );
+    if (selected == null) return;
+    try {
+      await dio.post('/api/grupos-familiares/${grupo['id']}/membros/${selected['id']}', data: {});
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao adicionar membro.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _removerMembroDoGrupo(String membroId, String membroNome) async {
+    final grupo = _grupoFamiliar;
+    if (grupo == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Remover membro', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Text('Remover $membroNome do grupo?', style: TextStyle(color: kText2, fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await dio.delete('/api/grupos-familiares/${grupo['id']}/membros/$membroId');
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao remover membro.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _sairDoGrupoFamiliar() async {
+    final grupo = _grupoFamiliar;
+    if (grupo == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Sair do grupo', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Text('Remover este aluno do grupo "${grupo['nome']}"?', style: TextStyle(color: kText2, fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await dio.delete('/api/grupos-familiares/${grupo['id']}/membros/${widget.alunoId}');
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao sair do grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
   Widget _buildGrupoFamiliarCard() {
     final grupo = _grupoFamiliar;
     final membros = (grupo?['membros'] as List? ?? []).cast<Map<String, dynamic>>()
@@ -166,39 +384,92 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     return _buildCard([
       Row(children: [
         Expanded(child: _sectionTitle('Grupo Familiar')),
-        GestureDetector(
-          onTap: () => context.push('/admin/grupos-familiares'),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(8), border: Border.all(color: kBorder)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.settings_rounded, size: 13, color: kText2),
-              const SizedBox(width: 4),
-              Text('Gerenciar', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700)),
-            ]),
+        if (grupo != null) ...[
+          GestureDetector(
+            onTap: _adicionarMembroAoGrupo,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: kPrimary.withOpacity(0.3))),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.person_add_rounded, size: 13, color: kPrimary),
+                const SizedBox(width: 4),
+                Text('Adicionar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _sairDoGrupoFamiliar,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: kDanger.withOpacity(0.08), borderRadius: BorderRadius.circular(8), border: Border.all(color: kDanger.withOpacity(0.25))),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.logout_rounded, size: 13, color: kDanger),
+                const SizedBox(width: 4),
+                Text('Sair', style: TextStyle(color: kDanger, fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ],
       ]),
+      const SizedBox(height: 8),
       if (grupo == null) ...[
-        const SizedBox(height: 8),
         Text('Não vinculado a nenhum grupo familiar.', style: TextStyle(color: kText2, fontSize: 13)),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _criarGrupoFamiliar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: kPrimary.withOpacity(0.3))),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.add_rounded, size: 15, color: kPrimary),
+                  const SizedBox(width: 6),
+                  Text('Criar grupo', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: _vincularGrupoExistente,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(8), border: Border.all(color: kBorder)),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.link_rounded, size: 15, color: kText2),
+                  const SizedBox(width: 6),
+                  Text('Vincular existente', style: TextStyle(color: kText2, fontSize: 13, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+          ),
+        ]),
       ] else ...[
-        const SizedBox(height: 6),
         Row(children: [
           Icon(Icons.family_restroom_rounded, color: kPrimary, size: 16),
           const SizedBox(width: 6),
           Text(grupo['nome'] as String? ?? '', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
         ]),
         if (membros.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ...membros.map((m) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(children: [
               Icon(Icons.person_outline_rounded, color: kText2, size: 14),
               const SizedBox(width: 6),
-              Text(m['nome'] as String? ?? '', style: TextStyle(color: kText2, fontSize: 12)),
+              Expanded(child: Text(m['nome'] as String? ?? '', style: TextStyle(color: kText2, fontSize: 12))),
+              GestureDetector(
+                onTap: () => _removerMembroDoGrupo(m['id']?.toString() ?? '', m['nome'] as String? ?? ''),
+                child: Icon(Icons.close_rounded, size: 16, color: kDanger.withOpacity(0.7)),
+              ),
             ]),
           )),
+        ] else ...[
+          const SizedBox(height: 6),
+          Text('Nenhum outro membro no grupo.', style: TextStyle(color: kText2, fontSize: 12, fontStyle: FontStyle.italic)),
         ],
       ],
     ]);

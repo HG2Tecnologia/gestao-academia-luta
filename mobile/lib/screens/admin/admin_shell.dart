@@ -43,7 +43,7 @@ class _AdminShellState extends State<AdminShell> {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1A0F3C), Color(0xFF0F172A)],
+                  colors: [Color(0xFF1A1200), Color(0xFF0A0A0A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -52,7 +52,7 @@ class _AdminShellState extends State<AdminShell> {
                 Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                    gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 22),
@@ -82,15 +82,6 @@ class _AdminShellState extends State<AdminShell> {
                     onTap: () {
                       Navigator.of(context).pop();
                       context.push('/admin/noticias');
-                    },
-                  ),
-                  _DrawerItem(
-                    icon: Icons.family_restroom_rounded,
-                    label: 'Grupos Familiares',
-                    selected: false,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/admin/grupos-familiares');
                     },
                   ),
                   _DrawerItem(

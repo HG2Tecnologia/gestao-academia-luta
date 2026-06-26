@@ -135,7 +135,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.newspaper_rounded, color: const Color(0xFF8B5CF6), size: 20),
+                          Icon(Icons.newspaper_rounded, color: const Color(0xFFC9A020), size: 20),
                           const SizedBox(width: 12),
                           Expanded(child: Text('Notícias da Academia', style: TextStyle(color: kText1, fontWeight: FontWeight.w600))),
                           Icon(Icons.chevron_right, color: kText2, size: 18),

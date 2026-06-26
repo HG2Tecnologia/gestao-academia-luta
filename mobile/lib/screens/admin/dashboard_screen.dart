@@ -196,7 +196,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF1A0F3C), kPrimary.withOpacity(0.35)],
+                colors: [const Color(0xFF1A1200), kPrimary.withOpacity(0.35)],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
@@ -247,7 +247,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text('Assinar PRO', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
@@ -272,7 +272,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A0F3C), Color(0xFF0F172A)],
+          colors: [Color(0xFF1A1200), Color(0xFF0A0A0A)],
         ),
       ),
       child: SafeArea(
@@ -287,7 +287,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 height: 46,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [kPrimary, const Color(0xFF9B6DFF)],
+                    colors: [kPrimary, const Color(0xFF0A0A0A)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -494,7 +494,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                  gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 20),

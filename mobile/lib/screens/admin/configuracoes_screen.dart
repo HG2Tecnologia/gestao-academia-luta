@@ -370,10 +370,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                                 Container(
                                   width: 38, height: 38,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                                    color: const Color(0xFFC9A020).withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.newspaper_rounded, color: Color(0xFF8B5CF6), size: 20),
+                                  child: const Icon(Icons.newspaper_rounded, color: Color(0xFFC9A020), size: 20),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -693,7 +693,7 @@ class _PlanStatusTile extends StatelessWidget {
         border: Border.all(color: borderColor.withOpacity(0.5)),
         gradient: isPro
             ? LinearGradient(
-                colors: [const Color(0xFF1A0F3C), kSurface],
+                colors: [const Color(0xFF1A1200), kSurface],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -730,7 +730,7 @@ class _PlanStatusTile extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF9B6DFF)]),
+                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text('Assinar PRO',

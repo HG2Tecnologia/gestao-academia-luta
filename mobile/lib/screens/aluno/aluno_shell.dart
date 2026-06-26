@@ -97,7 +97,7 @@ class _AlunoShellState extends State<AlunoShell> {
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [kPrimary.withOpacity(0.4), const Color(0xFF0F172A)],
+                  colors: [kPrimary.withOpacity(0.4), const Color(0xFF0A0A0A)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
               ),
