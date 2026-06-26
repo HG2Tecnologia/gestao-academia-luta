@@ -27,6 +27,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _grupoFamiliar;
   List<Map<String, dynamic>> _contratos = [];
   List<Map<String, dynamic>> _noticias = [];
+  List<Map<String, dynamic>> _presencasRecentes = [];
   bool _loading = true;
 
   @override
@@ -110,6 +111,18 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         final lista = ((nr.data['dados']?['items'] as List?) ?? []).cast<Map<String, dynamic>>();
         if (mounted) setState(() => _noticias = lista);
       } catch (_) {}
+
+      if (dados != null) {
+        try {
+          final alunoId = dados['id']?.toString() ?? '';
+          final ate = DateTime.now();
+          final de = ate.subtract(const Duration(days: 6));
+          final fmt = (DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+          final pr = await dio.get('/api/presencas', queryParameters: {'alunoId': alunoId, 'de': fmt(de), 'ate': fmt(ate)});
+          final lista = (pr.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+          if (mounted) setState(() => _presencasRecentes = lista);
+        } catch (_) {}
+      }
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -340,6 +353,69 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     return 'Atestado vencendo em breve';
   }
 
+  Widget _buildSemanaWidget() {
+    final hoje = DateTime.now();
+    final dias = List.generate(7, (i) => hoje.subtract(Duration(days: 6 - i)));
+    final fmt = (DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+    final diasPresenca = _presencasRecentes.map((p) => (p['data']?.toString() ?? '').substring(0, 10)).toSet();
+    const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    final total = diasPresenca.length;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('FREQUÊNCIA — 7 DIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+            const Spacer(),
+            Text('$total ${total == 1 ? 'presença' : 'presenças'}', style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final dia = dias[i];
+              final presente = diasPresenca.contains(fmt(dia));
+              final ehHoje = i == 6;
+              final nomeIdx = (dia.weekday - 1) % 7;
+              return Column(children: [
+                Text(nomes[nomeIdx], style: TextStyle(
+                  color: ehHoje ? kText1 : kText2,
+                  fontSize: 10, fontWeight: FontWeight.w600,
+                )),
+                const SizedBox(height: 6),
+                Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: presente ? kPrimary : (ehHoje ? kPrimary.withOpacity(0.08) : kBg),
+                    border: Border.all(
+                      color: presente ? kPrimary : (ehHoje ? kPrimary.withOpacity(0.3) : kBorder),
+                      width: ehHoje ? 1.5 : 1,
+                    ),
+                  ),
+                  child: presente
+                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                      : Center(child: Text('${dia.day}', style: TextStyle(
+                          color: ehHoje ? kPrimary : kText2,
+                          fontSize: 11, fontWeight: ehHoje ? FontWeight.w800 : FontWeight.w500,
+                        ))),
+                ),
+              ]);
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -509,6 +585,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ],
             ),
           ),
+
+          // ── Frequência semanal ──
+          SliverToBoxAdapter(child: _buildSemanaWidget()),
 
           // ── Situação financeira ──
           if (fin == 'Inadimplente' || fin == 'Pendente')
@@ -772,7 +851,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
           ],
 
-          // ── Notícias ──
+          // ── Notícias (carrossel horizontal) ──
           if (_noticias.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
@@ -786,49 +865,60 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                 ]),
               ),
             ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
-                  final n = _noticias[i];
-                  final titulo = n['titulo'] as String? ?? '';
-                  final resumo = n['resumo'] as String? ?? '';
-                  final publicadaEm = n['publicadaEm'] as String?;
-                  String dataLabel = '';
-                  if (publicadaEm != null) {
-                    try {
-                      final dt = DateTime.parse(publicadaEm).toLocal();
-                      dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-                    } catch (_) {}
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: kSurface, borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: kBorder),
-                      ),
-                      child: Row(children: [
-                        Container(
-                          width: 36, height: 36,
-                          decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                          child: Icon(Icons.campaign_rounded, color: kPrimary, size: 18),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _noticias.length,
+                  itemBuilder: (_, i) {
+                    final n = _noticias[i];
+                    final titulo = n['titulo'] as String? ?? '';
+                    final resumo = n['resumo'] as String? ?? '';
+                    final publicadaEm = n['publicadaEm'] as String?;
+                    String dataLabel = '';
+                    if (publicadaEm != null) {
+                      try {
+                        final dt = DateTime.parse(publicadaEm).toLocal();
+                        dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+                      } catch (_) {}
+                    }
+                    return GestureDetector(
+                      onTap: () => context.push('/noticias'),
+                      child: Container(
+                        width: 240,
+                        margin: EdgeInsets.only(right: i < _noticias.length - 1 ? 10 : 0),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: kSurface, borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: kBorder),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          if (resumo.isNotEmpty)
-                            Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ])),
-                        if (dataLabel.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Text(dataLabel, style: TextStyle(color: kText2, fontSize: 11)),
-                        ],
-                      ]),
-                    ),
-                  );
-                },
-                childCount: _noticias.length,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Container(
+                                width: 28, height: 28,
+                                decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                                child: Icon(Icons.campaign_rounded, color: kPrimary, size: 15),
+                              ),
+                              const Spacer(),
+                              if (dataLabel.isNotEmpty)
+                                Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
+                            ]),
+                            const SizedBox(height: 8),
+                            Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            if (resumo.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ],
