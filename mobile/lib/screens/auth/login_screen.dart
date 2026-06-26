@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -52,6 +53,18 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _erro;
   _InputMode _mode = _InputMode.indefinido;
 
+  static const _loadingMsgs = [
+    'Conectando ao servidor...',
+    'Obtendo dados da sua academia...',
+    'Verificando alunos e graduações...',
+    'Carregando turmas ativas...',
+    'Sincronizando financeiro...',
+    'Verificando presenças...',
+    'Quase lá...',
+  ];
+  int _loadingMsgIdx = 0;
+  Timer? _loadingTimer;
+
   static final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
 
   void _onIdChanged(String v) {
@@ -83,7 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (erroId != null) { setState(() => _erro = erroId); return; }
     if (_senhaCtrl.text.isEmpty) { setState(() => _erro = 'Informe sua senha.'); return; }
 
-    setState(() { _loading = true; _erro = null; });
+    setState(() { _loading = true; _erro = null; _loadingMsgIdx = 0; });
+    _loadingTimer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
+      if (mounted) setState(() => _loadingMsgIdx = (_loadingMsgIdx + 1) % _loadingMsgs.length);
+    });
     final payload = _mode == _InputMode.telefone ? _rawPhone() : _idCtrl.text.trim();
     final data = {'emailOuTelefone': payload, 'senha': _senhaCtrl.text};
 
@@ -128,11 +144,11 @@ class _LoginScreenState extends State<LoginScreen> {
             e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.connectionError;
         if (isConnErr && !isRetry) {
-          if (mounted) setState(() => _erro = 'Conectando ao servidor...');
+          // sem erro visual — as mensagens de loading já indicam que está tentando
           await Future.delayed(const Duration(seconds: 4));
           if (mounted) await attempt(isRetry: true);
         } else {
-          if (mounted) setState(() => _erro = e.response?.data?['mensagem'] ?? 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
+          if (mounted) setState(() => _erro = e.response?.data?['mensagem'] ?? 'Servidor temporariamente indisponível. Aguarde alguns segundos e tente novamente.');
         }
       }
     }
@@ -140,12 +156,15 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await attempt();
     } finally {
+      _loadingTimer?.cancel();
+      _loadingTimer = null;
       if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   void dispose() {
+    _loadingTimer?.cancel();
     _idCtrl.dispose();
     _senhaCtrl.dispose();
     super.dispose();
@@ -249,6 +268,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
+                if (_loading) ...[
+                  const SizedBox(height: 12),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween(begin: const Offset(0, 0.3), end: Offset.zero).animate(anim),
+                        child: child,
+                      ),
+                    ),
+                    child: Text(
+                      _loadingMsgs[_loadingMsgIdx],
+                      key: ValueKey(_loadingMsgIdx),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kText2, fontSize: 12),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
