@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -51,6 +54,23 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     alunoDrawerActionNotifier.value = '';
     if (action == 'editarPerfil') _editarPerfil();
     if (action == 'qr') _mostrarQrCode();
+  }
+
+  Future<void> _escolherFoto() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+    if (result == null || result.files.single.bytes == null || !mounted) return;
+    final bytes = result.files.single.bytes!;
+    final ext = (result.files.single.extension ?? 'jpg').toLowerCase();
+    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+    final fotoBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
+    final alunoId = _aluno?['id']?.toString() ?? '';
+    if (alunoId.isEmpty) return;
+    try {
+      await dio.patch('/api/alunos/$alunoId/foto', data: {'fotoBase64': fotoBase64});
+      if (mounted) setState(() { _aluno = {...?_aluno, 'fotoBase64': fotoBase64}; });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao salvar foto.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
   }
 
   Future<void> _load() async {
@@ -414,20 +434,47 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Avatar
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [accentLight, beltColor.withOpacity(0.5)],
-                            begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: 46, backgroundColor: kSurface,
-                          child: Text(initials.isEmpty ? '?' : initials,
-                            style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
+                      // Avatar com foto
+                      GestureDetector(
+                        onTap: _escolherFoto,
+                        child: Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [accentLight, beltColor.withOpacity(0.5)],
+                                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: () {
+                                final foto = _aluno?['fotoBase64'] as String?;
+                                if (foto != null && foto.startsWith('data:')) {
+                                  return CircleAvatar(
+                                    radius: 46, backgroundColor: kSurface,
+                                    backgroundImage: MemoryImage(base64Decode(foto.split(',').last)),
+                                  );
+                                }
+                                return CircleAvatar(
+                                  radius: 46, backgroundColor: kSurface,
+                                  child: Text(initials.isEmpty ? '?' : initials,
+                                    style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
+                                );
+                              }(),
+                            ),
+                            Positioned(
+                              bottom: 2, right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: kPrimary, shape: BoxShape.circle,
+                                  border: Border.all(color: kBg, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -786,10 +833,63 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
           ],
 
+          // ── Legal ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+              child: Text('LEGAL', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+                child: Column(children: [
+                  _AlunoLegalTile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Política de Privacidade',
+                    subtitle: 'Como seus dados são tratados',
+                    url: 'https://senseimanager.com.br/privacidade',
+                  ),
+                  Divider(height: 1, color: kBorder),
+                  _AlunoLegalTile(
+                    icon: Icons.gavel_rounded,
+                    label: 'Termos de Uso',
+                    subtitle: 'Regras e condições de uso do app',
+                    url: 'https://senseimanager.com.br/termos',
+                  ),
+                ]),
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     ),
+    );
+  }
+}
+
+class _AlunoLegalTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final String url;
+  const _AlunoLegalTile({required this.icon, required this.label, required this.subtitle, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: kPrimary, size: 22),
+      title: Text(label, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(color: kText2, fontSize: 12)),
+      trailing: Icon(Icons.open_in_new_rounded, color: kText2, size: 16),
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
     );
   }
 }

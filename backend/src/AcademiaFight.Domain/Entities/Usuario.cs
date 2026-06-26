@@ -34,6 +34,9 @@ public class Usuario : EntityBase
     // Vínculo com dispositivo de acesso (catraca Toletus)
     public int? CatracaDeviceUserId { get; set; }
 
+    // Foto de perfil (base64)
+    public string? FotoBase64 { get; set; }
+
     // Plano familiar
     public Guid? GrupoFamiliarId { get; set; }
 

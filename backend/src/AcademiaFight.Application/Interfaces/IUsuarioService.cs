@@ -17,4 +17,5 @@ public interface IUsuarioService
     Task<BaseResponse<MeuPerfilDto>> AtualizarMeuPerfilAsync(Guid usuarioId, AtualizarMeuPerfilRequest request, CancellationToken ct = default);
     Task<BaseResponse> RegistrarFcmTokenAsync(Guid usuarioId, string token, CancellationToken ct = default);
     Task<BaseResponse> ExcluirMinhaContaAsync(Guid usuarioId, CancellationToken ct = default);
+    Task<BaseResponse<AlunoDto>> AtualizarFotoAlunoAsync(Guid id, string? fotoBase64, CancellationToken ct = default);
 }

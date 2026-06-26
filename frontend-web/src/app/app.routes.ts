@@ -137,6 +137,12 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/contratos/contratos.routes').then((m) => m.contratosRoutes),
       },
+      {
+        path: 'grupos-familiares',
+        canActivate: [permissaoGuard('Admin')],
+        loadChildren: () =>
+          import('./features/grupos-familiares/grupos-familiares.routes').then((m) => m.gruposFamiliaresRoutes),
+      },
     ],
   },
   {

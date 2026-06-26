@@ -335,6 +335,7 @@ public class UsuarioService : IUsuarioService
         XpTotal = u.XpTotal,
         Nivel = u.Nivel.ToString(),
         CriadoEm = u.CriadoEm,
+        FotoBase64 = u.FotoBase64,
         Turmas = [],
     };
 
@@ -422,5 +423,14 @@ public class UsuarioService : IUsuarioService
 
         await _db.SaveChangesAsync(ct);
         return BaseResponse.Ok("Conta excluída com sucesso.");
+    }
+
+    public async Task<BaseResponse<AlunoDto>> AtualizarFotoAlunoAsync(Guid id, string? fotoBase64, CancellationToken ct = default)
+    {
+        var aluno = await _db.Usuarios.FirstOrDefaultAsync(x => x.Id == id && x.Perfil == PerfilUsuario.Aluno, ct);
+        if (aluno is null) return BaseResponse<AlunoDto>.Falha("Aluno não encontrado.");
+        aluno.FotoBase64 = string.IsNullOrWhiteSpace(fotoBase64) ? null : fotoBase64;
+        await _db.SaveChangesAsync(ct);
+        return BaseResponse<AlunoDto>.Ok(MapearAlunoDto(aluno));
     }
 }

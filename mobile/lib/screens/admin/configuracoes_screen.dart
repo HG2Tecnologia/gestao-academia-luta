@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,6 +29,8 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   bool _salvando = false;
   bool _erro = false;
   String _subdominio = '';
+  String? _logoBase64;
+  bool _uploadandoLogo = false;
 
   @override
   void initState() {
@@ -54,10 +58,23 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _telefoneCtrl.text = dados['telefone'] as String? ?? '';
       _cnpjCtrl.text = dados['cnpj'] as String? ?? '';
       _subdominio = dados['subdominio'] as String? ?? '';
+      _logoBase64 = dados['logoUrl'] as String?;
       if (mounted) setState(() { _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
     }
+  }
+
+  Future<void> _escolherLogo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.single.bytes == null) return;
+    final bytes = result.files.single.bytes!;
+    final ext = (result.files.single.extension ?? 'jpg').toLowerCase();
+    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+    setState(() => _logoBase64 = 'data:$mime;base64,${base64Encode(bytes)}');
   }
 
   Future<void> _salvar() async {
@@ -69,6 +86,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
         'email': _emailCtrl.text.trim(),
         'telefone': _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
         'cnpj': _cnpjCtrl.text.trim().isEmpty ? null : _cnpjCtrl.text.trim(),
+        'logoUrl': _logoBase64,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,6 +171,52 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _PlanStatusTile(),
+                        const SizedBox(height: 24),
+                        _SectionLabel('Logo da Academia'),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _uploadandoLogo ? null : _escolherLogo,
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: kBorder),
+                            ),
+                            child: Row(children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: _logoBase64 != null && _logoBase64!.startsWith('data:')
+                                    ? Image.memory(
+                                        base64Decode(_logoBase64!.split(',').last),
+                                        width: 52, height: 52, fit: BoxFit.cover,
+                                      )
+                                    : Container(
+                                        width: 52, height: 52,
+                                        decoration: BoxDecoration(
+                                          color: kPrimary.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(Icons.add_photo_alternate_rounded, color: kPrimary, size: 26),
+                                      ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(
+                                  _logoBase64 != null ? 'Logo definida' : 'Adicionar logo',
+                                  style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+                                ),
+                                Text('Toque para alterar a imagem', style: TextStyle(color: kText2, fontSize: 12)),
+                              ])),
+                              if (_logoBase64 != null)
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline_rounded, color: kDanger, size: 20),
+                                  tooltip: 'Remover logo',
+                                  onPressed: () => setState(() => _logoBase64 = null),
+                                ),
+                            ]),
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         _SectionLabel('Informações Gerais'),
                         const SizedBox(height: 12),

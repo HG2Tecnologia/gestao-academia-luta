@@ -86,6 +86,15 @@ public class AlunoController : ControllerBase
         var resultado = await _usuarioService.ListarAniversariantesAsync(mesAtual, ct);
         return Ok(resultado);
     }
+
+    [HttpPatch("{id:guid}/foto")]
+    public async Task<IActionResult> AtualizarFoto(Guid id, [FromBody] AtualizarFotoRequest request, CancellationToken ct)
+    {
+        var resultado = await _usuarioService.AtualizarFotoAlunoAsync(id, request.FotoBase64, ct);
+        if (!resultado.Sucesso) return NotFound(resultado);
+        return Ok(resultado);
+    }
 }
 
 public record ToggleAtivoRequest(bool Ativo);
+public record AtualizarFotoRequest(string? FotoBase64);

@@ -31,6 +31,7 @@ public class AlunoDto
     public string? SituacaoFinanceira { get; set; } // "EmDia" | "Pendente" | "Inadimplente"
     public StatusAtestado? StatusAtestado { get; set; }
     public DateTime? AtestadoValidade { get; set; }
+    public string? FotoBase64 { get; set; }
 }
 
 public class CreateAlunoDto
