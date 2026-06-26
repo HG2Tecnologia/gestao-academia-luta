@@ -68,11 +68,20 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
   }
 
   Future<void> _abrirFormulario([Map<String, dynamic>? noticia]) async {
+    Map<String, dynamic>? noticiaCompleta = noticia;
+    if (noticia != null) {
+      try {
+        final res = await dio.get('/api/noticias/${noticia['id']}');
+        final dados = res.data['dados'] as Map<String, dynamic>?;
+        if (dados != null) noticiaCompleta = dados;
+      } catch (_) {}
+    }
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _NoticiaFormScreen(
-          noticia: noticia,
+          noticia: noticiaCompleta,
           onSalvo: _carregar,
         ),
       ),

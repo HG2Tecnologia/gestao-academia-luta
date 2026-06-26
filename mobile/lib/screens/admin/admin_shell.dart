@@ -85,6 +85,15 @@ class _AdminShellState extends State<AdminShell> {
                     },
                   ),
                   _DrawerItem(
+                    icon: Icons.family_restroom_rounded,
+                    label: 'Grupos Familiares',
+                    selected: false,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/admin/grupos-familiares');
+                    },
+                  ),
+                  _DrawerItem(
                     icon: Icons.settings_rounded,
                     label: 'Configurações',
                     selected: false,
@@ -124,7 +133,7 @@ class _AdminShellState extends State<AdminShell> {
     return Scaffold(
       key: adminShellKey,
       body: widget.shell,
-      drawer: _buildDrawer(),
+      endDrawer: _buildDrawer(),
     );
   }
 }

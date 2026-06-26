@@ -114,7 +114,7 @@ class _ProfessorShellState extends State<ProfessorShell> {
     return Scaffold(
       key: profShellKey,
       body: widget.shell,
-      drawer: _buildDrawer(),
+      endDrawer: _buildDrawer(),
     );
   }
 }

@@ -339,6 +339,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             value: alunos,
             icon: Icons.sports_martial_arts_rounded,
             gradient: [const Color(0xFF6C3FFF), const Color(0xFF4F28C8)],
+            onTap: () => context.go('/admin/alunos'),
           )),
           const SizedBox(width: 12),
           Expanded(child: _MetricCard(
@@ -346,6 +347,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             value: turmas,
             icon: Icons.groups_rounded,
             gradient: [const Color(0xFF0EA5E9), const Color(0xFF0369A1)],
+            onTap: () => context.go('/admin/turmas'),
           )),
         ]),
         const SizedBox(height: 12),
@@ -363,6 +365,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             value: inadimplentes,
             icon: Icons.warning_amber_rounded,
             color: kDanger,
+            onTap: () => context.go('/admin/financeiro'),
           )),
         ]),
       ]),
@@ -936,31 +939,38 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final List<Color> gradient;
+  final VoidCallback? onTap;
 
-  const _MetricCard({required this.label, required this.value, required this.icon, required this.gradient});
+  const _MetricCard({required this.label, required this.value, required this.icon, required this.gradient, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradient,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradient,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
+          ],
         ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
-        ],
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: Colors.white.withOpacity(0.85), size: 24),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1)),
+          const SizedBox(height: 4),
+          Row(children: [
+            Expanded(child: Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500))),
+            if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withOpacity(0.5), size: 11),
+          ]),
+        ]),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: Colors.white.withOpacity(0.85), size: 24),
-        const SizedBox(height: 12),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1)),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500)),
-      ]),
     );
   }
 }
@@ -970,31 +980,36 @@ class _MetricCardSmall extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _MetricCardSmall({required this.label, required this.value, required this.icon, required this.color});
+  const _MetricCardSmall({required this.label, required this.value, required this.icon, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.25)),
-      ),
-      child: Row(children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.25)),
         ),
-        const SizedBox(width: 12),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value, style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
-          Text(label, style: TextStyle(color: kText2, fontSize: 10)),
+        child: Row(children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(value, style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
+            Text(label, style: TextStyle(color: kText2, fontSize: 10)),
+          ])),
+          if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 11),
         ]),
-      ]),
+      ),
     );
   }
 }

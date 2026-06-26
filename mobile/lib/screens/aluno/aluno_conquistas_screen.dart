@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 
 class AlunoConquistasScreen extends StatefulWidget {
   const AlunoConquistasScreen({super.key});
@@ -58,10 +59,19 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
     }
   }
 
+  AppBar _appBar() => AppBar(
+    backgroundColor: kSurface,
+    foregroundColor: kText1,
+    elevation: 0,
+    title: const Text('Conquistas', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+    actions: [IconButton(onPressed: openAppDrawer, icon: Icon(Icons.menu_rounded, color: kText1))],
+  );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBg,
+      appBar: _appBar(),
       body: SafeArea(
         child: _loading
             ? Center(child: CircularProgressIndicator(color: kPrimary))

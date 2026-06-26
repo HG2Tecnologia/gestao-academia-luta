@@ -39,6 +39,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<AtestadoMedico> AtestadosMedicos => Set<AtestadoMedico>();
     public DbSet<Noticia> Noticias => Set<Noticia>();
     public DbSet<ParQ> ParQs => Set<ParQ>();
+    public DbSet<GrupoFamiliar> GruposFamiliares => Set<GrupoFamiliar>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

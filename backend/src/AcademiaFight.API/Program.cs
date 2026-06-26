@@ -70,6 +70,7 @@ builder.Services.AddScoped<RankingMensalResetJob>();
 builder.Services.AddScoped<IAtestadoService, AtestadoService>();
 builder.Services.AddScoped<AtestadoVencimentoJob>();
 builder.Services.AddScoped<INoticiaService, NoticiaService>();
+builder.Services.AddScoped<IGrupoFamiliarService, GrupoFamiliarService>();
 builder.Services.AddScoped<ParQService>();
 builder.Services.AddScoped<ICatracaService, CatracaService>();
 builder.Services.AddScoped<IToletusCatracaClient, ToletusCatracaClient>();

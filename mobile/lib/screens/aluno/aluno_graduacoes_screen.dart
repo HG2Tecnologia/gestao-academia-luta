@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/drawer_helper.dart';
 import '../../core/widgets.dart';
 
 class AlunoGraduacoesScreen extends StatefulWidget {
@@ -193,10 +194,18 @@ String _fmtData(String? s) {
     } catch (_) { return s; }
   }
 
+  AppBar _appBar() => AppBar(
+    backgroundColor: kSurface,
+    foregroundColor: kText1,
+    elevation: 0,
+    title: const Text('Histórico de Graduações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+    actions: [IconButton(onPressed: openAppDrawer, icon: Icon(Icons.menu_rounded, color: kText1))],
+  );
+
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Scaffold(backgroundColor: kBg, body: Center(child: CircularProgressIndicator(color: kPrimary)));
-    if (_erro) return Scaffold(backgroundColor: kBg, body: SafeArea(child: ErroConexao(onRetry: _load)));
+    if (_loading) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: Center(child: CircularProgressIndicator(color: kPrimary)));
+    if (_erro) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: SafeArea(child: ErroConexao(onRetry: _load)));
 
     final faixaAtual = _faixaAtual;
     final corFaixa = _hexCor(faixaAtual?['corFaixa'] as String?);
@@ -219,6 +228,7 @@ String _fmtData(String? s) {
 
     return Scaffold(
       backgroundColor: kBg,
+      appBar: _appBar(),
       body: RefreshIndicator(
         onRefresh: _load,
         color: kPrimary,

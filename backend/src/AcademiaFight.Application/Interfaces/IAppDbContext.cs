@@ -28,5 +28,6 @@ public interface IAppDbContext
     DbSet<AtestadoMedico> AtestadosMedicos { get; }
     DbSet<Noticia> Noticias { get; }
     DbSet<ParQ> ParQs { get; }
+    DbSet<GrupoFamiliar> GruposFamiliares { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

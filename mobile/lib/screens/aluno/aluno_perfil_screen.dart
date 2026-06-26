@@ -21,6 +21,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _aluno;
   Map<String, dynamic>? _atestado;
   Map<String, dynamic>? _parq;
+  Map<String, dynamic>? _grupoFamiliar;
   List<Map<String, dynamic>> _contratos = [];
   List<Map<String, dynamic>> _noticias = [];
   bool _loading = true;
@@ -76,6 +77,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
           final cr = await dio.get('/api/contratos', queryParameters: {'alunoId': alunoId});
           final lista = (cr.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
           if (mounted) setState(() => _contratos = lista);
+        } catch (_) {}
+        try {
+          final gr = await dio.get('/api/grupos-familiares/aluno/$alunoId');
+          final grupo = gr.data['dados'] as Map<String, dynamic>?;
+          if (mounted) setState(() => _grupoFamiliar = grupo);
         } catch (_) {}
       }
 
@@ -563,6 +569,50 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                 ),
               ),
             ),
+
+          // ── Grupo Familiar ──
+          if (_grupoFamiliar != null) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+                child: Text('MINHA FAMÍLIA', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Icon(Icons.family_restroom_rounded, color: kPrimary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(_grupoFamiliar!['nome'] as String? ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 14)),
+                    ]),
+                    ...(_grupoFamiliar!['membros'] as List? ?? [])
+                        .cast<Map<String, dynamic>>()
+                        .where((m) => m['id']?.toString() != (_aluno?['id']?.toString() ?? ''))
+                        .map((m) => Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Row(children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: kPrimary.withOpacity(0.12),
+                              child: Text(
+                                (m['nome'] as String? ?? '').split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase(),
+                                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w800, fontSize: 10),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(m['nome'] as String? ?? '', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
+                          ]),
+                        )),
+                  ]),
+                ),
+              ),
+            ),
+          ],
 
           // ── Turmas ──
           SliverToBoxAdapter(

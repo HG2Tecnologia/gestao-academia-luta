@@ -299,8 +299,12 @@ public class UsuarioService : IUsuarioService
 
     public async Task<BaseResponse<IEnumerable<AniversarianteDto>>> ListarAniversariantesAsync(int mes, CancellationToken ct = default)
     {
+        var hoje = DateTime.UtcNow;
+        var diaMinimo = mes == hoje.Month ? hoje.Day : 1;
         var alunos = await _db.Usuarios
-            .Where(u => u.Perfil == PerfilUsuario.Aluno && u.Ativo && u.DataNascimento != null && u.DataNascimento.Value.Month == mes)
+            .Where(u => u.Perfil == PerfilUsuario.Aluno && u.Ativo && u.DataNascimento != null
+                     && u.DataNascimento.Value.Month == mes
+                     && u.DataNascimento.Value.Day >= diaMinimo)
             .OrderBy(u => u.DataNascimento!.Value.Day)
             .Select(u => new AniversarianteDto
             {

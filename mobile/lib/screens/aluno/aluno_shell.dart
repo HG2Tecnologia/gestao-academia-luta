@@ -217,7 +217,7 @@ class _AlunoShellState extends State<AlunoShell> {
     return Scaffold(
       key: alunoShellKey,
       body: widget.shell,
-      drawer: _buildDrawer(),
+      endDrawer: _buildDrawer(),
     );
   }
 }

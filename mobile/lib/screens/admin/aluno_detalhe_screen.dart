@@ -22,6 +22,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, dynamic>? _aluno;
   Map<String, dynamic>? _atestado;
   Map<String, dynamic>? _parq;
+  Map<String, dynamic>? _grupoFamiliar;
   String? _meId;
   bool _loading = true;
   String? _erro;
@@ -46,6 +47,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         dio.get('/api/graduacoes', queryParameters: {'alunoId': widget.alunoId}),
         dio.get('/api/atestados/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
         dio.get('/api/parq/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
+        dio.get('/api/grupos-familiares/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
       ]);
       final body = results[0].data as Map<String, dynamic>;
       final meBody = results[1].data as Map<String, dynamic>;
@@ -82,10 +84,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ? (results[4].data['dados'] as Map<String, dynamic>?)
           : null;
 
+      final grupoData = results.length > 5
+          ? (results[5].data['dados'] as Map<String, dynamic>?)
+          : null;
+
       if (mounted) setState(() {
         _aluno = body['dados'] as Map<String, dynamic>?;
         _atestado = atestadoData;
         _parq = parqData;
+        _grupoFamiliar = grupoData;
         _meId = (meBody['dados'] as Map<String, dynamic>?)?['id']?.toString();
         _faixasPorModalidade = faixasMod;
         _graduacoes = List.of(graduacoes)
@@ -149,6 +156,53 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     'Você já se submeteu a algum tipo de cirurgia, que comprometa de alguma forma a atividade física?',
     'Sabe de alguma outra razão pela qual a atividade física possa eventualmente comprometer sua saúde?',
   ];
+
+  Widget _buildGrupoFamiliarCard() {
+    final grupo = _grupoFamiliar;
+    final membros = (grupo?['membros'] as List? ?? []).cast<Map<String, dynamic>>()
+        .where((m) => m['id']?.toString() != widget.alunoId)
+        .toList();
+
+    return _buildCard([
+      Row(children: [
+        Expanded(child: _sectionTitle('Grupo Familiar')),
+        GestureDetector(
+          onTap: () => context.push('/admin/grupos-familiares'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(8), border: Border.all(color: kBorder)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.settings_rounded, size: 13, color: kText2),
+              const SizedBox(width: 4),
+              Text('Gerenciar', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
+      ]),
+      if (grupo == null) ...[
+        const SizedBox(height: 8),
+        Text('Não vinculado a nenhum grupo familiar.', style: TextStyle(color: kText2, fontSize: 13)),
+      ] else ...[
+        const SizedBox(height: 6),
+        Row(children: [
+          Icon(Icons.family_restroom_rounded, color: kPrimary, size: 16),
+          const SizedBox(width: 6),
+          Text(grupo['nome'] as String? ?? '', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+        ]),
+        if (membros.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...membros.map((m) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(children: [
+              Icon(Icons.person_outline_rounded, color: kText2, size: 14),
+              const SizedBox(width: 6),
+              Text(m['nome'] as String? ?? '', style: TextStyle(color: kText2, fontSize: 12)),
+            ]),
+          )),
+        ],
+      ],
+    ]);
+  }
 
   Widget _buildParQCard() {
     final p = _parq;
@@ -1563,6 +1617,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ]),
                           const SizedBox(height: 12),
                           _buildAtestadoCard(),
+                          const SizedBox(height: 12),
+                          _buildGrupoFamiliarCard(),
                           const SizedBox(height: 12),
                           _buildParQCard(),
                           // Turmas com botão vincular

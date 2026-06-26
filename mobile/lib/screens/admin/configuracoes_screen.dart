@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -397,6 +398,22 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         const SizedBox(height: 32),
+                        _SectionLabel('Legal'),
+                        const SizedBox(height: 12),
+                        _LegalTile(
+                          icon: Icons.privacy_tip_outlined,
+                          label: 'Política de Privacidade',
+                          subtitle: 'Como tratamos seus dados (LGPD)',
+                          url: 'https://senseimanager.com.br/privacidade',
+                        ),
+                        const SizedBox(height: 8),
+                        _LegalTile(
+                          icon: Icons.gavel_rounded,
+                          label: 'Termos de Uso',
+                          subtitle: 'Condições de uso do Sensei Manager',
+                          url: 'https://senseimanager.com.br/termos',
+                        ),
+                        const SizedBox(height: 32),
                         _SectionLabel('Conta'),
                         const SizedBox(height: 12),
                         _BotaoSair(),
@@ -409,6 +426,45 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+class _LegalTile extends StatelessWidget {
+  const _LegalTile({required this.icon, required this.label, required this.subtitle, required this.url});
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kBorder),
+        ),
+        child: Row(children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(color: kPrimary.withOpacity(0.10), borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: kPrimary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+            Text(subtitle, style: TextStyle(color: kText2, fontSize: 11)),
+          ])),
+          Icon(Icons.open_in_new_rounded, color: kText2, size: 16),
+        ]),
+      ),
     );
   }
 }

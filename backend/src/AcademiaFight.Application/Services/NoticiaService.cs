@@ -63,7 +63,7 @@ public class NoticiaService : INoticiaService
     {
         var n = await _db.Noticias.Include(x => x.Autor).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (n is null) return BaseResponse<NoticiaDto>.Falha("Notícia não encontrada.");
-        return BaseResponse<NoticiaDto>.Ok(MapearDto(n));
+        return BaseResponse<NoticiaDto>.Ok(MapearDtoCompleto(n));
     }
 
     public async Task<BaseResponse<NoticiaDto>> CriarAsync(CriarNoticiaRequest request, Guid autorId, CancellationToken ct = default)
@@ -91,7 +91,7 @@ public class NoticiaService : INoticiaService
             await _notificarAlunosAsync(noticia, ct);
 
         var criada = await _db.Noticias.Include(x => x.Autor).FirstAsync(x => x.Id == noticia.Id, ct);
-        return BaseResponse<NoticiaDto>.Ok(MapearDto(criada), "Notícia criada com sucesso.");
+        return BaseResponse<NoticiaDto>.Ok(MapearDtoCompleto(criada), "Notícia criada com sucesso.");
     }
 
     public async Task<BaseResponse<NoticiaDto>> AtualizarAsync(Guid id, AtualizarNoticiaRequest request, CancellationToken ct = default)
@@ -106,7 +106,7 @@ public class NoticiaService : INoticiaService
             noticia.ImagemBase64 = request.ImagemBase64;
 
         await _db.SaveChangesAsync(ct);
-        return BaseResponse<NoticiaDto>.Ok(MapearDto(noticia), "Notícia atualizada.");
+        return BaseResponse<NoticiaDto>.Ok(MapearDtoCompleto(noticia), "Notícia atualizada.");
     }
 
     public async Task<BaseResponse> PublicarAsync(Guid id, CancellationToken ct = default)
@@ -155,6 +155,19 @@ public class NoticiaService : INoticiaService
     }
 
     private static NoticiaDto MapearDto(Noticia n) => new()
+    {
+        Id = n.Id,
+        Titulo = n.Titulo,
+        Resumo = n.Resumo,
+        Conteudo = n.Conteudo,
+        ImagemBase64 = null,
+        Publicada = n.Publicada,
+        PublicadaEm = n.PublicadaEm,
+        AutorNome = n.Autor?.Nome,
+        CriadoEm = n.CriadoEm
+    };
+
+    private static NoticiaDto MapearDtoCompleto(Noticia n) => new()
     {
         Id = n.Id,
         Titulo = n.Titulo,

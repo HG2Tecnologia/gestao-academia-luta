@@ -34,6 +34,10 @@ public class Usuario : EntityBase
     // Vínculo com dispositivo de acesso (catraca Toletus)
     public int? CatracaDeviceUserId { get; set; }
 
+    // Plano familiar
+    public Guid? GrupoFamiliarId { get; set; }
+
     public Academia Academia { get; set; } = null!;
     public Plano? Plano { get; set; }
+    public GrupoFamiliar? GrupoFamiliar { get; set; }
 }
