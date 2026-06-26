@@ -252,7 +252,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     try {
       final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 1000});
       final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
+      final list = dados is List ? dados : (dados is Map ? dados['itens'] as List? ?? [] : []);
       final membrosIds = (grupo['membros'] as List? ?? []).map((m) => m['id']?.toString()).toSet();
       alunos = list.cast<Map<String, dynamic>>()
           .where((a) => a['id']?.toString() != widget.alunoId && !membrosIds.contains(a['id']?.toString()))
