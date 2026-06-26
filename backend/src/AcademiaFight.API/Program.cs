@@ -201,7 +201,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<RankingHub>("/hubs/ranking");
 app.MapHub<CatracaHub>("/hubs/catraca");
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+app.MapMethods("/health", ["GET", "HEAD"], () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
