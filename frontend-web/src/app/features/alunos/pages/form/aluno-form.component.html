@@ -161,7 +161,7 @@
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:4px;">
-            <button type="button" class="btn-primary" style="background:#a855f7;border-color:#a855f7;" (click)="registrarGraduacao()" [disabled]="registrandoGrad() || !faixaGradId()">
+            <button type="button" class="btn-primary" style="background:#9A7009;border-color:#9A7009;" (click)="registrarGraduacao()" [disabled]="registrandoGrad() || !faixaGradId()">
               {{ registrandoGrad() ? 'Registrando...' : '🥋 Registrar Graduação' }}
             </button>
           </div>
@@ -246,7 +246,7 @@
   .toggle-switch input { opacity: 0; width: 0; height: 0; }
   .toggle-slider { position: absolute; inset: 0; background: var(--color-border); border-radius: 99px; transition: background 0.2s; cursor: pointer; }
   .toggle-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
-  .toggle-switch input:checked + .toggle-slider { background: var(--color-primary, #6366f1); }
+  .toggle-switch input:checked + .toggle-slider { background: var(--color-primary, #B8860B); }
   .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
   .grad-card { background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 10px; padding: 16px; margin-top: 4px; }
   .alert-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #16a34a; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }

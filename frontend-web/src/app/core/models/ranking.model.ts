@@ -107,7 +107,7 @@ export interface LancamentoPontoDto {
 export const NIVEL_CONFIG: Record<string, { cor: string; label: string }> = {
   Iniciante: { cor: '#94a3b8', label: 'Iniciante' },
   Guerreiro: { cor: '#22c55e', label: 'Guerreiro' },
-  Veterano:  { cor: '#3b82f6', label: 'Veterano' },
-  Elite:     { cor: '#a855f7', label: 'Elite' },
+  Veterano:  { cor: '#B8860B', label: 'Veterano' },
+  Elite:     { cor: '#9A7009', label: 'Elite' },
   Mestre:    { cor: '#f59e0b', label: 'Mestre' },
 };

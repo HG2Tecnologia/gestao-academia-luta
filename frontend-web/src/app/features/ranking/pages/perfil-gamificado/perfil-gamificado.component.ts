@@ -43,7 +43,7 @@ export class PerfilGamificadoComponent implements OnInit {
     setTimeout(() => this.animacaoNovaConquista.set(null), 3500);
   }
 
-  nivelCor(nivel: string): string { return NIVEL_CONFIG[nivel]?.cor ?? '#6366f1'; }
+  nivelCor(nivel: string): string { return NIVEL_CONFIG[nivel]?.cor ?? '#B8860B'; }
   avatarInicial(nome: string): string { return (nome ?? 'U').charAt(0).toUpperCase(); }
 
   tipoIcone(tipo: string): string {

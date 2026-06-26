@@ -36,7 +36,7 @@ export class FuncionarioDetalheComponent implements OnInit {
   }
 
   perfilCor(perfil: string): string {
-    const map: Record<string, string> = { Admin: '#a855f7', Professor: '#3b82f6', Recepcionista: '#22c55e' };
+    const map: Record<string, string> = { Admin: '#9A7009', Professor: '#B8860B', Recepcionista: '#22c55e' };
     return map[perfil] ?? '#94a3b8';
   }
 

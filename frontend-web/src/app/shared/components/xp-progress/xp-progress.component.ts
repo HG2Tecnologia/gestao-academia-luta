@@ -33,7 +33,7 @@ export class XpProgressComponent implements OnChanges {
   @Input() nivel = 'Iniciante';
 
   pct = 0;
-  cor = '#6366f1';
+  cor = '#B8860B';
 
   readonly LIMITES: Record<string, [number, number]> = {
     Iniciante: [0, 200],
@@ -56,6 +56,6 @@ export class XpProgressComponent implements OnChanges {
   ngOnChanges(): void {
     const [min, max] = this.LIMITES[this.nivel] ?? [0, 200];
     this.pct = max > min ? Math.min(100, ((this.xpAtual - min) / (max - min)) * 100) : 100;
-    this.cor = NIVEL_CONFIG[this.nivel]?.cor ?? '#6366f1';
+    this.cor = NIVEL_CONFIG[this.nivel]?.cor ?? '#B8860B';
   }
 }

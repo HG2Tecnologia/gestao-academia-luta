@@ -53,5 +53,5 @@ import { NivelBadgeComponent } from '../nivel-badge/nivel-badge.component';
 export class PodiumComponent {
   @Input() top3: LeaderboardItemDto[] = [];
   inicial(nome: string): string { return (nome ?? 'U').charAt(0).toUpperCase(); }
-  cor(nivel: string): string { return NIVEL_CONFIG[nivel]?.cor ?? '#6366f1'; }
+  cor(nivel: string): string { return NIVEL_CONFIG[nivel]?.cor ?? '#B8860B'; }
 }
