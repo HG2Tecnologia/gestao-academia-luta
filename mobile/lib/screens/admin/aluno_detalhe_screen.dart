@@ -1533,7 +1533,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         padding: const EdgeInsets.all(16),
                         children: [
                           _buildCard([
-                            _buildAvatar(a['nome'] ?? ''),
+                            _buildAvatar(a),
                             const SizedBox(height: 12),
                             _row('Nome', a['nome']),
                             _row('Email', a['email']),
@@ -1982,13 +1982,56 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
       );
 
-  Widget _buildAvatar(String nome) {
+  Future<void> _escolherFotoAdmin() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+    if (result == null || result.files.single.bytes == null || !mounted) return;
+    final bytes = result.files.single.bytes!;
+    final ext = (result.files.single.extension ?? 'jpg').toLowerCase();
+    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+    final fotoBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
+    try {
+      await dio.patch('/api/alunos/${widget.alunoId}/foto', data: {'fotoBase64': fotoBase64});
+      if (mounted) setState(() { _aluno = {...?_aluno, 'fotoBase64': fotoBase64}; });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erro ao salvar foto.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  Widget _buildAvatar(Map<String, dynamic> aluno) {
+    final nome = aluno['nome']?.toString() ?? '';
+    final foto = aluno['fotoBase64'] as String?;
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
     return Center(
-      child: CircleAvatar(
-        radius: 32,
-        backgroundColor: kPrimary.withOpacity(0.2),
-        child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: kPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+      child: GestureDetector(
+        onTap: _escolherFotoAdmin,
+        child: Stack(
+          children: [
+            foto != null && foto.startsWith('data:')
+                ? CircleAvatar(
+                    radius: 32,
+                    backgroundColor: kPrimary.withOpacity(0.2),
+                    backgroundImage: MemoryImage(base64Decode(foto.split(',').last)),
+                  )
+                : CircleAvatar(
+                    radius: 32,
+                    backgroundColor: kPrimary.withOpacity(0.2),
+                    child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: kPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+                  ),
+            Positioned(
+              bottom: 0, right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: kPrimary, shape: BoxShape.circle,
+                  border: Border.all(color: kBg, width: 2),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, size: 10, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
