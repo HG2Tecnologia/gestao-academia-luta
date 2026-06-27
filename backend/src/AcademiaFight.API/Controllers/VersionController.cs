@@ -16,13 +16,19 @@ public class VersionController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult Get()
+    public IActionResult Get([FromQuery] string? platform)
     {
         var section = _config.GetSection("AppVersion");
+        var currentVersion = platform?.ToLower() switch
+        {
+            "android" => section["AndroidCurrentVersion"] ?? section["CurrentVersion"] ?? "1.0.0",
+            "ios"     => section["IosCurrentVersion"]     ?? section["CurrentVersion"] ?? "1.0.0",
+            _         => section["CurrentVersion"] ?? "1.0.0"
+        };
         return Ok(new
         {
             minVersion = section["MinVersion"] ?? "1.0.0",
-            currentVersion = section["CurrentVersion"] ?? "1.0.0",
+            currentVersion,
             forceUpdate = bool.TryParse(section["ForceUpdate"], out var f) && f,
             iosUrl = section["IosUrl"] ?? "",
             androidUrl = section["AndroidUrl"] ?? ""

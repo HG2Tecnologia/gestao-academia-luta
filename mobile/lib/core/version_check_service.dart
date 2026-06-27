@@ -8,7 +8,8 @@ import 'constants.dart';
 class VersionCheckService {
   static Future<void> check(BuildContext context) async {
     try {
-      final res = await dio.get('/api/version');
+      final platform = Platform.isIOS ? 'ios' : 'android';
+      final res = await dio.get('/api/version', queryParameters: {'platform': platform});
       final data = res.data as Map<String, dynamic>;
       final minVersion = data['minVersion']?.toString() ?? '0.0.0';
       final currentVersion = data['currentVersion']?.toString() ?? '0.0.0';
