@@ -62,6 +62,8 @@ class _LoginScreenState extends State<LoginScreen> {
     'Sincronizando financeiro...',
     'Verificando presenças...',
     'Quase lá...',
+    'O servidor pode demorar um momento no primeiro acesso do dia...',
+    'Aguarde, estamos carregando tudo para você...',
   ];
   int _loadingMsgIdx = 0;
   Timer? _loadingTimer;
@@ -123,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final res = await dio
             .post('/api/auth/firebase-login', data: {'idToken': idToken})
-            .timeout(const Duration(seconds: 20));
+            .timeout(const Duration(seconds: 70));
 
         body = res.data as Map<String, dynamic>;
       } on FirebaseAuthException catch (e) {
