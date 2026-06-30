@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -95,70 +96,136 @@ class _LoginScreenState extends State<LoginScreen> {
     final erroId = _validarId();
     if (erroId != null) { setState(() => _erro = erroId); return; }
     if (_senhaCtrl.text.isEmpty) { setState(() => _erro = 'Informe sua senha.'); return; }
+    if (_mode == _InputMode.telefone) {
+      setState(() => _erro = 'Login por telefone não disponível nesta versão. Use seu e-mail.');
+      return;
+    }
 
     setState(() { _loading = true; _erro = null; _loadingMsgIdx = 0; });
     _loadingTimer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
       if (mounted) setState(() => _loadingMsgIdx = (_loadingMsgIdx + 1) % _loadingMsgs.length);
     });
-    final payload = _mode == _InputMode.telefone ? _rawPhone() : _idCtrl.text.trim();
-    final data = {'emailOuTelefone': payload, 'senha': _senhaCtrl.text};
-
-    Future<void> attempt({bool isRetry = false}) async {
-      try {
-        final res = await dio.post('/api/auth/login', data: data);
-        final body = res.data as Map<String, dynamic>;
-        if (body['sucesso'] == true) {
-          final d = body['dados'] as Map<String, dynamic>;
-          final token = d['accessToken'] as String;
-          final refreshToken = d['refreshToken'] as String?;
-          final id = AuthStorage.subFromJwt(token) ?? '';
-          await AuthStorage.save(
-            token,
-            StoredUser(
-              id: id,
-              nome: d['nome'] ?? '',
-              email: d['email'] ?? '',
-              perfil: d['perfil'] ?? '',
-              academiaId: d['academiaId']?.toString(),
-            ),
-            refreshToken: refreshToken,
-          );
-          if (!mounted) return;
-          switch (d['perfil']) {
-            case 'Admin':
-            case 'Secretaria':
-              context.go('/admin/dashboard');
-            case 'Professor':
-              context.go('/professor/turmas');
-            case 'Aluno':
-              context.go('/aluno/perfil');
-            default:
-              context.go('/login');
-          }
-        } else {
-          if (mounted) setState(() => _erro = body['mensagem'] ?? 'Credenciais inválidas.');
-        }
-      } on DioException catch (e) {
-        final isConnErr = e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.receiveTimeout ||
-            e.type == DioExceptionType.sendTimeout ||
-            e.type == DioExceptionType.connectionError;
-        if (isConnErr && !isRetry) {
-          // sem erro visual — as mensagens de loading já indicam que está tentando
-          await Future.delayed(const Duration(seconds: 4));
-          if (mounted) await attempt(isRetry: true);
-        } else {
-          if (mounted) setState(() => _erro = e.response?.data?['mensagem'] ?? 'Servidor temporariamente indisponível. Aguarde alguns segundos e tente novamente.');
-        }
-      }
-    }
 
     try {
-      await attempt();
+      final email = _idCtrl.text.trim();
+      final senha = _senhaCtrl.text;
+
+      Map<String, dynamic>? body;
+
+      // 1. Tenta autenticar com Firebase (instantâneo, sem cold start do Render)
+      try {
+        final credential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: senha)
+            .timeout(const Duration(seconds: 20));
+
+        final idToken = await credential.user!.getIdToken();
+        if (idToken == null) throw Exception('Token Firebase vazio.');
+
+        final res = await dio
+            .post('/api/auth/firebase-login', data: {'idToken': idToken})
+            .timeout(const Duration(seconds: 20));
+
+        body = res.data as Map<String, dynamic>;
+      } on FirebaseAuthException catch (e) {
+        // Usuário existente sem conta Firebase: migra automaticamente
+        if (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'wrong-password') {
+          body = await _loginLegadoEMigrar(email, senha);
+        } else {
+          rethrow;
+        }
+      }
+
+      if (body == null) {
+        if (mounted) setState(() => _erro = 'Credenciais inválidas.');
+        return;
+      }
+
+      if (body['sucesso'] == true) {
+        final d = body['dados'] as Map<String, dynamic>;
+        final token = d['accessToken'] as String;
+        final refreshToken = d['refreshToken'] as String?;
+        final id = AuthStorage.subFromJwt(token) ?? '';
+        await AuthStorage.save(
+          token,
+          StoredUser(
+            id: id,
+            nome: d['nome'] ?? '',
+            email: d['email'] ?? '',
+            perfil: d['perfil'] ?? '',
+            academiaId: d['academiaId']?.toString(),
+          ),
+          refreshToken: refreshToken,
+        );
+        if (!mounted) return;
+        switch (d['perfil']) {
+          case 'Admin':
+          case 'Secretaria':
+            context.go('/admin/dashboard');
+          case 'Professor':
+            context.go('/professor/turmas');
+          case 'Aluno':
+            context.go('/aluno/perfil');
+          default:
+            context.go('/login');
+        }
+      } else {
+        if (mounted) setState(() => _erro = body?['mensagem'] ?? 'Credenciais inválidas.');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _erro = _mensagemFirebase(e.code));
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _erro = e.response?.data?['mensagem'] ?? 'Servidor temporariamente indisponível. Aguarde e tente novamente.');
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() => _erro = 'Tempo esgotado. Verifique sua conexão e tente novamente.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _erro = 'Erro inesperado. Tente novamente.');
     } finally {
       _loadingTimer?.cancel();
       _loadingTimer = null;
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // Chamado quando o usuário existe no backend mas ainda não tem conta Firebase.
+  // Faz login pelo endpoint legado, e se funcionar cria a conta Firebase em segundo plano.
+  Future<Map<String, dynamic>?> _loginLegadoEMigrar(String email, String senha) async {
+    try {
+      final res = await dio
+          .post('/api/auth/login', data: {'email': email, 'senha': senha})
+          .timeout(const Duration(seconds: 30));
+
+      final body = res.data as Map<String, dynamic>;
+      if (body['sucesso'] != true) return body;
+
+      // Migra para Firebase em segundo plano (não bloqueia o login)
+      FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: senha)
+          .ignore();
+
+      return body;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _mensagemFirebase(String code) {
+    switch (code) {
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'E-mail ou senha incorretos.';
+      case 'user-disabled':
+        return 'Esta conta está desativada.';
+      case 'too-many-requests':
+        return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+      case 'network-request-failed':
+        return 'Sem conexão com a internet.';
+      default:
+        return 'Erro ao autenticar. Verifique seus dados e tente novamente.';
     }
   }
 

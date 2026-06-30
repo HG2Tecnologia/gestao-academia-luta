@@ -37,6 +37,9 @@ public class Usuario : EntityBase
     // Foto de perfil (base64)
     public string? FotoBase64 { get; set; }
 
+    // Autenticação Firebase
+    public string? FirebaseUid { get; set; }
+
     // Plano familiar
     public Guid? GrupoFamiliarId { get; set; }
 

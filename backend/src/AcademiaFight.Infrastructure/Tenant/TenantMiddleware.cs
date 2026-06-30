@@ -19,6 +19,7 @@ public class TenantMiddleware
         "/api/auth/recuperar-acesso",
         "/api/auth/forgot-password",
         "/api/auth/reset-password",
+        "/api/auth/firebase-login",
         "/api/public/",
         "/swagger",
         "/health"

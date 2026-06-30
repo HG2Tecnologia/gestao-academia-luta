@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "376094928692",
+    "project_id": "sensei-manager-d64c0",
+    "storage_bucket": "sensei-manager-d64c0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376094928692:android:419bcc0bee9afa463e3f61",
+        "android_client_info": {
+          "package_name": "br.com.hg2tecnologia.senseimanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9bd3DffzqOqYxiR0SHS29--YD9T_KGT8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

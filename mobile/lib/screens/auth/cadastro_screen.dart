@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -78,52 +79,71 @@ class _CadastroScreenState extends State<CadastroScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _erro = null; });
 
+    final email = _emailCtrl.text.trim();
+    final senha = _senhaCtrl.text;
+
     try {
+      // 1. Criar academia + usuário no backend
       final res = await dio.post('/api/auth/register', data: {
         'nome': _nomeCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'senha': _senhaCtrl.text,
+        'email': email,
+        'senha': senha,
         'nomeAcademia': _nomeAcademiaCtrl.text.trim(),
         'subdominio': _subdominioCtrl.text.trim(),
         if (_telefoneCtrl.text.trim().isNotEmpty) 'telefone': _telefoneCtrl.text.trim(),
       });
 
       final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] == true) {
-        final d = body['dados'] as Map<String, dynamic>;
-        final token = d['accessToken'] as String? ?? '';
-        final refreshToken = d['refreshToken'] as String?;
-        if (token.isNotEmpty) {
-          final id = AuthStorage.subFromJwt(token) ?? '';
-          await AuthStorage.save(
-            token,
-            StoredUser(
-              id: id,
-              nome: d['nome'] ?? _nomeCtrl.text.trim(),
-              email: d['email'] ?? _emailCtrl.text.trim(),
-              perfil: d['perfil'] ?? 'Admin',
-              academiaId: d['academiaId']?.toString(),
-            ),
-            refreshToken: refreshToken,
-          );
-          if (mounted) context.go('/admin/dashboard');
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Conta criada! Faça login para continuar.'),
-                backgroundColor: kSuccess,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            context.go('/login');
-          }
-        }
-      } else {
+      if (body['sucesso'] != true) {
         setState(() => _erro = body['mensagem'] ?? 'Erro ao criar conta.');
+        return;
+      }
+
+      // 2. Criar usuário no Firebase com o mesmo email/senha
+      try {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: senha,
+        );
+      } on FirebaseAuthException catch (e) {
+        // Se já existe no Firebase (conta anterior), tenta só logar
+        if (e.code != 'email-already-in-use') rethrow;
+      }
+
+      // 3. Salvar sessão com o JWT retornado pelo backend
+      final d = body['dados'] as Map<String, dynamic>;
+      final token = d['accessToken'] as String? ?? '';
+      final refreshToken = d['refreshToken'] as String?;
+      if (token.isNotEmpty) {
+        final id = AuthStorage.subFromJwt(token) ?? '';
+        await AuthStorage.save(
+          token,
+          StoredUser(
+            id: id,
+            nome: d['nome'] ?? _nomeCtrl.text.trim(),
+            email: d['email'] ?? email,
+            perfil: d['perfil'] ?? 'Admin',
+            academiaId: d['academiaId']?.toString(),
+          ),
+          refreshToken: refreshToken,
+        );
+        if (mounted) context.go('/admin/dashboard');
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Conta criada! Faça login para continuar.'),
+              backgroundColor: kSuccess,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.go('/login');
+        }
       }
     } on DioException catch (e) {
       setState(() => _erro = e.response?.data?['mensagem'] ?? 'Erro de conexão. Verifique sua internet.');
+    } on FirebaseAuthException catch (e) {
+      setState(() => _erro = 'Conta criada, mas houve um problema ao configurar o acesso (${e.code}). Faça login normalmente.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

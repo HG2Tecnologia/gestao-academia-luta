@@ -1429,6 +1429,9 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.Property<string>("FcmToken")
                         .HasColumnType("text");
 
+                    b.Property<string>("FirebaseUid")
+                        .HasColumnType("text");
+
                     b.Property<string>("FotoBase64")
                         .HasColumnType("text");
 
@@ -1496,6 +1499,10 @@ namespace AcademiaFight.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcademiaId");
+
+                    b.HasIndex("FirebaseUid")
+                        .IsUnique()
+                        .HasFilter("\"FirebaseUid\" IS NOT NULL");
 
                     b.HasIndex("GrupoFamiliarId");
 

@@ -14,4 +14,5 @@ public interface IAuthService
     Task<BaseResponse> RedefinirSenhaAsync(string token, string novaSenha, CancellationToken ct = default);
     Task<BaseResponse<PrimeiroAcessoResponse>> PrimeiroAcessoAsync(PrimeiroAcessoRequest request, CancellationToken ct = default);
     Task<BaseResponse<PrimeiroAcessoResponse>> RecuperarAcessoAsync(RecuperarAcessoRequest request, CancellationToken ct = default);
+    Task<BaseResponse<LoginResponse>> FirebaseLoginAsync(string firebaseUid, string email, CancellationToken ct = default);
 }

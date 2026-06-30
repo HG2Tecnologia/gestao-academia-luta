@@ -75,6 +75,7 @@ builder.Services.AddScoped<ParQService>();
 builder.Services.AddScoped<ICatracaService, CatracaService>();
 builder.Services.AddScoped<IToletusCatracaClient, ToletusCatracaClient>();
 builder.Services.AddHttpClient("toletus");  // HttpClient nomeado para chamadas ao dispositivo Toletus
+builder.Services.AddSingleton<FirebaseTokenVerifier>();
 
 // 5. TenantContext (Scoped)
 builder.Services.AddScoped<ITenantContext, TenantContext>();

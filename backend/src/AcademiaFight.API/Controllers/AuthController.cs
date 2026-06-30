@@ -1,3 +1,4 @@
+using AcademiaFight.API.Services;
 using AcademiaFight.Application.DTOs.Auth;
 using AcademiaFight.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -10,10 +11,12 @@ namespace AcademiaFight.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly FirebaseTokenVerifier _firebaseVerifier;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, FirebaseTokenVerifier firebaseVerifier)
     {
         _authService = authService;
+        _firebaseVerifier = firebaseVerifier;
     }
 
     [HttpPost("login")]
@@ -109,4 +112,21 @@ public class AuthController : ControllerBase
         if (!resultado.Sucesso) return BadRequest(resultado);
         return Ok(resultado);
     }
+
+    [HttpPost("firebase-login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> FirebaseLogin([FromBody] FirebaseLoginRequest request, CancellationToken ct)
+    {
+        var (success, uid, email, error) = await _firebaseVerifier.VerifyAsync(request.IdToken, ct);
+        if (!success || uid is null || email is null)
+        {
+            return Unauthorized(new { sucesso = false, mensagem = "Token Firebase inválido ou expirado." });
+        }
+
+        var resultado = await _authService.FirebaseLoginAsync(uid, email, ct);
+        if (!resultado.Sucesso) return Unauthorized(resultado);
+        return Ok(resultado);
+    }
 }
+
+public record FirebaseLoginRequest(string IdToken);

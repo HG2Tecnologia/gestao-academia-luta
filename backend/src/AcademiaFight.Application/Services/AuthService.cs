@@ -180,6 +180,63 @@ public class AuthService : IAuthService
         }
     }
 
+    public async Task<BaseResponse<LoginResponse>> FirebaseLoginAsync(string firebaseUid, string email, CancellationToken ct = default)
+    {
+        var uid = firebaseUid;
+
+        if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(email))
+            return BaseResponse<LoginResponse>.Falha("Credenciais Firebase inválidas.");
+
+        var usuario = await _db.Usuarios
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Ativo &&
+                (u.FirebaseUid == uid || (u.Email != null && u.Email.ToLower() == email)), ct);
+
+        if (usuario is null)
+            return BaseResponse<LoginResponse>.Falha("Usuário não encontrado. Verifique se seu cadastro está ativo.");
+
+        var academia = await _db.Academias
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.Id == usuario.AcademiaId && a.Ativo, ct);
+
+        if (academia is null)
+            return BaseResponse<LoginResponse>.Falha("Academia inativa. Entre em contato com o suporte.");
+
+        if (usuario.FirebaseUid != uid)
+            usuario.FirebaseUid = uid;
+
+        Dictionary<string, bool>? permissoes = null;
+        if (usuario.Perfil != PerfilUsuario.Admin)
+        {
+            var funcionario = await _db.Funcionarios
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(f => f.UsuarioId == usuario.Id, ct);
+            permissoes = funcionario?.Permissoes;
+        }
+
+        var accessToken = _tokenService.GerarAccessToken(usuario, permissoes);
+        var refreshToken = _tokenService.GerarRefreshToken();
+
+        usuario.RefreshToken = refreshToken;
+        usuario.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        usuario.UltimoLogin = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Login Firebase para {Email} na academia {AcademiaId}", email, academia.Id);
+
+        return BaseResponse<LoginResponse>.Ok(new LoginResponse
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            Expiracao = DateTime.UtcNow.AddMinutes(15),
+            Nome = usuario.Nome,
+            Email = usuario.Email,
+            Perfil = usuario.Perfil.ToString(),
+            AcademiaId = academia.Id
+        });
+    }
+
     public async Task<BaseResponse<LoginResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
     {
         try
