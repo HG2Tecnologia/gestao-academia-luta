@@ -203,11 +203,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<RankingHub>("/hubs/ranking");
 app.MapHub<CatracaHub>("/hubs/catraca");
-app.MapMethods("/health", ["GET", "HEAD"], async (AppDbContext db) =>
-{
-    await db.Database.ExecuteSqlRawAsync("SELECT 1");
-    return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
-});
+app.MapMethods("/health", ["GET", "HEAD"], () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
