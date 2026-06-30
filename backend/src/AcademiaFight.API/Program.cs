@@ -69,6 +69,7 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<RankingMensalResetJob>();
 builder.Services.AddScoped<IAtestadoService, AtestadoService>();
 builder.Services.AddScoped<AtestadoVencimentoJob>();
+builder.Services.AddScoped<DbKeepAliveJob>();
 builder.Services.AddScoped<INoticiaService, NoticiaService>();
 builder.Services.AddScoped<IGrupoFamiliarService, GrupoFamiliarService>();
 builder.Services.AddScoped<ParQService>();
@@ -229,6 +230,13 @@ RecurringJob.AddOrUpdate<AtestadoVencimentoJob>(
     "atestado-vencimento-diario",
     job => job.ExecutarAsync(),
     "0 8 * * *",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+
+// Mantém o Neon (banco) acordado pingando a cada 4 minutos, fora do pipeline HTTP
+RecurringJob.AddOrUpdate<DbKeepAliveJob>(
+    "db-keep-alive",
+    job => job.ExecutarAsync(),
+    "*/4 * * * *",
     new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 
 app.Run();
