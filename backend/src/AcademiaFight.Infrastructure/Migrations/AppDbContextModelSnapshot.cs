@@ -1500,10 +1500,6 @@ namespace AcademiaFight.Infrastructure.Migrations
 
                     b.HasIndex("AcademiaId");
 
-                    b.HasIndex("FirebaseUid")
-                        .IsUnique()
-                        .HasFilter("\"FirebaseUid\" IS NOT NULL");
-
                     b.HasIndex("GrupoFamiliarId");
 
                     b.HasIndex("PlanoId");
