@@ -1,0 +1,13 @@
+{
+  "name": "migrate-firestore",
+  "version": "1.0.0",
+  "description": "Migra dados do Neon PostgreSQL para Firebase Firestore",
+  "main": "migrate.js",
+  "scripts": {
+    "migrate": "node migrate.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "pg": "^8.11.0"
+  }
+}

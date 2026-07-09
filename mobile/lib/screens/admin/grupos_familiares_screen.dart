@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminGruposFamiliaresScreen extends StatefulWidget {
   const AdminGruposFamiliaresScreen({super.key});
@@ -23,9 +24,10 @@ class _AdminGruposFamiliaresScreenState extends State<AdminGruposFamiliaresScree
   Future<void> _load() async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final res = await dio.get('/api/grupos-familiares');
-      final dados = res.data['dados'] as List? ?? [];
-      if (mounted) setState(() => _grupos = dados.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final list = await firestoreService.getGruposFamiliares(academiaId);
+      if (mounted) setState(() => _grupos = list);
     } catch (e) {
       if (mounted) setState(() => _erro = 'Erro ao carregar grupos: $e');
     } finally {
@@ -62,7 +64,9 @@ class _AdminGruposFamiliaresScreenState extends State<AdminGruposFamiliaresScree
     );
     if (ok != true || ctrl.text.trim().isEmpty || !mounted) return;
     try {
-      await dio.post('/api/grupos-familiares', data: {'nome': ctrl.text.trim()});
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.addGrupoFamiliar(academiaId, {'nome': ctrl.text.trim()});
       await _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao criar grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -95,7 +99,9 @@ class _AdminGruposFamiliaresScreenState extends State<AdminGruposFamiliaresScree
     );
     if (ok != true || ctrl.text.trim().isEmpty || !mounted) return;
     try {
-      await dio.put('/api/grupos-familiares/${grupo['id']}', data: {'nome': ctrl.text.trim()});
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.updateGrupoFamiliar(academiaId, grupo['id'] as String, {'nome': ctrl.text.trim()});
       await _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao renomear.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -117,7 +123,9 @@ class _AdminGruposFamiliaresScreenState extends State<AdminGruposFamiliaresScree
     );
     if (ok != true || !mounted) return;
     try {
-      await dio.delete('/api/grupos-familiares/${grupo['id']}');
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.deleteGrupoFamiliar(academiaId, grupo['id'] as String);
       await _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -126,7 +134,9 @@ class _AdminGruposFamiliaresScreenState extends State<AdminGruposFamiliaresScree
 
   Future<void> _removerMembro(String grupoId, Map<String, dynamic> membro) async {
     try {
-      await dio.delete('/api/grupos-familiares/$grupoId/membros/${membro['id']}');
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.removerMembroGrupo(academiaId, grupoId, membro['id'] as String);
       await _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${membro['nome']} removido do grupo.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
     } catch (_) {

@@ -1,9 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/ad_service.dart';
-import 'core/api_client.dart';
 import 'core/constants.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
@@ -57,7 +57,6 @@ final routerKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  setupDio();
   await AdService.instance.init();
   runApp(const TatameApp());
 }
@@ -233,6 +232,8 @@ class TatameApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Tatame',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,

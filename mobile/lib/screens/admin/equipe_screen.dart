@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
+import '../../core/permissoes.dart';
 
 class AdminEquipeScreen extends StatefulWidget {
   const AdminEquipeScreen({super.key});
@@ -26,11 +28,10 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final res = await dio.get('/api/funcionarios');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final list = dados is List ? dados : [];
-      if (mounted) setState(() => _funcs = list.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final list = await firestoreService.getFuncionarios(academiaId);
+      if (mounted) setState(() => _funcs = list);
     } catch (e) {
       if (mounted) setState(() => _erro = 'Erro ao carregar equipe: $e');
     } finally {
@@ -91,63 +92,171 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
     final nomeCtrl = TextEditingController(text: f['nome'] as String? ?? '');
     final cargoCtrl = TextEditingController(text: f['cargo'] as String? ?? '');
     String perfil = f['perfil'] as String? ?? 'Professor';
+
+    // Carrega permissões existentes ou defaults do perfil
+    final rawPerm = f['permissoes'] as Map<String, dynamic>? ?? {};
+    Map<String, bool> permissoes = rawPerm.isNotEmpty
+        ? rawPerm.map((k, v) => MapEntry(k, v == true))
+        : permissoesParaPerfil(perfil);
+
     final formKey = GlobalKey<FormState>();
 
-    final ok = await showDialog<bool>(
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Editar membro', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
-        content: Form(
-          key: formKey,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextFormField(
-              controller: nomeCtrl,
-              style: TextStyle(color: kText1),
-              decoration: InputDecoration(labelText: 'Nome', labelStyle: TextStyle(color: kText2), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kPrimary))),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text('Editar membro', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
+                  ]),
+                  const Divider(height: 20),
+                  // Nome
+                  TextFormField(
+                    controller: nomeCtrl,
+                    style: TextStyle(color: kText1),
+                    decoration: InputDecoration(
+                      labelText: 'Nome',
+                      labelStyle: TextStyle(color: kText2),
+                      filled: true, fillColor: kBg,
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  // Cargo
+                  TextFormField(
+                    controller: cargoCtrl,
+                    style: TextStyle(color: kText1),
+                    decoration: InputDecoration(
+                      labelText: 'Cargo (opcional)',
+                      labelStyle: TextStyle(color: kText2),
+                      filled: true, fillColor: kBg,
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Perfil
+                  Text('Perfil', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: () async {
+                      final sel = await showDialog<String>(
+                        context: context,
+                        builder: (dCtx) => SimpleDialog(
+                          backgroundColor: kSurface,
+                          title: Text('Perfil', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+                          children: ['Professor', 'Secretaria', 'Admin'].map((p) => SimpleDialogOption(
+                            onPressed: () => Navigator.of(dCtx).pop(p),
+                            child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(p, style: TextStyle(color: kText1, fontSize: 15))),
+                          )).toList(),
+                        ),
+                      );
+                      if (sel != null) setSt(() {
+                        perfil = sel;
+                        permissoes = permissoesParaPerfil(sel);
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                      child: Row(children: [
+                        Expanded(child: Text(perfil, style: TextStyle(color: kText1, fontSize: 14))),
+                        Icon(Icons.expand_more_rounded, color: kText2, size: 20),
+                      ]),
+                    ),
+                  ),
+                  // Permissões (somente professor / secretaria)
+                  if (perfil != 'Admin') ...[
+                    const SizedBox(height: 20),
+                    Text('PERMISSÕES', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    const SizedBox(height: 10),
+                    _buildPermissoesGrupo('Telas', kPermissoesInfo.keys.where((k) => k.startsWith('tela_')).toList(), permissoes, setSt),
+                    const SizedBox(height: 10),
+                    _buildPermissoesGrupo('Ações', kPermissoesInfo.keys.where((k) => k.startsWith('acao_')).toList(), permissoes, setSt),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity, height: 50,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        Navigator.of(ctx).pop();
+                        try {
+                          final user = await AuthStorage.getUser();
+                          final academiaId = user!.academiaId!;
+                          await firestoreService.updateFuncionario(academiaId, f['id'] as String, {
+                            'nome': nomeCtrl.text.trim(),
+                            'cargo': cargoCtrl.text.trim().isEmpty ? null : cargoCtrl.text.trim(),
+                            'perfil': perfil,
+                            'perfil_nome': perfil,
+                            'permissoes': perfil == 'Admin' ? <String, bool>{} : permissoes,
+                          });
+                          await _load();
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Membro atualizado!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
+                        } catch (_) {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao atualizar.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimary, foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Salvar alterações', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: cargoCtrl,
-              style: TextStyle(color: kText1),
-              decoration: InputDecoration(labelText: 'Cargo (opcional)', labelStyle: TextStyle(color: kText2), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kPrimary))),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: perfil,
-              dropdownColor: kSurface,
-              style: TextStyle(color: kText1),
-              decoration: InputDecoration(labelText: 'Perfil', labelStyle: TextStyle(color: kText2), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kPrimary))),
-              items: ['Professor', 'Secretaria', 'Admin'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-              onChanged: (v) { if (v != null) setSt(() => perfil = v); },
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
-            },
-            child: Text('Salvar', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
           ),
-        ],
-      )),
+        ),
+      ),
     );
 
-    if (ok != true || !mounted) return;
-    try {
-      await dio.put('/api/funcionarios/${f['id']}', data: {
-        'nome': nomeCtrl.text.trim(),
-        'cargo': cargoCtrl.text.trim().isEmpty ? null : cargoCtrl.text.trim(),
-        'perfil': perfil,
-      });
-      await _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Membro atualizado!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao atualizar.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
-    }
+    nomeCtrl.dispose();
+    cargoCtrl.dispose();
+  }
+
+  Widget _buildPermissoesGrupo(String titulo, List<String> chaves, Map<String, bool> perm, StateSetter setSt) {
+    return Container(
+      decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Text(titulo, style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+          for (int i = 0; i < chaves.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: kBorder, indent: 14),
+            SwitchListTile(
+              value: perm[chaves[i]] ?? false,
+              onChanged: (v) => setSt(() => perm[chaves[i]] = v),
+              activeColor: kPrimary,
+              title: Text(kPermissoesInfo[chaves[i]]!.$1, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: Text(kPermissoesInfo[chaves[i]]!.$2, style: TextStyle(color: kText2, fontSize: 11)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+              dense: true,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _remover(String id, String nome) async {
@@ -165,7 +274,9 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/funcionarios/$id');
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.deleteFuncionario(academiaId, id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Funcionário removido.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
@@ -174,13 +285,8 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        String msg = 'Não foi possível remover.';
-        try {
-          final body = (e as dynamic).response?.data as Map?;
-          msg = body?['mensagem'] as String? ?? msg;
-        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+          SnackBar(content: const Text('Não foi possível remover.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
         );
       }
     }

@@ -1,0 +1,25 @@
+{
+  "indexes": [
+    { "collectionGroup": "usuarios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "perfil", "order": "ASCENDING" }, { "fieldPath": "nome", "order": "ASCENDING" }] },
+    { "collectionGroup": "usuarios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "perfil", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }] },
+    { "collectionGroup": "usuarios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "perfil", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }, { "fieldPath": "nome", "order": "ASCENDING" }] },
+    { "collectionGroup": "usuarios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "perfil", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }, { "fieldPath": "xp_total", "order": "DESCENDING" }] },
+    { "collectionGroup": "turmas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "professor_id", "order": "ASCENDING" }, { "fieldPath": "nome", "order": "ASCENDING" }] },
+    { "collectionGroup": "turmas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "ativo", "order": "ASCENDING" }, { "fieldPath": "nome", "order": "ASCENDING" }] },
+    { "collectionGroup": "turmas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "professor_id", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }, { "fieldPath": "nome", "order": "ASCENDING" }] },
+    { "collectionGroup": "matriculas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }] },
+    { "collectionGroup": "matriculas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "turma_id", "order": "ASCENDING" }, { "fieldPath": "ativo", "order": "ASCENDING" }] },
+    { "collectionGroup": "presencas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
+    { "collectionGroup": "presencas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "horario_id", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
+    { "collectionGroup": "presencas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "data", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
+    { "collectionGroup": "graduacoes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "data_exame", "order": "DESCENDING" }] },
+    { "collectionGroup": "pagamentos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "data_vencimento", "order": "DESCENDING" }] },
+    { "collectionGroup": "noticias", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "publicada", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
+    { "collectionGroup": "pontos_ranking", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "ranking_custom_id", "order": "ASCENDING" }, { "fieldPath": "data", "order": "DESCENDING" }] },
+    { "collectionGroup": "par_qs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "vista_pelo_aluno", "order": "ASCENDING" }] },
+    { "collectionGroup": "atestados", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "data_upload", "order": "DESCENDING" }] },
+    { "collectionGroup": "contratos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
+    { "collectionGroup": "faixas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "modalidade_id", "order": "ASCENDING" }, { "fieldPath": "ordem", "order": "ASCENDING" }] }
+  ],
+  "fieldOverrides": []
+}

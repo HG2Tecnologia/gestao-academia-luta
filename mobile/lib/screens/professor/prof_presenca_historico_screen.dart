@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class ProfPresencaHistoricoScreen extends StatefulWidget {
   const ProfPresencaHistoricoScreen({
@@ -25,6 +26,7 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
   List<Map<String, dynamic>> _presencas = [];
   bool _loading = false;
   bool _erro = false;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -36,13 +38,15 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
     setState(() { _loading = true; _erro = false; });
     final fmt = DateFormat('yyyy-MM-dd');
     try {
-      final res = await dio.get('/api/presencas/aula', queryParameters: {
-        'horarioId': widget.horarioId,
-        'data': fmt.format(_data),
-      });
-      final raw = res.data['dados'];
-      final list = raw is List ? raw : (raw as Map?)?['items'] as List? ?? [];
-      if (mounted) setState(() { _presencas = list.cast<Map<String, dynamic>>(); _loading = false; });
+      final user = await AuthStorage.getUser();
+      if (user == null) throw Exception('sem usuario');
+      _academiaId = user.academiaId;
+      final list = await firestoreService.getPresencas(
+        user.academiaId!,
+        horarioId: widget.horarioId,
+        dataStr: fmt.format(_data),
+      );
+      if (mounted) setState(() { _presencas = list; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
     }
@@ -71,11 +75,12 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
     _load();
   }
 
-  String _metodo(String? m) {
+  String _metodo(dynamic m) {
     if (m == null) return '';
-    if (m.contains('QR') || m.contains('Qr') || m.contains('qr')) return 'QR Code';
-    if (m.contains('Manual') || m.contains('manual')) return 'Manual';
-    return m;
+    final s = m.toString();
+    if (s == '2' || s.contains('QR') || s.contains('Qr') || s.contains('qr')) return 'QR Code';
+    if (s == '1' || s.contains('Manual') || s.contains('manual')) return 'Manual';
+    return s;
   }
 
   @override
@@ -182,8 +187,8 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
                                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                                   itemBuilder: (_, i) {
                                     final p = _presencas[i];
-                                    final hora = (p['horaCheckin'] as String? ?? '').substring(0, 5);
-                                    final metodo = _metodo(p['metodoCheckin']?.toString());
+                                    final hora = ((p['hora_checkin'] ?? p['horaCheckin'] ?? '') as String).padLeft(5, '0').substring(0, 5);
+                                    final metodo = _metodo(p['metodo_checkin'] ?? p['metodoCheckin']);
                                     final confirmado = p['confirmado'] as bool? ?? false;
 
                                     return Container(
@@ -213,7 +218,7 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  p['nomeAluno']?.toString() ?? '',
+                                                  (p['nomeAluno'] ?? p['aluno_id'] ?? '').toString(),
                                                   style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
                                                 ),
                                                 Row(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 
 class AlunoConquistasScreen extends StatefulWidget {
   const AlunoConquistasScreen({super.key});
@@ -28,30 +28,29 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) { if (mounted) setState(() { _loading = false; _erro = true; }); return; }
+      final academiaId = user.academiaId!;
 
       final results = await Future.wait([
-        dio.get('/api/ranking/perfil/${user.id}'),
-        dio.get('/api/ranking/conquistas/${user.id}'),
+        firestoreService.getPerfilRanking(academiaId, user.id),
+        firestoreService.getConquistasAluno(academiaId, user.id),
       ]);
 
-      final perfilData = results[0].data as Map<String, dynamic>;
-      final conquistasData = results[1].data as Map<String, dynamic>;
+      final perfilData = results[0] as Map<String, dynamic>?;
+      final conquistasList = results[1] as List<Map<String, dynamic>>;
 
       // Marcar conquistas novas como vistas
-      final naoVistas = (conquistasData['dados'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .where((c) => c['desbloqueada'] == true && c['vistaPeloAluno'] == false)
-          .map((c) => c['id'] as String)
+      final naoVistas = conquistasList
+          .where((c) => c['desbloqueada'] == true && c['vista_pelo_aluno'] == false)
           .toList();
       if (naoVistas.isNotEmpty) {
         try {
-          await dio.post('/api/ranking/conquistas/marcar-vistas', data: {'ids': naoVistas});
+          await firestoreService.marcarConquistasVistas(academiaId, user.id);
         } catch (_) {}
       }
 
       if (mounted) setState(() {
-        _perfil = perfilData['dados'] as Map<String, dynamic>?;
-        _conquistas = (conquistasData['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+        _perfil = perfilData;
+        _conquistas = conquistasList;
         _loading = false;
       });
     } catch (_) {
@@ -133,8 +132,8 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
 
   Widget _buildHeader() {
     final p = _perfil ?? {};
-    final nivel = p['nivel'] as String? ?? '—';
-    final posGlobal = p['posicaoGlobal'] as int? ?? 0;
+    final nivel = p['nivel']?.toString() ?? '—';
+    final xpTotal = (p['xp_total'] as num?)?.toInt() ?? 0;
     final sequencia = p['sequenciaAtual'] as int? ?? 0;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -144,7 +143,7 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
         Row(children: [
           _statBox(Icons.emoji_events_rounded, kWarning, 'Nível', nivel),
           const SizedBox(width: 12),
-          _statBox(Icons.leaderboard_rounded, kPrimary, 'Ranking', '#$posGlobal'),
+          _statBox(Icons.leaderboard_rounded, kPrimary, 'XP Total', '$xpTotal'),
           const SizedBox(width: 12),
           _statBox(Icons.local_fire_department_rounded, kDanger, 'Sequência', '${sequencia}d'),
         ]),
@@ -171,9 +170,9 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
 
   Widget _buildXpBar() {
     final p = _perfil ?? {};
-    final xpTotal = p['xpTotal'] as int? ?? 0;
-    final xpMensal = p['xpMensal'] as int? ?? 0;
-    final xpProximo = p['xpParaProximoNivel'] as int? ?? 1;
+    final xpTotal = (p['xp_total'] as num?)?.toInt() ?? 0;
+    final xpMensal = (p['xp_mensal'] as num?)?.toInt() ?? 0;
+    final xpProximo = (p['xpParaProximoNivel'] as num?)?.toInt() ?? 1;
     final progresso = xpProximo > 0 ? (xpTotal % xpProximo) / xpProximo : 0.0;
 
     return Container(

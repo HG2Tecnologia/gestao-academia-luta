@@ -1,10 +1,10 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminRankingsScreen extends StatefulWidget {
   const AdminRankingsScreen({super.key});
@@ -16,6 +16,7 @@ class AdminRankingsScreen extends StatefulWidget {
 class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   List<Map<String, dynamic>> _rankings = [];
   bool _loading = true;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -26,10 +27,11 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/ranking/custom', queryParameters: {'incluirInativos': true});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      setState(() => _rankings = (dados is List ? dados : []).cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) return;
+      final dados = await firestoreService.getRankingsCustom(_academiaId!);
+      setState(() => _rankings = dados.cast<Map<String, dynamic>>());
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -90,21 +92,22 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   }
 
   Future<void> _toggleAtivo(Map<String, dynamic> r) async {
-    final ativo = r['ativo'] as bool;
+    if (_academiaId == null) return;
+    final ativo = r['ativo'] as bool? ?? true;
     try {
       if (ativo) {
-        await dio.delete('/api/ranking/custom/${r['id']}');
+        await firestoreService.deleteRankingCustom(_academiaId!, r['id'].toString());
       } else {
-        await dio.put('/api/ranking/custom/${r['id']}', data: {
+        await firestoreService.updateRankingCustom(_academiaId!, r['id'].toString(), {
           ...r,
           'ativo': true,
         });
       }
       _load();
-    } on DioException catch (e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.response?.data?['mensagem'] ?? 'Erro ao atualizar'),
+          content: const Text('Erro ao atualizar'),
           backgroundColor: kDanger,
         ));
       }
@@ -257,6 +260,7 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
 
   DateTime? _dataInicio;
   DateTime? _dataFim;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -273,6 +277,12 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
       if (r['dataInicio'] != null) _dataInicio = DateTime.tryParse(r['dataInicio']);
       if (r['dataFim'] != null) _dataFim = DateTime.tryParse(r['dataFim']);
     }
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthStorage.getUser();
+    _academiaId = user?.academiaId ?? '';
   }
 
   @override
@@ -286,6 +296,10 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_academiaId == null || _academiaId!.isEmpty) {
+      setState(() => _erro = 'Academia não encontrada.');
+      return;
+    }
     setState(() { _salvando = true; _erro = null; });
     try {
       final body = {
@@ -302,20 +316,15 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
       };
 
       if (widget.ranking == null) {
-        await dio.post('/api/ranking/custom', data: body);
+        await firestoreService.addRankingCustom(_academiaId!, body);
       } else {
-        await dio.put('/api/ranking/custom/${widget.ranking!['id']}', data: body);
+        await firestoreService.updateRankingCustom(_academiaId!, widget.ranking!['id'].toString(), body);
       }
 
       widget.onSalvo();
       if (mounted) Navigator.of(context).pop();
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data['mensagem'] ?? e.response!.data.toString())
-          : 'Erro ${e.response?.statusCode ?? "de conexão"}.';
-      setState(() => _erro = msg);
     } catch (e) {
-      setState(() => _erro = 'Erro inesperado: $e');
+      setState(() => _erro = 'Erro ao salvar: $e');
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -477,7 +486,7 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
       );
 
   Widget _datePicker({required String label, required ValueChanged<DateTime?> set, required VoidCallback clear}) {
-    final hasDate = !label.contains('/') ? false : true;
+    final hasDate = label.contains('/');
     return GestureDetector(
       onTap: () async {
         final picked = await showDatePicker(

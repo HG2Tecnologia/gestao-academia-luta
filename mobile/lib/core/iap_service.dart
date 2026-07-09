@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'api_client.dart';
+import 'auth_storage.dart';
+import 'firestore_service.dart';
 
 const kIapMensal = 'br.com.senseimanager.pro.mensal';
 const kIapTrimestral = 'br.com.senseimanager.pro.trimestral';
@@ -72,11 +73,26 @@ class IapService {
 
   Future<void> _ativarBackend(PurchaseDetails purchase) async {
     try {
-      final platform = kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android');
-      await dio.post('/api/academia/plano/iap', data: {
-        'productId': purchase.productID,
-        'purchaseToken': purchase.verificationData.serverVerificationData,
-        'platform': platform,
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId;
+      if (academiaId == null) throw Exception('Academia não identificada');
+
+      // Calcula expiração com base no produto comprado
+      DateTime expiracao;
+      final now = DateTime.now();
+      if (purchase.productID == kIapAnual) {
+        expiracao = now.add(const Duration(days: 365));
+      } else if (purchase.productID == kIapTrimestral) {
+        expiracao = now.add(const Duration(days: 90));
+      } else {
+        expiracao = now.add(const Duration(days: 30));
+      }
+
+      await firestoreService.updateAcademia(academiaId, {
+        'plano_tipo': 1, // Pro
+        'plano_expiracao': expiracao.toIso8601String(),
+        'plano_produto_id': purchase.productID,
+        'plano_plataforma': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
       });
       onPurchaseResult?.call(true, null);
     } catch (_) {

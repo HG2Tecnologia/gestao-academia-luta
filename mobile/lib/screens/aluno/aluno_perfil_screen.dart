@@ -1,17 +1,28 @@
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 import 'aluno_atestado_screen.dart';
 import 'aluno_qrcode_sheet.dart';
+
+// Roda em isolate separado via compute() para não travar a UI
+List<int>? _comprimirFoto(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+  final resized = img.copyResize(decoded,
+      width: decoded.width > decoded.height ? 300 : -1,
+      height: decoded.width > decoded.height ? -1 : 300);
+  return img.encodeJpg(resized, quality: 75);
+}
 
 class AlunoPerfilScreen extends StatefulWidget {
   const AlunoPerfilScreen({super.key});
@@ -24,11 +35,10 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _aluno;
   Map<String, dynamic>? _atestado;
   Map<String, dynamic>? _parq;
-  Map<String, dynamic>? _grupoFamiliar;
-  List<Map<String, dynamic>> _contratos = [];
   List<Map<String, dynamic>> _noticias = [];
   List<Map<String, dynamic>> _presencasRecentes = [];
   bool _loading = true;
+  bool _uploadingFoto = false;
 
   @override
   void initState() {
@@ -60,67 +70,67 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Future<void> _escolherFoto() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
     if (result == null || result.files.single.bytes == null || !mounted) return;
-    final bytes = result.files.single.bytes!;
-    final ext = (result.files.single.extension ?? 'jpg').toLowerCase();
-    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-    final fotoBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
-    final alunoId = _aluno?['id']?.toString() ?? '';
-    if (alunoId.isEmpty) return;
+    final rawBytes = result.files.single.bytes!;
+
+    // Redimensiona em background thread (max 300px, JPEG q75 ≈ 15–40 KB)
+    final compressed = await compute(_comprimirFoto, rawBytes);
+    if (compressed == null) return;
+    final fotoBase64 = 'data:image/jpeg;base64,${base64Encode(compressed)}';
+
+    final user = await AuthStorage.getUser();
+    if (user == null) return;
+
+    // Atualiza otimisticamente antes de salvar no Firestore
+    if (mounted) setState(() { _uploadingFoto = true; _aluno = {...?_aluno, 'fotoBase64': fotoBase64}; });
     try {
-      await dio.patch('/api/alunos/$alunoId/foto', data: {'fotoBase64': fotoBase64});
-      if (mounted) setState(() { _aluno = {...?_aluno, 'fotoBase64': fotoBase64}; });
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao salvar foto.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+      await firestoreService.updateAluno(user.academiaId!, user.id, {'fotoBase64': fotoBase64});
+    } catch (e) {
+      // Reverte se o servidor rejeitou
+      if (mounted) {
+        setState(() { _aluno = {...?_aluno}..remove('fotoBase64'); });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao salvar foto.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingFoto = false);
     }
   }
 
   Future<void> _load() async {
     try {
+      final user = await AuthStorage.getUser();
+      if (user == null) return;
+      final academiaId = user.academiaId!;
+
       final results = await Future.wait([
-        dio.get('/api/alunos/me'),
-        dio.get('/api/atestados/meu').catchError((_) => Response(requestOptions: RequestOptions(path: '/api/atestados/meu'), data: {'dados': null})),
-        dio.get('/api/parq/meu').catchError((_) => Response(requestOptions: RequestOptions(path: '/api/parq/meu'), data: {'dados': null})),
+        firestoreService.getAluno(academiaId, user.id),
+        firestoreService.getAtestadoAluno(academiaId, user.id).catchError((_) => null),
+        firestoreService.getParQ(academiaId, user.id).catchError((_) => null),
       ]);
 
-      final dados = results[0].data['dados'] as Map<String, dynamic>?;
-      final atestadoDados = results[1].data['dados'] as Map<String, dynamic>?;
-      final parqDados = results[2].data['dados'] as Map<String, dynamic>?;
+      final dados = results[0] as Map<String, dynamic>?;
+      final atestadoDados = results[1] as Map<String, dynamic>?;
+      final parqDados = results[2] as Map<String, dynamic>?;
 
       if (mounted) setState(() {
-        _aluno = dados;
+        // Preserva a foto local se o upload ainda está em andamento ou Firestore ainda não confirmou
+        final fotoAtual = _aluno?['fotoBase64'] as String?;
+        _aluno = dados == null ? null : {
+          ...dados,
+          if (dados['fotoBase64'] == null && fotoAtual != null) 'fotoBase64': fotoAtual,
+        };
         _atestado = atestadoDados;
         _parq = parqDados;
       });
 
-      if (dados != null) {
-        final alunoId = dados['id']?.toString() ?? '';
-        try {
-          final cr = await dio.get('/api/contratos', queryParameters: {'alunoId': alunoId});
-          final lista = (cr.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-          if (mounted) setState(() => _contratos = lista);
-        } catch (_) {}
-        try {
-          final gr = await dio.get('/api/grupos-familiares/aluno/$alunoId');
-          final grupo = gr.data['dados'] as Map<String, dynamic>?;
-          if (mounted) setState(() => _grupoFamiliar = grupo);
-        } catch (_) {}
-      }
-
       try {
-        final nr = await dio.get('/api/noticias', queryParameters: {'pagina': 1, 'tamanhoPagina': 5});
-        final lista = ((nr.data['dados']?['items'] as List?) ?? []).cast<Map<String, dynamic>>();
-        if (mounted) setState(() => _noticias = lista);
+        final lista = await firestoreService.getNoticias(academiaId);
+        if (mounted) setState(() => _noticias = lista.take(5).toList());
       } catch (_) {}
 
       if (dados != null) {
         try {
-          final alunoId = dados['id']?.toString() ?? '';
-          final ate = DateTime.now();
-          final de = ate.subtract(const Duration(days: 6));
-          final fmt = (DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
-          final pr = await dio.get('/api/presencas', queryParameters: {'alunoId': alunoId, 'de': fmt(de), 'ate': fmt(ate)});
-          final lista = (pr.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-          if (mounted) setState(() => _presencasRecentes = lista);
+          final lista = await firestoreService.getPresencas(academiaId, alunoId: user.id);
+          if (mounted) setState(() => _presencasRecentes = lista.take(7).toList());
         } catch (_) {}
       }
     } catch (_) {} finally {
@@ -130,97 +140,17 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
   String _stripHtml(String html) {
     return html
-        .replaceAll(RegExp(r'<br\s*/?>',  caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'</p>',        caseSensitive: false), '\n\n')
-        .replaceAll(RegExp(r'</h[1-6]>',  caseSensitive: false), '\n\n')
-        .replaceAll(RegExp(r'</li>',       caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n\n')
+        .replaceAll(RegExp(r'</h[1-6]>', caseSensitive: false), '\n\n')
+        .replaceAll(RegExp(r'</li>', caseSensitive: false), '\n')
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .replaceAll(RegExp(r'&nbsp;'), ' ')
-        .replaceAll(RegExp(r'&amp;'),  '&')
-        .replaceAll(RegExp(r'&lt;'),   '<')
-        .replaceAll(RegExp(r'&gt;'),   '>')
+        .replaceAll(RegExp(r'&amp;'), '&')
+        .replaceAll(RegExp(r'&lt;'), '<')
+        .replaceAll(RegExp(r'&gt;'), '>')
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
-  }
-
-  Future<void> _assinarContrato(Map<String, dynamic> contrato) async {
-    final nome = _aluno?['nome'] as String? ?? '';
-    final contratoId = contrato['id']?.toString() ?? '';
-
-    String conteudo = '';
-    try {
-      final res = await dio.get('/api/contratos/$contratoId');
-      final html = (res.data['dados'] as Map<String, dynamic>?)?['conteudoHtml'] as String? ?? '';
-      conteudo = _stripHtml(html);
-    } catch (_) {
-      conteudo = 'Não foi possível carregar o conteúdo do contrato.';
-    }
-    if (!mounted) return;
-
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (ctx2, scrollCtrl) => Column(
-          children: [
-            Container(margin: const EdgeInsets.only(top: 10), width: 36, height: 4,
-              decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Row(children: [
-                Expanded(child: Text('Contrato para assinatura', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800))),
-                IconButton(onPressed: () => Navigator.of(ctx).pop(false), icon: Icon(Icons.close, color: kText2)),
-              ]),
-            ),
-            Divider(color: kBorder, height: 1),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                child: Text(conteudo.isEmpty ? 'Conteúdo não disponível.' : conteudo, style: TextStyle(color: kText1, fontSize: 13, height: 1.6)),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              decoration: BoxDecoration(color: kSurface, border: Border(top: BorderSide(color: kBorder))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Ao assinar, você confirma ter lido e concordado com os termos acima como "$nome".',
-                  style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary, foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Assinar digitalmente', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                ),
-              ]),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true || !mounted) return;
-    try {
-      await dio.post('/api/contratos/$contratoId/assinar', data: {'nomeCompleto': nome});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Contrato assinado com sucesso!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
-        _load();
-      }
-    } catch (e) {
-      String msg = 'Erro ao assinar contrato.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
-    }
   }
 
   Color _faixaCor() {
@@ -302,7 +232,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                   onPressed: salvando ? null : () async {
                     setModal(() => salvando = true);
                     try {
-                      await dio.put('/api/usuarios/me', data: {
+                      final user = await AuthStorage.getUser();
+                      if (user == null) return;
+                      await firestoreService.updateAluno(user.academiaId!, user.id, {
                         'nome': nomeCtrl.text.trim(),
                         'telefone': telCtrl.text.trim().isEmpty ? null : telCtrl.text.trim(),
                       });
@@ -512,7 +444,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                       const SizedBox(height: 4),
                       // Avatar com foto
                       GestureDetector(
-                        onTap: _escolherFoto,
+                        onTap: _uploadingFoto ? null : _escolherFoto,
                         child: Stack(
                           children: [
                             Container(
@@ -539,17 +471,31 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                                 );
                               }(),
                             ),
-                            Positioned(
-                              bottom: 2, right: 2,
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: kPrimary, shape: BoxShape.circle,
-                                  border: Border.all(color: kBg, width: 2),
+                            if (_uploadingFoto)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withOpacity(0.45),
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(width: 22, height: 22,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                                  ),
                                 ),
-                                child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
                               ),
-                            ),
+                            if (!_uploadingFoto)
+                              Positioned(
+                                bottom: 2, right: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: kPrimary, shape: BoxShape.circle,
+                                    border: Border.all(color: kBg, width: 2),
+                                  ),
+                                  child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -696,50 +642,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
-          // ── Grupo Familiar ──
-          if (_grupoFamiliar != null) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
-                child: Text('MINHA FAMÍLIA', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Icon(Icons.family_restroom_rounded, color: kPrimary, size: 18),
-                      const SizedBox(width: 8),
-                      Text(_grupoFamiliar!['nome'] as String? ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 14)),
-                    ]),
-                    ...(_grupoFamiliar!['membros'] as List? ?? [])
-                        .cast<Map<String, dynamic>>()
-                        .where((m) => m['id']?.toString() != (_aluno?['id']?.toString() ?? ''))
-                        .map((m) => Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Row(children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: kPrimary.withOpacity(0.12),
-                              child: Text(
-                                (m['nome'] as String? ?? '').split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase(),
-                                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w800, fontSize: 10),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(m['nome'] as String? ?? '', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                          ]),
-                        )),
-                  ]),
-                ),
-              ),
-            ),
-          ],
-
           // ── Turmas ──
           SliverToBoxAdapter(
             child: Padding(
@@ -795,62 +697,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
-          // ── Contratos ──
-          if (_contratos.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
-                child: Text('CONTRATOS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
-                  final c = _contratos[i];
-                  final status = c['statusLabel'] as String? ?? c['status']?.toString() ?? '';
-                  final isPendente = status == 'Pendente';
-                  final statusCor = isPendente ? kWarning : (status == 'Assinado' ? kSuccess : kText2);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: kSurface, borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: isPendente ? kWarning.withOpacity(0.4) : kBorder),
-                      ),
-                      child: Row(children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(color: statusCor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                          child: Icon(isPendente ? Icons.edit_document : Icons.check_circle_rounded, color: statusCor, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(c['nomeModalidade'] as String? ?? 'Contrato', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text(status, style: TextStyle(color: statusCor, fontSize: 11, fontWeight: FontWeight.w700)),
-                        ])),
-                        if (isPendente)
-                          SizedBox(
-                            height: 34,
-                            child: ElevatedButton(
-                              onPressed: () => _assinarContrato(c),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: kPrimary, foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('Assinar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                      ]),
-                    ),
-                  );
-                },
-                childCount: _contratos.length,
-              ),
-            ),
-          ],
-
           // ── Notícias (carrossel horizontal) ──
           if (_noticias.isNotEmpty) ...[
             SliverToBoxAdapter(
@@ -867,7 +713,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 120,
+                height: 130,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -876,7 +722,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                     final n = _noticias[i];
                     final titulo = n['titulo'] as String? ?? '';
                     final resumo = n['resumo'] as String? ?? '';
-                    final publicadaEm = n['publicadaEm'] as String?;
+                    final publicadaEm = n['criado_em'] as String? ?? n['publicadaEm'] as String?;
                     String dataLabel = '';
                     if (publicadaEm != null) {
                       try {

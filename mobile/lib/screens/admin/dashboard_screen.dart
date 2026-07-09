@@ -1,11 +1,10 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/widgets.dart';
@@ -26,6 +25,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   StoredUser? _user;
   bool _loading = true;
   bool _erro = false;
+  String? _erroMsg;
   bool _temModalidades = false;
   bool _temPlanos = false;
   bool _temProfessores = false;
@@ -37,81 +37,144 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _load() async {
-    var user = await AuthStorage.getUser();
+    setState(() { _loading = true; _erro = false; });
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId ?? '';
+    if (academiaId.isEmpty) {
+      if (mounted) setState(() { _user = user; _loading = false; _erro = true; });
+      return;
+    }
     try {
-      final futures = await Future.wait([
-        dio.get('/api/dashboard/resumo'),
-        dio.get('/api/dashboard/frequencia', queryParameters: {'dias': 7}),
-        dio.get('/api/modalidades'),
-        dio.get('/api/planos'),
-        dio.get('/api/funcionarios', queryParameters: {'perfil': 'Professor'}),
-        if (user?.nome.isEmpty ?? true) dio.get('/api/usuarios/me') else Future.value(null),
+      // Load core data in parallel
+      final results = await Future.wait([
+        firestoreService.getDashboardResumo(academiaId),
+        firestoreService.getModalidades(academiaId),
+        firestoreService.getPlanos(academiaId),
+        firestoreService.getFuncionarios(academiaId),
+        firestoreService.getPresencas(academiaId),
+        firestoreService.getAlunos(academiaId),
+        firestoreService.getAptosGraduacao(academiaId),
+        firestoreService.getNoticias(academiaId, publicadasOnly: true),
+        firestoreService.getTurmas(academiaId),
       ]);
 
-      final body = futures[0]!.data as Map<String, dynamic>;
-      final freqBody = futures[1]!.data as Map<String, dynamic>;
-      final modalidadesData = futures[2]!.data as Map<String, dynamic>;
-      final planosData = futures[3]!.data as Map<String, dynamic>;
-      final professoresData = futures[4]!.data as Map<String, dynamic>;
-      final modalidadesList = modalidadesData['dados'] as List? ?? [];
-      final planosList = planosData['dados'] as List? ?? [];
-      final professoresList = professoresData['dados'] as List? ?? [];
+      final dashData = results[0] as Map<String, dynamic>? ?? {};
+      final modalidades = (results[1] as List).cast<Map<String, dynamic>>();
+      final planos = (results[2] as List).cast<Map<String, dynamic>>();
+      final funcionarios = (results[3] as List).cast<Map<String, dynamic>>();
+      final presencas = (results[4] as List).cast<Map<String, dynamic>>();
+      final alunos = (results[5] as List).cast<Map<String, dynamic>>();
+      final aptosGrad = (results[6] as List).cast<Map<String, dynamic>>();
+      final noticiasList = (results[7] as List).cast<Map<String, dynamic>>();
+      final turmasList = (results[8] as List).cast<Map<String, dynamic>>();
+      final turmasAtivasCount = turmasList.where((t) => t['ativo'] == true).length;
 
-      if ((user?.nome.isEmpty ?? true) && futures.length > 5 && futures[5] != null) {
-        final meData = futures[5]!.data as Map<String, dynamic>;
-        final dados = meData['dados'] as Map<String, dynamic>?;
-        if (dados != null && user != null) {
-          user = StoredUser(
-            id: user.id,
-            nome: dados['nome'] as String? ?? user.nome,
-            email: user.email,
-            perfil: user.perfil,
-            academiaId: user.academiaId,
-          );
-          await AuthStorage.save(await AuthStorage.getToken() ?? '', user);
-        } else if (dados != null) {
-          user = StoredUser(
-            id: dados['id']?.toString() ?? '',
-            nome: dados['nome'] as String? ?? '',
-            email: dados['email'] as String? ?? '',
-            perfil: dados['perfil'] as String? ?? '',
-          );
-        }
+      // Aniversariantes: alunos com data_nascimento no mês atual
+      final now = DateTime.now();
+      final aniversariantes = alunos.where((a) {
+        final dn = a['data_nascimento'] as String? ?? a['dataNascimento'] as String? ?? '';
+        if (dn.isEmpty) return false;
+        try {
+          final d = DateTime.parse(dn);
+          return d.month == now.month;
+        } catch (_) { return false; }
+      }).map((a) {
+        final dn = a['data_nascimento'] as String? ?? a['dataNascimento'] as String? ?? '';
+        int dia = 0;
+        try { dia = DateTime.parse(dn).day; } catch (_) {}
+        return {
+          'nome': a['nome'] ?? '',
+          'diaNascimento': dia,
+          'alunoId': a['id'] ?? '',
+        };
+      }).toList()
+        ..sort((x, y) => ((x['diaNascimento'] as int?) ?? 0).compareTo((y['diaNascimento'] as int?) ?? 0));
+
+      // Frequência últimos 7 dias: group presencas by date
+      final cutoff = now.subtract(const Duration(days: 7));
+      final freqMap = <String, int>{};
+      for (var i = 6; i >= 0; i--) {
+        final d = now.subtract(Duration(days: i));
+        final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        freqMap[key] = 0;
       }
+      for (final p in presencas) {
+        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        if (dataStr.isEmpty) continue;
+        try {
+          final d = DateTime.parse(dataStr);
+          if (d.isAfter(cutoff)) {
+            final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+            freqMap[key] = (freqMap[key] ?? 0) + 1;
+          }
+        } catch (_) {}
+      }
+      final frequencia = freqMap.entries.map((e) => {'data': e.key, 'total': e.value}).toList();
 
-      List<Map<String, dynamic>> aniversariantes = [];
-      List<Map<String, dynamic>> proximosGraduacao = [];
-      try {
-        final anivRes = await dio.get('/api/alunos/aniversariantes');
-        aniversariantes = ((anivRes.data['dados'] as List?) ?? []).cast<Map<String, dynamic>>();
-      } catch (_) {}
-      try {
-        final proxRes = await dio.get('/api/dashboard/proximos-graduacao');
-        proximosGraduacao = ((proxRes.data['dados'] as List?) ?? []).cast<Map<String, dynamic>>();
-      } catch (_) {}
+      // Today's presences
+      final todayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final presencasHoje = freqMap[todayKey] ?? 0;
 
-      List<Map<String, dynamic>> noticias = [];
-      try {
-        final notRes = await dio.get('/api/noticias', queryParameters: {'pagina': 1, 'tamanhoPagina': 5});
-        noticias = ((notRes.data['dados']?['items'] as List?) ?? []).cast<Map<String, dynamic>>();
-      } catch (_) {}
+      // Active alunos & inadimplentes from dashData or compute
+      final totalAlunos = dashData['totalAlunos'] ??
+          alunos.where((a) => a['ativo'] == true).length;
+      final turmasAtivas = dashData['turmasAtivas'] ?? turmasAtivasCount;
+      final alunosInadimplentes = dashData['alunosInadimplentes'];
+
+      final dash = {
+        'totalAlunos': totalAlunos,
+        'turmasAtivas': turmasAtivas,
+        'presencasHoje': presencasHoje,
+        'alunosInadimplentes': alunosInadimplentes,
+        ...dashData,
+      };
+
+      final profs = funcionarios.where((f) {
+        final cargo = f['cargo']?.toString().toLowerCase() ?? '';
+        final perfil = f['perfil']?.toString().toLowerCase() ?? '';
+        return cargo.contains('professor') || perfil.contains('professor');
+      }).toList();
+
+      // Próximos de graduação: só entradas com dados enriquecidos (nomeAluno populado)
+      final proximosGrad = List<Map<String, dynamic>>.from(aptosGrad)
+          .where((a) => (a['nomeAluno'] as String? ?? '').isNotEmpty)
+          .toList();
+      proximosGrad.sort((a, b) {
+        final pa = (b['percentual'] as num?)?.toDouble() ?? 0;
+        final pb = (a['percentual'] as num?)?.toDouble() ?? 0;
+        return pa.compareTo(pb);
+      });
+
+      // Noticias: sort by publicada_em desc, take 5
+      final noticiasOrdered = List<Map<String, dynamic>>.from(noticiasList);
+      noticiasOrdered.sort((a, b) {
+        final da = a['publicada_em'] ?? a['publicadaEm'] ?? '';
+        final db = b['publicada_em'] ?? b['publicadaEm'] ?? '';
+        return db.toString().compareTo(da.toString());
+      });
+      final noticiasMapped = noticiasOrdered.take(5).map((n) => {
+        ...n,
+        'publicadaEm': n['publicada_em'] ?? n['publicadaEm'],
+      }).toList();
 
       if (mounted) {
         setState(() {
           _user = user;
-          _dash = body['dados'] as Map<String, dynamic>?;
-          _frequencia = (freqBody['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-          _aniversariantes = aniversariantes;
-          _proximosGraduacao = proximosGraduacao;
-          _noticias = noticias;
-          _temModalidades = modalidadesList.isNotEmpty;
-          _temPlanos = planosList.isNotEmpty;
-          _temProfessores = professoresList.isNotEmpty;
+          _dash = dash;
+          _frequencia = frequencia;
+          _aniversariantes = aniversariantes.cast<Map<String, dynamic>>();
+          _proximosGraduacao = proximosGrad;
+          _noticias = noticiasMapped;
+          _temModalidades = modalidades.isNotEmpty;
+          _temPlanos = planos.isNotEmpty;
+          _temProfessores = profs.isNotEmpty;
           _loading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() { _user = user; _loading = false; _erro = true; });
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Dashboard._load] ERRO: $e');
+      if (mounted) setState(() { _user = user; _loading = false; _erro = true; _erroMsg = e.toString(); });
     }
   }
 
@@ -129,7 +192,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_erro && _dash == null) {
       return Scaffold(
         backgroundColor: kBg,
-        body: SafeArea(child: ErroConexao(onRetry: () { setState(() { _loading = true; _erro = false; }); _load(); })),
+        body: SafeArea(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          ErroConexao(onRetry: () { setState(() { _loading = true; _erro = false; _erroMsg = null; }); _load(); }),
+          if (_erroMsg != null) Padding(padding: const EdgeInsets.all(16), child: Text(_erroMsg!, style: const TextStyle(color: Colors.red, fontSize: 11), textAlign: TextAlign.center)),
+        ])),
       );
     }
 
@@ -157,8 +223,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               SliverToBoxAdapter(child: _buildQuickActions()),
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
-              if (_proximosGraduacao.isNotEmpty)
-                SliverToBoxAdapter(child: _buildProximosGraduacao()),
+              SliverToBoxAdapter(child: _buildProximosGraduacao()),
               if (_frequencia.isNotEmpty)
                 SliverToBoxAdapter(child: _buildFrequenciaChart()),
               if (_noticias.isNotEmpty)
@@ -413,6 +478,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final d = _dash ?? {};
     final temTurma = ((d['turmasAtivas'] as num?)?.toInt() ?? 0) > 0;
     final temAluno = ((d['totalAlunos'] as num?)?.toInt() ?? 0) > 0;
+    final academiaId = _user?.academiaId ?? '';
 
     final passos = [
       _OnboardingStep(
@@ -425,7 +491,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (_) => _ModalidadeSheet(),
+            builder: (_) => _ModalidadeSheet(academiaId: academiaId),
           );
           if (ok == true) _load();
         },
@@ -440,7 +506,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (_) => _PlanoSheet(),
+            builder: (_) => _PlanoSheet(academiaId: academiaId),
           );
           if (ok == true) _load();
         },
@@ -688,86 +754,89 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ])),
           ]),
           const SizedBox(height: 12),
-          ..._proximosGraduacao.take(8).map((a) {
-            final nome = a['nomeAluno']?.toString() ?? '';
-            final modalidade = a['nomeModalidade']?.toString() ?? '';
-            final total = (a['totalPresencas'] as num?)?.toInt() ?? 0;
-            final necessario = (a['presencasNecessarias'] as num?)?.toInt() ?? 1;
-            final jaApto = a['jaApto'] == true;
-            final pct = (a['percentual'] as num?)?.toInt() ?? 0;
-            final alunoId = a['alunoId']?.toString() ?? '';
-            final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+          if (_proximosGraduacao.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(children: [
+                Icon(Icons.check_circle_outline_rounded, color: kText2, size: 18),
+                const SizedBox(width: 8),
+                Text('Nenhum aluno próximo da graduação', style: TextStyle(color: kText2, fontSize: 13)),
+              ]),
+            )
+          else
+            ..._proximosGraduacao.take(8).map((a) {
+              final nome = a['nomeAluno']?.toString() ?? '';
+              final modalidade = a['nomeModalidade']?.toString() ?? '';
+              final total = (a['totalPresencas'] as num?)?.toInt() ?? 0;
+              final necessario = (a['presencasNecessarias'] as num?)?.toInt() ?? 1;
+              final jaApto = a['jaApto'] == true;
+              final pct = (a['percentual'] as num?)?.toInt() ?? 0;
+              final alunoId = a['alunoId']?.toString() ?? '';
+              final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
 
-            return GestureDetector(
-              onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: jaApto ? kSuccess.withOpacity(0.05) : kBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: jaApto ? kSuccess.withOpacity(0.3) : kBorder),
-                ),
-                child: Row(children: [
-                  CircleAvatar(radius: 16, backgroundColor: (jaApto ? kSuccess : kPrimary).withOpacity(0.15),
-                    child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: jaApto ? kSuccess : kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(modalidade, style: TextStyle(color: kText2, fontSize: 11)),
-                  ])),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('$total/$necessario aulas', style: TextStyle(color: jaApto ? kSuccess : kText2, fontSize: 12, fontWeight: FontWeight.w700)),
-                    if (jaApto)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                        child: Text('Apto!', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w700)),
-                      )
-                    else
-                      Text('$pct%', style: TextStyle(color: kPrimary, fontSize: 11)),
+              return GestureDetector(
+                onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: jaApto ? kSuccess.withOpacity(0.05) : kBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: jaApto ? kSuccess.withOpacity(0.3) : kBorder),
+                  ),
+                  child: Row(children: [
+                    CircleAvatar(radius: 16, backgroundColor: (jaApto ? kSuccess : kPrimary).withOpacity(0.15),
+                      child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: jaApto ? kSuccess : kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(modalidade, style: TextStyle(color: kText2, fontSize: 11)),
+                    ])),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text('$total/$necessario aulas', style: TextStyle(color: jaApto ? kSuccess : kText2, fontSize: 12, fontWeight: FontWeight.w700)),
+                      if (jaApto)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                          child: Text('Apto!', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w700)),
+                        )
+                      else
+                        Text('$pct%', style: TextStyle(color: kPrimary, fontSize: 11)),
+                    ]),
                   ]),
-                ]),
-              ),
-            );
-          }),
+                ),
+              );
+            }),
         ]),
       ),
     );
   }
 
-  // ─── NOTÍCIAS ─────────────────────────────────────────────────────────────────
+  // ─── NOTÍCIAS (carrossel) ────────────────────────────────────────────────────
 
   Widget _buildNoticias() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder.withOpacity(0.5)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.newspaper_rounded, color: kPrimary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text('Notícias', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700))),
-            GestureDetector(
-              onTap: () => context.push('/admin/noticias'),
-              child: Text('Gerenciar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          ..._noticias.take(5).map((n) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+        child: Row(children: [
+          Expanded(child: Text('NOTÍCIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2))),
+          GestureDetector(
+            onTap: () => context.push('/admin/noticias'),
+            child: Text('Gerenciar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      ),
+      SizedBox(
+        height: 130,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _noticias.length,
+          itemBuilder: (_, i) {
+            final n = _noticias[i];
             final titulo = n['titulo'] as String? ?? '';
             final resumo = n['resumo'] as String? ?? '';
-            final publicada = n['publicada'] == true;
-            final publicadaEm = n['publicadaEm'] as String?;
+            final publicadaEm = n['publicadaEm'] as String? ?? n['publicada_em'] as String?;
             String dataLabel = '';
             if (publicadaEm != null) {
               try {
@@ -775,34 +844,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
               } catch (_) {}
             }
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
-              child: Row(children: [
-                Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(
-                    color: publicada ? kSuccess.withOpacity(0.12) : kWarning.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(publicada ? Icons.campaign_rounded : Icons.drafts_rounded,
-                    color: publicada ? kSuccess : kWarning, size: 16),
+            return GestureDetector(
+              onTap: () => context.push('/admin/noticias'),
+              child: Container(
+                width: 240,
+                margin: EdgeInsets.only(right: i < _noticias.length - 1 ? 10 : 0),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: kBorder),
                 ),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (resumo.isNotEmpty)
-                    Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ])),
-                if (dataLabel.isNotEmpty)
-                  Text(dataLabel, style: TextStyle(color: kText2, fontSize: 11)),
-              ]),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                      child: Icon(Icons.campaign_rounded, color: kPrimary, size: 15),
+                    ),
+                    const Spacer(),
+                    if (dataLabel.isNotEmpty)
+                      Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  if (resumo.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                ]),
+              ),
             );
-          }),
-        ]),
+          },
+        ),
       ),
-    );
+    ]);
   }
 
   // ─── GRÁFICO DE FREQUÊNCIA ────────────────────────────────────────────────────
@@ -909,30 +985,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 }
 
 // ─── Widgets auxiliares ───────────────────────────────────────────────────────
-
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final String tooltip;
-
-  const _HeaderIconButton({required this.icon, required this.color, required this.onTap, required this.tooltip});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, color: color, size: 22),
-        ),
-      ),
-    );
-  }
-}
 
 class _MetricCard extends StatelessWidget {
   final String label;
@@ -1065,6 +1117,9 @@ class _OnboardingStep {
 // ─── Bottom sheet: criar modalidade ──────────────────────────────────────────
 
 class _ModalidadeSheet extends StatefulWidget {
+  final String academiaId;
+  const _ModalidadeSheet({required this.academiaId});
+
   @override
   State<_ModalidadeSheet> createState() => _ModalidadeSheetState();
 }
@@ -1087,23 +1142,14 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _erro = null; });
     try {
-      final res = await dio.post('/api/modalidades', data: {
+      await firestoreService.addModalidade(widget.academiaId, {
         'nome': _nomeCtrl.text.trim(),
         if (_descCtrl.text.trim().isNotEmpty) 'descricao': _descCtrl.text.trim(),
+        'ativo': true,
       });
-      final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] == true) {
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        setState(() => _erro = body['mensagem'] ?? 'Erro ao salvar.');
-      }
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data['mensagem'] ?? e.response!.data.toString())
-          : 'Erro ${e.response?.statusCode ?? "de conexão"}.';
-      setState(() => _erro = msg);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _erro = 'Erro inesperado: $e');
+      setState(() => _erro = 'Erro ao salvar: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1170,6 +1216,9 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 // ─── Bottom sheet: criar plano ────────────────────────────────────────────────
 
 class _PlanoSheet extends StatefulWidget {
+  final String academiaId;
+  const _PlanoSheet({required this.academiaId});
+
   @override
   State<_PlanoSheet> createState() => _PlanoSheetState();
 }
@@ -1198,25 +1247,16 @@ class _PlanoSheetState extends State<_PlanoSheet> {
     try {
       final valor = double.tryParse(_valorCtrl.text.replaceAll(',', '.')) ?? 0;
       final matricula = double.tryParse(_matriculaCtrl.text.replaceAll(',', '.'));
-      final res = await dio.post('/api/planos', data: {
+      await firestoreService.addPlano(widget.academiaId, {
         'nome': _nomeCtrl.text.trim(),
         if (_descCtrl.text.trim().isNotEmpty) 'descricao': _descCtrl.text.trim(),
-        'valorMensal': valor,
-        if (matricula != null && matricula > 0) 'taxaMatricula': matricula,
+        'valor_mensal': valor,
+        if (matricula != null && matricula > 0) 'taxa_matricula': matricula,
+        'ativo': true,
       });
-      final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] == true) {
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        setState(() => _erro = body['mensagem'] ?? 'Erro ao salvar.');
-      }
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data['mensagem'] ?? e.response!.data.toString())
-          : 'Erro ${e.response?.statusCode ?? "de conexão"}.';
-      setState(() => _erro = msg);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _erro = 'Erro inesperado: $e');
+      setState(() => _erro = 'Erro ao salvar: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

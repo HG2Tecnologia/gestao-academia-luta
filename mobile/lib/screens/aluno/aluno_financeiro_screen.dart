@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 
@@ -14,12 +15,12 @@ class AlunoFinanceiroScreen extends StatefulWidget {
 
 class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   List<Map<String, dynamic>> _cobrancas = [];
-  Map<String, dynamic>? _planoAtivo;
   bool _loading = true;
   bool _erro = false;
   String _filtro = 'Todos';
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
+  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
 
   @override
   void initState() {
@@ -40,26 +41,21 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
 
   Future<void> _load() async {
     try {
-      final results = await Future.wait([
-        dio.get('/api/financeiro/minhas'),
-        dio.get('/api/alunos/me'),
-      ]);
-      final dados = results[0].data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
-      if (mounted) setState(() => _cobrancas = list.cast<Map<String, dynamic>>());
-
-      final alunoId = (results[1].data['dados'] as Map<String, dynamic>?)?['id']?.toString() ?? '';
-      if (alunoId.isNotEmpty) {
-        try {
-          final cr = await dio.get('/api/contratos', queryParameters: {'alunoId': alunoId});
-          final contratos = (cr.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-          final ativo = contratos.firstWhere(
-            (c) => c['status']?.toString().toLowerCase() == 'ativo',
-            orElse: () => contratos.isNotEmpty ? contratos.first : {},
-          );
-          if (ativo.isNotEmpty && mounted) setState(() => _planoAtivo = ativo);
-        } catch (_) {}
-      }
+      final user = await AuthStorage.getUser();
+      if (user == null) { if (mounted) setState(() { _erro = true; _loading = false; }); return; }
+      final list = await firestoreService.getPagamentos(user.academiaId!, alunoId: user.id);
+      final converted = list.map((p) {
+        final statusRaw = p['status'];
+        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        return <String, dynamic>{
+          ...p,
+          'status': statusStr,
+          'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
+          'tipo': p['tipo'] ?? p['plano_nome'] ?? 'Cobrança',
+        };
+      }).toList();
+      if (mounted) setState(() => _cobrancas = converted);
     } catch (_) {
       if (mounted) setState(() => _erro = true);
     } finally {
@@ -137,56 +133,6 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                 ]),
               ),
             ),
-
-            // ── Plano ─────────────────────────────────────
-            if (_planoAtivo != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: kSurface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36, height: 36,
-                          decoration: BoxDecoration(
-                            color: kPrimary.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.card_membership_rounded, color: kPrimary, size: 18),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Plano atual',
-                                  style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w500)),
-                              Text(
-                                _planoAtivo!['nomePlano']?.toString() ??
-                                    _planoAtivo!['planoNome']?.toString() ??
-                                    _planoAtivo!['descricao']?.toString() ??
-                                    'Plano ativo',
-                                style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_planoAtivo!['valorMensal'] != null || _planoAtivo!['valor'] != null)
-                          Text(
-                            _fmtMoeda((_planoAtivo!['valorMensal'] ?? _planoAtivo!['valor']) as num?),
-                            style: TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
 
             // ── Summary card ──────────────────────────────
             if (_cobrancas.isNotEmpty)

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 
 class AdminFinanceiroScreen extends StatefulWidget {
@@ -17,11 +18,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Map<String, dynamic>? _resumo;
   List<Map<String, dynamic>> _cobrancas = [];
   bool _loading = true;
+  String? _academiaId;
 
   late int _ano;
   late int _mes;
 
   static const _meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
 
   @override
   void initState() {
@@ -46,18 +49,72 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([
-        dio.get('/api/financeiro/resumo', queryParameters: {'ano': _ano, 'mes': _mes}),
-        dio.get('/api/financeiro', queryParameters: {'pageSize': 50, 'ano': _ano, 'mes': _mes}),
-      ]);
-      final r = results[0].data as Map<String, dynamic>;
-      final c = results[1].data as Map<String, dynamic>;
-      final dados = c['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) return;
+
+      final todos = await firestoreService.getPagamentos(_academiaId!);
+
+      // Filter for selected month
+      final doMes = todos.where((p) {
+        final venc = p['data_vencimento'] as String? ?? '';
+        if (venc.isEmpty) return false;
+        try {
+          final dt = DateTime.parse(venc);
+          return dt.year == _ano && dt.month == _mes;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+
+      // Compute resumo client-side
+      double recebido = 0, pendente = 0, atrasado = 0;
+      final Set<String> inadimplentesSet = {};
+      final now = DateTime.now();
+
+      for (final p in todos) {
+        final statusRaw = p['status'];
+        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        final valor = (p['valor'] as num? ?? 0).toDouble();
+        final venc = p['data_vencimento'] as String? ?? '';
+        DateTime? vencDt;
+        try { vencDt = DateTime.parse(venc); } catch (_) {}
+
+        if (statusStr == 'Pago') {
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) recebido += valor;
+        } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) pendente += valor;
+          if (vencDt != null && vencDt.isBefore(now)) {
+            atrasado += valor;
+            final alunoId = p['aluno_id']?.toString() ?? '';
+            if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
+          }
+        }
+      }
+
+      // Convert status for display
+      final cobrancasComStatus = doMes.map((p) {
+        final statusRaw = p['status'];
+        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        return {
+          ...p,
+          'status': statusStr,
+          'nomeAluno': p['nome_aluno'] ?? p['nomeAluno'] ?? '',
+          'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
+        };
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _resumo = r['dados'] as Map<String, dynamic>?;
-          _cobrancas = list.cast<Map<String, dynamic>>();
+          _resumo = {
+            'totalRecebidoMes': recebido,
+            'totalPendenteMes': pendente,
+            'totalAtrasado': atrasado,
+            'alunosInadimplentes': inadimplentesSet.length,
+          };
+          _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
         });
       }
     } catch (_) {} finally {
@@ -82,12 +139,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   }
 
   Future<void> _criarCobrancaAvulsa() async {
+    if (_academiaId == null) return;
     List<Map<String, dynamic>> alunos = [];
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 200, 'status': 'Ativo'});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
-      alunos = list.cast<Map<String, dynamic>>();
+      alunos = await firestoreService.getAlunos(_academiaId!, ativosOnly: true);
     } catch (_) {}
 
     if (!mounted) return;
@@ -244,12 +299,18 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       return;
     }
     final dataStr = '${vencimento.year}-${vencimento.month.toString().padLeft(2,'0')}-${vencimento.day.toString().padLeft(2,'0')}';
+    // Find aluno name
+    final alunoSel = alunos.firstWhere((a) => a['id']?.toString() == alunoId, orElse: () => {});
+    final nomeAluno = alunoSel['nome']?.toString() ?? '';
+    final tipoStr = tipo == 1 ? 'Mensalidade' : 'Taxa de Matrícula';
     try {
-      await dio.post('/api/financeiro', data: {
-        'alunoId': alunoId,
-        'tipo': tipo,
+      await firestoreService.addPagamento(_academiaId!, {
+        'aluno_id': alunoId,
+        'nome_aluno': nomeAluno,
+        'tipo': tipoStr,
         'valor': valor,
-        'dataVencimento': dataStr,
+        'data_vencimento': dataStr,
+        'status': 0,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -260,10 +321,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         _load();
       }
     } catch (e) {
-      String msg = 'Erro ao criar cobrança.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
+        content: const Text('Erro ao criar cobrança.'),
         backgroundColor: kDanger,
         behavior: SnackBarBehavior.floating,
       ));
@@ -324,23 +383,39 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         ),
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || _academiaId == null) return;
+    // Generate individual payment records for all active alunos without existing payment this month
     try {
-      await dio.post('/api/financeiro/gerar-cobrancas',
-          data: {'ano': _ano, 'mes': _mes});
+      final alunos = await firestoreService.getAlunos(_academiaId!, ativosOnly: true);
+      final existingIds = _cobrancas.map((c) => c['aluno_id']?.toString() ?? '').toSet();
+      int geradas = 0;
+      for (final aluno in alunos) {
+        final id = aluno['id']?.toString() ?? '';
+        if (existingIds.contains(id)) continue;
+        final planoValor = (aluno['valor_mensalidade'] as num? ?? aluno['valorMensalidade'] as num? ?? 0).toDouble();
+        final vencDia = aluno['dia_vencimento'] as int? ?? 10;
+        final dataStr = '$_ano-${_mes.toString().padLeft(2,'0')}-${vencDia.toString().padLeft(2,'0')}';
+        await firestoreService.addPagamento(_academiaId!, {
+          'aluno_id': id,
+          'nome_aluno': aluno['nome']?.toString() ?? '',
+          'tipo': 'Mensalidade',
+          'valor': planoValor,
+          'data_vencimento': dataStr,
+          'status': 0,
+        });
+        geradas++;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Cobranças geradas com sucesso!'),
+          content: Text('$geradas cobranças geradas com sucesso!'),
           backgroundColor: kSuccess,
           behavior: SnackBarBehavior.floating,
         ));
         _load();
       }
     } catch (e) {
-      String msg = 'Erro ao gerar cobranças.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
+        content: const Text('Erro ao gerar cobranças.'),
         backgroundColor: kDanger,
         behavior: SnackBarBehavior.floating,
       ));
@@ -390,11 +465,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         ),
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || _academiaId == null) return;
     try {
       final now = DateTime.now();
       final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      await dio.patch('/api/financeiro/${c['id']}', data: {'status': 1, 'dataPagamento': dataStr});
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+        'status': 1,
+        'data_pagamento': dataStr,
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${c['nomeAluno']} marcado como pago!'),
@@ -559,9 +637,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         final c = _cobrancas[i];
                         final status = c['status'] as String?;
                         String? dataStr;
-                        if (c['dataVencimento'] != null) {
+                        final rawVenc = c['dataVencimento'] ?? c['data_vencimento'];
+                        if (rawVenc != null) {
                           try {
-                            final dt = DateTime.parse(c['dataVencimento']);
+                            final dt = DateTime.parse(rawVenc.toString());
                             dataStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
                           } catch (_) {}
                         }

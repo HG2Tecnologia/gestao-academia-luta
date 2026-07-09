@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Busca info do usuário autenticado
+    function userInfo() {
+      return get(/databases/$(database)/documents/usuariosFirebase/$(request.auth.uid)).data;
+    }
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Sessão anônima temporária usada apenas no fluxo de Primeiro Acesso
+    function isAnonymous() {
+      return isAuth() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function pertenceAcademia(academiaId) {
+      return isAuth() && userInfo().academiaId == academiaId;
+    }
+
+    function isAdminOuSecretaria(academiaId) {
+      return pertenceAcademia(academiaId) &&
+             userInfo().perfil in ['Admin', 'Secretaria'];
+    }
+
+    function isProfessor(academiaId) {
+      return pertenceAcademia(academiaId) && userInfo().perfil == 'Professor';
+    }
+
+    // Lookup Firebase UID → academia
+    match /usuariosFirebase/{uid} {
+      allow read: if isAuth() && request.auth.uid == uid;
+      // Criação e atualização permitidas pelo próprio usuário (registro e primeiro acesso)
+      // O doc pode já existir se uma tentativa anterior falhou parcialmente.
+      allow create, update: if isAuth() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // Conquistas globais (read-only para todos autenticados)
+    match /conquistas/{doc} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    // Dados da academia — qualquer membro pode ler; escrita restrita por role
+    match /academias/{academiaId} {
+      // isAnonymous: permite listar academias durante Primeiro Acesso
+      allow read: if pertenceAcademia(academiaId) || isAnonymous();
+      allow update: if isAdminOuSecretaria(academiaId);
+      allow delete: if false;
+      // Criação permitida durante registro (usuário autenticado ainda sem academia)
+      allow create: if isAuth();
+    }
+
+    // Permite criar o primeiro usuário Admin durante o registro da academia
+    match /academias/{academiaId}/usuarios/{usuarioId} {
+      allow create: if isAuth() &&
+        request.resource.data.firebase_uid == request.auth.uid &&
+        request.resource.data.perfil == 0;
+      // isAnonymous: permite busca por telefone/email durante Primeiro Acesso
+      allow read: if pertenceAcademia(academiaId) || isAnonymous();
+      // Admin/secretaria podem atualizar tudo; usuário pode vincular UID (primeiro acesso) e atualizar foto
+      allow update: if isAdminOuSecretaria(academiaId) ||
+        (isAuth() &&
+         request.auth.uid == resource.data.firebaseUid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa', 'fotoBase64', 'atualizado_em']));
+      allow delete: if isAdminOuSecretaria(academiaId);
+    }
+
+    // Funcionários: anônimos podem ler para Primeiro Acesso (busca por telefone/email)
+    match /academias/{academiaId}/funcionarios/{doc} {
+      allow read: if pertenceAcademia(academiaId) || isAnonymous();
+      allow create, delete: if isAdminOuSecretaria(academiaId);
+      // Admin/secretaria podem atualizar tudo; funcionário pode apenas vincular seu UID (primeiro acesso)
+      allow update: if isAdminOuSecretaria(academiaId) ||
+        (isAuth() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa']) &&
+         request.resource.data.firebaseUid == request.auth.uid);
+    }
+
+    // Presencas: qualquer membro pode criar (self-checkin) e ler
+    match /academias/{academiaId}/presencas/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow create: if pertenceAcademia(academiaId);
+      allow update, delete: if isAdminOuSecretaria(academiaId) || isProfessor(academiaId);
+    }
+
+    // Atestados e PAR-Q: aluno pode criar o próprio
+    match /academias/{academiaId}/atestados/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow create: if pertenceAcademia(academiaId);
+      allow update: if isAdminOuSecretaria(academiaId);
+      allow delete: if false;
+    }
+
+    match /academias/{academiaId}/par_qs/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow create, update: if pertenceAcademia(academiaId);
+      allow delete: if false;
+    }
+
+    // Conquistas do aluno: aluno pode marcar como vistas
+    match /academias/{academiaId}/conquistas_aluno/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow update: if pertenceAcademia(academiaId);
+      allow create, delete: if isAdminOuSecretaria(academiaId);
+    }
+
+    // Notificações: membro pode marcar como lida
+    match /academias/{academiaId}/notificacoes/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow update: if pertenceAcademia(academiaId);
+      allow create, delete: if isAdminOuSecretaria(academiaId);
+    }
+
+    // Resto: admin/secretaria gerencia tudo; membros leem
+    match /academias/{academiaId}/{colecao}/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow write: if isAdminOuSecretaria(academiaId) || isProfessor(academiaId);
+    }
+  }
+}

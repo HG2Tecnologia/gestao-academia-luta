@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminNoticiasScreen extends StatefulWidget {
   const AdminNoticiasScreen({super.key});
@@ -14,6 +15,7 @@ class AdminNoticiasScreen extends StatefulWidget {
 class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
   List<Map<String, dynamic>> _noticias = [];
   bool _loading = true;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -24,11 +26,19 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
   Future<void> _carregar() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/noticias/admin',
-          queryParameters: {'pagina': 1, 'tamanhoPagina': 50});
-      final dados =
-          (res.data['dados']?['items'] as List? ?? []).cast<Map<String, dynamic>>();
-      setState(() => _noticias = dados);
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) return;
+      // getNoticias without publicadasOnly loads all (including drafts)
+      final dados = await firestoreService.getNoticias(_academiaId!);
+      final list = dados.cast<Map<String, dynamic>>();
+      // Sort by created_at / publicada_em desc
+      list.sort((a, b) {
+        final da = a['publicada_em'] ?? a['created_at'] ?? '';
+        final db = b['publicada_em'] ?? b['created_at'] ?? '';
+        return db.toString().compareTo(da.toString());
+      });
+      if (mounted) setState(() => _noticias = list);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -36,8 +46,12 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
   }
 
   Future<void> _publicar(Map<String, dynamic> n) async {
+    if (_academiaId == null) return;
     try {
-      await dio.post('/api/noticias/${n['id']}/publicar');
+      await firestoreService.updateNoticia(_academiaId!, n['id'].toString(), {
+        'publicada': true,
+        'publicada_em': DateTime.now().toUtc().toIso8601String(),
+      });
       await _carregar();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Notícia publicada!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
     } catch (_) {
@@ -60,7 +74,7 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/noticias/${n['id']}');
+      await firestoreService.deleteNoticia(_academiaId!, n['id'].toString());
       await _carregar();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -68,20 +82,14 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
   }
 
   Future<void> _abrirFormulario([Map<String, dynamic>? noticia]) async {
-    Map<String, dynamic>? noticiaCompleta = noticia;
-    if (noticia != null) {
-      try {
-        final res = await dio.get('/api/noticias/${noticia['id']}');
-        final dados = res.data['dados'] as Map<String, dynamic>?;
-        if (dados != null) noticiaCompleta = dados;
-      } catch (_) {}
-    }
-    if (!mounted) return;
+    if (_academiaId == null) return;
+    // Full noticia data is already loaded in the list; no need for extra GET
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _NoticiaFormScreen(
-          noticia: noticiaCompleta,
+          academiaId: _academiaId!,
+          noticia: noticia,
           onSalvo: _carregar,
         ),
       ),
@@ -116,7 +124,7 @@ class _AdminNoticiasScreenState extends State<AdminNoticiasScreen> {
                       itemBuilder: (context, index) {
                         final n = _noticias[index];
                         final publicada = n['publicada'] == true;
-                        final publicadaEm = n['publicadaEm'] as String?;
+                        final publicadaEm = n['publicada_em'] as String? ?? n['publicadaEm'] as String?;
                         DateTime? data;
                         if (publicadaEm != null) {
                           try { data = DateTime.parse(publicadaEm).toLocal(); } catch (_) {}
@@ -226,9 +234,10 @@ class _ActionBtn extends StatelessWidget {
 }
 
 class _NoticiaFormScreen extends StatefulWidget {
+  final String academiaId;
   final Map<String, dynamic>? noticia;
   final VoidCallback onSalvo;
-  const _NoticiaFormScreen({this.noticia, required this.onSalvo});
+  const _NoticiaFormScreen({required this.academiaId, this.noticia, required this.onSalvo});
 
   @override
   State<_NoticiaFormScreen> createState() => _NoticiaFormScreenState();
@@ -251,7 +260,8 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
       _tituloCtrl.text = widget.noticia!['titulo'] as String? ?? '';
       _resumoCtrl.text = widget.noticia!['resumo'] as String? ?? '';
       _conteudoCtrl.text = widget.noticia!['conteudo'] as String? ?? '';
-      _imagemBase64 = widget.noticia!['imagemBase64'] as String?;
+      _imagemBase64 = widget.noticia!['imagem_base64'] as String?
+          ?? widget.noticia!['imagemBase64'] as String?;
     }
   }
 
@@ -285,20 +295,23 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
     }
     setState(() => _salvando = true);
     try {
+      final now = DateTime.now().toUtc().toIso8601String();
       if (_editando) {
-        await dio.put('/api/noticias/${widget.noticia!['id']}', data: {
+        await firestoreService.updateNoticia(widget.academiaId, widget.noticia!['id'].toString(), {
           'titulo': _tituloCtrl.text.trim(),
           'resumo': _resumoCtrl.text.trim(),
           'conteudo': _conteudoCtrl.text.trim().isNotEmpty ? _conteudoCtrl.text.trim() : null,
-          'imagemBase64': _imagemBase64,
+          'imagem_base64': _imagemBase64,
         });
       } else {
-        await dio.post('/api/noticias', data: {
+        await firestoreService.addNoticia(widget.academiaId, {
           'titulo': _tituloCtrl.text.trim(),
           'resumo': _resumoCtrl.text.trim(),
           'conteudo': _conteudoCtrl.text.trim().isNotEmpty ? _conteudoCtrl.text.trim() : null,
-          'imagemBase64': _imagemBase64,
-          'publicarAgora': _publicarAgora,
+          'imagem_base64': _imagemBase64,
+          'publicada': _publicarAgora,
+          if (_publicarAgora) 'publicada_em': now,
+          'created_at': now,
         });
       }
       widget.onSalvo();
@@ -341,7 +354,7 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
                 decoration: BoxDecoration(
                   color: kSurface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder, style: _imagemBase64 == null ? BorderStyle.solid : BorderStyle.solid),
+                  border: Border.all(color: kBorder),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _imagemBase64 != null
@@ -362,7 +375,7 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
                               child: Container(
                                 margin: const EdgeInsets.all(8),
                                 padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                                 child: const Icon(Icons.close, color: Colors.white, size: 16),
                               ),
                             ),

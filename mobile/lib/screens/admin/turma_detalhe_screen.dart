@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
+import '../../core/widgets.dart';
 import 'turmas_screen.dart' show TurmaFormSheet;
 
 class AdminTurmaDetalheScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   // Aba Presença
   DateTime _dataSel = DateTime.now();
   Set<String> _presentesNaData = {};
+  Map<String, String> _presencaIds = {}; // alunoId -> presencaId
   final Set<String> _marcando = {};
 
   Set<String> _aptosGraduar = {};
@@ -34,6 +37,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   bool _loading = true;
   bool _loadingPresenca = false;
   String? _erro;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -56,62 +60,106 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   Future<void> _load() async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final hoje = DateTime.now();
-      final ate = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
-      final deDate = hoje.subtract(const Duration(days: 180));
-      final de = '${deDate.year}-${deDate.month.toString().padLeft(2, '0')}-${deDate.day.toString().padLeft(2, '0')}';
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) throw Exception('Academia não encontrada');
 
-      final futures = await Future.wait([
-        dio.get('/api/turmas/${widget.turmaId}'),
-        dio.get('/api/presencas/relatorio', queryParameters: {
-          'turmaId': widget.turmaId,
-          'de': de,
-          'ate': ate,
-        }),
+      final hoje = DateTime.now();
+      final cutoff = hoje.subtract(const Duration(days: 180));
+
+      // Load turma data, presencas, matriculas e alunos em paralelo
+      final results = await Future.wait([
+        firestoreService.getTurma(_academiaId!, widget.turmaId),
+        firestoreService.getPresencas(_academiaId!, turmaId: widget.turmaId),
+        firestoreService.getHorarios(_academiaId!, turmaId: widget.turmaId),
+        firestoreService.getAptosGraduacao(_academiaId!),
+        firestoreService.getMatriculas(_academiaId!, turmaId: widget.turmaId, ativasOnly: false),
+        firestoreService.getAlunos(_academiaId!),
+        firestoreService.getGraduacoes(_academiaId!),
+        firestoreService.getFaixas(_academiaId!),
       ]);
 
-      final turmaBody = futures[0].data as Map<String, dynamic>;
-      final dados = turmaBody['dados'] as Map<String, dynamic>?;
-      if (dados == null) throw Exception('Turma não encontrada');
-      final alunosList = (dados['alunos'] as List? ?? []).cast<Map<String, dynamic>>();
+      final turmaData = results[0] as Map<String, dynamic>?;
+      if (turmaData == null) throw Exception('Turma não encontrada');
 
-      // Monta mapa de presença por alunoId
-      final relatorio = futures[1].data['dados'] as Map<String, dynamic>?;
-      final relAlunos = (relatorio?['alunos'] as List? ?? []).cast<Map<String, dynamic>>();
-      final countMap = <String, int>{};
-      for (final ra in relAlunos) {
-        final id = ra['alunoId']?.toString() ?? '';
-        countMap[id] = (ra['presencas'] as num?)?.toInt() ?? 0;
+      final presencas = (results[1] as List).cast<Map<String, dynamic>>();
+      final horariosList = (results[2] as List).cast<Map<String, dynamic>>();
+      final aptosGrad = (results[3] as List).cast<Map<String, dynamic>>();
+
+      // Monta lista de alunos a partir das matrículas + join com dados do aluno
+      final matriculas = (results[4] as List).cast<Map<String, dynamic>>();
+      final todosAlunos = (results[5] as List).cast<Map<String, dynamic>>();
+      final graduacoes = (results[6] as List).cast<Map<String, dynamic>>();
+      final faixas = (results[7] as List).cast<Map<String, dynamic>>();
+
+      // Enriquece alunos com faixa atual a partir das graduações
+      final faixaMap = <String, Map<String, dynamic>>{
+        for (final f in faixas) f['id'].toString(): f,
+      };
+      final melhorGrad = <String, Map<String, dynamic>>{};
+      for (final g in graduacoes) {
+        if (g['aprovado'] != true) continue;
+        final aid = g['aluno_id']?.toString() ?? '';
+        if (aid.isEmpty) continue;
+        final f = faixaMap[g['faixa_id']?.toString() ?? ''];
+        if (f == null) continue;
+        final ordem = (f['ordem'] as num?)?.toInt() ?? 0;
+        final grau = (g['grau'] as num?)?.toInt() ?? 0;
+        final ex = melhorGrad[aid];
+        if (ex == null || ordem > (ex['_o'] as int? ?? -1) || (ordem == (ex['_o'] as int? ?? -1) && grau > (ex['grauAtual'] as int? ?? -1))) {
+          melhorGrad[aid] = {
+            'faixaAtualNome': f['nome'],
+            'faixaAtualCor': f['cor'],
+            'faixaAtualTemGraus': f['tem_graus'] == true,
+            'faixaAtualMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 0,
+            'grauAtual': grau,
+            '_o': ordem,
+          };
+        }
       }
 
-      // Carrega horários
-      final horariosRes = await dio.get('/api/horarios', queryParameters: {'turmaId': widget.turmaId});
-      final horariosData = horariosRes.data['dados'];
-      final horariosList = horariosData is List ? horariosData.cast<Map<String, dynamic>>() : <Map<String, dynamic>>[];
+      final alunoMap = <String, Map<String, dynamic>>{
+        for (final a in todosAlunos) a['id'].toString(): a,
+      };
+      final alunosList = matriculas.map((m) {
+        final alunoId = m['aluno_id']?.toString() ?? '';
+        final aluno = alunoMap[alunoId] ?? {};
+        final grad = aluno['faixaAtualCor'] != null ? {} : (melhorGrad[alunoId] ?? {});
+        final enriched = <String, dynamic>{...aluno, ...grad}..remove('_o');
+        return <String, dynamic>{
+          ...enriched,
+          'matriculaId': m['id'],
+          'alunoId': alunoId,
+          'nome': aluno['nome'] ?? '',
+          'nomeAluno': aluno['nome'] ?? '',
+        };
+      }).where((a) => (a['alunoId'] as String).isNotEmpty).toList();
 
-      // Fetch aptos para cada faixa da modalidade desta turma
-      Set<String> aptosSet = {};
-      try {
-        final modalidadeId = (dados['modalidadeId'] as String?) ?? '';
-        if (modalidadeId.isNotEmpty) {
-          final faixasRes = await dio.get('/api/faixas', queryParameters: {'modalidadeId': modalidadeId});
-          final faixasList = (faixasRes.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-          for (final f in faixasList) {
-            final faixaId = f['id']?.toString() ?? '';
-            if (faixaId.isEmpty) continue;
-            final aptosRes = await dio.get('/api/graduacoes/aptos', queryParameters: {'faixaId': faixaId});
-            final aptosList = (aptosRes.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-            for (final ap in aptosList) {
-              final id = ap['alunoId']?.toString() ?? '';
-              if (id.isNotEmpty) aptosSet.add(id);
+      // Compute 180-day presença count per aluno for this turma
+      final countMap = <String, int>{};
+      for (final p in presencas) {
+        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        if (dataStr.isEmpty) continue;
+        try {
+          final d = DateTime.parse(dataStr);
+          if (d.isAfter(cutoff)) {
+            final alunoId = p['aluno_id']?.toString() ?? p['alunoId']?.toString() ?? '';
+            if (alunoId.isNotEmpty) {
+              countMap[alunoId] = (countMap[alunoId] ?? 0) + 1;
             }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
+
+      // Build aptos set
+      final aptosSet = aptosGrad
+          .map((a) => a['alunoId']?.toString() ?? a['aluno_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
 
       if (mounted) {
         setState(() {
-          _turma = dados;
+          _turma = turmaData;
           _alunos = alunosList;
           _presencaCount = countMap;
           _horarios = horariosList;
@@ -128,7 +176,6 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
 
   Future<void> _mostrarQrTurma() async {
     final turmaId = widget.turmaId;
-    // turmaId já é suficiente como dado do QR — o check-in valida autenticação no backend
     final qrData = turmaId;
     if (!mounted) return;
 
@@ -166,7 +213,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
       _filtrados = q.isEmpty
           ? List.from(_alunos)
           : _alunos.where((a) {
-              final nome = (a['nomeAluno'] as String? ?? '').toLowerCase();
+              final nome = (a['nomeAluno'] ?? a['nome_aluno'] as String? ?? '').toLowerCase();
               return nome.contains(q);
             }).toList();
     });
@@ -226,49 +273,132 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   }
 
   Future<void> _loadPresencaData() async {
+    if (_academiaId == null) return;
     setState(() => _loadingPresenca = true);
     try {
-      // Buscar o horarioId do dia da semana selecionado
-      final horarios = (_turma?['horarios'] as List? ?? []).cast<Map<String, dynamic>>();
-      final diaSemana = _dataSel.weekday % 7; // 0=Dom,1=Seg,...,6=Sab (mesmo que DiaSemana do backend)
-      final horario = horarios.firstWhere(
-        (h) => (h['diaSemana'] as num?)?.toInt() == diaSemana,
-        orElse: () => horarios.isNotEmpty ? horarios.first : {},
-      );
-      final horarioId = horario['id']?.toString() ?? '';
-      if (horarioId.isEmpty) {
-        if (mounted) setState(() { _presentesNaData = {}; _loadingPresenca = false; });
-        return;
+      final presencas = await firestoreService.getPresencas(_academiaId!, turmaId: widget.turmaId);
+      final presentes = <String>{};
+      final ids = <String, String>{};
+      for (final p in presencas.cast<Map<String, dynamic>>()) {
+        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        if (!dataStr.startsWith(_dataStr)) continue;
+        final alunoId = (p['aluno_id'] ?? p['alunoId'] ?? '').toString();
+        if (alunoId.isEmpty) continue;
+        presentes.add(alunoId);
+        final pid = p['id']?.toString() ?? '';
+        if (pid.isNotEmpty) ids[alunoId] = pid;
       }
-      final res = await dio.get('/api/presencas/aula', queryParameters: {'horarioId': horarioId, 'data': _dataStr});
-      final lista = (res.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-      final presentes = lista.map((p) => (p['alunoId'] ?? '').toString()).toSet();
-      if (mounted) setState(() => _presentesNaData = presentes);
+      if (mounted) setState(() { _presentesNaData = presentes; _presencaIds = ids; });
     } catch (_) {} finally {
       if (mounted) setState(() => _loadingPresenca = false);
     }
   }
 
+  static const _diasNomes = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+  // Converte DateTime.weekday (1=Mon..7=Sun) para índice Firestore (0=Dom..6=Sáb)
+  int _dartDiaToFirestore(int weekday) => weekday % 7;
+
+  bool get _dataNoDiaDaTurma {
+    final idx = _dartDiaToFirestore(_dataSel.weekday);
+    return _horarios.any((h) => (h['diaSemana'] ?? h['dia_semana'] as num?)?.toInt() == idx);
+  }
+
   Future<void> _marcarPresenca(String alunoId) async {
-    if (_marcando.contains(alunoId)) return;
+    if (_marcando.contains(alunoId) || _academiaId == null) return;
+
+    // Verifica se a data selecionada é um dia de treino dessa turma
+    if (!_dataNoDiaDaTurma) {
+      final diaLabel = _diasNomes[_dartDiaToFirestore(_dataSel.weekday)];
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text('Dia fora do horário', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+          content: Text(
+            'Hoje não é o dia de treino cadastrado para essa turma. Deseja mesmo confirmar presença para $diaLabel?',
+            style: TextStyle(color: kText2),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('Confirmar assim mesmo', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (confirmar != true || !mounted) return;
+    }
+
     setState(() => _marcando.add(alunoId));
     try {
-      await dio.post('/api/presencas', data: {
-        'alunoId': alunoId,
-        'turmaId': widget.turmaId,
+      final pid = await firestoreService.addPresenca(_academiaId!, {
+        'aluno_id': alunoId,
+        'turma_id': widget.turmaId,
         'data': _dataStr,
+        'data_presenca': _dataStr,
       });
       if (mounted) {
-        setState(() => _presentesNaData.add(alunoId));
+        setState(() {
+          _presentesNaData.add(alunoId);
+          if (pid.isNotEmpty) _presencaIds[alunoId] = pid;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Presença registrada!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)),
         );
       }
     } catch (e) {
-      String msg = 'Erro ao registrar presença.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao registrar presença.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _marcando.remove(alunoId));
+    }
+  }
+
+  Future<void> _desmarcarPresenca(String alunoId, String nome) async {
+    if (_academiaId == null) return;
+    final pid = _presencaIds[alunoId];
+    if (pid == null || pid.isEmpty) {
+      // Sem ID local, recarrega para garantir
+      await _loadPresencaData();
+      final pid2 = _presencaIds[alunoId];
+      if (pid2 == null || pid2.isEmpty) return;
+      _desmarcarPresenca(alunoId, nome);
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Desfazer presença', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        content: Text('Deseja remover a presença de $nome nesta data?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _marcando.add(alunoId));
+    try {
+      await firestoreService.deletePresenca(_academiaId!, pid);
+      if (mounted) {
+        setState(() {
+          _presentesNaData.remove(alunoId);
+          _presencaIds.remove(alunoId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Presença removida.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)),
+        );
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erro ao remover presença.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() => _marcando.remove(alunoId));
@@ -290,7 +420,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         ),
         title: Text(t?['nome'] ?? 'Turma', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
         actions: [
-          if (t != null)
+          if (t != null && _academiaId != null)
             IconButton(
               icon: Icon(Icons.edit_rounded, color: kText2, size: 20),
               tooltip: 'Editar turma',
@@ -299,7 +429,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => TurmaFormSheet(turma: t),
+                  builder: (_) => TurmaFormSheet(academiaId: _academiaId!, turma: t),
                 );
                 if (editou == true) _load();
               },
@@ -418,6 +548,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
 
   Widget _buildHeader(Map<String, dynamic> t) {
     final ativa = t['ativo'] == true;
+    final modalidadeNome = t['modalidadeNome'] ?? t['nome_modalidade'] ?? '';
+    final professorNome = t['professorNome'] ?? t['nome_professor'] ?? '';
+    final cap = t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? 0;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(14),
@@ -431,10 +564,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if ((t['modalidadeNome'] as String?)?.isNotEmpty == true)
-                      Text(t['modalidadeNome'], style: TextStyle(color: kText2, fontSize: 12)),
-                    if ((t['professorNome'] as String?)?.isNotEmpty == true)
-                      Text('Prof. ${t['professorNome']}', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                    if ((modalidadeNome as String).isNotEmpty)
+                      Text(modalidadeNome, style: TextStyle(color: kText2, fontSize: 12)),
+                    if ((professorNome as String).isNotEmpty)
+                      Text('Prof. $professorNome', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -451,7 +584,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
           ),
           const SizedBox(height: 6),
           Text(
-            '${t['totalAlunos'] ?? _alunos.length} / ${t['capacidadeMaxima'] ?? 0} alunos',
+            '${t['totalAlunos'] ?? _alunos.length} / $cap alunos',
             style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ],
@@ -459,12 +592,22 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     );
   }
 
+  Color _parseCor2(String? hex) {
+    try { return Color(int.parse((hex ?? '').replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
+  }
+
   Widget _buildAlunoCard(Map<String, dynamic> a) {
-    final alunoId = a['alunoId']?.toString() ?? '';
-    final nome = a['nomeAluno'] as String? ?? '';
+    final alunoId = a['alunoId']?.toString() ?? a['aluno_id']?.toString() ?? '';
+    final nome = a['nomeAluno'] as String? ?? a['nome_aluno'] as String? ?? '';
     final count = _presencaCount[alunoId] ?? 0;
     final apto = _aptosGraduar.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final faixaCor = a['faixaAtualCor'] as String?;
+    final faixaNome = a['faixaAtualNome'] as String?;
+    final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
+    final temGraus = a['faixaAtualTemGraus'] == true || grauAtual > 0;
+    final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+    final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
 
     return Dismissible(
       key: Key(alunoId),
@@ -504,8 +647,29 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-                    if (apto)
-                      Text('Apto para graduar', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 3),
+                    Row(children: [
+                      if (faixaCor != null) ...[
+                        BeltBadge(
+                          cor: _parseCor2(faixaCor),
+                          corBarra: _parseCor2('#000000'),
+                          temGraus: temGraus,
+                          grau: grauAtual,
+                          maxGraus: maxGraus,
+                          height: 12,
+                          minWidth: 28,
+                        ),
+                        const SizedBox(width: 5),
+                      ],
+                      if (faixaNome != null)
+                        Flexible(child: Text(
+                          grauAtual > 0 ? '$faixaNome · $grauAtual° Grau' : faixaNome,
+                          style: TextStyle(color: apto ? kSuccess : kText2, fontSize: 11, fontWeight: apto ? FontWeight.w600 : FontWeight.w400),
+                          overflow: TextOverflow.ellipsis,
+                        ))
+                      else if (apto)
+                        Text('Apto para graduar', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]),
                   ],
                 ),
               ),
@@ -531,7 +695,6 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   Widget _abaPresenca() {
     return Column(
       children: [
-        // Seletor de data — setas prev/next + toque no centro abre calendário
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Container(
@@ -608,21 +771,27 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   // ── MATRÍCULA ─────────────────────────────────────────
 
   Future<void> _abrirMatricula() async {
+    if (_academiaId == null) return;
     final turmaId = widget.turmaId;
-    final alunosNaTurma = _alunos.map((a) => a['alunoId']?.toString() ?? '').toSet();
+    final alunosNaTurma = _alunos.map((a) => (a['alunoId'] ?? a['aluno_id'] ?? '').toString()).toSet();
 
     final matriculou = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MatriculaSheet(turmaId: turmaId, alunosJaMatriculados: alunosNaTurma),
+      builder: (_) => _MatriculaSheet(
+        turmaId: turmaId,
+        academiaId: _academiaId!,
+        alunosJaMatriculados: alunosNaTurma,
+      ),
     );
     if (matriculou == true) _load();
   }
 
   Future<void> _desmatricularAluno(Map<String, dynamic> a) async {
-    final nome = a['nomeAluno'] as String? ?? '';
-    final matriculaId = a['matriculaId']?.toString() ?? '';
+    if (_academiaId == null) return;
+    final nome = a['nomeAluno'] as String? ?? a['nome_aluno'] as String? ?? '';
+    final matriculaId = a['matriculaId']?.toString() ?? a['id']?.toString() ?? '';
     if (matriculaId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('ID de matrícula não encontrado.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
@@ -647,7 +816,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     );
     if (ok != true || !mounted) return;
     try {
-      await dio.delete('/api/matriculas/$matriculaId');
+      await firestoreService.deleteMatricula(_academiaId!, matriculaId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$nome removido da turma.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
@@ -712,10 +881,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   }
 
   Widget _buildHorarioCard(Map<String, dynamic> h) {
-    final dia = (h['diaSemana'] as num?)?.toInt() ?? 0;
+    final dia = (h['diaSemana'] ?? h['dia_semana'] as num?)?.toInt() ?? 0;
     final diaLabel = dia >= 0 && dia < _diasSemana.length ? _diasSemana[dia] : '?';
-    final inicio = h['horaInicio']?.toString().substring(0, 5) ?? '--:--';
-    final fim = h['horaFim']?.toString().substring(0, 5) ?? '--:--';
+    final inicio = (h['horaInicio'] ?? h['hora_inicio'])?.toString().substring(0, 5) ?? '--:--';
+    final fim = (h['horaFim'] ?? h['hora_fim'])?.toString().substring(0, 5) ?? '--:--';
     final sala = h['sala'] as String?;
 
     return Container(
@@ -763,17 +932,23 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   }
 
   Future<void> _abrirHorarioForm({Map<String, dynamic>? horario}) async {
+    if (_academiaId == null) return;
     final turmaId = widget.turmaId;
     final salvou = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _HorarioFormSheet(turmaId: turmaId, horario: horario),
+      builder: (_) => _HorarioFormSheet(
+        turmaId: turmaId,
+        academiaId: _academiaId!,
+        horario: horario,
+      ),
     );
     if (salvou == true) _load();
   }
 
   Future<void> _deletarHorario(Map<String, dynamic> h) async {
+    if (_academiaId == null) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -791,7 +966,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     );
     if (ok != true || !mounted) return;
     try {
-      await dio.delete('/api/horarios/${h['id']}');
+      await firestoreService.deleteHorario(_academiaId!, h['id']?.toString() ?? '');
       if (mounted) _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -801,8 +976,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
   }
 
   Widget _buildPresencaCard(Map<String, dynamic> a) {
-    final alunoId = a['alunoId']?.toString() ?? '';
-    final nome = a['nomeAluno'] as String? ?? '';
+    final alunoId = a['alunoId']?.toString() ?? a['aluno_id']?.toString() ?? '';
+    final nome = a['nomeAluno'] as String? ?? a['nome_aluno'] as String? ?? '';
     final presente = _presentesNaData.contains(alunoId);
     final carregando = _marcando.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
@@ -828,16 +1003,21 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
             child: Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
           ),
           if (presente)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle_rounded, color: kSuccess, size: 14),
-                  const SizedBox(width: 4),
-                  Text('Presente', style: TextStyle(color: kSuccess, fontSize: 12, fontWeight: FontWeight.w700)),
-                ],
+            GestureDetector(
+              onTap: carregando ? null : () => _desmarcarPresenca(alunoId, nome),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    carregando
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Icon(Icons.check_circle_rounded, color: kSuccess, size: 14),
+                    const SizedBox(width: 4),
+                    Text('Presente', style: TextStyle(color: kSuccess, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
               ),
             )
           else
@@ -867,8 +1047,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
 
 class _MatriculaSheet extends StatefulWidget {
   final String turmaId;
+  final String academiaId;
   final Set<String> alunosJaMatriculados;
-  const _MatriculaSheet({required this.turmaId, required this.alunosJaMatriculados});
+  const _MatriculaSheet({required this.turmaId, required this.academiaId, required this.alunosJaMatriculados});
 
   @override
   State<_MatriculaSheet> createState() => _MatriculaSheetState();
@@ -897,9 +1078,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
 
   Future<void> _load() async {
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 200, 'ativo': true});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      final list = await firestoreService.getAlunos(widget.academiaId, ativosOnly: true);
       final todos = list.cast<Map<String, dynamic>>();
       final disponiveis = todos.where((a) => !widget.alunosJaMatriculados.contains(a['id']?.toString() ?? '')).toList();
       if (mounted) {
@@ -926,16 +1105,16 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
     if (_selecionadoId == null) return;
     setState(() => _salvando = true);
     try {
-      await dio.post('/api/matriculas', data: {
-        'alunoId': _selecionadoId,
-        'turmaId': widget.turmaId,
+      await firestoreService.addMatricula(widget.academiaId, {
+        'aluno_id': _selecionadoId,
+        'turma_id': widget.turmaId,
+        'data_matricula': DateTime.now().toUtc().toIso8601String(),
+        'ativo': true,
       });
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      String msg = 'Erro ao matricular aluno.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao matricular aluno.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() => _salvando = false);
@@ -1033,18 +1212,24 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
 
 class _HorarioFormSheet extends StatefulWidget {
   final String turmaId;
+  final String academiaId;
   final Map<String, dynamic>? horario;
-  const _HorarioFormSheet({required this.turmaId, this.horario});
+  const _HorarioFormSheet({required this.turmaId, required this.academiaId, this.horario});
 
   @override
   State<_HorarioFormSheet> createState() => _HorarioFormSheetState();
 }
 
 class _HorarioFormSheetState extends State<_HorarioFormSheet> {
-  static const _dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  static const _dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  static const _diasFull = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   final _salaCtrl = TextEditingController();
 
+  // Modo edição: um único dia
   int? _diaSemana;
+  // Modo criação: múltiplos dias
+  final Set<int> _diasSelecionados = {};
+
   TimeOfDay? _inicio;
   TimeOfDay? _fim;
   bool _salvando = false;
@@ -1056,10 +1241,10 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
     super.initState();
     if (_editando) {
       final h = widget.horario!;
-      _diaSemana = (h['diaSemana'] as num?)?.toInt();
+      _diaSemana = (h['diaSemana'] ?? h['dia_semana'] as num?)?.toInt();
       _salaCtrl.text = h['sala'] as String? ?? '';
-      final inicioStr = h['horaInicio']?.toString() ?? '';
-      final fimStr = h['horaFim']?.toString() ?? '';
+      final inicioStr = (h['horaInicio'] ?? h['hora_inicio'])?.toString() ?? '';
+      final fimStr = (h['horaFim'] ?? h['hora_fim'])?.toString() ?? '';
       if (inicioStr.length >= 5) {
         final parts = inicioStr.split(':');
         _inicio = TimeOfDay(hour: int.tryParse(parts[0]) ?? 0, minute: int.tryParse(parts[1]) ?? 0);
@@ -1093,30 +1278,38 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
   }
 
   Future<void> _salvar() async {
-    if (_diaSemana == null || _inicio == null || _fim == null) {
+    final dias = _editando ? [_diaSemana!] : _diasSelecionados.toList()..sort();
+    if (dias.isEmpty || _inicio == null || _fim == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Preencha dia, horário de início e fim.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Selecione ao menos um dia e os horários.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
       return;
     }
     setState(() => _salvando = true);
     try {
-      final body = {
-        'turmaId': widget.turmaId,
-        'diaSemana': _diaSemana,
-        'horaInicio': _formatTime(_inicio!),
-        'horaFim': _formatTime(_fim!),
-        if (_salaCtrl.text.trim().isNotEmpty) 'sala': _salaCtrl.text.trim(),
-      };
+      final sala = _salaCtrl.text.trim();
       if (_editando) {
-        await dio.put('/api/horarios/${widget.horario!['id']}', data: body);
+        await firestoreService.updateHorario(widget.academiaId, widget.horario!['id']?.toString() ?? '', {
+          'turma_id': widget.turmaId,
+          'dia_semana': _diaSemana,
+          'hora_inicio': _formatTime(_inicio!),
+          'hora_fim': _formatTime(_fim!),
+          if (sala.isNotEmpty) 'sala': sala,
+        });
       } else {
-        await dio.post('/api/horarios', data: body);
+        for (final dia in dias) {
+          await firestoreService.addHorario(widget.academiaId, {
+            'turma_id': widget.turmaId,
+            'dia_semana': dia,
+            'hora_inicio': _formatTime(_inicio!),
+            'hora_fim': _formatTime(_fim!),
+            if (sala.isNotEmpty) 'sala': sala,
+          });
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      String msg = _editando ? 'Erro ao editar horário.' : 'Erro ao criar horário.';
-      try { msg = ((e as dynamic).response?.data as Map?)?['mensagem'] ?? msg; } catch (_) {}
+      final msg = _editando ? 'Erro ao editar horário.' : 'Erro ao criar horário.';
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
@@ -1154,24 +1347,56 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
               ),
           ]),
           const SizedBox(height: 20),
-          // Dia da semana
-          DropdownButtonFormField<int>(
-            value: _diaSemana,
-            decoration: InputDecoration(
-              labelText: 'Dia da semana',
-              labelStyle: TextStyle(color: kText2, fontSize: 13),
-              prefixIcon: Icon(Icons.calendar_today_rounded, color: kText2, size: 18),
-              filled: true, fillColor: kSurface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          // Dias da semana
+          if (_editando) ...[
+            DropdownButtonFormField<int>(
+              value: _diaSemana,
+              decoration: InputDecoration(
+                labelText: 'Dia da semana',
+                labelStyle: TextStyle(color: kText2, fontSize: 13),
+                prefixIcon: Icon(Icons.calendar_today_rounded, color: kText2, size: 18),
+                filled: true, fillColor: kSurface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              dropdownColor: kSurface,
+              style: TextStyle(color: kText1, fontSize: 15),
+              items: List.generate(7, (i) => DropdownMenuItem(value: i, child: Text(_diasFull[i], style: TextStyle(color: kText1)))),
+              onChanged: (v) => setState(() => _diaSemana = v),
             ),
-            dropdownColor: kSurface,
-            style: TextStyle(color: kText1, fontSize: 15),
-            items: List.generate(7, (i) => DropdownMenuItem(value: i, child: Text(_dias[i], style: TextStyle(color: kText1)))),
-            onChanged: (v) => setState(() => _diaSemana = v),
-          ),
+          ] else ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Dias da semana', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: List.generate(7, (i) {
+                final sel = _diasSelecionados.contains(i);
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => sel ? _diasSelecionados.remove(i) : _diasSelecionados.add(i)),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: sel ? kPrimary : kSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: sel ? kPrimary : kBorder),
+                      ),
+                      child: Text(
+                        _dias[i],
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: sel ? Colors.white : kText2, fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
           const SizedBox(height: 14),
           // Horários
           Row(children: [

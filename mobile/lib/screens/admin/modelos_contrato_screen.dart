@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminModelosContratoScreen extends StatefulWidget {
   const AdminModelosContratoScreen({super.key});
@@ -16,6 +17,7 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
   bool _loading = true;
   bool _erro = false;
   final _fmt = DateFormat('dd/MM/yyyy');
+  String? _academiaId;
 
   @override
   void initState() {
@@ -27,9 +29,10 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
     if (!mounted) return;
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/contratos/modelos');
-      final raw = res.data['dados'];
-      final list = raw is List ? raw : (raw as Map?)?['items'] as List? ?? [];
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) { setState(() => _loading = false); return; }
+      final list = await firestoreService.getModelosContrato(_academiaId!);
       if (mounted) setState(() { _modelos = list.cast<Map<String, dynamic>>(); _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
@@ -52,29 +55,26 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
         ],
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || _academiaId == null) return;
     try {
-      await dio.delete('/api/contratos/modelos/${m['id']}');
+      await firestoreService.deleteModeloContrato(_academiaId!, m['id'].toString());
       await _load();
     } catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao remover modelo';
-      try {
-        final d = (e as dynamic).response?.data;
-        if (d is Map && d['mensagem'] != null) msg = d['mensagem'].toString();
-      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao remover modelo'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     }
   }
 
   void _abrirEditor({Map<String, dynamic>? modelo}) {
+    if (_academiaId == null) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _ModeloEditorSheet(
+        academiaId: _academiaId!,
         modelo: modelo,
         onSalvo: _load,
       ),
@@ -142,10 +142,11 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final m = _modelos[i];
-                        final criadoEm = m['criadoEm'] != null
-                            ? _fmt.format(DateTime.tryParse(m['criadoEm'].toString()) ?? DateTime.now())
+                        final criadoEm = m['criadoEm'] != null || m['criado_em'] != null
+                            ? _fmt.format(DateTime.tryParse((m['criadoEm'] ?? m['criado_em']).toString()) ?? DateTime.now())
                             : '';
-                        final previewHtml = (m['conteudoHtml'] as String? ?? '')
+                        final htmlContent = m['conteudoHtml'] ?? m['conteudo_html'] ?? '';
+                        final previewHtml = (htmlContent as String)
                             .replaceAll(RegExp(r'<[^>]*>'), ' ')
                             .replaceAll(RegExp(r'\s+'), ' ')
                             .trim();
@@ -212,7 +213,8 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
 }
 
 class _ModeloEditorSheet extends StatefulWidget {
-  const _ModeloEditorSheet({this.modelo, required this.onSalvo});
+  const _ModeloEditorSheet({required this.academiaId, this.modelo, required this.onSalvo});
+  final String academiaId;
   final Map<String, dynamic>? modelo;
   final VoidCallback onSalvo;
 
@@ -233,7 +235,7 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
     final m = widget.modelo;
     if (m != null) {
       _nomeCtrl.text = m['nome']?.toString() ?? '';
-      _htmlCtrl.text = m['conteudoHtml']?.toString() ?? '';
+      _htmlCtrl.text = (m['conteudoHtml'] ?? m['conteudo_html'])?.toString() ?? '';
     }
   }
 
@@ -250,25 +252,20 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
     try {
       final data = {
         'nome': _nomeCtrl.text.trim(),
-        'conteudoHtml': _htmlCtrl.text,
+        'conteudo_html': _htmlCtrl.text,
       };
       if (widget.modelo != null) {
-        await dio.put('/api/contratos/modelos/${widget.modelo!['id']}', data: data);
+        await firestoreService.updateModeloContrato(widget.academiaId, widget.modelo!['id'].toString(), data);
       } else {
-        await dio.post('/api/contratos/modelos', data: data);
+        await firestoreService.addModeloContrato(widget.academiaId, data);
       }
       if (!mounted) return;
       Navigator.pop(context);
       widget.onSalvo();
     } catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao salvar modelo';
-      try {
-        final d = (e as dynamic).response?.data;
-        if (d is Map && d['mensagem'] != null) msg = d['mensagem'].toString();
-      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao salvar modelo'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() { _salvando = false; });

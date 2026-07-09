@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class AlunoPresencasScreen extends StatefulWidget {
@@ -24,16 +25,28 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
 
   Future<void> _load() async {
     try {
-      final me = await dio.get('/api/alunos/me');
-      final alunoId = (me.data['dados'] as Map<String, dynamic>?)?['id'] ?? '';
-      final hoje = DateTime.now();
-      final ate = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
-      final deDate = hoje.subtract(const Duration(days: 365 * 3));
-      final de = '${deDate.year}-${deDate.month.toString().padLeft(2, '0')}-${deDate.day.toString().padLeft(2, '0')}';
-      final res = await dio.get('/api/presencas', queryParameters: {'alunoId': alunoId, 'de': de, 'ate': ate});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
-      if (mounted) setState(() => _presencas = list.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      if (user == null) { if (mounted) setState(() { _erro = true; _loading = false; }); return; }
+
+      final results = await Future.wait([
+        firestoreService.getPresencas(user.academiaId!, alunoId: user.id),
+        firestoreService.getTurmas(user.academiaId!),
+      ]);
+
+      final list = (results[0] as List).cast<Map<String, dynamic>>();
+      final turmas = (results[1] as List).cast<Map<String, dynamic>>();
+      final turmaMap = {for (final t in turmas) t['id'].toString(): t['nome']?.toString() ?? ''};
+
+      final enriched = list.map((p) {
+        final turmaId = p['turma_id']?.toString() ?? '';
+        return <String, dynamic>{
+          ...p,
+          'nomeTurma': p['nomeTurma'] ?? turmaMap[turmaId] ?? '',
+          'horaCheckin': p['hora_checkin'] ?? p['horaCheckin'],
+        };
+      }).toList();
+
+      if (mounted) setState(() => _presencas = enriched);
     } catch (_) {
       if (mounted) setState(() => _erro = true);
     } finally {

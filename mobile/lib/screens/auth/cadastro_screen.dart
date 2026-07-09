@@ -1,11 +1,11 @@
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   static final _onlyDigits = RegExp(r'\D');
@@ -81,69 +81,103 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
     final email = _emailCtrl.text.trim();
     final senha = _senhaCtrl.text;
+    final nome = _nomeCtrl.text.trim();
+    final nomeAcademia = _nomeAcademiaCtrl.text.trim();
+    final subdominio = _subdominioCtrl.text.trim();
 
+    UserCredential? cred;
     try {
-      // 1. Criar academia + usuário no backend
-      final res = await dio.post('/api/auth/register', data: {
-        'nome': _nomeCtrl.text.trim(),
+      // 1. Criar conta Firebase Auth
+      cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: senha,
+      );
+      final uid = cred.user!.uid;
+
+      // 2. Criar documento da academia no Firestore
+      final db = FirebaseFirestore.instance;
+      final academiaRef = db.collection('academias').doc();
+      final academiaId = academiaRef.id;
+
+      await academiaRef.set({
+        'id': academiaId,
+        'nome': nomeAcademia,
         'email': email,
-        'senha': senha,
-        'nomeAcademia': _nomeAcademiaCtrl.text.trim(),
-        'subdominio': _subdominioCtrl.text.trim(),
+        'subdominio': subdominio,
         if (_telefoneCtrl.text.trim().isNotEmpty) 'telefone': _telefoneCtrl.text.trim(),
+        'ativo': true,
+        'plano_tipo': 0,
+        'noticias_ativas': false,
+        'criado_em': FieldValue.serverTimestamp(),
       });
 
-      final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] != true) {
-        setState(() => _erro = body['mensagem'] ?? 'Erro ao criar conta.');
-        return;
-      }
+      // 3. Criar usuário Admin na subcoleção
+      final usuarioRef = db.collection('academias').doc(academiaId).collection('usuarios').doc();
+      final usuarioId = usuarioRef.id;
 
-      // 2. Criar usuário no Firebase com o mesmo email/senha
-      try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await usuarioRef.set({
+        'id': usuarioId,
+        'academia_id': academiaId,
+        'firebase_uid': uid,
+        'nome': nome,
+        'email': email,
+        'perfil': 0, // Admin
+        'perfil_nome': 'Admin',
+        'ativo': true,
+        'xp_total': 0,
+        'xp_mensal': 0,
+        'nivel': 0,
+        if (_telefoneCtrl.text.trim().isNotEmpty) 'telefone': _telefoneCtrl.text.trim(),
+        'criado_em': FieldValue.serverTimestamp(),
+      });
+
+      // 4. Documento de lookup Firebase UID → academia
+      await db.collection('usuariosFirebase').doc(uid).set({
+        'academiaId': academiaId,
+        'usuarioId': usuarioId,
+        'perfil': 'Admin',
+        'nome': nome,
+        'email': email,
+      });
+
+      // 5. Popular academia com modalidades e faixas padrão
+      await firestoreService.popularModalidadesDefault(academiaId);
+
+      // 6. Salvar sessão localmente
+      await AuthStorage.save(
+        uid,
+        StoredUser(
+          id: usuarioId,
+          nome: nome,
           email: email,
-          password: senha,
-        );
-      } on FirebaseAuthException catch (e) {
-        // Se já existe no Firebase (conta anterior), tenta só logar
-        if (e.code != 'email-already-in-use') rethrow;
-      }
+          perfil: 'Admin',
+          academiaId: academiaId,
+        ),
+      );
 
-      // 3. Salvar sessão com o JWT retornado pelo backend
-      final d = body['dados'] as Map<String, dynamic>;
-      final token = d['accessToken'] as String? ?? '';
-      final refreshToken = d['refreshToken'] as String?;
-      if (token.isNotEmpty) {
-        final id = AuthStorage.subFromJwt(token) ?? '';
-        await AuthStorage.save(
-          token,
-          StoredUser(
-            id: id,
-            nome: d['nome'] ?? _nomeCtrl.text.trim(),
-            email: d['email'] ?? email,
-            perfil: d['perfil'] ?? 'Admin',
-            academiaId: d['academiaId']?.toString(),
-          ),
-          refreshToken: refreshToken,
-        );
-        if (mounted) context.go('/admin/dashboard');
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Conta criada! Faça login para continuar.'),
-              backgroundColor: kSuccess,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          context.go('/login');
-        }
-      }
-    } on DioException catch (e) {
-      setState(() => _erro = e.response?.data?['mensagem'] ?? 'Erro de conexão. Verifique sua internet.');
+      if (mounted) context.go('/admin/dashboard');
     } on FirebaseAuthException catch (e) {
-      setState(() => _erro = 'Conta criada, mas houve um problema ao configurar o acesso (${e.code}). Faça login normalmente.');
+      String msg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          msg = 'Este e-mail já está cadastrado. Use "Esqueci minha senha" para recuperar o acesso.';
+        case 'weak-password':
+          msg = 'A senha é muito fraca. Use ao menos 6 caracteres.';
+        case 'invalid-email':
+          msg = 'E-mail inválido.';
+        default:
+          msg = 'Erro ao criar conta (${e.code}).';
+      }
+      // Se a conta Firebase foi criada mas o Firestore falhou, exclui a conta Auth
+      if (cred != null) {
+        try { await cred.user!.delete(); } catch (_) {}
+      }
+      setState(() => _erro = msg);
+    } catch (e) {
+      if (cred != null) {
+        try { await cred.user!.delete(); } catch (_) {}
+      }
+      setState(() => _erro = 'Erro inesperado. Tente novamente.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

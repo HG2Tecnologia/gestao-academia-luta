@@ -1,22 +1,28 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'api_client.dart';
 import 'constants.dart';
 
 class VersionCheckService {
   static Future<void> check(BuildContext context) async {
     try {
+      // Lê configuração de versão do Firestore (documento /config/version)
+      final doc = await FirebaseFirestore.instance
+          .collection('config')
+          .doc('version')
+          .get();
+      if (!doc.exists) return; // Sem configuração = sem verificação
+
+      final data = doc.data() as Map<String, dynamic>;
       final platform = Platform.isIOS ? 'ios' : 'android';
-      final res = await dio.get('/api/version', queryParameters: {'platform': platform});
-      final data = res.data as Map<String, dynamic>;
-      final minVersion = data['minVersion']?.toString() ?? '0.0.0';
-      final currentVersion = data['currentVersion']?.toString() ?? '0.0.0';
-      final forceUpdate = data['forceUpdate'] == true;
+      final minVersion = data['${platform}_min_version']?.toString() ?? '0.0.0';
+      final currentVersion = data['${platform}_current_version']?.toString() ?? '0.0.0';
+      final forceUpdate = data['${platform}_force_update'] == true;
       final storeUrl = Platform.isIOS
-          ? data['iosUrl']?.toString() ?? ''
-          : data['androidUrl']?.toString() ?? '';
+          ? data['ios_url']?.toString() ?? ''
+          : data['android_url']?.toString() ?? '';
 
       final info = await PackageInfo.fromPlatform();
       final appVersion = info.version;

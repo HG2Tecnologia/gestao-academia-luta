@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../core/api_client.dart';
+import '../core/auth_storage.dart';
 import '../core/constants.dart';
+import '../core/firestore_service.dart';
 import '../core/widgets.dart';
 
 class NotificacoesScreen extends StatefulWidget {
@@ -14,6 +15,8 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   List<Map<String, dynamic>> _notifs = [];
   bool _loading = true;
   bool _erro = false;
+  String? _academiaId;
+  String? _usuarioId;
 
   @override
   void initState() {
@@ -24,9 +27,14 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/notificacoes');
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      _usuarioId = user?.id ?? '';
+      if (_academiaId!.isEmpty) {
+        setState(() { _loading = false; });
+        return;
+      }
+      final list = await firestoreService.getNotificacoes(_academiaId!);
       if (mounted) setState(() => _notifs = list.cast<Map<String, dynamic>>());
     } catch (_) {
       if (mounted) setState(() => _erro = true);
@@ -36,8 +44,9 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   }
 
   Future<void> _marcarLida(String id) async {
+    if (_academiaId == null) return;
     try {
-      await dio.patch('/api/notificacoes/$id/lida');
+      await firestoreService.marcarNotificacaoLida(_academiaId!, id);
       if (mounted) setState(() {
         final idx = _notifs.indexWhere((n) => n['id'].toString() == id);
         if (idx >= 0) _notifs[idx] = {..._notifs[idx], 'lida': true};
@@ -46,19 +55,18 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
   }
 
   Future<void> _marcarTodasLidas() async {
+    if (_academiaId == null || _usuarioId == null) return;
     try {
-      await dio.post('/api/notificacoes/marcar-todas-lidas');
+      await firestoreService.marcarTodasNotificacoesLidas(_academiaId!);
       if (mounted) setState(() {
         _notifs = _notifs.map((n) => {...n, 'lida': true}).toList();
       });
     } catch (_) {}
   }
 
-  Future<void> _excluir(String id) async {
-    try {
-      await dio.delete('/api/notificacoes/$id');
-      if (mounted) setState(() => _notifs.removeWhere((n) => n['id'].toString() == id));
-    } catch (_) {}
+  // Note: single notification delete not available in firestoreService; remove locally only
+  void _excluirLocal(String id) {
+    if (mounted) setState(() => _notifs.removeWhere((n) => n['id'].toString() == id));
   }
 
   Color _tipoCor(String? tipo) {
@@ -154,7 +162,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
                                       ),
                                       child: Icon(Icons.delete_rounded, color: kDanger),
                                     ),
-                                    onDismissed: (_) => _excluir(id),
+                                    onDismissed: (_) => _excluirLocal(id),
                                     child: GestureDetector(
                                       onTap: () { if (!lida) _marcarLida(id); },
                                       child: Container(
@@ -247,10 +255,12 @@ class _SinoNotificacoesState extends State<SinoNotificacoes> {
 
   Future<void> _fetchCount() async {
     try {
-      final res = await dio.get('/api/notificacoes');
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
-      final unread = (list as List).where((n) => n['lida'] != true).length;
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId ?? '';
+      final usuarioId = user?.id ?? '';
+      if (academiaId.isEmpty) return;
+      final list = await firestoreService.getNotificacoes(academiaId);
+      final unread = list.where((n) => n['lida'] != true).length;
       if (mounted) setState(() => _count = unread);
     } catch (_) {}
   }

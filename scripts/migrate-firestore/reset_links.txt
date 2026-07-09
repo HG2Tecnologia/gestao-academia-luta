@@ -1,0 +1,11 @@
+teate@teste.com
+https://sensei-manager-d64c0.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=TKix_7Gsf70iKxcPHSL2dgU68PibUNSGOHvrRSVcSeMAAAGfKcATaQ&apiKey=AIzaSyDD9NvRXPIH1yUJQEtsEKFRiV36OgH9KMw&lang=en
+
+tessste@teste.com
+https://sensei-manager-d64c0.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=1lrEwMZNv8e5OFvRy5sbHi4pH1y3-sd3uukVvAw14KgAAAGfKcAbYg&apiKey=AIzaSyDD9NvRXPIH1yUJQEtsEKFRiV36OgH9KMw&lang=en
+
+hugo.oliveira16@hotmail.com
+https://sensei-manager-d64c0.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=RC40sPfkj70wvJbZoj0O1eaoVakEWkf4VgzddDnbtuIAAAGfKcAjYw&apiKey=AIzaSyDD9NvRXPIH1yUJQEtsEKFRiV36OgH9KMw&lang=en
+
+gf3@gmail.com
+https://sensei-manager-d64c0.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=4WpHtfLQlhPsW0SNo1h9xjW46tdrijYXuqGbGwF1fq0AAAGfKcArBg&apiKey=AIzaSyDD9NvRXPIH1yUJQEtsEKFRiV36OgH9KMw&lang=en

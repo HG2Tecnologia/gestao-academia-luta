@@ -1,10 +1,9 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class ProfRankingScreen extends StatefulWidget {
@@ -19,7 +18,6 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
   late final TabController _tabController;
 
   // Geral
-  String _periodoGeral = 'mensal';
   List<Map<String, dynamic>> _itemsGeral = [];
   bool _loadingGeral = true;
   bool _erroGeral = false;
@@ -30,6 +28,7 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
   bool _erroCustom = false;
 
   bool _isAdmin = false;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -38,12 +37,20 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
-    Future.wait([_loadGeral(), _loadCustomRankings(), _checkRole()]);
+    _init();
   }
 
-  Future<void> _checkRole() async {
+  Future<void> _init() async {
     final user = await AuthStorage.getUser();
-    if (mounted) setState(() => _isAdmin = user?.perfil == 'Admin' || user?.perfil == 'Dono');
+    if (mounted) {
+      setState(() {
+        _isAdmin = user?.perfil == 'Admin' || user?.perfil == 'Dono';
+        _academiaId = user?.academiaId;
+      });
+    }
+    if (user?.academiaId != null) {
+      await Future.wait([_loadGeral(), _loadCustomRankings()]);
+    }
   }
 
   @override
@@ -53,14 +60,11 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
   }
 
   Future<void> _loadGeral() async {
+    if (_academiaId == null) return;
     if (mounted) setState(() { _loadingGeral = true; _erroGeral = false; });
     try {
-      final res = await dio.get('/api/ranking/leaderboard/academia',
-          queryParameters: {'periodo': _periodoGeral, 'pagina': 1});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      final items = (dados is Map ? dados['items'] : null) ?? [];
-      if (mounted) setState(() => _itemsGeral = (items as List).cast<Map<String, dynamic>>());
+      final items = await firestoreService.getLeaderboard(_academiaId!);
+      if (mounted) setState(() => _itemsGeral = items);
     } catch (_) {
       if (mounted) setState(() => _erroGeral = true);
     } finally {
@@ -69,36 +73,16 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
   }
 
   Future<void> _loadCustomRankings() async {
+    if (_academiaId == null) return;
     if (mounted) setState(() { _loadingCustom = true; _erroCustom = false; });
     try {
-      final res = await dio.get('/api/ranking/custom');
-      final data = res.data;
-      final list = data is List
-          ? data.cast<Map<String, dynamic>>()
-          : (data is Map ? ((data['dados'] ?? data['itens'] ?? []) as List).cast<Map<String, dynamic>>() : <Map<String, dynamic>>[]);
+      final list = await firestoreService.getRankingsCustom(_academiaId!);
       if (mounted) setState(() => _rankings = list);
     } catch (_) {
       if (mounted) setState(() => _erroCustom = true);
     } finally {
       if (mounted) setState(() => _loadingCustom = false);
     }
-  }
-
-  Widget _chip(String label, bool selected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? kPrimary : kSurface,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: selected ? kPrimary : kBorder),
-        ),
-        child: Text(label,
-            style: TextStyle(color: selected ? Colors.white : kText2, fontSize: 13, fontWeight: FontWeight.w600)),
-      ),
-    );
   }
 
   String _medalha(int pos) {
@@ -114,7 +98,7 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
     if (_itemsGeral.isEmpty) {
       return ListaVazia(
         icon: Icons.emoji_events_outlined,
-        titulo: 'Sem dados para este período',
+        titulo: 'Sem dados no ranking',
         subtitulo: 'Alunos aparecem aqui conforme registram presenças.',
       );
     }
@@ -124,10 +108,8 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
       itemBuilder: (_, i) {
         final item = _itemsGeral[i];
         final pos = (item['posicao'] as num?)?.toInt() ?? (i + 1);
-        final nome = item['nomeAluno'] ?? '—';
-        final xp = _periodoGeral == 'mensal'
-            ? (item['xpPeriodo'] as num?)?.toInt() ?? 0
-            : (item['xpTotal'] as num?)?.toInt() ?? 0;
+        final nome = item['nome'] as String? ?? item['nomeAluno'] as String? ?? '—';
+        final xp = (item['xp_total'] as num?)?.toInt() ?? 0;
         final nivel = item['nivel']?.toString() ?? '';
         final isTop3 = pos <= 3;
         return Container(
@@ -205,7 +187,8 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) => _RankingCard(
           ranking: _rankings[i],
-          onPontuar: _rankings[i]['incluirPontosManuais'] == true
+          academiaId: _academiaId ?? '',
+          onPontuar: _rankings[i]['incluirPontosManuais'] == true || _rankings[i]['incluir_pontos_manuais'] == true
               ? () async {
                   await _abrirLancarPontos(_rankings[i]);
                   _loadCustomRankings();
@@ -224,13 +207,13 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
       backgroundColor: kSurface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _LancarPontosSheet(rankingId: ranking['id'] as String),
+      builder: (_) => _LancarPontosSheet(rankingId: ranking['id'] as String, academiaId: _academiaId ?? ''),
     );
   }
 
   void _abrirLeaderboard(Map<String, dynamic> ranking) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _LeaderboardScreen(ranking: ranking),
+      builder: (_) => _LeaderboardScreen(ranking: ranking, academiaId: _academiaId ?? ''),
     ));
   }
 
@@ -283,23 +266,6 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
             ),
           ),
 
-          // Period chips (only for Geral)
-          if (_tabController.index == 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(children: [
-                _chip('📅 Mensal', _periodoGeral == 'mensal', () {
-                  setState(() => _periodoGeral = 'mensal');
-                  _loadGeral();
-                }),
-                const SizedBox(width: 8),
-                _chip('🏆 Histórico', _periodoGeral == 'historico', () {
-                  setState(() => _periodoGeral = 'historico');
-                  _loadGeral();
-                }),
-              ]),
-            ),
-
           const SizedBox(height: 8),
 
           Expanded(
@@ -325,19 +291,21 @@ class _ProfRankingScreenState extends State<ProfRankingScreen>
 
 class _RankingCard extends StatelessWidget {
   final Map<String, dynamic> ranking;
+  final String academiaId;
   final VoidCallback? onPontuar;
   final VoidCallback onVerLeaderboard;
 
   const _RankingCard({
     required this.ranking,
+    required this.academiaId,
     required this.onPontuar,
     required this.onVerLeaderboard,
   });
 
   @override
   Widget build(BuildContext context) {
-    final incPresencas = ranking['incluirPresencas'] as bool? ?? false;
-    final incManuais = ranking['incluirPontosManuais'] as bool? ?? false;
+    final incPresencas = ranking['incluirPresencas'] as bool? ?? ranking['incluir_presencas'] as bool? ?? false;
+    final incManuais = ranking['incluirPontosManuais'] as bool? ?? ranking['incluir_pontos_manuais'] as bool? ?? false;
     final ativo = ranking['ativo'] as bool? ?? true;
 
     return Opacity(
@@ -375,9 +343,9 @@ class _RankingCard extends StatelessWidget {
             ],
             const SizedBox(height: 10),
             Wrap(spacing: 6, children: [
-              if (incPresencas) _tagChip('Presenças ×${ranking['pesoPresencas'] ?? 1}', kPrimary),
-              if (incManuais) _tagChip('Manual ×${ranking['pesoManuais'] ?? 1}', kSuccess),
-              if (ranking['dataInicio'] != null || ranking['dataFim'] != null)
+              if (incPresencas) _tagChip('Presenças ×${ranking['pesoPresencas'] ?? ranking['peso_presencas'] ?? 1}', kPrimary),
+              if (incManuais) _tagChip('Manual ×${ranking['pesoManuais'] ?? ranking['peso_manuais'] ?? 1}', kSuccess),
+              if (ranking['dataInicio'] != null || ranking['data_inicio'] != null || ranking['dataFim'] != null || ranking['data_fim'] != null)
                 _tagChip('📅 Com período', kWarning),
             ]),
             if (onPontuar != null) ...[
@@ -413,7 +381,8 @@ class _RankingCard extends StatelessWidget {
 
 class _LeaderboardScreen extends StatefulWidget {
   final Map<String, dynamic> ranking;
-  const _LeaderboardScreen({required this.ranking});
+  final String academiaId;
+  const _LeaderboardScreen({required this.ranking, required this.academiaId});
 
   @override
   State<_LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -433,11 +402,8 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/ranking/custom/${widget.ranking['id']}/leaderboard');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      final list = dados is Map ? dados['items'] ?? [] : (dados is List ? dados : []);
-      if (mounted) setState(() => _items = (list as List).cast<Map<String, dynamic>>());
+      final items = await firestoreService.getLancamentosPonto(widget.academiaId, widget.ranking['id'] as String);
+      if (mounted) setState(() => _items = items);
     } catch (_) {
       if (mounted) setState(() => _erro = true);
     } finally {
@@ -447,7 +413,7 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final incManuais = widget.ranking['incluirPontosManuais'] as bool? ?? false;
+    final incManuais = widget.ranking['incluirPontosManuais'] as bool? ?? widget.ranking['incluir_pontos_manuais'] as bool? ?? false;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -469,7 +435,7 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
                   backgroundColor: kSurface,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                  builder: (_) => _LancarPontosSheet(rankingId: widget.ranking['id'] as String),
+                  builder: (_) => _LancarPontosSheet(rankingId: widget.ranking['id'] as String, academiaId: widget.academiaId),
                 );
                 _load();
               },
@@ -494,9 +460,9 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
                         itemCount: _items.length,
                         itemBuilder: (_, i) {
                           final item = _items[i];
-                          final pos = (item['posicao'] as num?)?.toInt() ?? (i + 1);
-                          final nome = item['nomeAluno'] as String? ?? '—';
-                          final pontos = (item['totalPontos'] as num?)?.toInt() ?? 0;
+                          final pos = i + 1;
+                          final nome = item['nomeAluno'] as String? ?? item['aluno_id'] as String? ?? '—';
+                          final pontos = (item['pontos'] as num?)?.toInt() ?? (item['totalPontos'] as num?)?.toInt() ?? 0;
                           final isTop3 = pos <= 3;
 
                           return Padding(
@@ -554,7 +520,8 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
 
 class _LancarPontosSheet extends StatefulWidget {
   final String rankingId;
-  const _LancarPontosSheet({required this.rankingId});
+  final String academiaId;
+  const _LancarPontosSheet({required this.rankingId, required this.academiaId});
 
   @override
   State<_LancarPontosSheet> createState() => _LancarPontosSheetState();
@@ -584,11 +551,8 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
 
   Future<void> _loadAlunos() async {
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'pagina': 1, 'tamanhoPagina': 200});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      final itens = dados is Map ? (dados['itens'] ?? dados['items'] ?? []) : (dados is List ? dados : []);
-      if (mounted) setState(() => _alunos = (itens as List).cast<Map<String, dynamic>>());
+      final list = await firestoreService.getAlunos(widget.academiaId, ativosOnly: true);
+      if (mounted) setState(() => _alunos = list);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingAlunos = false);
@@ -599,16 +563,18 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
     if (!_formKey.currentState!.validate() || _alunoId == null) return;
     setState(() => _saving = true);
     try {
-      await dio.post('/api/ranking/custom/${widget.rankingId}/pontuar', data: {
-        'alunoId': _alunoId,
+      await firestoreService.addLancamentoPonto(widget.academiaId, {
+        'aluno_id': _alunoId,
+        'ranking_id': widget.rankingId,
         'pontos': int.tryParse(_pontosCtrl.text) ?? 1,
         'descricao': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        'academia_id': widget.academiaId,
       });
       if (mounted) Navigator.of(context).pop();
-    } on DioException catch (e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.response?.data?['mensagem'] ?? 'Erro ao lançar pontos'),
+          content: const Text('Erro ao lançar pontos'),
           backgroundColor: kDanger,
         ));
       }

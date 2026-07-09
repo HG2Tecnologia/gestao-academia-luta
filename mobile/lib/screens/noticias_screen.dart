@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../core/api_client.dart';
+import '../core/auth_storage.dart';
 import '../core/constants.dart';
+import '../core/firestore_service.dart';
 
 class NoticiasScreen extends StatefulWidget {
   const NoticiasScreen({super.key});
@@ -13,10 +14,6 @@ class NoticiasScreen extends StatefulWidget {
 class _NoticiasScreenState extends State<NoticiasScreen> {
   final List<Map<String, dynamic>> _items = [];
   bool _loading = true;
-  bool _carregandoMais = false;
-  bool _temMais = true;
-  int _pagina = 1;
-  static const int _porPagina = 10;
 
   final _scrollCtrl = ScrollController();
 
@@ -24,13 +21,6 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
   void initState() {
     super.initState();
     _carregar();
-    _scrollCtrl.addListener(() {
-      if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200 &&
-          !_carregandoMais &&
-          _temMais) {
-        _carregarMais();
-      }
-    });
   }
 
   @override
@@ -42,43 +32,24 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
   Future<void> _carregar() async {
     setState(() {
       _loading = true;
-      _pagina = 1;
       _items.clear();
-      _temMais = true;
     });
     try {
-      final res = await dio.get('/api/noticias',
-          queryParameters: {'pagina': 1, 'tamanhoPagina': _porPagina});
-      final dados =
-          (res.data['dados']?['items'] as List? ?? []).cast<Map<String, dynamic>>();
-      final total = res.data['dados']?['total'] as int? ?? 0;
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId ?? '';
+      if (academiaId.isEmpty) return;
+      final dados = await firestoreService.getNoticias(academiaId, publicadasOnly: true);
+      dados.sort((a, b) {
+        final aDate = a['publicada_em'] as String? ?? '';
+        final bDate = b['publicada_em'] as String? ?? '';
+        return bDate.compareTo(aDate);
+      });
       setState(() {
-        _items.addAll(dados);
-        _temMais = _items.length < total;
+        _items.addAll(dados.cast<Map<String, dynamic>>());
       });
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _carregarMais() async {
-    setState(() => _carregandoMais = true);
-    try {
-      _pagina++;
-      final res = await dio.get('/api/noticias',
-          queryParameters: {'pagina': _pagina, 'tamanhoPagina': _porPagina});
-      final dados =
-          (res.data['dados']?['items'] as List? ?? []).cast<Map<String, dynamic>>();
-      final total = res.data['dados']?['total'] as int? ?? 0;
-      setState(() {
-        _items.addAll(dados);
-        _temMais = _items.length < total;
-      });
-    } catch (_) {
-      _pagina--;
-    } finally {
-      if (mounted) setState(() => _carregandoMais = false);
     }
   }
 
@@ -103,17 +74,8 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
                   : ListView.builder(
                       controller: _scrollCtrl,
                       padding: const EdgeInsets.all(16),
-                      itemCount: _items.length + (_temMais ? 1 : 0),
+                      itemCount: _items.length,
                       itemBuilder: (context, index) {
-                        if (index == _items.length) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Center(
-                                child: _carregandoMais
-                                    ? const CircularProgressIndicator()
-                                    : const SizedBox()),
-                          );
-                        }
                         return _NoticiaCard(noticia: _items[index]);
                       },
                     ),
@@ -128,11 +90,11 @@ class _NoticiaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imagem = noticia['imagemBase64'] as String?;
+    final imagem = noticia['imagem_base64'] as String?;
     final titulo = noticia['titulo'] as String? ?? '';
     final resumo = noticia['resumo'] as String? ?? '';
-    final autorNome = noticia['autorNome'] as String?;
-    final publicadaEm = noticia['publicadaEm'] as String?;
+    final autorNome = noticia['autor_nome'] as String?;
+    final publicadaEm = noticia['publicada_em'] as String?;
     DateTime? data;
     if (publicadaEm != null) {
       try {
@@ -226,12 +188,12 @@ class _NoticiaDetalheScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imagem = noticia['imagemBase64'] as String?;
+    final imagem = noticia['imagem_base64'] as String?;
     final titulo = noticia['titulo'] as String? ?? '';
     final resumo = noticia['resumo'] as String? ?? '';
     final conteudo = noticia['conteudo'] as String?;
-    final autorNome = noticia['autorNome'] as String?;
-    final publicadaEm = noticia['publicadaEm'] as String?;
+    final autorNome = noticia['autor_nome'] as String?;
+    final publicadaEm = noticia['publicada_em'] as String?;
     DateTime? data;
     if (publicadaEm != null) {
       try {

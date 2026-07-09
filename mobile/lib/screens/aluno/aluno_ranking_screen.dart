@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class AlunoRankingScreen extends StatefulWidget {
@@ -18,7 +18,6 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
   late final TabController _tabController;
 
   // Geral
-  String _periodoGeral = 'mensal';
   List<Map<String, dynamic>> _itemsGeral = [];
   bool _loadingGeral = true;
   bool _erroGeral = false;
@@ -31,6 +30,8 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
   bool _loadingCustom = true;
   bool _loadingCustomLb = false;
   bool _erroCustom = false;
+
+  String? _academiaId;
 
   @override
   void initState() {
@@ -50,22 +51,26 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
 
   Future<void> _init() async {
     final user = await AuthStorage.getUser();
-    if (mounted) setState(() => _meuId = user?.id);
-    await Future.wait([
-      _loadGeral(),
-      _loadCustomRankings(),
-    ]);
+    if (mounted) {
+      setState(() {
+        _meuId = user?.id;
+        _academiaId = user?.academiaId;
+      });
+    }
+    if (user?.academiaId != null) {
+      await Future.wait([
+        _loadGeral(),
+        _loadCustomRankings(),
+      ]);
+    }
   }
 
   Future<void> _loadGeral() async {
+    if (_academiaId == null) return;
     if (mounted) setState(() { _loadingGeral = true; _erroGeral = false; });
     try {
-      final res = await dio.get('/api/ranking/leaderboard/academia',
-          queryParameters: {'periodo': _periodoGeral, 'pagina': 1});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      final items = (dados is Map ? dados['items'] : null) ?? [];
-      if (mounted) setState(() => _itemsGeral = (items as List).cast<Map<String, dynamic>>());
+      final items = await firestoreService.getLeaderboard(_academiaId!);
+      if (mounted) setState(() => _itemsGeral = items);
     } catch (_) {
       if (mounted) setState(() => _erroGeral = true);
     } finally {
@@ -74,13 +79,10 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
   }
 
   Future<void> _loadCustomRankings() async {
+    if (_academiaId == null) return;
     if (mounted) setState(() { _loadingCustom = true; _erroCustom = false; });
     try {
-      final res = await dio.get('/api/ranking/custom');
-      final data = res.data;
-      final list = data is List
-          ? data.cast<Map<String, dynamic>>()
-          : (data is Map ? ((data['dados'] ?? data['itens'] ?? []) as List).cast<Map<String, dynamic>>() : <Map<String, dynamic>>[]);
+      final list = await firestoreService.getRankingsCustom(_academiaId!);
       final visiveis = list.where((r) => r['visivelParaAluno'] == true && r['ativo'] == true).toList();
       if (mounted) {
         setState(() => _customRankings = visiveis);
@@ -94,13 +96,11 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
   }
 
   Future<void> _selecionarCustom(Map<String, dynamic> r) async {
+    if (_academiaId == null) return;
     setState(() { _customSelecionado = r; _loadingCustomLb = true; _itemsCustom = []; });
     try {
-      final res = await dio.get('/api/ranking/custom/${r['id']}/leaderboard');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'] ?? body;
-      final items = (dados is Map ? dados['items'] : null) ?? [];
-      if (mounted) setState(() => _itemsCustom = (items as List).cast<Map<String, dynamic>>());
+      final items = await firestoreService.getLancamentosPonto(_academiaId!, r['id'] as String);
+      if (mounted) setState(() => _itemsCustom = items);
     } catch (_) {} finally {
       if (mounted) setState(() => _loadingCustomLb = false);
     }
@@ -146,11 +146,9 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
       itemBuilder: (_, i) {
         final item = _itemsGeral[i];
         final pos = (item['posicao'] as num?)?.toInt() ?? (i + 1);
-        final ehEu = item['alunoId'] == _meuId;
-        final nome = item['nomeAluno'] ?? '—';
-        final xp = _periodoGeral == 'mensal'
-            ? (item['xpPeriodo'] as num?)?.toInt() ?? 0
-            : (item['xpTotal'] as num?)?.toInt() ?? 0;
+        final ehEu = item['id'] == _meuId;
+        final nome = item['nome'] as String? ?? '—';
+        final xp = (item['xp_total'] as num?)?.toInt() ?? 0;
         final nivel = item['nivel']?.toString() ?? '';
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
@@ -242,19 +240,15 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
         subtitulo: 'Este ranking ainda não tem dados.',
       );
     }
-    final r = _customSelecionado!;
-    final inclPres = r['incluirPresencas'] == true;
-    final inclMan = r['incluirPontosManuais'] == true;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: _itemsCustom.length,
       itemBuilder: (_, i) {
         final item = _itemsCustom[i];
-        final pos = (item['posicao'] as num?)?.toInt() ?? (i + 1);
-        final ehEu = item['alunoId'] == _meuId;
-        final total = (item['totalPontos'] as num?)?.toInt() ?? 0;
-        final pres = (item['pontosPresencas'] as num?)?.toInt() ?? 0;
-        final manual = (item['pontosManuais'] as num?)?.toInt() ?? 0;
+        final pos = i + 1;
+        final ehEu = item['aluno_id'] == _meuId;
+        final pontos = (item['pontos'] as num?)?.toInt() ?? 0;
+        final nome = item['nomeAluno'] as String? ?? '—';
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -270,15 +264,9 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
                   style: TextStyle(fontSize: pos <= 3 ? 20 : 14, fontWeight: FontWeight.w700, color: kText1)),
             ),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item['nomeAluno'] ?? '—', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-                Row(children: [
-                  if (inclPres) Text('${pres}p ', style: TextStyle(color: kText2, fontSize: 11)),
-                  if (inclMan) Text('+${manual}m', style: TextStyle(color: kText2, fontSize: 11)),
-                ]),
-              ]),
+              child: Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
             ),
-            Text('$total pts', style: TextStyle(color: ehEu ? kPrimary : kText1, fontSize: 14, fontWeight: FontWeight.w700)),
+            Text('$pontos pts', style: TextStyle(color: ehEu ? kPrimary : kText1, fontSize: 14, fontWeight: FontWeight.w700)),
             if (ehEu) ...[
               const SizedBox(width: 6),
               Container(
@@ -339,23 +327,6 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
               ],
             ),
           ),
-
-          // Period chips (only for Geral tab)
-          if (_tabController.index == 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(children: [
-                _chip('📅 Mensal', _periodoGeral == 'mensal', () {
-                  setState(() => _periodoGeral = 'mensal');
-                  _loadGeral();
-                }),
-                const SizedBox(width: 8),
-                _chip('🏆 Histórico', _periodoGeral == 'historico', () {
-                  setState(() => _periodoGeral = 'historico');
-                  _loadGeral();
-                }),
-              ]),
-            ),
 
           const SizedBox(height: 8),
 

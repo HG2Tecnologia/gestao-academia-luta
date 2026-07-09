@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../notificacoes_screen.dart';
 
 class ProfPerfilScreen extends StatefulWidget {
@@ -18,6 +18,9 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   final _telCtrl = TextEditingController();
   bool _loading = true;
   bool _saving = false;
+  String? _academiaId;
+  String? _userId;
+  bool _isFuncionario = false;
 
   @override
   void initState() {
@@ -27,10 +30,30 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
 
   Future<void> _load() async {
     try {
-      final res = await dio.get('/api/usuarios/me');
-      final d = res.data['dados'] as Map<String, dynamic>? ?? {};
-      _nomeCtrl.text = d['nome'] ?? '';
-      _telCtrl.text = d['telefone'] ?? '';
+      final user = await AuthStorage.getUser();
+      if (user != null) {
+        _academiaId = user.academiaId;
+        _userId = user.id;
+        // Professores, secretaria e admin ficam em 'funcionarios'; alunos em 'usuarios'
+        _isFuncionario = user.perfil == 'Professor' ||
+            user.perfil == 'Admin' ||
+            user.perfil == 'Secretaria';
+        _nomeCtrl.text = user.nome;
+        if (user.academiaId != null) {
+          try {
+            final Map<String, dynamic>? dados;
+            if (_isFuncionario) {
+              dados = await firestoreService.getFuncionario(user.academiaId!, user.id);
+            } else {
+              dados = await firestoreService.getUsuario(user.academiaId!, user.id);
+            }
+            if (dados != null) {
+              _nomeCtrl.text = dados['nome'] as String? ?? user.nome;
+              _telCtrl.text = dados['telefone'] as String? ?? '';
+            }
+          } catch (_) {}
+        }
+      }
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -39,7 +62,17 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   Future<void> _salvar() async {
     setState(() => _saving = true);
     try {
-      await dio.put('/api/usuarios/me', data: {'nome': _nomeCtrl.text.trim(), 'telefone': _telCtrl.text.trim()});
+      if (_academiaId != null && _userId != null) {
+        final data = {
+          'nome': _nomeCtrl.text.trim(),
+          'telefone': _telCtrl.text.trim(),
+        };
+        if (_isFuncionario) {
+          await firestoreService.updateFuncionario(_academiaId!, _userId!, data);
+        } else {
+          await firestoreService.updateUsuario(_academiaId!, _userId!, data);
+        }
+      }
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil atualizado!')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao salvar.')));
@@ -49,7 +82,6 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   }
 
   Future<void> _sair() async {
-    try { await dio.post('/api/auth/logout'); } catch (_) {}
     await AuthStorage.clear();
     if (mounted) context.go('/login');
   }
@@ -68,14 +100,9 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
       ),
     );
     if (confirma != true || !mounted) return;
-    try {
-      await dio.delete('/api/usuarios/me');
-      await AuthStorage.clear();
-      if (mounted) context.go('/login');
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir conta.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
-    }
+    // Clear local storage and go to login (no server deletion call in Firestore flow)
+    await AuthStorage.clear();
+    if (mounted) context.go('/login');
   }
 
   @override
@@ -98,87 +125,87 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24),
-                children: [
-                  Row(children: [
-                    GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                    const SizedBox(width: 14),
-                    Expanded(child: Text('Meu Perfil', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
-                    const SinoNotificacoes(),
-                  ]),
-                  const SizedBox(height: 28),
-                  _label('Nome'),
-                  _input(_nomeCtrl, 'Seu nome'),
-                  const SizedBox(height: 16),
-                  _label('Telefone'),
-                  _input(_telCtrl, '(00) 00000-0000', keyboard: TextInputType.phone),
-                  const SizedBox(height: 28),
-                  FilledButton(
-                    onPressed: _saving ? null : _salvar,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: _saving
-                        ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                        : const Text('Salvar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  ),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () => context.push('/noticias'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: kSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
+                  children: [
+                    Row(children: [
+                      GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text('Meu Perfil', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800))),
+                      const SinoNotificacoes(),
+                    ]),
+                    const SizedBox(height: 28),
+                    _label('Nome'),
+                    _input(_nomeCtrl, 'Seu nome'),
+                    const SizedBox(height: 16),
+                    _label('Telefone'),
+                    _input(_telCtrl, '(00) 00000-0000', keyboard: TextInputType.phone),
+                    const SizedBox(height: 28),
+                    FilledButton(
+                      onPressed: _saving ? null : _salvar,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.newspaper_rounded, color: const Color(0xFFC9A020), size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text('Notícias da Academia', style: TextStyle(color: kText1, fontWeight: FontWeight.w600))),
-                          Icon(Icons.chevron_right, color: kText2, size: 18),
-                        ],
+                      child: _saving
+                          ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                          : const Text('Salvar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => context.push('/noticias'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: kSurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: kBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.newspaper_rounded, color: const Color(0xFFC9A020), size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text('Notícias da Academia', style: TextStyle(color: kText1, fontWeight: FontWeight.w600))),
+                            Icon(Icons.chevron_right, color: kText2, size: 18),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push('/alterar-senha'),
-                    icon: const Icon(Icons.lock_reset_rounded, size: 18),
-                    label: const Text('Alterar Senha', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kText1,
-                      side: BorderSide(color: kBorder),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/alterar-senha'),
+                      icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                      label: const Text('Alterar Senha', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kText1,
+                        side: BorderSide(color: kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _sair,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      side: BorderSide(color: kDanger.withOpacity(0.4)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _sair,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kDanger,
+                        side: BorderSide(color: kDanger.withOpacity(0.4)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Sair', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
-                    child: const Text('Sair', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: () => _excluirConta(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      side: BorderSide(color: kDanger.withOpacity(0.3)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => _excluirConta(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kDanger,
+                        side: BorderSide(color: kDanger.withOpacity(0.3)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Excluir minha conta', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                     ),
-                    child: const Text('Excluir minha conta', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ),
       ),
     );

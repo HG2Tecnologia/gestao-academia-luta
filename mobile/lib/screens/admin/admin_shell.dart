@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
@@ -106,7 +106,7 @@ class _AdminShellState extends State<AdminShell> {
                   selected: false,
                   onTap: () async {
                     Navigator.of(context).pop();
-                    try { await dio.post('/api/auth/logout'); } catch (_) {}
+                    try { await FirebaseAuth.instance.signOut(); } catch (_) {}
                     await AuthStorage.clear();
                     if (context.mounted) context.go('/login');
                   },

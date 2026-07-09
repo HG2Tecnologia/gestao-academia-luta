@@ -1,6 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/api_client.dart';
 import '../core/constants.dart';
 
 class AlterarSenhaScreen extends StatefulWidget {
@@ -33,10 +33,17 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _salvando = true);
     try {
-      await dio.post('/api/auth/alterar-senha', data: {
-        'senhaAtual': _atualCtrl.text,
-        'novaSenha': _novaCtrl.text,
-      });
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.email == null) throw Exception('Não autenticado');
+
+      // Reautentica com a senha atual antes de alterar
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: _atualCtrl.text,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(_novaCtrl.text);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -46,15 +53,25 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
         ),
       );
       context.pop();
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao alterar senha';
-      try {
-        final data = (e as dynamic).response?.data;
-        if (data is Map && data['mensagem'] != null) msg = data['mensagem'].toString();
-      } catch (_) {}
+      String msg;
+      switch (e.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          msg = 'Senha atual incorreta.';
+        case 'weak-password':
+          msg = 'A nova senha é muito fraca.';
+        default:
+          msg = 'Erro ao alterar senha. Tente novamente.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: ${e.toString()}'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() => _salvando = false);

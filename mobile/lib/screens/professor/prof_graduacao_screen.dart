@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 
 class ProfGraduacaoScreen extends StatefulWidget {
   const ProfGraduacaoScreen({super.key});
@@ -24,6 +25,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _sucesso = false;
+  String? _academiaId;
   String? _profId;
 
   @override
@@ -40,13 +42,12 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
 
   Future<void> _loadTurmas() async {
     try {
-      final me = await dio.get('/api/usuarios/me');
-      final uid = (me.data['dados'] as Map<String, dynamic>?)?['id'] ?? '';
-      _profId = uid.toString();
-      final res = await dio.get('/api/turmas', queryParameters: {'professorId': uid});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
-      if (mounted) setState(() => _turmas = list.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      if (user == null) return;
+      _academiaId = user.academiaId;
+      _profId = user.id;
+      final list = await firestoreService.getTurmas(user.academiaId!, professorId: user.id);
+      if (mounted) setState(() => _turmas = list);
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,21 +56,28 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
   Future<void> _selecionarTurma(Map<String, dynamic> t) async {
     setState(() { _turmaSel = t; _loading = true; _step = 1; _aptosIds = []; });
     try {
-      final modalidadeId = t['modalidadeId'] as String? ?? '';
-      final turmaRes = await dio.get('/api/turmas/${t['id']}');
-      final dados = turmaRes.data['dados'] as Map<String, dynamic>? ?? {};
-      final alunos = (dados['alunos'] as List? ?? []).cast<Map<String, dynamic>>();
+      final academiaId = _academiaId!;
+      final modalidadeId = (t['modalidade_id'] ?? t['modalidadeId'] as String? ?? '').toString();
 
-      // Carrega aptos para a primeira faixa da modalidade
+      // Get students via matriculas
+      final matriculas = await firestoreService.getMatriculas(academiaId, turmaId: t['id'] as String);
+      final alunos = <Map<String, dynamic>>[];
+      for (final m in matriculas) {
+        final alunoId = (m['aluno_id'] as String? ?? '').toString();
+        if (alunoId.isEmpty) continue;
+        final aluno = await firestoreService.getAluno(academiaId, alunoId);
+        if (aluno != null) {
+          alunos.add({'id': alunoId, 'nome': aluno['nome'] ?? '', 'alunoId': alunoId});
+        }
+      }
+
+      // Load faixas and aptos if modalidade known
       if (modalidadeId.isNotEmpty) {
         try {
-          final faixasRes = await dio.get('/api/faixas', queryParameters: {'modalidadeId': modalidadeId});
-          final faixasData = faixasRes.data['dados'];
-          final faixasList = faixasData is List ? faixasData.cast<Map<String, dynamic>>() : <Map<String, dynamic>>[];
+          final faixasList = await firestoreService.getFaixas(academiaId, modalidadeId: modalidadeId);
           if (faixasList.isNotEmpty) {
-            final aptosRes = await dio.get('/api/graduacoes/aptos', queryParameters: {'faixaId': faixasList.first['id']});
-            final aptosData = aptosRes.data['dados'] as List? ?? [];
-            _aptosIds = aptosData.cast<Map<String, dynamic>>().map((a) => (a['id'] ?? a['alunoId'] ?? '').toString()).toList();
+            final aptos = await firestoreService.getAptosGraduacao(academiaId);
+            _aptosIds = aptos.map((a) => (a['id'] ?? a['aluno_id'] ?? '').toString()).toList();
           }
         } catch (_) {}
       }
@@ -83,43 +91,41 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
   Future<void> _selecionarAluno(Map<String, dynamic> a) async {
     setState(() { _alunoSel = a; _loading = true; _step = 2; });
     try {
-      final modalidadeId = _turmaSel?['modalidadeId'] ?? '';
-      final res = await dio.get('/api/faixas', queryParameters: {'modalidadeId': modalidadeId});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : [];
-      if (mounted) setState(() => _faixas = list.cast<Map<String, dynamic>>());
+      final modalidadeId = (_turmaSel?['modalidade_id'] ?? _turmaSel?['modalidadeId'] ?? '').toString();
+      final list = await firestoreService.getFaixas(_academiaId!, modalidadeId: modalidadeId);
+      if (mounted) setState(() => _faixas = list);
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _promover() async {
-    if (_faixaSel == null) return;
+    if (_faixaSel == null || _academiaId == null) return;
     setState(() => _saving = true);
     try {
       final hoje = DateTime.now();
       final dataExame = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
-      await dio.post('/api/graduacoes', data: {
-        'alunoId': _alunoSel!['id'],
-        'faixaId': _faixaSel!['id'],
-        'dataExame': dataExame,
-        'professorId': _profId,
+      await firestoreService.addGraduacao(_academiaId!, {
+        'aluno_id': _alunoSel!['id'],
+        'faixa_id': _faixaSel!['id'],
+        'data_exame': dataExame,
+        'professor_id': _profId,
         'aprovado': true,
         'grau': _grauSel,
         'observacoes': _obsCtrl.text.trim(),
+        'academia_id': _academiaId,
       });
       if (mounted) {
-        final nomeAluno = _alunoSel!['nome'];
-        final nomeFaixa = _faixaSel!['nome'];
-        final corFaixa = _faixaSel!['cor'];
         setState(() { _sucesso = true; });
         await Future.delayed(const Duration(seconds: 3));
-        if (mounted) setState(() { _sucesso = false; _step = 0; _turmaSel = null; _alunoSel = null; _faixaSel = null; _obsCtrl.clear(); });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$nomeAluno promovido para $nomeFaixa!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
-        );
-        // ignore: unused_local_variable
-        final _ = corFaixa;
+        if (mounted) {
+          final nomeAluno = _alunoSel!['nome'];
+          final nomeFaixa = _faixaSel!['nome'];
+          setState(() { _sucesso = false; _step = 0; _turmaSel = null; _alunoSel = null; _faixaSel = null; _obsCtrl.clear(); });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$nomeAluno promovido para $nomeFaixa!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
+          );
+        }
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao promover.')));
@@ -223,10 +229,10 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
     );
   }
 
-  Widget _stepTurma() => _lista(_turmas, (t) => _selecionarTurma(t), (t) => t['nome']);
-  Widget _stepAluno() => _lista(_alunos, (a) => _selecionarAluno(a), (a) => a['nome'],
+  Widget _stepTurma() => _lista(_turmas, (t) => _selecionarTurma(t), (t) => t['nome'] ?? '');
+  Widget _stepAluno() => _lista(_alunos, (a) => _selecionarAluno(a), (a) => a['nome'] ?? '',
       badge: (a) {
-        final id = a['id'] as String? ?? a['alunoId'] as String? ?? '';
+        final id = (a['id'] ?? a['alunoId'] ?? '').toString();
         return _aptosIds.contains(id);
       });
 
@@ -290,8 +296,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
                         ]),
                       ),
                     )),
-                // Seletor de grau — aparece apenas quando a faixa selecionada tem graus
-                if (_faixaSel != null && _faixaSel!['temGraus'] == true) ...[
+                if (_faixaSel != null && _faixaSel!['tem_graus'] == true) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -320,7 +325,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: List.generate(
-                            (_faixaSel!['maxGraus'] as num? ?? 4).toInt() + 1,
+                            (_faixaSel!['max_graus'] as num? ?? _faixaSel!['maxGraus'] as num? ?? 4).toInt() + 1,
                             (i) => GestureDetector(
                               onTap: () => setState(() => _grauSel = i),
                               child: Container(
@@ -383,7 +388,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
                       if (_alunoSel != null && _aptosIds.isNotEmpty) ...[
                         const SizedBox(width: 8),
                         Icon(
-                          _aptosIds.contains(_alunoSel!['id'] ?? _alunoSel!['alunoId'])
+                          _aptosIds.contains((_alunoSel!['id'] ?? _alunoSel!['alunoId'] ?? '').toString())
                               ? Icons.verified_rounded
                               : Icons.warning_amber_rounded,
                           size: 16,

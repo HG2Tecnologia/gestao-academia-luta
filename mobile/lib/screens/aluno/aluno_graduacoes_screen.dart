@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class AlunoGraduacoesScreen extends StatefulWidget {
@@ -30,9 +30,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) return;
-      final res = await dio.get('/api/graduacoes', queryParameters: {'alunoId': user.id});
-      final dados = res.data['dados'];
-      final list = (dados is List ? dados : []).cast<Map<String, dynamic>>();
+      final list = await firestoreService.getGraduacoes(user.academiaId!, alunoId: user.id);
       // Sort by date descending
       list.sort((a, b) {
         final da = a['dataExame']?.toString() ?? '';
@@ -185,7 +183,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
   }
 
-String _fmtData(String? s) {
+  String _fmtData(String? s) {
     if (s == null) return '';
     try {
       final parts = s.split('-');

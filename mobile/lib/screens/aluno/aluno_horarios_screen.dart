@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 
 class AlunoHorariosScreen extends StatefulWidget {
   const AlunoHorariosScreen({super.key});
@@ -18,6 +19,8 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
 
   static const _ordem = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   static const _abrev = {'Segunda': 'Seg', 'Terça': 'Ter', 'Quarta': 'Qua', 'Quinta': 'Qui', 'Sexta': 'Sex', 'Sábado': 'Sáb', 'Domingo': 'Dom'};
+  // dia_semana int no Firestore: 0=Domingo, 1=Segunda … 6=Sábado
+  static const _diaNomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
   @override
   void initState() {
@@ -27,31 +30,51 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
 
   Future<void> _load() async {
     try {
+      final user = await AuthStorage.getUser();
+      if (user == null) return;
+      final academiaId = user.academiaId!;
+
       final results = await Future.wait([
-        dio.get('/api/horarios'),
-        dio.get('/api/alunos/me'),
+        firestoreService.getHorarios(academiaId),
+        firestoreService.getMeusHorarios(academiaId, user.id),
+        firestoreService.getTurmas(academiaId),
       ]);
-      final hList = results[0].data['dados'];
-      final list = (hList is List ? hList : []).cast<Map<String, dynamic>>();
-      final turmasAluno = ((results[1].data['dados'] as Map<String, dynamic>?)?['turmas'] as List? ?? []).cast<String>();
+
+      final list = (results[0] as List).cast<Map<String, dynamic>>();
+      final meusHorarios = (results[1] as List).cast<Map<String, dynamic>>();
+      final turmas = (results[2] as List).cast<Map<String, dynamic>>();
+      final turmaMap = {for (final t in turmas) t['id'].toString(): t['nome']?.toString() ?? ''};
+
+      final minhasTurmaIds = meusHorarios.map((h) => h['turma_id']?.toString() ?? '').toSet();
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final h in list) {
-        final dia = (h['diaSemanaLabel'] ?? h['diaSemana'])?.toString() ?? '';
-        grouped.putIfAbsent(dia, () => []).add(h);
+        final diaSemanaRaw = h['dia_semana'] ?? h['diaSemana'];
+        String diaNome;
+        if (diaSemanaRaw is num) {
+          final idx = diaSemanaRaw.toInt();
+          diaNome = idx >= 0 && idx < _diaNomes.length ? _diaNomes[idx] : '';
+        } else {
+          diaNome = diaSemanaRaw?.toString() ?? '';
+        }
+        if (diaNome.isEmpty) continue;
+        final turmaId = h['turma_id']?.toString() ?? '';
+        final enriched = {...h, 'nomeTurma': turmaMap[turmaId] ?? ''};
+        grouped.putIfAbsent(diaNome, () => []).add(enriched);
       }
 
-      // Sort each day by time
+      // Sort each day by hora_inicio
       for (final k in grouped.keys) {
         grouped[k]!.sort((a, b) =>
-            (a['horaInicio'] as String? ?? '').compareTo(b['horaInicio'] as String? ?? ''));
+            (a['hora_inicio'] as String? ?? a['horaInicio'] as String? ?? '')
+                .compareTo(b['hora_inicio'] as String? ?? b['horaInicio'] as String? ?? ''));
       }
 
       if (mounted) {
         final dias = _ordem.where((d) => grouped.containsKey(d)).toList();
         setState(() {
           _grouped = grouped;
-          _minhasTurmas = turmasAluno.toSet();
+          _minhasTurmas = minhasTurmaIds;
           _diaAtivo = _hojeOuPrimeiro(dias);
         });
       }
@@ -78,8 +101,8 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
   Widget build(BuildContext context) {
     final dias = _ordem.where((d) => _grouped.containsKey(d)).toList();
     final horarios = _diaAtivo != null ? (_grouped[_diaAtivo] ?? []) : <Map<String, dynamic>>[];
-    final minhas = horarios.where((h) => _minhasTurmas.contains(h['nomeTurma'] as String? ?? '')).toList();
-    final outras = horarios.where((h) => !_minhasTurmas.contains(h['nomeTurma'] as String? ?? '')).toList();
+    final minhas = horarios.where((h) => _minhasTurmas.contains(h['turma_id']?.toString() ?? '')).toList();
+    final outras = horarios.where((h) => !_minhasTurmas.contains(h['turma_id']?.toString() ?? '')).toList();
 
     return Scaffold(
       backgroundColor: kBg,
@@ -200,9 +223,9 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
 
   Widget _horarioCard(Map<String, dynamic> h, bool isMinha) {
     final nome = h['nomeTurma'] as String? ?? '';
-    final prof = h['nomeProfessor'] as String?;
-    final inicio = _fmt(h['horaInicio'] as String?);
-    final fim = _fmt(h['horaFim'] as String?);
+    final prof = (h['nomeProfessor'] ?? h['nome_professor']) as String?;
+    final inicio = _fmt((h['hora_inicio'] ?? h['horaInicio']) as String?);
+    final fim = _fmt((h['hora_fim'] ?? h['horaFim']) as String?);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),

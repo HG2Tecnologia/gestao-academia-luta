@@ -1,10 +1,9 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AlunoQrCodeSheet extends StatefulWidget {
   const AlunoQrCodeSheet({super.key});
@@ -114,10 +113,8 @@ class _MeuQrTabState extends State<_MeuQrTab> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) throw Exception('sem usuario');
-      final res = await dio.get('/api/presencas/qr/${user.id}');
-      final dados = res.data['dados'];
-      final token = dados is String ? dados : dados?['token']?.toString();
-      if (token == null || token.isEmpty) throw Exception('token vazio');
+      // Generate QR data directly from local user — no API call needed
+      final token = '${user.academiaId}:${user.id}';
       if (mounted) setState(() { _token = token; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
@@ -189,7 +186,7 @@ class _MeuQrTabState extends State<_MeuQrTab> {
             ),
           const SizedBox(height: 12),
           Text(
-            'O código expira automaticamente. Toque em ↺ para renovar.',
+            'Apresente este QR Code ao professor para registrar sua presença.',
             style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 11),
             textAlign: TextAlign.center,
           ),
@@ -221,22 +218,38 @@ class _EscanearTabState extends State<_EscanearTab> {
     await _ctrl.stop();
 
     try {
-      Response res;
+      final user = await AuthStorage.getUser();
+      if (user == null) throw Exception('Usuário não autenticado');
+      final academiaId = user.academiaId!;
+      final now = DateTime.now();
+      final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final horaStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      String turmaId = '';
+      String horarioId = '';
       if (codigo.startsWith('TURMA:')) {
-        final turmaId = codigo.substring('TURMA:'.length);
-        res = await dio.post('/api/presencas/checkin-turma', data: {'turmaId': turmaId});
-      } else {
-        res = await dio.post('/api/presencas/checkin-self');
+        turmaId = codigo.substring('TURMA:'.length);
       }
-      final body = res.data as Map<String, dynamic>;
-      setState(() {
-        _sucesso = body['sucesso'] == true;
-        _mensagem = body['mensagem'] ?? 'Presença registrada!';
+
+      await firestoreService.addPresenca(academiaId, {
+        'aluno_id': user.id,
+        'turma_id': turmaId,
+        'horario_id': horarioId,
+        'data': dataStr,
+        'hora_checkin': horaStr,
+        'metodo_checkin': 1,
+        'confirmado': true,
+        'academia_id': academiaId,
       });
-    } on DioException catch (e) {
+
+      setState(() {
+        _sucesso = true;
+        _mensagem = 'Presença registrada com sucesso!';
+      });
+    } catch (e) {
       setState(() {
         _sucesso = false;
-        _mensagem = e.response?.data?['mensagem'] ?? 'Erro ao registrar presença.';
+        _mensagem = 'Erro ao registrar presença.';
       });
     }
   }

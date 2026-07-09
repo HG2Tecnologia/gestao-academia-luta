@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunoDetalheScreen extends StatefulWidget {
@@ -23,7 +23,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, dynamic>? _atestado;
   Map<String, dynamic>? _parq;
   Map<String, dynamic>? _grupoFamiliar;
+  List<Map<String, dynamic>> _membrosGrupo = [];
+  Map<String, dynamic>? _plano;
   String? _meId;
+  String? _academiaId;
   bool _loading = true;
   String? _erro;
   bool _uploadingAtestado = false;
@@ -41,22 +44,97 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final results = await Future.wait([
-        dio.get('/api/alunos/${widget.alunoId}'),
-        dio.get('/api/usuarios/me'),
-        dio.get('/api/graduacoes', queryParameters: {'alunoId': widget.alunoId}),
-        dio.get('/api/atestados/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
-        dio.get('/api/parq/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
-        dio.get('/api/grupos-familiares/aluno/${widget.alunoId}').catchError((_) => Response(requestOptions: RequestOptions(path: ''), data: {'dados': null})),
-      ]);
-      final body = results[0].data as Map<String, dynamic>;
-      final meBody = results[1].data as Map<String, dynamic>;
-      final gradBody = results[2].data as Map<String, dynamic>;
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId;
+      if (academiaId == null) throw Exception('Academia não identificada');
+      _academiaId = academiaId;
+      _meId = user?.id;
 
-      // Agrupa graduações por modalidade, mantendo a de maior ordem (hierarquia da faixa)
-      final graduacoes = (gradBody['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+      final results = await Future.wait([
+        firestoreService.getAluno(academiaId, widget.alunoId),
+        firestoreService.getGraduacoes(academiaId, alunoId: widget.alunoId),
+        firestoreService.getAtestadoAluno(academiaId, widget.alunoId),
+        firestoreService.getParQ(academiaId, widget.alunoId),
+        firestoreService.getGruposFamiliares(academiaId),
+        firestoreService.getFaixas(academiaId),
+        firestoreService.getMatriculas(academiaId, alunoId: widget.alunoId, ativasOnly: false),
+        firestoreService.getTurmas(academiaId),
+      ]);
+
+      final alunoRaw = results[0] as Map<String, dynamic>?;
+      if (alunoRaw == null) throw Exception('Aluno não encontrado');
+      final graduacoesRaw = (results[1] as List).cast<Map<String, dynamic>>();
+      final atestadoRaw = results[2] as Map<String, dynamic>?;
+      final parqRaw = results[3] as Map<String, dynamic>?;
+      final grupos = (results[4] as List).cast<Map<String, dynamic>>();
+      final faixas = (results[5] as List).cast<Map<String, dynamic>>();
+      final matriculas = (results[6] as List).cast<Map<String, dynamic>>();
+      final todasTurmas = (results[7] as List).cast<Map<String, dynamic>>();
+
+      final faixaMap = <String, Map<String, dynamic>>{
+        for (final f in faixas) f['id'].toString(): f,
+      };
+      final turmaMap = <String, Map<String, dynamic>>{
+        for (final t in todasTurmas) t['id'].toString(): t,
+      };
+      final matriculaIds = matriculas
+          .map((m) => m['turma_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final alunoTurmas = matriculaIds
+          .map((id) => turmaMap[id])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final turmaNomes = alunoTurmas
+          .map((t) => t['nome']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
+      final turmasDetails = alunoTurmas.map((t) => <String, dynamic>{
+        'modalidadeId': (t['modalidadeId'] ?? t['modalidade_id'])?.toString() ?? '',
+        'modalidadeNome': (t['modalidadeNome'] ?? t['modalidade_nome'])?.toString() ?? '',
+        'nome': t['nome'],
+      }).toList();
+
+      // Normaliza aluno (snake_case → camelCase para compatibilidade com UI)
+      final aluno = <String, dynamic>{
+        ...alunoRaw,
+        'dataNascimento': alunoRaw['data_nascimento'],
+        'diaVencimento': alunoRaw['dia_vencimento'],
+        'xpTotal': alunoRaw['xp_total'],
+        'contatoEmergenciaNome': alunoRaw['contato_emergencia_nome'],
+        'contatoEmergenciaTelefone': alunoRaw['contato_emergencia_telefone'],
+        'fotoBase64': alunoRaw['fotoBase64'] ?? alunoRaw['foto_base64'],
+        'planoId': alunoRaw['plano_id'],
+        'planoNome': alunoRaw['plano_nome'],
+        'tipoPlano': alunoRaw['tipo_plano'],
+        'turmas': turmaNomes,
+        'turmasDetalhes': turmasDetails,
+      };
+
+      // Enriquece graduações com dados da faixa
+      final enrichedGraduacoes = graduacoesRaw.map((g) {
+        final faixaId = g['faixa_id']?.toString() ?? '';
+        final f = faixaMap[faixaId] ?? {};
+        return <String, dynamic>{
+          ...g,
+          'faixaId': faixaId,
+          'nomeFaixa': f['nome'] ?? '',
+          'corFaixa': f['cor'] ?? '#FFFFFF',
+          'corBarraFaixa': f['cor_barra'] ?? '#000000',
+          'faixaTemGraus': f['tem_graus'] == true,
+          'faixaMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+          'faixaOrdem': (f['ordem'] as num?)?.toInt() ?? 0,
+          'nomeModalidade': f['modalidade_nome'] ?? '',
+          'dataExame': g['data_exame'] ?? '',
+          'nomeProfessor': '',
+          'grau': (g['grau'] as num?)?.toInt() ?? 0,
+          'aprovado': g['aprovado'] == true,
+        };
+      }).toList();
+
       final Map<String, Map<String, dynamic>> faixasMod = {};
-      for (final g in graduacoes) {
+      for (final g in enrichedGraduacoes) {
+        if (g['aprovado'] != true) continue;
         final modNome = g['nomeModalidade']?.toString() ?? 'Sem modalidade';
         final faixaOrdem = (g['faixaOrdem'] as num?)?.toInt() ?? 0;
         final grau = (g['grau'] as num?)?.toInt() ?? 0;
@@ -77,32 +155,65 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         }
       }
 
-      final atestadoData = results.length > 3
-          ? (results[3].data['dados'] as Map<String, dynamic>?)
-          : null;
-      final parqData = results.length > 4
-          ? (results[4].data['dados'] as Map<String, dynamic>?)
-          : null;
+      // Normaliza PAR-Q
+      final parq = parqRaw == null ? null : <String, dynamic>{
+        ...parqRaw,
+        'nomeCompleto': parqRaw['nome_completo'],
+        'dataPreenchimento': parqRaw['data_preenchimento'],
+        'requerAvaliacaoMedica': parqRaw['requer_avaliacao_medica'] == true,
+        'r1': parqRaw['r1'] == true, 'r2': parqRaw['r2'] == true,
+        'r3': parqRaw['r3'] == true, 'r4': parqRaw['r4'] == true,
+        'r5': parqRaw['r5'] == true, 'r6': parqRaw['r6'] == true,
+        'r7': parqRaw['r7'] == true, 'r8': parqRaw['r8'] == true,
+        'r9': parqRaw['r9'] == true, 'r10': parqRaw['r10'] == true,
+      };
 
-      final grupoData = results.length > 5
-          ? (results[5].data['dados'] as Map<String, dynamic>?)
-          : null;
+      // Normaliza atestado
+      final atestado = atestadoRaw == null ? null : <String, dynamic>{
+        ...atestadoRaw,
+        'arquivoBase64': atestadoRaw['arquivo_base64'],
+        'arquivoMimeType': atestadoRaw['arquivo_mime_type'],
+        'dataValidade': atestadoRaw['data_validade'],
+        'motivoRejeicao': atestadoRaw['motivo_rejeicao'],
+        'status': (atestadoRaw['status'] as num?)?.toInt() ?? 0,
+      };
+
+      // Encontra grupo familiar pelo campo grupo_familiar_id do aluno
+      Map<String, dynamic>? grupoFamiliar;
+      List<Map<String, dynamic>> membrosGrupo = [];
+      final grupoIdAluno = alunoRaw['grupo_familiar_id']?.toString() ?? '';
+      if (grupoIdAluno.isNotEmpty) {
+        try {
+          grupoFamiliar = grupos.firstWhere((g) => g['id']?.toString() == grupoIdAluno);
+        } catch (_) {}
+        try {
+          membrosGrupo = await firestoreService.getMembrosGrupo(academiaId, grupoIdAluno);
+        } catch (_) {}
+      }
+
+      // Carrega dados completos do plano (incluindo valor_mensal)
+      Map<String, dynamic>? planoData;
+      final planoId = alunoRaw['plano_id']?.toString() ?? '';
+      if (planoId.isNotEmpty) {
+        try {
+          planoData = await firestoreService.getPlano(academiaId, planoId);
+        } catch (_) {}
+      }
 
       if (mounted) setState(() {
-        _aluno = body['dados'] as Map<String, dynamic>?;
-        _atestado = atestadoData;
-        _parq = parqData;
-        _grupoFamiliar = grupoData;
-        _meId = (meBody['dados'] as Map<String, dynamic>?)?['id']?.toString();
+        _aluno = aluno;
+        _atestado = atestado;
+        _parq = parq;
+        _grupoFamiliar = grupoFamiliar;
+        _membrosGrupo = membrosGrupo;
+        _plano = planoData;
         _faixasPorModalidade = faixasMod;
-        _graduacoes = List.of(graduacoes)
+        _graduacoes = List.of(enrichedGraduacoes)
           ..sort((a, b) {
             try {
               return DateTime.parse(b['dataExame'].toString())
                   .compareTo(DateTime.parse(a['dataExame'].toString()));
-            } catch (_) {
-              return 0;
-            }
+            } catch (_) { return 0; }
           });
       });
     } catch (_) {
@@ -131,7 +242,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.patch('/api/alunos/${widget.alunoId}/status', data: {'ativo': novoStatus});
+      await firestoreService.updateAluno(_academiaId!, widget.alunoId, {'ativo': novoStatus});
       _load();
     } catch (_) {
       if (mounted) {
@@ -189,9 +300,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (ok != true || ctrl.text.trim().isEmpty) return;
     try {
-      final res = await dio.post('/api/grupos-familiares', data: {'nome': ctrl.text.trim()});
-      final novoGrupo = res.data['dados'] as Map<String, dynamic>;
-      await dio.post('/api/grupos-familiares/${novoGrupo['id']}/membros/${widget.alunoId}', data: {});
+      final grupoId = await firestoreService.addGrupoFamiliar(_academiaId!, {
+        'nome': ctrl.text.trim(), 'academia_id': _academiaId!, 'membros': [],
+      });
+      await firestoreService.adicionarMembroGrupo(_academiaId!, grupoId, widget.alunoId);
       _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao criar grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -201,8 +313,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Future<void> _vincularGrupoExistente() async {
     List<Map<String, dynamic>> grupos = [];
     try {
-      final res = await dio.get('/api/grupos-familiares');
-      grupos = (res.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+      grupos = await firestoreService.getGruposFamiliares(_academiaId!);
     } catch (_) {}
     if (!mounted) return;
     if (grupos.isEmpty) {
@@ -238,7 +349,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (selected == null) return;
     try {
-      await dio.post('/api/grupos-familiares/${selected['id']}/membros/${widget.alunoId}', data: {});
+      await firestoreService.adicionarMembroGrupo(_academiaId!, selected['id'], widget.alunoId);
       _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao vincular grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -250,12 +361,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     if (grupo == null) return;
     List<Map<String, dynamic>> alunos = [];
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'pageSize': 1000});
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['itens'] as List? ?? [] : []);
-      final membrosIds = (grupo['membros'] as List? ?? []).map((m) => m['id']?.toString()).toSet();
-      alunos = list.cast<Map<String, dynamic>>()
-          .where((a) => a['id']?.toString() != widget.alunoId && !membrosIds.contains(a['id']?.toString()))
+      final membrosIds = _membrosGrupo.map((m) => m['id']?.toString() ?? '').toSet();
+      final todos = await firestoreService.getAlunos(_academiaId!);
+      alunos = todos.cast<Map<String, dynamic>>()
+          .where((a) => !membrosIds.contains(a['id']?.toString()))
           .toList();
     } catch (_) {}
     if (!mounted) return;
@@ -320,7 +429,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (selected == null) return;
     try {
-      await dio.post('/api/grupos-familiares/${grupo['id']}/membros/${selected['id']}', data: {});
+      await firestoreService.adicionarMembroGrupo(_academiaId!, grupo['id'], selected['id']);
       _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao adicionar membro.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -344,7 +453,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/grupos-familiares/${grupo['id']}/membros/$membroId');
+      await firestoreService.removerMembroGrupo(_academiaId!, grupo['id'], membroId);
       _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao remover membro.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -368,16 +477,40 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/grupos-familiares/${grupo['id']}/membros/${widget.alunoId}');
+      await firestoreService.removerMembroGrupo(_academiaId!, grupo['id'], widget.alunoId);
       _load();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao sair do grupo.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
     }
   }
 
+  Future<void> _definirResponsavel(String membroId, String membroNome) async {
+    if (_academiaId == null || _grupoFamiliar == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Definir responsável', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        content: Text('Definir $membroNome como responsável financeiro do grupo?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Confirmar', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await firestoreService.definirResponsavelGrupo(_academiaId!, _grupoFamiliar!['id']?.toString() ?? '', membroId);
+      _load();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao definir responsável.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+    }
+  }
+
   Widget _buildGrupoFamiliarCard() {
     final grupo = _grupoFamiliar;
-    final membros = (grupo?['membros'] as List? ?? []).cast<Map<String, dynamic>>()
+    final responsavelId = grupo?['responsavel_id']?.toString() ?? '';
+    final membros = _membrosGrupo
         .where((m) => m['id']?.toString() != widget.alunoId)
         .toList();
 
@@ -455,18 +588,36 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         ]),
         if (membros.isNotEmpty) ...[
           const SizedBox(height: 10),
-          ...membros.map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(children: [
-              Icon(Icons.person_outline_rounded, color: kText2, size: 14),
-              const SizedBox(width: 6),
-              Expanded(child: Text(m['nome'] as String? ?? '', style: TextStyle(color: kText2, fontSize: 12))),
-              GestureDetector(
-                onTap: () => _removerMembroDoGrupo(m['id']?.toString() ?? '', m['nome'] as String? ?? ''),
-                child: Icon(Icons.close_rounded, size: 16, color: kDanger.withOpacity(0.7)),
-              ),
-            ]),
-          )),
+          ...membros.map((m) {
+            final mId = m['id']?.toString() ?? '';
+            final mNome = m['nome'] as String? ?? '';
+            final isResp = responsavelId == mId;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Icon(isResp ? Icons.star_rounded : Icons.person_outline_rounded, color: isResp ? kPrimary : kText2, size: 14),
+                const SizedBox(width: 6),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(mNome, style: TextStyle(color: kText1, fontSize: 12, fontWeight: isResp ? FontWeight.w700 : FontWeight.normal)),
+                  if (isResp) Text('Responsável', style: TextStyle(color: kPrimary, fontSize: 10)),
+                ])),
+                if (!isResp)
+                  GestureDetector(
+                    onTap: () => _definirResponsavel(mId, mNome),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(6), border: Border.all(color: kPrimary.withOpacity(0.25))),
+                      child: Text('Responsável', style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                GestureDetector(
+                  onTap: () => _removerMembroDoGrupo(mId, mNome),
+                  child: Icon(Icons.close_rounded, size: 16, color: kDanger.withOpacity(0.7)),
+                ),
+              ]),
+            );
+          }),
         ] else ...[
           const SizedBox(height: 6),
           Text('Nenhum outro membro no grupo.', style: TextStyle(color: kText2, fontSize: 12, fontStyle: FontStyle.italic)),
@@ -674,13 +825,17 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         }
                         setModal(() => salvando = true);
                         try {
-                          await dio.post('/api/parq/aluno/${widget.alunoId}', data: {
+                          await firestoreService.addParQ(_academiaId!, {
+                            'aluno_id': widget.alunoId,
+                            'academia_id': _academiaId!,
                             'r1': respostas[0], 'r2': respostas[1], 'r3': respostas[2],
                             'r4': respostas[3], 'r5': respostas[4], 'r6': respostas[5],
                             'r7': respostas[6], 'r8': respostas[7], 'r9': respostas[8],
                             'r10': respostas[9],
-                            'nomeCompleto': nomeCtrl.text.trim(),
+                            'nome_completo': nomeCtrl.text.trim(),
                             'cpf': cpfCtrl.text.trim(),
+                            'requer_avaliacao_medica': respostas.any((r) => r),
+                            'data_preenchimento': DateTime.now().toIso8601String(),
                           });
                           if (ctx.mounted) Navigator.of(ctx).pop();
                           if (mounted) {
@@ -689,7 +844,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               backgroundColor: kSuccess,
                               behavior: SnackBarBehavior.floating,
                             ));
-                            _load();
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) _load();
+                            });
                           }
                         } catch (_) {
                           if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: const Text('Erro ao salvar PAR-Q.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -716,6 +873,29 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     cpfCtrl.dispose();
   }
 
+  // ── Plano ─────────────────────────────────────────────
+
+  Widget _buildPlanoCard(Map<String, dynamic> a) {
+    final planoNome = _plano?['nome'] as String? ?? a['planoNome'] as String?;
+    final valorMensal = (_plano?['valor_mensal'] as num?)?.toDouble();
+    final diaVenc = a['diaVencimento'];
+
+    if (planoNome == null && valorMensal == null && diaVenc == null) {
+      return _buildCard([
+        _sectionTitle('Plano'),
+        Text('Nenhum plano vinculado.', style: TextStyle(color: kText2, fontSize: 13)),
+      ]);
+    }
+
+    return _buildCard([
+      _sectionTitle('Plano'),
+      if (planoNome != null) _row('Plano', planoNome),
+      if (valorMensal != null)
+        _row('Valor mensal', 'R\$ ${valorMensal.toStringAsFixed(2).replaceAll('.', ',')}'),
+      if (diaVenc != null) _row('Vencimento', 'Todo dia $diaVenc'),
+    ]);
+  }
+
   // ── Atestado Médico ──────────────────────────────────
 
   Future<void> _visualizarAtestado() async {
@@ -726,13 +906,6 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final mime = at['arquivoMimeType'] as String? ?? 'application/pdf';
 
     String? b64 = base64Str;
-    if (b64 == null || b64.isEmpty) {
-      try {
-        final res = await dio.get('/api/atestados/aluno/${widget.alunoId}');
-        final data = res.data['dados'] as Map<String, dynamic>?;
-        b64 = data?['arquivoBase64'] as String?;
-      } catch (_) {}
-    }
 
     if (b64 == null || b64.isEmpty) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -795,10 +968,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     }
 
     try {
-      await dio.patch('/api/atestados/${_atestado!['id']}/avaliar', data: {
-        'aprovado': aprovado,
-        if (!aprovado) 'motivoRejeicao': motivo,
-      });
+      await firestoreService.avaliarAtestado(_academiaId!, _atestado!['id']?.toString() ?? '', {'status': aprovado ? 1 : 2});
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -811,16 +981,23 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   }
 
   Future<void> _enviarLembrete() async {
+    if (_academiaId == null) return;
     try {
-      await dio.post('/api/atestados/aluno/${widget.alunoId}/lembrete');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Lembrete enviado ao aluno.'),
-          backgroundColor: kSuccess,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (_) {}
+      await firestoreService.addNotificacao(_academiaId!, {
+        'aluno_id': widget.alunoId,
+        'tipo': 'atestado_pendente',
+        'titulo': 'Atestado médico pendente',
+        'mensagem': 'Apresente seu atestado médico à academia para regularizar sua situação.',
+        'lida': false,
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Lembrete enviado ao aluno!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Erro ao enviar lembrete.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    }
   }
 
   Future<void> _uploadAtestadoAcademia() async {
@@ -840,11 +1017,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     try {
       final mime = file.extension?.toLowerCase() == 'pdf' ? 'application/pdf'
           : file.extension?.toLowerCase() == 'png' ? 'image/png' : 'image/jpeg';
-      await dio.post('/api/atestados/academia', data: {
-        'alunoId': widget.alunoId,
-        'arquivoBase64': base64Encode(file.bytes!),
-        'arquivoMimeType': mime,
-        'arquivoNome': file.name,
+      await firestoreService.addAtestado(_academiaId!, {
+        'aluno_id': widget.alunoId,
+        'academia_id': _academiaId!,
+        'arquivo_base64': base64Encode(file.bytes!),
+        'arquivo_mime_type': mime,
+        'arquivo_nome': file.name,
+        'status': 1,
+        'data_validade': DateTime.now().add(const Duration(days: 365)).toIso8601String(),
       });
       await _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Atestado anexado e aprovado!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
@@ -952,16 +1132,31 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
   Future<void> _abrirGraduar() async {
     List<Map<String, dynamic>> faixas = [];
+    Map<String, String> modIdToNome = {};
     try {
-      final res = await dio.get('/api/faixas');
-      faixas = (res.data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+      final results = await Future.wait([
+        firestoreService.getFaixas(_academiaId!),
+        firestoreService.getModalidades(_academiaId!),
+      ]);
+      final rawFaixas = results[0];
+      final rawMods = results[1];
+      for (final m in rawMods) {
+        final id = m['id']?.toString() ?? '';
+        if (id.isNotEmpty) modIdToNome[id] = m['nome']?.toString() ?? '';
+      }
+      faixas = rawFaixas.map((f) => <String, dynamic>{
+        ...f,
+        'temGraus': f['tem_graus'] == true,
+        'maxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+      }).toList();
     } catch (_) {}
     if (!mounted) return;
 
     final turmasDetalhes = (_aluno?['turmasDetalhes'] as List? ?? []).cast<Map<String, dynamic>>();
     final modalidadesAluno = <String>{
       for (final t in turmasDetalhes)
-        if (t['modalidadeId'] != null) t['modalidadeId'].toString(),
+        if ((t['modalidadeId'] as String?)?.isNotEmpty == true)
+          t['modalidadeId'].toString(),
     };
 
     final Map<String, Map<String, dynamic>> modMap = {};
@@ -970,7 +1165,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       if (modalidadesAluno.isNotEmpty && !modalidadesAluno.contains(modId)) continue;
       modMap.putIfAbsent(modId, () => {
         'id': modId,
-        'nome': f['nomeModalidade']?.toString() ?? 'Sem modalidade',
+        'nome': modIdToNome[modId] ?? 'Sem modalidade',
         'faixas': <Map<String, dynamic>>[],
       });
       (modMap[modId]!['faixas'] as List<Map<String, dynamic>>).add(f);
@@ -980,7 +1175,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         final modId = f['modalidadeId']?.toString() ?? '';
         modMap.putIfAbsent(modId, () => {
           'id': modId,
-          'nome': f['nomeModalidade']?.toString() ?? 'Sem modalidade',
+          'nome': modIdToNome[modId] ?? 'Sem modalidade',
           'faixas': <Map<String, dynamic>>[],
         });
         (modMap[modId]!['faixas'] as List<Map<String, dynamic>>).add(f);
@@ -1309,27 +1504,37 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         final hoje = DateTime.now();
                         final dataExame = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
                         final temGraus = faixaSel!['temGraus'] == true;
-                        await dio.post('/api/graduacoes', data: {
-                          'alunoId': widget.alunoId,
-                          'faixaId': faixaSel!['id'],
-                          'dataExame': dataExame,
-                          'professorId': _meId,
+                        final grauFinal = (tipoGraduacao == 'darGrau' || temGraus) ? grauSel : 0;
+                        await firestoreService.addGraduacao(_academiaId!, {
+                          'aluno_id': widget.alunoId,
+                          'faixa_id': faixaSel!['id'],
+                          'data_exame': dataExame,
+                          'professor_id': _meId,
                           'aprovado': true,
-                          'grau': (tipoGraduacao == 'darGrau' || temGraus) ? grauSel : 0,
+                          'grau': grauFinal,
                           'observacoes': obsCtrl.text.trim(),
+                          'academia_id': _academiaId!,
+                        });
+                        await firestoreService.updateAluno(_academiaId!, widget.alunoId, {
+                          'faixaAtualNome': faixaSel!['nome'],
+                          'faixaAtualCor': faixaSel!['cor'],
+                          'faixaAtualTemGraus': faixaSel!['temGraus'] == true,
+                          'faixaAtualMaxGraus': (faixaSel!['maxGraus'] as num?)?.toInt() ?? 0,
+                          'grauAtual': grauFinal,
                         });
                         if (gerarCobranca && valorCtrl.text.isNotEmpty) {
                           final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
                           if (valor > 0) {
                             final hj = DateTime.now();
                             final venc = '${hj.year}-${hj.month.toString().padLeft(2, '0')}-${hj.day.toString().padLeft(2, '0')}';
-                            await dio.post('/api/financeiro', data: {
-                              'alunoId': widget.alunoId,
+                            await firestoreService.addPagamento(_academiaId!, {
+                              'aluno_id': widget.alunoId,
                               'tipo': 5,
                               'status': 2,
                               'valor': valor,
                               'descricao': 'Graduação - ${faixaSel!['nome']}',
-                              'dataVencimento': venc,
+                              'data_vencimento': venc,
+                              'academia_id': _academiaId!,
                             });
                           }
                         }
@@ -1338,7 +1543,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('${_aluno?['nome']} graduado para ${faixaSel!['nome']}!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
                           );
-                          _load();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _load();
+                          });
                         }
                       } catch (e) {
                         String msg = 'Erro ao graduar.';
@@ -1429,10 +1636,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Future<void> _abrirVincularTurma() async {
     List<Map<String, dynamic>> turmas = [];
     try {
-      final res = await dio.get('/api/turmas');
-      final dados = res.data['dados'];
-      final list = dados is List ? dados : (dados is Map ? dados['items'] as List? ?? [] : []);
-      turmas = list.cast<Map<String, dynamic>>();
+      final raw = await firestoreService.getTurmas(_academiaId!);
+      turmas = raw.map((t) => <String, dynamic>{
+        ...t,
+        'modalidadeNome': t['modalidade_nome'],
+      }).toList();
     } catch (_) {}
 
     if (!mounted) return;
@@ -1514,16 +1722,20 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     onPressed: (salvando || turmaSel == null) ? null : () async {
                       setModal(() => salvando = true);
                       try {
-                        await dio.post('/api/matriculas', data: {
-                          'alunoId': widget.alunoId,
-                          'turmaId': turmaSel!['id'],
+                        await firestoreService.addMatricula(_academiaId!, {
+                          'aluno_id': widget.alunoId,
+                          'turma_id': turmaSel!['id'],
+                          'academia_id': _academiaId!,
+                          'ativo': true,
                         });
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Vinculado à ${turmaSel!['nome']}!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
                           );
-                          _load();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _load();
+                          });
                         }
                       } catch (e) {
                         String msg = 'Erro ao vincular.';
@@ -1614,11 +1826,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
     List<Map<String, dynamic>> planos = [];
     try {
-      final res = await dio.get('/api/planos');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
-      planos = list.cast<Map<String, dynamic>>();
+      planos = await firestoreService.getPlanos(_academiaId!);
     } catch (_) {}
     if (!mounted) return;
 
@@ -1665,25 +1873,47 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 _editField(emergTelCtrl, 'Telefone do contato', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
                 _editSection('Plano financeiro'),
                 if (planos.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String?>(
-                        value: planoIdSel,
-                        dropdownColor: kSurface,
-                        isExpanded: true,
-                        style: TextStyle(color: kText1, fontSize: 14),
-                        hint: Text('Selecionar plano', style: TextStyle(color: kText2, fontSize: 14)),
-                        items: [
-                          DropdownMenuItem<String?>(value: null, child: Text('Sem plano', style: TextStyle(color: kText2))),
-                          ...planos.map((p) => DropdownMenuItem<String?>(
-                            value: p['id']?.toString(),
-                            child: Text(p['nome']?.toString() ?? '', style: TextStyle(color: kText1)),
-                          )),
-                        ],
-                        onChanged: (v) => setModal(() => planoIdSel = v),
-                      ),
+                  GestureDetector(
+                    onTap: () async {
+                      final sel = await showDialog<String>(
+                        context: context,
+                        builder: (dCtx) => SimpleDialog(
+                          backgroundColor: kSurface,
+                          title: Text('Selecionar Plano', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
+                          children: [
+                            SimpleDialogOption(
+                              onPressed: () => Navigator.of(dCtx).pop('__none__'),
+                              child: Text('Sem plano', style: TextStyle(color: kText2, fontSize: 14)),
+                            ),
+                            const Divider(height: 1),
+                            ...planos.map((p) => SimpleDialogOption(
+                              onPressed: () => Navigator.of(dCtx).pop(p['id']?.toString() ?? '__none__'),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                Text(p['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                                if (p['valor_mensal'] != null)
+                                  Text('R\$ ${(p['valor_mensal'] as num).toDouble().toStringAsFixed(2).replaceAll('.', ',')} / mês',
+                                      style: TextStyle(color: kText2, fontSize: 12)),
+                              ]),
+                            )),
+                          ],
+                        ),
+                      );
+                      if (sel != null) setModal(() => planoIdSel = sel == '__none__' ? null : sel);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+                      child: Row(children: [
+                        Expanded(
+                          child: Text(
+                            planoIdSel == null
+                                ? 'Selecionar plano'
+                                : planos.where((p) => p['id']?.toString() == planoIdSel).map((p) => p['nome']?.toString() ?? '').firstOrNull ?? 'Selecionar plano',
+                            style: TextStyle(color: planoIdSel == null ? kText2 : kText1, fontSize: 14),
+                          ),
+                        ),
+                        Icon(Icons.expand_more_rounded, color: kText2, size: 20),
+                      ]),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1709,15 +1939,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       setModal(() { salvando = true; erro = null; });
                       try {
                         final nascText = nascCtrl.text.trim();
-                        await dio.put('/api/alunos/${widget.alunoId}', data: {
+                        await firestoreService.updateAluno(_academiaId!, widget.alunoId, {
                           'nome': nomeCtrl.text.trim(),
                           'email': emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
                           'telefone': telefoneCtrl.text.trim(),
-                          if (nascText.length == 10) 'dataNascimento': _toIsoDate(nascText),
-                          if (emergNomeCtrl.text.trim().isNotEmpty) 'contatoEmergenciaNome': emergNomeCtrl.text.trim(),
-                          if (emergTelCtrl.text.trim().isNotEmpty) 'contatoEmergenciaTelefone': emergTelCtrl.text.trim(),
-                          'planoId': planoIdSel,
-                          if (diaVencCtrl.text.trim().isNotEmpty) 'diaVencimento': int.tryParse(diaVencCtrl.text.trim()),
+                          if (nascText.length == 10) 'data_nascimento': _toIsoDate(nascText),
+                          if (emergNomeCtrl.text.trim().isNotEmpty) 'contato_emergencia_nome': emergNomeCtrl.text.trim(),
+                          if (emergTelCtrl.text.trim().isNotEmpty) 'contato_emergencia_telefone': emergTelCtrl.text.trim(),
+                          'plano_id': planoIdSel,
+                          if (diaVencCtrl.text.trim().isNotEmpty) 'dia_vencimento': int.tryParse(diaVencCtrl.text.trim()),
                           'ativo': a['ativo'] == true,
                         });
                         if (ctx.mounted) Navigator.of(ctx).pop();
@@ -1727,7 +1957,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             backgroundColor: kSuccess,
                             behavior: SnackBarBehavior.floating,
                           ));
-                          _load();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _load();
+                          });
                         }
                       } catch (e) {
                         String msg = 'Erro ao atualizar aluno.';
@@ -1880,12 +2112,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             _row('Nível / XP', a['nivel'] != null ? '${a['nivel']} · ${a['xpTotal'] ?? 0} XP' : null),
                           ]),
                           const SizedBox(height: 12),
-                          _buildCard([
-                            _sectionTitle('Plano'),
-                            _row('Plano', a['planoNome']),
-                            _row('Tipo', a['tipoPlano']),
-                            _row('Vencimento', a['diaVencimento'] != null ? 'Dia ${a['diaVencimento']}' : null),
-                          ]),
+                          _buildPlanoCard(a),
                           const SizedBox(height: 12),
                           _buildAtestadoCard(),
                           const SizedBox(height: 12),
@@ -2016,12 +2243,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Future<void> _abrirLancarPontos() async {
     List<Map<String, dynamic>> rankings = [];
     try {
-      final res = await dio.get('/api/ranking/custom');
-      final data = res.data;
-      final list = data is List
-          ? data.cast<Map<String, dynamic>>()
-          : (data is Map ? ((data['dados'] ?? data['itens'] ?? []) as List).cast<Map<String, dynamic>>() : <Map<String, dynamic>>[]);
-      rankings = list.where((r) => r['incluirPontosManuais'] == true && r['ativo'] != false).toList();
+      final raw = await firestoreService.getRankingsCustom(_academiaId!);
+      rankings = raw
+          .map((r) => <String, dynamic>{...r, 'incluirPontosManuais': r['incluir_pontos_manuais']})
+          .where((r) => r['incluirPontosManuais'] == true && r['ativo'] != false)
+          .toList();
     } catch (_) {}
 
     if (!mounted) return;
@@ -2129,10 +2355,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       if (pts == null || pts <= 0) return;
                       setModal(() => salvando = true);
                       try {
-                        await dio.post('/api/ranking/custom/${rankingSel!['id']}/pontuar', data: {
-                          'alunoId': widget.alunoId,
+                        await firestoreService.addLancamentoPonto(_academiaId!, {
+                          'ranking_id': rankingSel!['id'],
+                          'aluno_id': widget.alunoId,
                           'pontos': pts,
-                          'descricao': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                          if (descCtrl.text.trim().isNotEmpty) 'descricao': descCtrl.text.trim(),
+                          'academia_id': _academiaId!,
+                          'criado_por': _meId,
                         });
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2261,8 +2490,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
     final fotoBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
     try {
-      await dio.patch('/api/alunos/${widget.alunoId}/foto', data: {'fotoBase64': fotoBase64});
-      if (mounted) setState(() { _aluno = {...?_aluno, 'fotoBase64': fotoBase64}; });
+      await firestoreService.updateAluno(_academiaId!, widget.alunoId, {'foto_base64': fotoBase64});
+      if (mounted) setState(() { _aluno = {...?_aluno, 'fotoBase64': fotoBase64, 'foto_base64': fotoBase64}; });
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Erro ao salvar foto.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),

@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth_storage.dart';
 import '../core/constants.dart';
+import '../core/firestore_service.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
 import '../core/version_check_service.dart';
@@ -110,7 +112,46 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     await VersionCheckService.check(context);
     if (!mounted) return;
-    final user = await AuthStorage.getUser();
+
+    // Verifica estado de autenticação do Firebase
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    // Tenta carregar dados locais; se não tiver, busca no Firestore
+    var user = await AuthStorage.getUser();
+    if (user == null) {
+      try {
+        final userData = await firestoreService.getUserByFirebaseUid(firebaseUser.uid);
+        if (userData != null) {
+          final rawPerm = userData['permissoes'];
+          final permissoes = rawPerm is Map
+              ? Map<String, bool>.from(rawPerm.map((k, v) => MapEntry(k.toString(), v == true)))
+              : <String, bool>{};
+          final rawPerfis = userData['perfis'];
+          final perfisLista = rawPerfis is List
+              ? rawPerfis.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+              : <Map<String, dynamic>>[];
+
+          await AuthStorage.save(
+            firebaseUser.uid,
+            StoredUser(
+              id: userData['usuarioId'] as String? ?? firebaseUser.uid,
+              nome: userData['nome'] as String? ?? '',
+              email: userData['email'] as String? ?? '',
+              perfil: userData['perfil'] as String? ?? 'Aluno',
+              academiaId: userData['academiaId'] as String?,
+              permissoes: permissoes,
+              perfis: perfisLista,
+            ),
+          );
+          user = await AuthStorage.getUser();
+        }
+      } catch (_) {}
+    }
+
     if (!mounted) return;
     if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
       await PlanService.instance.load();

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunosScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class AdminAlunosScreen extends StatefulWidget {
 class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   final _ctrl = TextEditingController();
   List<Map<String, dynamic>> _alunos = [];
+  List<Map<String, dynamic>> _todosAlunos = [];
   bool _loading = true;
   String? _erro;
 
@@ -31,18 +33,84 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
     _last = DateTime.now();
     final snap = _last!;
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (_last == snap) _load(q);
+      if (_last == snap) _filtrar(q);
     });
+  }
+
+  void _filtrar(String q) {
+    if (!mounted) return;
+    if (q.isEmpty) {
+      setState(() => _alunos = _todosAlunos);
+    } else {
+      setState(() => _alunos = _todosAlunos
+          .where((a) => (a['nome'] as String? ?? '').toLowerCase().contains(q.toLowerCase()))
+          .toList());
+    }
   }
 
   Future<void> _load(String q) async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'nome': q, 'pageSize': 50});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final items = dados is Map ? (dados['itens'] as List? ?? []) : (dados as List? ?? []);
-      if (mounted) setState(() => _alunos = items.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+
+      final results = await Future.wait([
+        firestoreService.getAlunos(academiaId),
+        firestoreService.getGraduacoes(academiaId),
+        firestoreService.getFaixas(academiaId),
+      ]);
+
+      final alunos = results[0] as List<Map<String, dynamic>>;
+      final graduacoes = results[1] as List<Map<String, dynamic>>;
+      final faixas = results[2] as List<Map<String, dynamic>>;
+
+      final faixaMap = <String, Map<String, dynamic>>{
+        for (final f in faixas) f['id'].toString(): f,
+      };
+
+      // Para cada aluno, pega a graduação aprovada mais recente
+      final melhorGraduacaoPorAluno = <String, Map<String, dynamic>>{};
+      for (final g in graduacoes) {
+        if (g['aprovado'] != true) continue;
+        final alunoId = g['aluno_id']?.toString() ?? '';
+        if (alunoId.isEmpty) continue;
+        final faixaId = g['faixa_id']?.toString() ?? '';
+        final f = faixaMap[faixaId];
+        if (f == null) continue;
+        final ordem = (f['ordem'] as num?)?.toInt() ?? 0;
+        final grau = (g['grau'] as num?)?.toInt() ?? 0;
+        final existente = melhorGraduacaoPorAluno[alunoId];
+        final existOrdem = (existente?['_ordem'] as int?) ?? -1;
+        final existGrau = (existente?['grau'] as int?) ?? -1;
+        if (existente == null || ordem > existOrdem || (ordem == existOrdem && grau > existGrau)) {
+          melhorGraduacaoPorAluno[alunoId] = {
+            'faixaAtualNome': f['nome'],
+            'faixaAtualCor': f['cor'],
+            'faixaAtualTemGraus': f['tem_graus'] == true,
+            'faixaAtualMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 0,
+            'grauAtual': grau,
+            '_ordem': ordem,
+          };
+        }
+      }
+
+      final todos = alunos.map((a) {
+        final id = a['id']?.toString() ?? '';
+        final grad = melhorGraduacaoPorAluno[id];
+        if (grad == null) return a;
+        if (a['faixaAtualCor'] != null) return a;
+        final enrichFields = Map<String, dynamic>.from(grad)..remove('_ordem');
+        return <String, dynamic>{...a, ...enrichFields};
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _todosAlunos = todos;
+          _alunos = q.isEmpty
+              ? todos
+              : todos.where((a) => (a['nome'] as String? ?? '').toLowerCase().contains(q.toLowerCase())).toList();
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _erro = 'Erro: $e');
     } finally {

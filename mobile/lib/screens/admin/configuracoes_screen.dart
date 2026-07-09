@@ -1,15 +1,16 @@
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import 'modalidades_screen.dart';
+import 'planos_screen.dart';
 
 class AdminConfiguracoesScreen extends StatefulWidget {
   const AdminConfiguracoesScreen({super.key});
@@ -30,7 +31,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   bool _erro = false;
   String _subdominio = '';
   String? _logoBase64;
-  bool _uploadandoLogo = false;
 
   @override
   void initState() {
@@ -51,8 +51,9 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     if (!mounted) return;
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/academia');
-      final dados = res.data['dados'] as Map<String, dynamic>? ?? {};
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final dados = await firestoreService.getAcademia(academiaId) ?? {};
       _nomeCtrl.text = dados['nome'] as String? ?? '';
       _emailCtrl.text = dados['email'] as String? ?? '';
       _telefoneCtrl.text = dados['telefone'] as String? ?? '';
@@ -81,7 +82,9 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _salvando = true; });
     try {
-      await dio.put('/api/academia', data: {
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.updateAcademia(academiaId, {
         'nome': _nomeCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'telefone': _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
@@ -99,13 +102,8 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao salvar configurações';
-      try {
-        final data = (e as dynamic).response?.data;
-        if (data is Map && data['mensagem'] != null) msg = data['mensagem'].toString();
-      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao salvar configurações'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() { _salvando = false; });
@@ -175,7 +173,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                         _SectionLabel('Logo da Academia'),
                         const SizedBox(height: 12),
                         GestureDetector(
-                          onTap: _uploadandoLogo ? null : _escolherLogo,
+                          onTap: _escolherLogo,
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -186,7 +184,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             child: Row(children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: _logoBase64 != null && _logoBase64!.startsWith('data:')
+                                child: _logoBase64 != null && _logoBase64!.contains(',')
                                     ? Image.memory(
                                         base64Decode(_logoBase64!.split(',').last),
                                         width: 52, height: 52, fit: BoxFit.cover,
@@ -253,104 +251,47 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 24),
+                        _SectionLabel('Financeiro'),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPlanosScreen())),
+                          child: _NavTile(
+                            icon: Icons.credit_card_rounded,
+                            iconColor: kSuccess,
+                            label: 'Planos de Pagamento',
+                            subtitle: 'Criar, editar e excluir planos de mensalidade',
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         _SectionLabel('Graduações'),
                         const SizedBox(height: 12),
                         GestureDetector(
                           onTap: () => context.push('/admin/dashboard/faixas'),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 38, height: 38,
-                                  decoration: BoxDecoration(
-                                    color: kWarning.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(Icons.military_tech_rounded, color: kWarning, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Gestão de Faixas', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                                    Text('Cadastrar e editar graduações por modalidade',
-                                        style: TextStyle(color: kText2, fontSize: 11)),
-                                  ]),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: kText2),
-                              ],
-                            ),
+                          child: _NavTile(
+                            icon: Icons.military_tech_rounded,
+                            iconColor: kWarning,
+                            label: 'Gestão de Faixas',
+                            subtitle: 'Cadastrar e editar graduações por modalidade',
                           ),
                         ),
                         const SizedBox(height: 12),
                         GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminModalidadesScreen())),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 38, height: 38,
-                                  decoration: BoxDecoration(
-                                    color: kPrimary.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(Icons.category_rounded, color: kPrimary, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Gestão de Modalidades', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                                    Text('Ativar, desativar ou criar modalidades da academia',
-                                        style: TextStyle(color: kText2, fontSize: 11)),
-                                  ]),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: kText2),
-                              ],
-                            ),
+                          child: _NavTile(
+                            icon: Icons.category_rounded,
+                            iconColor: kPrimary,
+                            label: 'Gestão de Modalidades',
+                            subtitle: 'Ativar, desativar ou criar modalidades da academia',
                           ),
                         ),
                         const SizedBox(height: 12),
                         GestureDetector(
                           onTap: () => context.push('/admin/dashboard/contratos'),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 38, height: 38,
-                                  decoration: BoxDecoration(
-                                    color: kPrimary.withOpacity(0.10),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(Icons.description_rounded, color: kPrimary, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Modelos de Contrato', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                                    Text('Criar e editar templates de contrato',
-                                        style: TextStyle(color: kText2, fontSize: 11)),
-                                  ]),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: kText2),
-                              ],
-                            ),
+                          child: _NavTile(
+                            icon: Icons.description_rounded,
+                            iconColor: kPrimary,
+                            label: 'Modelos de Contrato',
+                            subtitle: 'Criar e editar templates de contrato',
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -358,34 +299,11 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                         const SizedBox(height: 12),
                         GestureDetector(
                           onTap: () => context.push('/admin/noticias'),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 38, height: 38,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFC9A020).withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.newspaper_rounded, color: Color(0xFFC9A020), size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Notícias', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                                    Text('Publicar notícias e comunicados para alunos e professores',
-                                        style: TextStyle(color: kText2, fontSize: 11)),
-                                  ]),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: kText2),
-                              ],
-                            ),
+                          child: _NavTile(
+                            icon: Icons.newspaper_rounded,
+                            iconColor: const Color(0xFFC9A020),
+                            label: 'Notícias',
+                            subtitle: 'Publicar notícias e comunicados para alunos e professores',
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -411,39 +329,20 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        _SectionLabel('Segurança'),
+                        _SectionLabel('Legal'),
                         const SizedBox(height: 12),
-                        GestureDetector(
-                          onTap: () => context.push('/alterar-senha'),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 38, height: 38,
-                                  decoration: BoxDecoration(
-                                    color: kDanger.withOpacity(0.10),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(Icons.lock_reset_rounded, color: kDanger, size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('Alterar Senha', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                                    Text('Redefinir a senha de acesso ao sistema',
-                                        style: TextStyle(color: kText2, fontSize: 11)),
-                                  ]),
-                                ),
-                                Icon(Icons.chevron_right_rounded, color: kText2),
-                              ],
-                            ),
-                          ),
+                        _LegalTile(
+                          icon: Icons.privacy_tip_outlined,
+                          label: 'Política de Privacidade',
+                          subtitle: 'Como tratamos seus dados (LGPD)',
+                          url: 'https://senseimanager.com.br/privacidade',
+                        ),
+                        const SizedBox(height: 8),
+                        _LegalTile(
+                          icon: Icons.gavel_rounded,
+                          label: 'Termos de Uso',
+                          subtitle: 'Condições de uso do Sensei Manager',
+                          url: 'https://senseimanager.com.br/termos',
                         ),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -462,22 +361,6 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         const SizedBox(height: 32),
-                        _SectionLabel('Legal'),
-                        const SizedBox(height: 12),
-                        _LegalTile(
-                          icon: Icons.privacy_tip_outlined,
-                          label: 'Política de Privacidade',
-                          subtitle: 'Como tratamos seus dados (LGPD)',
-                          url: 'https://senseimanager.com.br/privacidade',
-                        ),
-                        const SizedBox(height: 8),
-                        _LegalTile(
-                          icon: Icons.gavel_rounded,
-                          label: 'Termos de Uso',
-                          subtitle: 'Condições de uso do Sensei Manager',
-                          url: 'https://senseimanager.com.br/termos',
-                        ),
-                        const SizedBox(height: 32),
                         _SectionLabel('Conta'),
                         const SizedBox(height: 12),
                         _BotaoSair(),
@@ -490,6 +373,46 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+class _NavTile extends StatelessWidget {
+  const _NavTile({required this.icon, required this.iconColor, required this.label, required this.subtitle});
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+              Text(subtitle, style: TextStyle(color: kText2, fontSize: 11)),
+            ]),
+          ),
+          Icon(Icons.chevron_right_rounded, color: kText2),
+        ],
+      ),
     );
   }
 }
@@ -539,8 +462,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w800,
-        letterSpacing: 0.4));
+    return Text(text, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.4));
   }
 }
 
@@ -570,7 +492,9 @@ class _BotaoSairState extends State<_BotaoSair> {
     );
     if (confirma != true || !mounted) return;
     setState(() => _loading = true);
-    try { await dio.post('/api/auth/logout'); } on DioException catch (_) {}
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
     await AuthStorage.clear();
     if (!mounted) return;
     context.go('/login');
@@ -628,7 +552,7 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
 
     setState(() => _loading = true);
     try {
-      await dio.delete('/api/usuarios/me');
+      await FirebaseAuth.instance.currentUser?.delete();
       await AuthStorage.clear();
       if (!mounted) return;
       context.go('/login');
@@ -691,13 +615,6 @@ class _PlanStatusTile extends StatelessWidget {
         color: kSurface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor.withOpacity(0.5)),
-        gradient: isPro
-            ? LinearGradient(
-                colors: [const Color(0xFF1A1200), kSurface],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
       ),
       child: Row(children: [
         Container(
@@ -730,7 +647,7 @@ class _PlanStatusTile extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
+                color: kPrimary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text('Assinar PRO',

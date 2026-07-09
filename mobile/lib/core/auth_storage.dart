@@ -7,6 +7,9 @@ class StoredUser {
   final String email;
   final String perfil;
   final String? academiaId;
+  final Map<String, bool> permissoes;
+  // Lista de perfis para grupo familiar (alunos com mesmo e-mail/telefone)
+  final List<Map<String, dynamic>> perfis;
 
   const StoredUser({
     required this.id,
@@ -14,6 +17,8 @@ class StoredUser {
     required this.email,
     required this.perfil,
     this.academiaId,
+    this.permissoes = const {},
+    this.perfis = const [],
   });
 
   factory StoredUser.fromJson(Map<String, dynamic> j) => StoredUser(
@@ -22,6 +27,11 @@ class StoredUser {
         email: j['email'] ?? '',
         perfil: j['perfil'] ?? '',
         academiaId: j['academiaId'],
+        permissoes: (j['permissoes'] as Map<String, dynamic>? ?? {})
+            .map((k, v) => MapEntry(k, v == true)),
+        perfis: (j['perfis'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -30,7 +40,15 @@ class StoredUser {
         'email': email,
         'perfil': perfil,
         'academiaId': academiaId,
+        'permissoes': permissoes,
+        'perfis': perfis,
       };
+
+  bool temPermissao(String chave) {
+    // Admin sempre tem tudo
+    if (perfil == 'Admin') return true;
+    return permissoes[chave] ?? false;
+  }
 }
 
 abstract class AuthStorage {

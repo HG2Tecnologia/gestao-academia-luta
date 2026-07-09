@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminRelatorioPresencasScreen extends StatefulWidget {
   const AdminRelatorioPresencasScreen({super.key});
@@ -18,6 +19,7 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
   bool _loadingTurmas = true;
   bool _loading = false;
   bool _erro = false;
+  String? _academiaId;
 
   DateTime _de = DateTime.now().subtract(const Duration(days: 30));
   DateTime _ate = DateTime.now();
@@ -36,9 +38,10 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
 
   Future<void> _loadTurmas() async {
     try {
-      final res = await dio.get('/api/turmas');
-      final raw = res.data['dados'];
-      final list = raw is List ? raw : (raw as Map?)?['itens'] as List? ?? [];
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) return;
+      final list = await firestoreService.getTurmas(_academiaId!);
       final turmas = list.cast<Map<String, dynamic>>();
       if (!mounted) return;
       setState(() {
@@ -53,20 +56,80 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
   }
 
   Future<void> _loadRelatorio() async {
-    if (_turmaId == null) return;
+    if (_turmaId == null || _academiaId == null) return;
     setState(() { _loading = true; _erro = false; });
-    final fmt = DateFormat('yyyy-MM-dd');
     try {
-      final res = await dio.get('/api/presencas/relatorio', queryParameters: {
-        'turmaId': _turmaId,
-        'de': fmt.format(_de),
-        'ate': fmt.format(_ate),
-      });
-      final dados = res.data['dados'] as Map<String, dynamic>?;
+      // Get all presencas for this turma and filter by date range
+      final presencas = await firestoreService.getPresencas(_academiaId!, turmaId: _turmaId!);
+      final lista = presencas.cast<Map<String, dynamic>>();
+
+      // Filter by date range
+      final deStr = DateFormat('yyyy-MM-dd').format(_de);
+      final ateStr = DateFormat('yyyy-MM-dd').format(_ate);
+      final filtered = lista.where((p) {
+        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        return dataStr.compareTo(deStr) >= 0 && dataStr.compareTo(ateStr) <= 0;
+      }).toList();
+
+      // Count distinct dates (aulas)
+      final datasUnicas = filtered.map((p) => (p['data'] ?? p['data_presenca'] ?? '').toString()).toSet();
+      final totalAulas = datasUnicas.length;
+
+      // Group by aluno
+      // Load alunos in turma to get names and faltas
+      final turma = _turmas.firstWhere((t) => t['id']?.toString() == _turmaId, orElse: () => {});
+      final alunosNaTurma = (turma['alunos'] as List? ?? []).cast<Map<String, dynamic>>();
+
+      final Map<String, Map<String, dynamic>> byAluno = {};
+      for (final p in filtered) {
+        final alunoId = (p['aluno_id'] ?? p['alunoId'] ?? '').toString();
+        final nomeAluno = p['nome_aluno']?.toString() ?? p['nomeAluno']?.toString() ?? '';
+        if (alunoId.isEmpty) continue;
+        if (!byAluno.containsKey(alunoId)) {
+          byAluno[alunoId] = {
+            'alunoId': alunoId,
+            'nomeAluno': nomeAluno.isNotEmpty ? nomeAluno : _nomeFromTurma(alunoId, alunosNaTurma),
+            'presencas': 0,
+          };
+        }
+        byAluno[alunoId]!['presencas'] = (byAluno[alunoId]!['presencas'] as int) + 1;
+      }
+
+      // Build alunos report list
+      final alunosList = byAluno.values.map((a) {
+        final pres = a['presencas'] as int;
+        final faltas = totalAulas > pres ? totalAulas - pres : 0;
+        final pct = totalAulas > 0 ? (pres / totalAulas * 100) : 0.0;
+        return {
+          ...a,
+          'faltas': faltas,
+          'percentual': pct,
+        };
+      }).toList();
+
+      final mediaFreq = alunosList.isEmpty
+          ? 0.0
+          : alunosList.fold(0.0, (s, a) => s + (a['percentual'] as num).toDouble()) / alunosList.length;
+
+      final dados = {
+        'totalAulas': totalAulas,
+        'mediaFrequencia': mediaFreq,
+        'alunos': alunosList,
+      };
+
       if (mounted) setState(() { _relatorio = dados; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
     }
+  }
+
+  String _nomeFromTurma(String alunoId, List<Map<String, dynamic>> alunos) {
+    try {
+      return alunos.firstWhere(
+        (a) => (a['alunoId'] ?? a['aluno_id'])?.toString() == alunoId,
+        orElse: () => {},
+      )['nomeAluno']?.toString() ?? '';
+    } catch (_) { return ''; }
   }
 
   void _aplicarPreset(int dias) {

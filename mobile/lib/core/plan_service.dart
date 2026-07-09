@@ -1,4 +1,5 @@
-import 'api_client.dart';
+import 'auth_storage.dart';
+import 'firestore_service.dart';
 
 class PlanService {
   static final PlanService instance = PlanService._();
@@ -33,12 +34,16 @@ class PlanService {
 
   Future<void> load() async {
     try {
-      final res = await dio.get('/api/academia');
-      final d = res.data['dados'] as Map<String, dynamic>? ?? {};
-      _planoTipo = d['planoTipo']?.toString() ?? 'Gratuito';
-      final expStr = d['planoExpiracao']?.toString();
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId;
+      if (academiaId == null) return;
+      final d = await firestoreService.getAcademia(academiaId) ?? {};
+      // plano_tipo: 0=Gratuito, 1=Pro
+      final planoNum = d['plano_tipo'] as int? ?? 0;
+      _planoTipo = planoNum >= 1 ? 'Pro' : 'Gratuito';
+      final expStr = d['plano_expiracao']?.toString();
       _planoExpiracao = expStr != null ? DateTime.tryParse(expStr) : null;
-      final criadoStr = d['criadoEm']?.toString();
+      final criadoStr = d['criado_em']?.toString();
       _criadoEm = criadoStr != null ? DateTime.tryParse(criadoStr) : null;
       _loaded = true;
     } catch (_) {}

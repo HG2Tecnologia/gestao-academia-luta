@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
-import '../../core/paywall_modal.dart';
+import '../../core/firestore_service.dart';
 
 class AdminTurmasScreen extends StatefulWidget {
   const AdminTurmasScreen({super.key});
@@ -18,6 +18,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
   List<Map<String, dynamic>> _turmas = [];
   List<Map<String, dynamic>> _filtradas = [];
   bool _loading = true;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -29,13 +30,30 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/turmas');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) return;
+      final results = await Future.wait([
+        firestoreService.getTurmas(_academiaId!),
+        firestoreService.getMatriculas(_academiaId!, ativasOnly: true),
+      ]);
+      final turmasList = (results[0] as List).cast<Map<String, dynamic>>();
+      final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
+
+      final countPorTurma = <String, int>{};
+      for (final m in matriculas) {
+        final tid = m['turma_id']?.toString() ?? '';
+        if (tid.isNotEmpty) countPorTurma[tid] = (countPorTurma[tid] ?? 0) + 1;
+      }
+
+      final enriched = turmasList.map((t) {
+        final id = t['id']?.toString() ?? '';
+        return <String, dynamic>{...t, 'totalAlunos': countPorTurma[id] ?? 0};
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _turmas = list.cast<Map<String, dynamic>>();
+          _turmas = enriched;
           _filtrar();
         });
       }
@@ -45,11 +63,12 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
   }
 
   Future<void> _abrirForm({Map<String, dynamic>? turma}) async {
+    if (_academiaId == null) return;
     final criou = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TurmaFormSheet(turma: turma),
+      builder: (_) => TurmaFormSheet(academiaId: _academiaId!, turma: turma),
     );
     if (criou == true) _load();
   }
@@ -61,8 +80,8 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
           ? List.from(_turmas)
           : _turmas.where((t) {
               final nome = (t['nome'] as String? ?? '').toLowerCase();
-              final mod = (t['modalidadeNome'] as String? ?? '').toLowerCase();
-              final prof = (t['professorNome'] as String? ?? '').toLowerCase();
+              final mod = (t['modalidadeNome'] ?? t['nome_modalidade'] as String? ?? '').toLowerCase();
+              final prof = (t['professorNome'] ?? t['nome_professor'] as String? ?? '').toLowerCase();
               return nome.contains(q) || mod.contains(q) || prof.contains(q);
             }).toList();
     });
@@ -150,7 +169,9 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                               final t = _filtradas[i];
                               final ativa = t['ativo'] == true;
                               final total = t['totalAlunos'] ?? 0;
-                              final cap = t['capacidadeMaxima'] ?? 0;
+                              final cap = t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? 0;
+                              final modalidadeNome = t['modalidadeNome'] ?? t['nome_modalidade'] ?? '';
+                              final professorNome = t['professorNome'] ?? t['nome_professor'] ?? '';
                               return GestureDetector(
                                 onTap: () => context.push('/admin/turmas/${t['id']}', extra: t),
                                 child: Container(
@@ -184,12 +205,12 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        [t['modalidadeNome'], t['nivel']].where((s) => s != null && s != '').join(' · '),
+                                        [modalidadeNome, t['nivel']].where((s) => s != null && s != '').join(' · '),
                                         style: TextStyle(color: kText2, fontSize: 13),
                                       ),
-                                      if (t['professorNome'] != null && (t['professorNome'] as String).isNotEmpty) ...[
+                                      if (professorNome.isNotEmpty) ...[
                                         const SizedBox(height: 2),
-                                        Text('Prof. ${t['professorNome']}', style: TextStyle(color: kPrimary, fontSize: 12)),
+                                        Text('Prof. $professorNome', style: TextStyle(color: kPrimary, fontSize: 12)),
                                       ],
                                       const SizedBox(height: 8),
                                       Row(
@@ -231,7 +252,8 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
 // ── Formulário de Turma ──────────────────────────────────────────────────────
 
 class TurmaFormSheet extends StatefulWidget {
-  const TurmaFormSheet({this.turma});
+  const TurmaFormSheet({required this.academiaId, this.turma});
+  final String academiaId;
   final Map<String, dynamic>? turma;
 
   @override
@@ -263,7 +285,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
     if (_editando) {
       final t = widget.turma!;
       _nomeCtrl.text = t['nome'] as String? ?? '';
-      _capCtrl.text = (t['capacidadeMaxima'] ?? '').toString();
+      _capCtrl.text = (t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? '').toString();
       _nivel = t['nivel'] as String?;
       _ativo = t['ativo'] == true;
     }
@@ -280,12 +302,12 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
   Future<void> _loadDados() async {
     try {
       final results = await Future.wait([
-        dio.get('/api/modalidades'),
-        dio.get('/api/funcionarios'),
+        firestoreService.getModalidades(widget.academiaId),
+        firestoreService.getFuncionarios(widget.academiaId),
       ]);
 
-      final mods = (results[0].data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
-      final funcs = (results[1].data['dados'] as List? ?? []).cast<Map<String, dynamic>>();
+      final mods = results[0].cast<Map<String, dynamic>>();
+      final funcs = results[1].cast<Map<String, dynamic>>();
       final profs = funcs.where((f) {
         final cargo = f['cargo']?.toString().toLowerCase() ?? '';
         final perfil = f['perfil']?.toString().toLowerCase() ?? '';
@@ -299,16 +321,21 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
           if (_editando) {
             final t = widget.turma!;
-            // Match modalidade by name if ID not present
-            final modNome = t['modalidadeNome']?.toString() ?? '';
+            final modNome = (t['modalidadeNome'] ?? t['nome_modalidade'])?.toString() ?? '';
             final modId = t['modalidadeId']?.toString();
-            _modalidadeId = modId ?? mods.firstWhere(
-              (m) => m['nome']?.toString() == modNome,
-              orElse: () => {},
-            )['id']?.toString();
+            final modIdExiste = mods.any((m) => m['id']?.toString() == modId);
+            String? modIdPorNome;
+            if (!modIdExiste) {
+              try {
+                modIdPorNome = mods.firstWhere(
+                  (m) => m['nome']?.toString() == modNome,
+                  orElse: () => {},
+                )['id']?.toString();
+              } catch (_) {}
+            }
+            _modalidadeId = modIdExiste ? modId : modIdPorNome;
 
-            // Match professor by name if ID not present
-            final profNome = t['professorNome']?.toString() ?? '';
+            final profNome = (t['professorNome'] ?? t['nome_professor'])?.toString() ?? '';
             final profId = t['professorId']?.toString();
             _professorId = profId ?? profs.firstWhere(
               (p) => p['nome']?.toString() == profNome || p['nomeUsuario']?.toString() == profNome,
@@ -341,28 +368,14 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       };
 
       if (_editando) {
-        await dio.put('/api/turmas/${widget.turma!['id']}', data: body);
+        await firestoreService.updateTurma(widget.academiaId, widget.turma!['id'].toString(), body);
       } else {
-        await dio.post('/api/turmas', data: body);
+        await firestoreService.addTurma(widget.academiaId, body);
       }
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      try {
-        final data = (e as dynamic).response?.data;
-        if (data is Map && data['codigo'] == 'LIMITE_PLANO_GRATUITO') {
-          setState(() => _salvando = false);
-          mostrarPaywall(context);
-          return;
-        }
-        if (data is Map && data['mensagem'] != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['mensagem'].toString()), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
-          );
-          return;
-        }
-      } catch (_) {}
       final msg = _editando ? 'Erro ao editar turma' : 'Erro ao criar turma';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
@@ -422,7 +435,6 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                   _field(_nomeCtrl, 'Nome da Turma', Icons.groups_rounded,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null),
                   const SizedBox(height: 14),
-                  // Modalidade dropdown
                   DropdownButtonFormField<String>(
                     value: _modalidadeId,
                     decoration: _inputDecoration('Modalidade', Icons.sports_martial_arts_rounded),
@@ -436,7 +448,6 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     validator: (v) => v == null ? 'Selecione a modalidade' : null,
                   ),
                   const SizedBox(height: 14),
-                  // Nível dropdown
                   DropdownButtonFormField<String>(
                     value: _niveis.contains(_nivel) ? _nivel : null,
                     decoration: _inputDecoration('Nível', Icons.bar_chart_rounded),
@@ -449,7 +460,6 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     onChanged: (v) => setState(() => _nivel = v),
                   ),
                   const SizedBox(height: 14),
-                  // Professor dropdown (opcional)
                   DropdownButtonFormField<String>(
                     value: _professores.any((p) =>
                         (p['usuarioId'] ?? p['id'])?.toString() == _professorId)

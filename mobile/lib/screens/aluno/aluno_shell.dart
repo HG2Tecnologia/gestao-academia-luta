@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
@@ -53,7 +53,7 @@ class _AlunoShellState extends State<AlunoShell> {
 
   Future<void> _sair() async {
     Navigator.of(context).pop();
-    try { await dio.post('/api/auth/logout'); } catch (_) {}
+    try { await FirebaseAuth.instance.signOut(); } catch (_) {}
     await AuthStorage.clear();
     if (mounted) context.go('/login');
   }
@@ -76,7 +76,8 @@ class _AlunoShellState extends State<AlunoShell> {
     );
     if (confirma != true || !mounted) return;
     try {
-      await dio.delete('/api/usuarios/me');
+      final user = FirebaseAuth.instance.currentUser;
+      await user?.delete();
       await AuthStorage.clear();
       if (mounted) context.go('/login');
     } catch (_) {

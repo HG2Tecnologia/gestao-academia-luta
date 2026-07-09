@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminRelatorioAnualScreen extends StatefulWidget {
   const AdminRelatorioAnualScreen({super.key});
@@ -16,9 +17,13 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
   bool _loading = true;
   bool _erro = false;
   late int _ano;
+  String? _academiaId;
 
   static const _meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   final _brl = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+
+  // Status int mapping (same as financeiro_screen)
+  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
 
   @override
   void initState() {
@@ -31,8 +36,98 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
     if (!mounted) return;
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/financeiro/relatorio-anual', queryParameters: {'ano': _ano});
-      final dados = res.data['dados'] as Map<String, dynamic>?;
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) throw Exception('Academia não encontrada');
+
+      final results = await Future.wait([
+        firestoreService.getPagamentos(_academiaId!),
+        firestoreService.getAlunos(_academiaId!),
+      ]);
+
+      final pagamentos = (results[0] as List).cast<Map<String, dynamic>>();
+      final alunos = (results[1] as List).cast<Map<String, dynamic>>();
+
+      // Filter pagamentos by year
+      final pagamentosAno = pagamentos.where((p) {
+        final dvStr = p['data_vencimento'] as String? ?? p['dataVencimento'] as String? ?? '';
+        if (dvStr.isEmpty) return false;
+        try { return DateTime.parse(dvStr).year == _ano; } catch (_) { return false; }
+      }).toList();
+
+      // Total recebido no ano (status == 1 or 'Pago')
+      double totalRecebidoAno = 0;
+      for (final p in pagamentosAno) {
+        final st = p['status'];
+        final isPago = (st is int && st == 1) || st.toString() == 'Pago';
+        if (isPago) {
+          totalRecebidoAno += (p['valor'] as num? ?? 0).toDouble();
+        }
+      }
+
+      // Active alunos
+      final totalAlunosAtivos = alunos.where((a) => a['ativo'] == true).length;
+
+      // Inadimplentes: alunos with overdue (status == 2 / Atrasado) pagamentos
+      final now = DateTime.now();
+      final Map<String, Map<String, dynamic>> inadimpMap = {};
+      for (final p in pagamentos) {
+        final st = p['status'];
+        final isAtrasado = (st is int && st == 2) || st.toString() == 'Atrasado';
+        if (!isAtrasado) continue;
+        final alunoId = p['aluno_id']?.toString() ?? p['alunoId']?.toString() ?? '';
+        final nomeAluno = p['nome_aluno']?.toString() ?? p['nomeAluno']?.toString() ?? '';
+        final dvStr = p['data_vencimento'] as String? ?? p['dataVencimento'] as String? ?? '';
+        int diasAtraso = 0;
+        try {
+          final dv = DateTime.parse(dvStr);
+          diasAtraso = now.difference(dv).inDays;
+        } catch (_) {}
+        final valor = (p['valor'] as num? ?? 0).toDouble();
+        if (!inadimpMap.containsKey(alunoId)) {
+          inadimpMap[alunoId] = {'alunoId': alunoId, 'nomeAluno': nomeAluno, 'diasAtraso': diasAtraso, 'totalDevido': 0.0};
+        }
+        inadimpMap[alunoId]!['totalDevido'] = (inadimpMap[alunoId]!['totalDevido'] as double) + valor;
+        if (diasAtraso > (inadimpMap[alunoId]!['diasAtraso'] as int)) {
+          inadimpMap[alunoId]!['diasAtraso'] = diasAtraso;
+        }
+      }
+      final inadimplentes = inadimpMap.values.toList()
+        ..sort((a, b) => (b['diasAtraso'] as int).compareTo(a['diasAtraso'] as int));
+
+      // Receita mensal: group pagamentosAno by month
+      final Map<int, Map<String, double>> receitaPorMes = {};
+      for (var m = 1; m <= 12; m++) {
+        receitaPorMes[m] = {'recebido': 0, 'pendente': 0};
+      }
+      for (final p in pagamentosAno) {
+        final dvStr = p['data_vencimento'] as String? ?? p['dataVencimento'] as String? ?? '';
+        int mes = 0;
+        try { mes = DateTime.parse(dvStr).month; } catch (_) {}
+        if (mes < 1 || mes > 12) continue;
+        final valor = (p['valor'] as num? ?? 0).toDouble();
+        final st = p['status'];
+        final isPago = (st is int && st == 1) || st.toString() == 'Pago';
+        if (isPago) {
+          receitaPorMes[mes]!['recebido'] = receitaPorMes[mes]!['recebido']! + valor;
+        } else {
+          receitaPorMes[mes]!['pendente'] = receitaPorMes[mes]!['pendente']! + valor;
+        }
+      }
+      final receitaMensal = List.generate(12, (i) => {
+        'mes': i + 1,
+        'recebido': receitaPorMes[i + 1]!['recebido'],
+        'pendente': receitaPorMes[i + 1]!['pendente'],
+      });
+
+      final dados = {
+        'totalRecebidoAno': totalRecebidoAno,
+        'totalAlunosAtivos': totalAlunosAtivos,
+        'totalInadimplentes': inadimplentes.length,
+        'receitaMensal': receitaMensal,
+        'inadimplentes': inadimplentes,
+      };
+
       if (mounted) setState(() { _relatorio = dados; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });

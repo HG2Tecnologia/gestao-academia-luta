@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AlunoParQScreen extends StatefulWidget {
   const AlunoParQScreen({super.key});
@@ -47,8 +48,9 @@ class _AlunoParQScreenState extends State<AlunoParQScreen> {
   Future<void> _carregar() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/parq/meu');
-      final dados = res.data['dados'] as Map<String, dynamic>?;
+      final user = await AuthStorage.getUser();
+      if (user == null) { setState(() => _loading = false); return; }
+      final dados = await firestoreService.getParQ(user.academiaId!, user.id);
       if (dados != null) {
         setState(() {
           _parq = dados;
@@ -80,13 +82,18 @@ class _AlunoParQScreenState extends State<AlunoParQScreen> {
     }
     setState(() => _salvando = true);
     try {
-      await dio.post('/api/parq/meu', data: {
+      final user = await AuthStorage.getUser();
+      if (user == null) return;
+      await firestoreService.addParQ(user.academiaId!, {
+        'aluno_id': user.id,
+        'academia_id': user.academiaId,
         'r1': _respostas[0], 'r2': _respostas[1], 'r3': _respostas[2],
         'r4': _respostas[3], 'r5': _respostas[4], 'r6': _respostas[5],
         'r7': _respostas[6], 'r8': _respostas[7], 'r9': _respostas[8],
         'r10': _respostas[9],
         'nomeCompleto': _nomeCtrl.text.trim(),
         'cpf': _cpfCtrl.text.trim(),
+        'requerAvaliacaoMedica': _respostas.any((r) => r),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

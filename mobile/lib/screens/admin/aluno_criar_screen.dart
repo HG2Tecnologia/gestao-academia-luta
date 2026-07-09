@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
@@ -23,21 +24,6 @@ class _PhoneMaskFormatter extends TextInputFormatter {
   }
 }
 
-class _DateMaskFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
-    final digits = next.text.replaceAll(RegExp(r'\D'), '');
-    final d = digits.length > 8 ? digits.substring(0, 8) : digits;
-    final buf = StringBuffer();
-    for (var i = 0; i < d.length; i++) {
-      if (i == 2 || i == 4) buf.write('/');
-      buf.write(d[i]);
-    }
-    final text = buf.toString();
-    return next.copyWith(text: text, selection: TextSelection.collapsed(offset: text.length));
-  }
-}
-
 class AdminAlunoCriarScreen extends StatefulWidget {
   const AdminAlunoCriarScreen({super.key});
 
@@ -50,15 +36,26 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   final _nome = TextEditingController();
   final _email = TextEditingController();
   final _telefone = TextEditingController();
-  final _nascimento = TextEditingController();
   final _emergenciaNome = TextEditingController();
   final _emergenciaTel = TextEditingController();
   final _diaVenc = TextEditingController();
 
+  DateTime? _dataNascimento;
   List<Map<String, dynamic>> _planos = [];
   String? _planoId;
   bool _salvando = false;
   String? _erro;
+
+  bool get _menorDeIdade {
+    if (_dataNascimento == null) return false;
+    final hoje = DateTime.now();
+    var idade = hoje.year - _dataNascimento!.year;
+    if (hoje.month < _dataNascimento!.month ||
+        (hoje.month == _dataNascimento!.month && hoje.day < _dataNascimento!.day)) {
+      idade--;
+    }
+    return idade < 18;
+  }
 
   @override
   void initState() {
@@ -66,31 +63,74 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     _carregarPlanos();
   }
 
-  String _toIsoDate(String ddmmaaaa) {
-    final parts = ddmmaaaa.split('/');
-    if (parts.length != 3) return ddmmaaaa;
-    return '${parts[2]}-${parts[1]}-${parts[0]}';
-  }
-
   Future<void> _carregarPlanos() async {
     try {
-      final res = await dio.get('/api/planos');
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
-      if (mounted) setState(() => _planos = list.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final list = await firestoreService.getPlanos(academiaId);
+      if (mounted) setState(() => _planos = list);
     } catch (_) {}
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dataNascimento ?? DateTime(now.year - 10),
+      firstDate: DateTime(1920),
+      lastDate: now,
+      locale: const Locale('pt', 'BR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.dark(
+            primary: kPrimary,
+            onPrimary: Colors.white,
+            surface: kSurface,
+            onSurface: kText1,
+          ),
+          dialogBackgroundColor: kBg,
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _dataNascimento = picked);
   }
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _salvando = true; _erro = null; });
     try {
-      await dio.post('/api/alunos', data: {
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final emailVal = _email.text.trim().toLowerCase();
+      final telVal = _telefone.text.trim();
+      final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
+
+      // Verificar duplicados por e-mail ou telefone
+      final duplicado = await firestoreService.verificarDuplicadoAluno(
+        academiaId,
+        email: emailVal.isNotEmpty ? emailVal : null,
+        telefoneDigits: telDigits.isNotEmpty ? telDigits : null,
+      );
+
+      if (duplicado != null && mounted) {
+        setState(() => _salvando = false);
+        final confirmar = await _confirmarDuplicado(duplicado);
+        if (!confirmar) return;
+        setState(() { _salvando = true; _erro = null; });
+      }
+
+      final nascIso = _dataNascimento != null
+          ? '${_dataNascimento!.year.toString().padLeft(4, '0')}-'
+            '${_dataNascimento!.month.toString().padLeft(2, '0')}-'
+            '${_dataNascimento!.day.toString().padLeft(2, '0')}'
+          : null;
+      await firestoreService.addAluno(academiaId, {
         'nome': _nome.text.trim(),
-        'email': _email.text.trim().isEmpty ? null : _email.text.trim(),
-        'telefone': _telefone.text.trim(),
-        if (_nascimento.text.trim().length == 10) 'dataNascimento': _toIsoDate(_nascimento.text.trim()),
+        'email': emailVal.isEmpty ? null : emailVal,
+        'telefone': telVal,
+        if (telDigits.isNotEmpty) 'telefone_digits': telDigits,
+        if (nascIso != null) 'dataNascimento': nascIso,
         if (_emergenciaNome.text.trim().isNotEmpty) 'contatoEmergenciaNome': _emergenciaNome.text.trim(),
         if (_emergenciaTel.text.trim().isNotEmpty) 'contatoEmergenciaTelefone': _emergenciaTel.text.trim(),
         if (_planoId != null) 'planoId': _planoId,
@@ -113,12 +153,55 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     }
   }
 
+  Future<bool> _confirmarDuplicado(Map<String, dynamic> existente) async {
+    final nomeExist = existente['nome'] as String? ?? 'aluno existente';
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Contato já cadastrado', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('O e-mail ou telefone informado já pertence a:', style: TextStyle(color: kText2, fontSize: 13)),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                Icon(Icons.person_rounded, color: kPrimary, size: 20),
+                const SizedBox(width: 8),
+                Text(nomeExist, style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Deseja cadastrar mesmo assim?\n'
+              'Ao fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).',
+              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancelar', style: TextStyle(color: kText2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Cadastrar mesmo assim', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
   @override
   void dispose() {
     _nome.dispose();
     _email.dispose();
     _telefone.dispose();
-    _nascimento.dispose();
     _emergenciaNome.dispose();
     _emergenciaTel.dispose();
     _diaVenc.dispose();
@@ -127,6 +210,12 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final nascFormatted = _dataNascimento == null
+        ? null
+        : '${_dataNascimento!.day.toString().padLeft(2, '0')}/'
+          '${_dataNascimento!.month.toString().padLeft(2, '0')}/'
+          '${_dataNascimento!.year}';
+
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
@@ -144,11 +233,68 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             _field(_nome, 'Nome completo *', required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
             _field(_telefone, 'Telefone', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
-            _field(_nascimento, 'Data de nascimento (DD/MM/AAAA)', keyboard: TextInputType.number, formatters: [_DateMaskFormatter()]),
+
+            // Date picker field
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FormField<DateTime>(
+                initialValue: _dataNascimento,
+                validator: (_) => null,
+                builder: (state) => GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    height: 50,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: kSurface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kBorder),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.calendar_today_rounded, color: kText2, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          nascFormatted ?? 'Data de nascimento',
+                          style: TextStyle(
+                            color: nascFormatted != null ? kText1 : kText2,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      if (_menorDeIdade)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: kWarning.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('Menor de idade', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
+                        ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 16),
-            _section('Contato de emergência'),
-            _field(_emergenciaNome, 'Nome do contato'),
-            _field(_emergenciaTel, 'Telefone do contato', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
+            _sectionWithBadge(
+              'Contato de emergência',
+              _menorDeIdade ? '* obrigatório' : 'opcional',
+              obrigatorio: _menorDeIdade,
+            ),
+            _field(
+              _emergenciaNome,
+              _menorDeIdade ? 'Nome do responsável *' : 'Nome do contato',
+              required: _menorDeIdade,
+            ),
+            _field(
+              _emergenciaTel,
+              _menorDeIdade ? 'Telefone do responsável *' : 'Telefone do contato',
+              keyboard: TextInputType.phone,
+              formatters: [_PhoneMaskFormatter()],
+              required: _menorDeIdade,
+            ),
             const SizedBox(height: 16),
             _section('Plano financeiro'),
             if (_planos.isNotEmpty) ...[
@@ -212,7 +358,30 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         child: Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
       );
 
-  Widget _field(TextEditingController ctrl, String hint, {bool required = false, TextInputType? keyboard, List<TextInputFormatter>? formatters}) => Padding(
+  Widget _sectionWithBadge(String label, String badge, {bool obrigatorio = false}) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(children: [
+          Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+          const SizedBox(width: 8),
+          Text(
+            badge,
+            style: TextStyle(
+              color: obrigatorio ? kWarning : kText2,
+              fontSize: 11,
+              fontWeight: obrigatorio ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ]),
+      );
+
+  Widget _field(
+    TextEditingController ctrl,
+    String hint, {
+    bool required = false,
+    TextInputType? keyboard,
+    List<TextInputFormatter>? formatters,
+  }) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: TextFormField(
           controller: ctrl,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminModalidadesScreen extends StatefulWidget {
   const AdminModalidadesScreen({super.key});
@@ -22,9 +23,10 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
   Future<void> _carregar() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/modalidades');
-      final dados = res.data['dados'] as List? ?? [];
-      setState(() => _modalidades = dados.cast<Map<String, dynamic>>());
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final list = await firestoreService.getModalidades(academiaId);
+      if (mounted) setState(() => _modalidades = list);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -51,7 +53,9 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.patch('/api/modalidades/${m['id']}/toggle-ativo');
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.toggleModalidadeAtivo(academiaId, m['id'] as String);
       await _carregar();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao alterar modalidade.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -73,7 +77,9 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/modalidades/${m['id']}');
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.deleteModalidade(academiaId, m['id'] as String);
       await _carregar();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Não é possível excluir. Verifique se há turmas cadastradas.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
@@ -127,7 +133,9 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
 
     if (ok != true || nomeCtrl.text.trim().isEmpty) return;
     try {
-      await dio.post('/api/modalidades', data: {'nome': nomeCtrl.text.trim(), 'ativo': true});
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      await firestoreService.addModalidade(academiaId, {'nome': nomeCtrl.text.trim(), 'ativo': true});
       await _carregar();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Modalidade criada!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating));
     } catch (_) {

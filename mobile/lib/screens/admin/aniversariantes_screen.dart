@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminAniversariantesScreen extends StatefulWidget {
   const AdminAniversariantesScreen({super.key});
@@ -27,10 +28,26 @@ class _AdminAniversariantesScreenState extends State<AdminAniversariantesScreen>
   Future<void> _load() async {
     if (mounted) setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/alunos/aniversariantes', queryParameters: {'mes': _mes});
-      final dados = res.data['dados'] as List? ?? [];
+      final user = await AuthStorage.getUser();
+      final academiaId = user!.academiaId!;
+      final todos = await firestoreService.getAlunos(academiaId);
+      final aniversariantes = todos.where((a) {
+        final dn = a['dataNascimento'] ?? a['data_nascimento'];
+        if (dn == null) return false;
+        try {
+          return DateTime.parse(dn.toString()).month == _mes;
+        } catch (_) {
+          return false;
+        }
+      }).map((a) {
+        final dn = a['dataNascimento'] ?? a['data_nascimento'];
+        int dia = 0;
+        try { dia = DateTime.parse(dn.toString()).day; } catch (_) {}
+        return {...a, 'diaNascimento': dia};
+      }).toList();
+      aniversariantes.sort((a, b) => ((a['diaNascimento'] as int?) ?? 0).compareTo((b['diaNascimento'] as int?) ?? 0));
       if (mounted) setState(() {
-        _alunos = dados.cast<Map<String, dynamic>>();
+        _alunos = aniversariantes;
         _loading = false;
       });
     } catch (_) {

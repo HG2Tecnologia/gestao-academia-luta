@@ -1,7 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 import 'rankings_screen.dart';
 
 class AdminRankingDetalheScreen extends StatefulWidget {
@@ -25,12 +25,14 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
   List<Map<String, dynamic>> _lancamentos = [];
   bool _loadingLancamentos = true;
 
+  String? _academiaId;
+
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
     _ranking = widget.rankingExtra;
-    _loadAll();
+    _loadAcademiaId().then((_) => _loadAll());
   }
 
   @override
@@ -39,27 +41,65 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
     super.dispose();
   }
 
+  Future<void> _loadAcademiaId() async {
+    final user = await AuthStorage.getUser();
+    _academiaId = user?.academiaId ?? '';
+  }
+
   Future<void> _loadAll() async {
+    if (_academiaId == null || _academiaId!.isEmpty) return;
     await Future.wait([_loadLeaderboard(), _loadLancamentos(), _loadRanking()]);
   }
 
   Future<void> _loadRanking() async {
+    if (_academiaId == null || _academiaId!.isEmpty) return;
     try {
-      final res = await dio.get('/api/ranking/custom/${widget.rankingId}');
-      final body = res.data as Map<String, dynamic>;
-      final d = body['dados'] ?? body;
-      if (mounted) setState(() => _ranking = d as Map<String, dynamic>?);
+      final list = await firestoreService.getRankingsCustom(_academiaId!);
+      final found = list.cast<Map<String, dynamic>>().where((r) => r['id']?.toString() == widget.rankingId).firstOrNull;
+      if (mounted && found != null) setState(() => _ranking = found);
     } catch (_) {}
   }
 
   Future<void> _loadLeaderboard() async {
+    if (_academiaId == null || _academiaId!.isEmpty) return;
     setState(() => _loadingLeaderboard = true);
     try {
-      final res = await dio.get('/api/ranking/custom/${widget.rankingId}/leaderboard');
-      final body = res.data as Map<String, dynamic>;
-      final d = body['dados'] ?? body;
-      final list = (d is Map ? d['items'] : null) ?? [];
-      if (mounted) setState(() => _items = (list as List).cast<Map<String, dynamic>>());
+      // Compute leaderboard from lancamentos grouped by alunoId
+      final allLancamentos = await firestoreService.getLancamentosPonto(_academiaId!, widget.rankingId);
+      final lancamentos = allLancamentos.cast<Map<String, dynamic>>();
+
+      // Group by aluno_id, sum pontos
+      final Map<String, Map<String, dynamic>> grouped = {};
+      for (final l in lancamentos) {
+        final alunoId = l['aluno_id']?.toString() ?? l['alunoId']?.toString() ?? '';
+        final nomeAluno = l['nome_aluno']?.toString() ?? l['nomeAluno']?.toString() ?? '';
+        final pts = (l['pontos'] as num?)?.toInt() ?? 0;
+        if (alunoId.isEmpty) continue;
+        if (!grouped.containsKey(alunoId)) {
+          grouped[alunoId] = {
+            'alunoId': alunoId,
+            'nomeAluno': nomeAluno,
+            'totalPontos': 0,
+            'pontosPresencas': 0,
+            'pontosManuais': 0,
+          };
+        }
+        grouped[alunoId]!['totalPontos'] = (grouped[alunoId]!['totalPontos'] as int) + pts;
+        final tipo = l['tipo']?.toString() ?? 'manual';
+        if (tipo == 'presenca') {
+          grouped[alunoId]!['pontosPresencas'] = (grouped[alunoId]!['pontosPresencas'] as int) + pts;
+        } else {
+          grouped[alunoId]!['pontosManuais'] = (grouped[alunoId]!['pontosManuais'] as int) + pts;
+        }
+      }
+
+      final sorted = grouped.values.toList()
+        ..sort((a, b) => (b['totalPontos'] as int).compareTo(a['totalPontos'] as int));
+      for (var i = 0; i < sorted.length; i++) {
+        sorted[i]['posicao'] = i + 1;
+      }
+
+      if (mounted) setState(() => _items = sorted);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingLeaderboard = false);
@@ -67,12 +107,17 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
   }
 
   Future<void> _loadLancamentos() async {
+    if (_academiaId == null || _academiaId!.isEmpty) return;
     setState(() => _loadingLancamentos = true);
     try {
-      final res = await dio.get('/api/ranking/custom/${widget.rankingId}/lancamentos');
-      final body = res.data as Map<String, dynamic>;
-      final d = body['dados'] ?? body;
-      if (mounted) setState(() => _lancamentos = (d is List ? d : []).cast<Map<String, dynamic>>());
+      final list = await firestoreService.getLancamentosPonto(_academiaId!, widget.rankingId);
+      final lancamentos = list.cast<Map<String, dynamic>>();
+      lancamentos.sort((a, b) {
+        final da = a['data'] ?? a['created_at'] ?? '';
+        final db = b['data'] ?? b['created_at'] ?? '';
+        return db.toString().compareTo(da.toString());
+      });
+      if (mounted) setState(() => _lancamentos = lancamentos);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingLancamentos = false);
@@ -80,6 +125,7 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
   }
 
   void _abrirLancarPontos() async {
+    if (_academiaId == null) return;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -87,6 +133,7 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _LancarPontosSheet(
         rankingId: widget.rankingId,
+        academiaId: _academiaId!,
         onSalvo: _loadAll,
       ),
     );
@@ -118,7 +165,7 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
     );
     if (ok != true) return;
     try {
-      await dio.delete('/api/ranking/lancamentos/$id');
+      await firestoreService.deleteLancamentoPonto(_academiaId!, id);
       _loadAll();
     } catch (_) {}
   }
@@ -258,6 +305,10 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
         itemCount: _lancamentos.length,
         itemBuilder: (_, i) {
           final l = _lancamentos[i];
+          final nomeAluno = l['nome_aluno'] ?? l['nomeAluno'] ?? '';
+          final descricao = l['descricao'] ?? '';
+          final nomeReg = l['nome_registrado_por'] ?? l['nomeRegistradoPor'] ?? '';
+          final data = l['data'] ?? l['created_at'] ?? '';
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(14),
@@ -274,16 +325,16 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(l['nomeAluno'] ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text(l['descricao'] ?? '', style: TextStyle(color: kText2, fontSize: 12)),
+                  Text(nomeAluno, style: TextStyle(color: kText1, fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(descricao, style: TextStyle(color: kText2, fontSize: 12)),
                   const SizedBox(height: 2),
-                  Text('por ${l['nomeRegistradoPor'] ?? ''} • ${l['data'] ?? ''}',
+                  Text('por $nomeReg • $data',
                       style: TextStyle(color: kText2.withOpacity(0.7), fontSize: 10)),
                 ]),
               ),
               IconButton(
                 icon: Icon(Icons.delete_outline, color: kDanger, size: 20),
-                onPressed: () => _removerLancamento(l['id']),
+                onPressed: () => _removerLancamento(l['id']?.toString() ?? ''),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -299,9 +350,10 @@ class _AdminRankingDetalheScreenState extends State<AdminRankingDetalheScreen>
 
 class _LancarPontosSheet extends StatefulWidget {
   final String rankingId;
+  final String academiaId;
   final VoidCallback onSalvo;
 
-  const _LancarPontosSheet({required this.rankingId, required this.onSalvo});
+  const _LancarPontosSheet({required this.rankingId, required this.academiaId, required this.onSalvo});
 
   @override
   State<_LancarPontosSheet> createState() => _LancarPontosSheetState();
@@ -332,10 +384,7 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
 
   Future<void> _carregarAlunos() async {
     try {
-      final res = await dio.get('/api/alunos', queryParameters: {'tamanhoPagina': 200});
-      final body = res.data as Map<String, dynamic>;
-      final dados = body['dados'];
-      final list = dados is List ? dados : (dados is Map ? (dados['itens'] as List? ?? []) : []);
+      final list = await firestoreService.getAlunos(widget.academiaId, ativosOnly: true);
       if (mounted) setState(() => _alunos = list.cast<Map<String, dynamic>>());
     } catch (_) {}
   }
@@ -348,18 +397,23 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
     }
     setState(() { _salvando = true; _erro = null; });
     try {
-      await dio.post('/api/ranking/custom/${widget.rankingId}/pontuar', data: {
-        'alunoId': _alunoId,
+      final aluno = _alunos.firstWhere((a) => a['id']?.toString() == _alunoId, orElse: () => {});
+      final nomeAluno = aluno['nome']?.toString() ?? '';
+      final user = await AuthStorage.getUser();
+
+      await firestoreService.addLancamentoPonto(widget.academiaId, {
+        'ranking_id': widget.rankingId,
+        'aluno_id': _alunoId,
+        'nome_aluno': nomeAluno,
         'pontos': int.tryParse(_pontos.text) ?? 0,
         'descricao': _descricao.text.trim(),
+        'tipo': 'manual',
+        'registrado_por': user?.id ?? '',
+        'nome_registrado_por': user?.nome ?? '',
+        'data': DateTime.now().toUtc().toIso8601String(),
       });
       widget.onSalvo();
       if (mounted) Navigator.of(context).pop();
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data['mensagem'] ?? e.response!.data.toString())
-          : 'Erro ${e.response?.statusCode ?? "de conexão"}.';
-      setState(() => _erro = msg);
     } catch (e) {
       setState(() => _erro = 'Erro inesperado: $e');
     } finally {
@@ -397,7 +451,7 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
                   hint: Text('Selecionar aluno *', style: TextStyle(color: kText2, fontSize: 14)),
                   isExpanded: true,
                   items: _alunos.map((a) => DropdownMenuItem<String?>(
-                    value: a['id'] as String?,
+                    value: a['id']?.toString(),
                     child: Text(a['nome'] ?? '', style: TextStyle(color: kText1)),
                   )).toList(),
                   onChanged: (v) => setState(() => _alunoId = v),
@@ -469,4 +523,3 @@ class _LancarPontosSheetState extends State<_LancarPontosSheet> {
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kDanger)),
       );
 }
-

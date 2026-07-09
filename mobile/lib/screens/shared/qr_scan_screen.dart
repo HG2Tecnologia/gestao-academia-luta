@@ -1,8 +1,9 @@
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
@@ -18,54 +19,154 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
   bool _carregando = false;
   Map<String, dynamic>? _info;
-  String? _token;
+  String? _alunoId;
+  String? _horarioId;
   bool _registrando = false;
   bool? _sucesso;
   String? _mensagemFinal;
 
-  Future<void> _processar(String token) async {
+  Future<void> _processar(String qrData) async {
     if (_carregando) return;
-    setState(() { _carregando = true; _info = null; _token = null; });
+    setState(() { _carregando = true; _info = null; _alunoId = null; });
     await _ctrl.stop();
 
     try {
-      final res = await dio.get('/api/presencas/qr-info', queryParameters: {'token': token});
-      final dados = res.data['dados'] as Map<String, dynamic>?;
-      if (dados == null) throw Exception('sem dados');
-      setState(() { _info = dados; _token = token; _carregando = false; });
-    } on DioException catch (e) {
-      final msg = e.response?.data?['mensagem'] ?? 'Token inválido ou expirado.';
+      // QR data format: "{academiaId}:{userId}"
+      final parts = qrData.split(':');
+      if (parts.length < 2) throw Exception('QR inválido');
+
+      final academiaId = parts[0];
+      final userId = parts[1];
+
+      // Busca dados do aluno no Firestore
+      final aluno = await firestoreService.getAluno(academiaId, userId);
+      if (aluno == null) throw Exception('Aluno não encontrado');
+
+      // Verifica se tem aula agora
+      final now = DateTime.now();
+      final weekDay = now.weekday % 7; // 0=Dom, 1=Seg, ..., 6=Sab
+      final horaAtual = now.hour * 60 + now.minute;
+
+      // Busca matrículas ativas
+      final matriculas = await firestoreService.getMatriculas(
+        academiaId,
+        alunoId: userId,
+        ativasOnly: true,
+      );
+
+      final turmaIds = matriculas
+          .map((m) => m['turma_id'] as String?)
+          .whereType<String>()
+          .toList();
+
+      // Busca horários das turmas do aluno para hoje
+      String? horarioIdAgora;
+      for (final turmaId in turmaIds) {
+        final horarios = await firestoreService.getHorarios(academiaId, turmaId: turmaId);
+        for (final h in horarios) {
+          if ((h['dia_semana'] as int?) != weekDay) continue;
+          // Verifica se a aula está em andamento (±30 min de tolerância)
+          try {
+            final inicio = _parseTime(h['hora_inicio']?.toString() ?? '');
+            final fim = _parseTime(h['hora_fim']?.toString() ?? '');
+            if (horaAtual >= inicio - 30 && horaAtual <= fim + 30) {
+              horarioIdAgora = h['id'] as String?;
+              break;
+            }
+          } catch (_) {}
+        }
+        if (horarioIdAgora != null) break;
+      }
+
+      // Busca turmas para exibição
+      final turmasSnap = await Future.wait(
+        turmaIds.map((id) => firestoreService.getTurma(academiaId, id)),
+      );
+      final turmasNomes = turmasSnap
+          .whereType<Map<String, dynamic>>()
+          .map((t) => t['nome'] as String? ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
+
+      // Conta presenças do mês
+      final mes = now.month;
+      final ano = now.year;
+      final mesStr = '$ano-${mes.toString().padLeft(2, '0')}';
+      final presencasSnap = await FirebaseFirestore.instance
+          .collection('academias')
+          .doc(academiaId)
+          .collection('presencas')
+          .where('aluno_id', isEqualTo: userId)
+          .where('data', isGreaterThanOrEqualTo: '$mesStr-01')
+          .get();
+
+      setState(() {
+        _info = {
+          'nome': aluno['nome'] ?? '',
+          'faixaNome': aluno['faixa_nome'] ?? 'Sem faixa',
+          'faixaCor': '#888888',
+          'turmas': turmasNomes,
+          'totalPresencasMes': presencasSnap.docs.length,
+          'temAulaAgora': horarioIdAgora != null,
+          'academiaId': academiaId,
+        };
+        _alunoId = userId;
+        _horarioId = horarioIdAgora;
+        _carregando = false;
+      });
+    } catch (e) {
       setState(() { _carregando = false; });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: Text('QR inválido ou aluno não encontrado.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
       await _ctrl.start();
     }
   }
 
+  int _parseTime(String t) {
+    // Format: "HH:MM:SS" or "HH:MM"
+    final parts = t.split(':');
+    if (parts.length < 2) return 0;
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
   Future<void> _registrar() async {
-    if (_token == null || _registrando) return;
+    if (_alunoId == null || _registrando || _info == null) return;
     setState(() { _registrando = true; });
     try {
-      final res = await dio.post('/api/presencas/qrcode', data: {'token': _token});
-      final body = res.data as Map<String, dynamic>;
+      final user = await AuthStorage.getUser();
+      final academiaId = _info!['academiaId'] as String;
+      final now = DateTime.now();
+      final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      await firestoreService.addPresenca(academiaId, {
+        'aluno_id': _alunoId,
+        'horario_id': _horarioId ?? '',
+        'academia_id': academiaId,
+        'data': dataStr,
+        'hora_checkin': '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00',
+        'metodo_checkin': 3, // QR Code
+        'confirmado': true,
+        'registrado_por': user?.id ?? '',
+      });
+
       setState(() {
-        _sucesso = body['sucesso'] == true;
-        _mensagemFinal = body['mensagem'] ?? 'Presença registrada!';
+        _sucesso = true;
+        _mensagemFinal = 'Presença registrada com sucesso!';
         _registrando = false;
       });
-    } on DioException catch (e) {
+    } catch (e) {
       setState(() {
         _sucesso = false;
-        _mensagemFinal = e.response?.data?['mensagem'] ?? 'Erro ao registrar.';
+        _mensagemFinal = 'Erro ao registrar presença.';
         _registrando = false;
       });
     }
   }
 
   Future<void> _reiniciar() async {
-    setState(() { _carregando = false; _info = null; _token = null; _sucesso = null; _mensagemFinal = null; _registrando = false; });
+    setState(() { _carregando = false; _info = null; _alunoId = null; _horarioId = null; _sucesso = null; _mensagemFinal = null; _registrando = false; });
     await _ctrl.start();
   }
 
@@ -101,7 +202,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
   }
 
   Widget _buildBody() {
-    // Resultado final (após registrar)
     if (_mensagemFinal != null) {
       return Center(
         child: Padding(
@@ -113,7 +213,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 width: 72, height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: (_sucesso! ? kSuccess : kDanger).withOpacity(0.15),
+                  color: (_sucesso! ? kSuccess : kDanger).withValues(alpha: 0.15),
                 ),
                 child: Icon(
                   _sucesso! ? Icons.check_circle_rounded : Icons.cancel_rounded,
@@ -138,7 +238,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
       );
     }
 
-    // Card do aluno (após escanear, antes de registrar)
     if (_info != null) {
       final nome = _info!['nome'] as String? ?? '';
       final faixaNome = _info!['faixaNome'] as String? ?? 'Sem faixa';
@@ -158,12 +257,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 decoration: BoxDecoration(
                   color: kSurface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: faixaCor.withOpacity(0.4), width: 1.5),
+                  border: Border.all(color: faixaCor.withValues(alpha: 0.4), width: 1.5),
                 ),
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // Avatar + faixa
                     Row(
                       children: [
                         Container(
@@ -184,7 +282,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: faixaCor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                                decoration: BoxDecoration(color: faixaCor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                                 child: Text(faixaNome, style: TextStyle(color: faixaCor, fontSize: 12, fontWeight: FontWeight.w600)),
                               ),
                             ],
@@ -195,7 +293,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     const SizedBox(height: 16),
                     Divider(color: kBorder, height: 1),
                     const SizedBox(height: 14),
-                    // Turmas
                     if (turmas.isNotEmpty)
                       Row(
                         children: [
@@ -205,7 +302,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
                         ],
                       ),
                     const SizedBox(height: 10),
-                    // Presenças do mês
                     Row(
                       children: [
                         Icon(Icons.check_circle_outline_rounded, color: kText2, size: 16),
@@ -225,7 +321,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.check_rounded),
                   label: Text(
-                    temAula ? 'Registrar presença' : 'Sem aulas para realizar presenças hoje',
+                    temAula ? 'Registrar presença' : 'Sem aulas para realizar presenças agora',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   style: FilledButton.styleFrom(
@@ -246,7 +342,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
       );
     }
 
-    // Scanner (estado inicial)
     return Stack(
       children: [
         if (!_carregando)
@@ -271,8 +366,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.55), borderRadius: BorderRadius.circular(8)),
-                    child: Text('Aponte para o QR Code do aluno', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12), textAlign: TextAlign.center),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(8)),
+                    child: Text('Aponte para o QR Code do aluno', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12), textAlign: TextAlign.center),
                   ),
                 ],
               ),

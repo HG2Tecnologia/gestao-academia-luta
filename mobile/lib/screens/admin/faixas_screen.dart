@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AdminFaixasScreen extends StatefulWidget {
   const AdminFaixasScreen({super.key});
@@ -16,6 +17,7 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
   String? _modalidadeId;
   bool _loading = true;
   bool _erro = false;
+  String? _academiaId;
 
   @override
   void initState() {
@@ -26,12 +28,13 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
   Future<void> _init() async {
     setState(() { _loading = true; _erro = false; });
     try {
-      final res = await dio.get('/api/modalidades');
-      final raw = res.data['dados'];
-      final list = raw is List ? raw : (raw as Map?)?['items'] as List? ?? [];
-      final modalidades = list.cast<Map<String, dynamic>>();
+      final user = await AuthStorage.getUser();
+      _academiaId = user?.academiaId ?? '';
+      if (_academiaId!.isEmpty) { setState(() => _loading = false); return; }
+      final todasModalidades = await firestoreService.getModalidades(_academiaId!);
+      final modalidades = todasModalidades.where((m) => m['ativo'] == true).toList();
       if (!mounted) return;
-      setState(() { _modalidades = modalidades; });
+      setState(() { _modalidades = modalidades.cast<Map<String, dynamic>>(); });
       if (modalidades.isNotEmpty) {
         _modalidadeId = modalidades.first['id']?.toString();
         await _loadFaixas();
@@ -44,15 +47,13 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
   }
 
   Future<void> _loadFaixas() async {
-    if (_modalidadeId == null) return;
+    if (_modalidadeId == null || _academiaId == null) return;
     setState(() { _loading = true; });
     try {
-      final res = await dio.get('/api/faixas', queryParameters: {'modalidadeId': _modalidadeId});
-      final raw = res.data['dados'];
-      final list = raw is List ? raw : (raw as Map?)?['items'] as List? ?? [];
-      final faixas = list.cast<Map<String, dynamic>>();
-      faixas.sort((a, b) => (a['ordem'] as int? ?? 0).compareTo(b['ordem'] as int? ?? 0));
-      if (mounted) setState(() { _faixas = faixas; _loading = false; });
+      final faixas = await firestoreService.getFaixas(_academiaId!, modalidadeId: _modalidadeId);
+      final list = faixas.cast<Map<String, dynamic>>();
+      list.sort((a, b) => (a['ordem'] as int? ?? 0).compareTo(b['ordem'] as int? ?? 0));
+      if (mounted) setState(() { _faixas = list; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
     }
@@ -74,30 +75,26 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
         ],
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted || _academiaId == null) return;
     try {
-      await dio.delete('/api/faixas/${faixa['id']}');
+      await firestoreService.deleteFaixa(_academiaId!, faixa['id'].toString());
       await _loadFaixas();
     } catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao remover faixa';
-      try {
-        final data = (e as dynamic).response?.data;
-        if (data is Map && data['mensagem'] != null) msg = data['mensagem'].toString();
-      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao remover faixa'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     }
   }
 
   void _abrirForm({Map<String, dynamic>? faixa}) {
-    if (_modalidadeId == null) return;
+    if (_modalidadeId == null || _academiaId == null) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _FaixaFormSheet(
+        academiaId: _academiaId!,
         modalidadeId: _modalidadeId!,
         faixa: faixa,
         proximaOrdem: _faixas.isEmpty ? 1 : (_faixas.last['ordem'] as int? ?? 0) + 1,
@@ -341,12 +338,14 @@ class _Tag extends StatelessWidget {
 
 class _FaixaFormSheet extends StatefulWidget {
   const _FaixaFormSheet({
+    required this.academiaId,
     required this.modalidadeId,
     required this.onSalvo,
     required this.proximaOrdem,
     this.faixa,
   });
 
+  final String academiaId;
   final String modalidadeId;
   final Map<String, dynamic>? faixa;
   final int proximaOrdem;
@@ -423,22 +422,17 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
         'descricao': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       };
       if (widget.faixa != null) {
-        await dio.put('/api/faixas/${widget.faixa!['id']}', data: data);
+        await firestoreService.updateFaixa(widget.academiaId, widget.faixa!['id'].toString(), data);
       } else {
-        await dio.post('/api/faixas', data: data);
+        await firestoreService.addFaixa(widget.academiaId, data);
       }
       if (!mounted) return;
       Navigator.pop(context);
       widget.onSalvo();
     } catch (e) {
       if (!mounted) return;
-      String msg = 'Erro ao salvar faixa';
-      try {
-        final d = (e as dynamic).response?.data;
-        if (d is Map && d['mensagem'] != null) msg = d['mensagem'].toString();
-      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(content: const Text('Erro ao salvar faixa'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() { _salvando = false; });

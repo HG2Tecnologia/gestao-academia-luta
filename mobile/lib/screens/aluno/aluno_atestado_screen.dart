@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '../../core/api_client.dart' show dio;
+import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class AlunoAtestadoScreen extends StatefulWidget {
   const AlunoAtestadoScreen({super.key});
@@ -27,9 +28,11 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
   Future<void> _carregar() async {
     setState(() => _loading = true);
     try {
-      final res = await dio.get('/api/atestados/meu');
+      final user = await AuthStorage.getUser();
+      if (user == null) { setState(() => _loading = false); return; }
+      final atestado = await firestoreService.getAtestadoAluno(user.academiaId!, user.id);
       setState(() {
-        _atestado = res.data['dados'];
+        _atestado = atestado;
         _loading = false;
       });
     } catch (_) {
@@ -73,11 +76,15 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
   Future<void> _enviar(Uint8List bytes, String mime, String nome) async {
     setState(() { _uploading = true; _erro = null; });
     try {
-      final base64 = base64Encode(bytes);
-      await dio.post('/api/atestados/meu', data: {
-        'arquivoBase64': base64,
+      final user = await AuthStorage.getUser();
+      if (user == null) { _mostrarErro('Usuário não autenticado.'); return; }
+      final base64Str = base64Encode(bytes);
+      await firestoreService.addAtestado(user.academiaId!, {
+        'aluno_id': user.id,
+        'arquivoBase64': base64Str,
         'arquivoMimeType': mime,
         'arquivoNome': nome,
+        'academia_id': user.academiaId,
       });
       await _carregar();
       if (mounted) {

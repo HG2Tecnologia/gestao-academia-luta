@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
@@ -14,22 +14,51 @@ class ProfessorShell extends StatefulWidget {
 }
 
 class _ProfessorShellState extends State<ProfessorShell> {
-  static const _items = [
-    (icon: Icons.groups_rounded, iconOff: Icons.groups_outlined, label: 'Turmas'),
-    (icon: Icons.schedule_rounded, iconOff: Icons.schedule_outlined, label: 'Horários'),
-    (icon: Icons.check_circle_rounded, iconOff: Icons.check_circle_outline_rounded, label: 'Presença'),
-    (icon: Icons.sports_martial_arts, iconOff: Icons.sports_martial_arts_outlined, label: 'Graduação'),
-    (icon: Icons.emoji_events_rounded, iconOff: Icons.emoji_events_outlined, label: 'Rankings'),
-    (icon: Icons.person_rounded, iconOff: Icons.person_outline_rounded, label: 'Perfil'),
+  static const _allItems = [
+    (icon: Icons.groups_rounded,          iconOff: Icons.groups_outlined,               label: 'Turmas',     perm: 'tela_turmas',    idx: 0),
+    (icon: Icons.schedule_rounded,        iconOff: Icons.schedule_outlined,             label: 'Horários',   perm: 'tela_horarios',  idx: 1),
+    (icon: Icons.check_circle_rounded,    iconOff: Icons.check_circle_outline_rounded,  label: 'Presença',   perm: 'tela_presenca',  idx: 2),
+    (icon: Icons.sports_martial_arts,     iconOff: Icons.sports_martial_arts_outlined,  label: 'Graduação',  perm: 'tela_graduacao', idx: 3),
+    (icon: Icons.emoji_events_rounded,    iconOff: Icons.emoji_events_outlined,         label: 'Rankings',   perm: 'tela_rankings',  idx: 4),
+    (icon: Icons.person_rounded,          iconOff: Icons.person_outline_rounded,        label: 'Perfil',     perm: '',               idx: 5),
   ];
 
-  void _navegar(int index) {
-    widget.shell.goBranch(index, initialLocation: index == widget.shell.currentIndex);
+  Map<String, bool> _permissoes = {};
+  bool _permLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarPermissoes();
+  }
+
+  Future<void> _carregarPermissoes() async {
+    final user = await AuthStorage.getUser();
+    if (mounted) {
+      setState(() {
+        _permissoes = user?.permissoes ?? {};
+        _permLoaded = true;
+      });
+    }
+  }
+
+  bool _temPermissao(String perm) {
+    if (perm.isEmpty) return true; // Perfil sempre visível
+    if (!_permLoaded) return true; // Ainda carregando → mostra tudo
+    return _permissoes[perm] ?? false;
+  }
+
+  void _navegar(int shellIdx) {
+    widget.shell.goBranch(shellIdx, initialLocation: shellIdx == widget.shell.currentIndex);
     Navigator.of(context).pop();
   }
 
   Widget _buildDrawer() {
-    final idx = widget.shell.currentIndex;
+    final currentIdx = widget.shell.currentIndex;
+
+    // Filtra itens com permissão
+    final visibleItems = _allItems.where((item) => _temPermissao(item.perm)).toList();
+
     return Drawer(
       backgroundColor: kSurface,
       child: SafeArea(
@@ -39,9 +68,9 @@ class _ProfessorShellState extends State<ProfessorShell> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [const Color(0xFF161616), const Color(0xFF0A0A0A)],
+                  colors: [Color(0xFF161616), Color(0xFF0A0A0A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -66,12 +95,12 @@ class _ProfessorShellState extends State<ProfessorShell> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 children: [
-                  for (int i = 0; i < _items.length; i++)
+                  for (final item in visibleItems)
                     _DrawerItem(
-                      icon: idx == i ? _items[i].icon : _items[i].iconOff,
-                      label: _items[i].label,
-                      selected: idx == i,
-                      onTap: () => _navegar(i),
+                      icon: currentIdx == item.idx ? item.icon : item.iconOff,
+                      label: item.label,
+                      selected: currentIdx == item.idx,
+                      onTap: () => _navegar(item.idx),
                     ),
                   const Divider(height: 24),
                   _DrawerItem(
@@ -94,11 +123,13 @@ class _ProfessorShellState extends State<ProfessorShell> {
                   icon: Icons.logout_rounded,
                   label: 'Sair',
                   selected: false,
-                  onTap: () async {
+                  onTap: () {
                     Navigator.of(context).pop();
-                    try { await dio.post('/api/auth/logout'); } catch (_) {}
-                    await AuthStorage.clear();
-                    if (context.mounted) context.go('/login');
+                    FirebaseAuth.instance.signOut().catchError((_) {}).whenComplete(() {
+                      AuthStorage.clear().then((_) {
+                        if (context.mounted) context.go('/login');
+                      });
+                    });
                   },
                 ),
               ]),

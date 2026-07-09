@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api_client.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firestore_service.dart';
 
 class _SmartInputFormatter extends TextInputFormatter {
   static final _onlyDigits = RegExp(r'\D');
@@ -55,15 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
   _InputMode _mode = _InputMode.indefinido;
 
   static const _loadingMsgs = [
-    'Conectando ao servidor...',
-    'Obtendo dados da sua academia...',
-    'Verificando alunos e graduações...',
-    'Carregando turmas ativas...',
-    'Sincronizando financeiro...',
-    'Verificando presenças...',
+    'Autenticando...',
+    'Carregando seus dados...',
     'Quase lá...',
-    'O servidor pode demorar um momento no primeiro acesso do dia...',
-    'Aguarde, estamos carregando tudo para você...',
   ];
   int _loadingMsgIdx = 0;
   Timer? _loadingTimer;
@@ -80,16 +73,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (newMode != _mode) setState(() => _mode = newMode);
   }
 
-  String _rawPhone() => _idCtrl.text.replaceAll(RegExp(r'\D'), '');
-
   String? _validarId() {
     final v = _idCtrl.text.trim();
     if (v.isEmpty) return 'Informe seu e-mail ou telefone.';
     if (_mode == _InputMode.email) {
       if (!_emailRegex.hasMatch(v)) return 'E-mail inválido.';
     } else if (_mode == _InputMode.telefone) {
-      final digits = _rawPhone();
-      if (digits.length < 10 || digits.length > 11) return 'Telefone inválido. Use DDD + número.';
+      final digits = v.replaceAll(RegExp(r'\D'), '');
+      if (digits.length < 10) return 'Telefone inválido. Ex: (11) 99999-0000';
     }
     return null;
   }
@@ -98,93 +89,114 @@ class _LoginScreenState extends State<LoginScreen> {
     final erroId = _validarId();
     if (erroId != null) { setState(() => _erro = erroId); return; }
     if (_senhaCtrl.text.isEmpty) { setState(() => _erro = 'Informe sua senha.'); return; }
-    if (_mode == _InputMode.telefone) {
-      setState(() => _erro = 'Login por telefone não disponível nesta versão. Use seu e-mail.');
-      return;
-    }
 
     setState(() { _loading = true; _erro = null; _loadingMsgIdx = 0; });
-    _loadingTimer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
+    _loadingTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
       if (mounted) setState(() => _loadingMsgIdx = (_loadingMsgIdx + 1) % _loadingMsgs.length);
     });
 
     try {
-      final email = _idCtrl.text.trim();
+      // Usuários cadastrados só com telefone usam email sintético no Firebase Auth
+      final String email;
+      if (_mode == _InputMode.telefone) {
+        final digits = _idCtrl.text.replaceAll(RegExp(r'\D'), '');
+        email = '$digits@sensei.app';
+      } else {
+        email = _idCtrl.text.trim();
+      }
       final senha = _senhaCtrl.text;
 
-      Map<String, dynamic>? body;
+      // 1. Autenticar com Firebase (sem backend, instantâneo)
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: senha)
+          .timeout(const Duration(seconds: 15));
 
-      // 1. Tenta autenticar com Firebase (instantâneo, sem cold start do Render)
-      try {
-        final credential = await FirebaseAuth.instance
-            .signInWithEmailAndPassword(email: email, password: senha)
-            .timeout(const Duration(seconds: 20));
+      final uid = credential.user!.uid;
 
-        final idToken = await credential.user!.getIdToken();
-        if (idToken == null) throw Exception('Token Firebase vazio.');
-
-        final res = await dio
-            .post('/api/auth/firebase-login', data: {'idToken': idToken})
-            .timeout(const Duration(seconds: 70));
-
-        body = res.data as Map<String, dynamic>;
-      } on FirebaseAuthException catch (e) {
-        // Usuário existente sem conta Firebase: migra automaticamente
-        if (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'wrong-password') {
-          body = await _loginLegadoEMigrar(email, senha);
-        } else {
-          rethrow;
-        }
-      }
-
-      if (body == null) {
-        if (mounted) setState(() => _erro = 'Credenciais inválidas.');
+      // 2. Buscar dados do usuário no Firestore (sem backend, sem cold start)
+      final userData = await firestoreService.getUserByFirebaseUid(uid);
+      if (userData == null) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        setState(() => _erro = 'Usuário não encontrado no sistema. Contate o administrador.');
         return;
       }
 
-      if (body['sucesso'] == true) {
-        final d = body['dados'] as Map<String, dynamic>;
-        final token = d['accessToken'] as String;
-        final refreshToken = d['refreshToken'] as String?;
-        final id = AuthStorage.subFromJwt(token) ?? '';
-        await AuthStorage.save(
-          token,
-          StoredUser(
-            id: id,
-            nome: d['nome'] ?? '',
-            email: d['email'] ?? '',
-            perfil: d['perfil'] ?? '',
-            academiaId: d['academiaId']?.toString(),
-          ),
-          refreshToken: refreshToken,
-        );
+      // Extrai permissões (para professor/secretaria)
+      final rawPerm = userData['permissoes'];
+      final permissoes = rawPerm is Map
+          ? Map<String, bool>.from(rawPerm.map((k, v) => MapEntry(k.toString(), v == true)))
+          : <String, bool>{};
+
+      // Múltiplos perfis (grupo familiar de alunos)
+      final rawPerfis = userData['perfis'];
+      final perfisLista = rawPerfis is List
+          ? rawPerfis.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          : <Map<String, dynamic>>[];
+
+      // Se há múltiplos perfis, mostrar seletor
+      String usuarioId = userData['usuarioId'] as String? ?? uid;
+      String perfilNome = userData['perfil'] as String? ?? 'Aluno';
+      String? academiaId = userData['academiaId'] as String?;
+      String nomeUsuario = userData['nome'] as String? ?? '';
+
+      if (perfisLista.length > 1 && mounted) {
+        final selecionado = await _mostrarSeletorPerfil(perfisLista);
         if (!mounted) return;
-        switch (d['perfil']) {
-          case 'Admin':
-          case 'Secretaria':
-            context.go('/admin/dashboard');
-          case 'Professor':
-            context.go('/professor/turmas');
-          case 'Aluno':
-            context.go('/aluno/perfil');
-          default:
-            context.go('/login');
+        if (selecionado != null) {
+          usuarioId = selecionado['usuarioId'] as String? ?? usuarioId;
+          nomeUsuario = selecionado['nome'] as String? ?? nomeUsuario;
+          academiaId = selecionado['academiaId'] as String? ?? academiaId;
         }
-      } else {
-        if (mounted) setState(() => _erro = body?['mensagem'] ?? 'Credenciais inválidas.');
+      }
+
+      // 3. Salvar dados localmente
+      await AuthStorage.save(
+        uid,
+        StoredUser(
+          id: usuarioId,
+          nome: nomeUsuario,
+          email: userData['email'] as String? ?? email,
+          perfil: perfilNome,
+          academiaId: academiaId,
+          permissoes: permissoes,
+          perfis: perfisLista,
+        ),
+      );
+
+      if (!mounted) return;
+
+      // 4. Navegar conforme perfil
+      switch (perfilNome) {
+        case 'Admin':
+        case 'Secretaria':
+          context.go('/admin/dashboard');
+        case 'Professor':
+          context.go('/professor/turmas');
+        case 'Aluno':
+          context.go('/aluno/perfil');
+        default:
+          context.go('/login');
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _erro = _mensagemFirebase(e.code));
-    } on DioException catch (e) {
+    } on FirebaseException catch (e) {
       if (!mounted) return;
-      setState(() => _erro = e.response?.data?['mensagem'] ?? 'Servidor temporariamente indisponível. Aguarde e tente novamente.');
+      final code = e.code;
+      if (code == 'unavailable' || code == 'failed-precondition') {
+        setState(() => _erro = 'Banco de dados ainda não configurado. Contate o administrador.');
+      } else if (code == 'permission-denied') {
+        setState(() => _erro = 'Sem permissão para acessar os dados. Contate o administrador.');
+      } else {
+        setState(() => _erro = 'Erro Firebase ($code): ${e.message}');
+      }
     } on TimeoutException {
       if (!mounted) return;
       setState(() => _erro = 'Tempo esgotado. Verifique sua conexão e tente novamente.');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _erro = 'Erro inesperado. Tente novamente.');
+      setState(() => _erro = 'Erro inesperado: $e');
     } finally {
       _loadingTimer?.cancel();
       _loadingTimer = null;
@@ -192,26 +204,44 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Chamado quando o usuário existe no backend mas ainda não tem conta Firebase.
-  // Faz login pelo endpoint legado, e se funcionar cria a conta Firebase em segundo plano.
-  Future<Map<String, dynamic>?> _loginLegadoEMigrar(String email, String senha) async {
-    try {
-      final res = await dio
-          .post('/api/auth/login', data: {'email': email, 'senha': senha})
-          .timeout(const Duration(seconds: 30));
-
-      final body = res.data as Map<String, dynamic>;
-      if (body['sucesso'] != true) return body;
-
-      // Migra para Firebase em segundo plano (não bloqueia o login)
-      FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: senha)
-          .ignore();
-
-      return body;
-    } catch (_) {
-      return null;
-    }
+  Future<Map<String, dynamic>?> _mostrarSeletorPerfil(List<Map<String, dynamic>> perfis) async {
+    return showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 36, height: 4, margin: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(children: [
+                Icon(Icons.group_rounded, color: kPrimary, size: 22),
+                const SizedBox(width: 10),
+                Text('Qual perfil deseja acessar?', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+            const Divider(height: 1),
+            for (final p in perfis)
+              ListTile(
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: kPrimary,
+                  child: Text(
+                    (p['nome'] as String? ?? '').split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12),
+                  ),
+                ),
+                title: Text(p['nome'] as String? ?? '', style: TextStyle(color: kText1, fontWeight: FontWeight.w600)),
+                trailing: Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 14),
+                onTap: () => Navigator.of(ctx).pop(p),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   String _mensagemFirebase(String code) {
@@ -219,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'E-mail ou senha incorretos.';
+        return 'E-mail ou senha incorretos. Se nunca acessou pelo app, use "Esqueci minha senha" para definir sua senha.';
       case 'user-disabled':
         return 'Esta conta está desativada.';
       case 'too-many-requests':
@@ -267,8 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(color: kText2, fontSize: 13),
                 ),
                 const SizedBox(height: 40),
-                Text('E-mail ou telefone',
-                    style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('E-mail ou Telefone', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _idCtrl,
@@ -277,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   inputFormatters: [_SmartInputFormatter()],
                   style: TextStyle(color: kText1, fontSize: 15),
                   decoration: InputDecoration(
-                    hintText: isPhone ? '(11) 99999-0000' : 'seu@email.com ou telefone',
+                    hintText: isPhone ? '(11) 99999-0000' : 'seu@email.com',
                     hintStyle: TextStyle(color: kText2),
                     prefixIcon: Icon(
                       _mode == _InputMode.telefone
