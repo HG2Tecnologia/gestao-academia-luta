@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/auth_storage.dart';
 import '../core/constants.dart';
 import '../core/firestore_service.dart';
+import '../core/iap_service.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
 import '../core/version_check_service.dart';
@@ -155,6 +156,12 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
       await PlanService.instance.load();
+      // Verifica renovações ativas na loja para manter plano_expiracao atualizado
+      final iap = IapService.instance;
+      await iap.init();
+      await iap.restaurar();
+      await Future.delayed(const Duration(seconds: 2));
+      await PlanService.instance.refresh();
       if (mounted && PlanService.instance.showAds) {
         await mostrarPaywall(context);
       }
