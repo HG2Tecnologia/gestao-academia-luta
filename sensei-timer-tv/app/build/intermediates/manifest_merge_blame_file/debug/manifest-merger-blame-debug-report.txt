@@ -1,0 +1,131 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="br.com.senseitimer.tv"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:4:5-67
+11-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:5:5-79
+12-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:5:22-76
+13
+14    <!-- Declara suporte a TV -->
+15    <uses-feature
+15-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:8:5-87
+16        android:name="android.software.leanback"
+16-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:8:19-59
+17        android:required="false" />
+17-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:8:60-84
+18    <uses-feature
+18-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:9:5-90
+19        android:name="android.hardware.touchscreen"
+19-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:9:19-62
+20        android:required="false" />
+20-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:9:63-87
+21
+22    <permission
+22-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+23        android:name="br.com.senseitimer.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+23-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+24        android:protectionLevel="signature" />
+24-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+25
+26    <uses-permission android:name="br.com.senseitimer.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+26-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+26-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+27
+28    <application
+28-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:11:5-42:19
+29        android:allowBackup="true"
+29-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:12:9-35
+30        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+30-->[androidx.core:core:1.9.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/f06568cf15f8091ea062d36eb5d437ad/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+31        android:debuggable="true"
+32        android:extractNativeLibs="true"
+33        android:label="@string/app_name"
+33-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:13:9-41
+34        android:theme="@style/Theme.SenseiTV"
+34-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:14:9-46
+35        android:usesCleartextTraffic="true" >
+35-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:15:9-44
+36        <activity
+36-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:17:9-41:20
+37            android:name="br.com.senseitimer.tv.MainActivity"
+37-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:18:13-41
+38            android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+38-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:21:13-83
+39            android:exported="true"
+39-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:19:13-36
+40            android:launchMode="singleTask"
+40-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:20:13-44
+41            android:screenOrientation="landscape" >
+41-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:22:13-50
+42
+43            <!-- Launcher na TV (ícone no menu da Android TV) -->
+44            <intent-filter>
+44-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:25:13-29:29
+45                <action android:name="android.intent.action.MAIN" />
+45-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:26:17-69
+45-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:26:25-66
+46
+47                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+47-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:27:17-86
+47-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:27:27-83
+48                <category android:name="android.intent.category.LAUNCHER" />
+48-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:28:17-77
+48-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:28:27-74
+49            </intent-filter>
+50
+51            <!-- Deep link: senseitimer://configure?uid=ABC123 -->
+52            <intent-filter>
+52-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:32:13-39:29
+53                <action android:name="android.intent.action.VIEW" />
+53-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:33:17-69
+53-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:33:25-66
+54
+55                <category android:name="android.intent.category.DEFAULT" />
+55-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:34:17-76
+55-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:34:27-73
+56                <category android:name="android.intent.category.BROWSABLE" />
+56-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:35:17-78
+56-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:35:27-75
+57
+58                <data
+58-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:36:17-38:48
+59                    android:host="configure"
+59-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:38:21-45
+60                    android:scheme="senseitimer" />
+60-->/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/sensei-timer-tv/app/src/main/AndroidManifest.xml:37:21-49
+61            </intent-filter>
+62        </activity>
+63
+64        <provider
+64-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+65            android:name="androidx.startup.InitializationProvider"
+65-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:25:13-67
+66            android:authorities="br.com.senseitimer.tv.androidx-startup"
+66-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:26:13-68
+67            android:exported="false" >
+67-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:27:13-37
+68            <meta-data
+68-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+69                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+69-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:30:17-75
+70                android:value="androidx.startup" />
+70-->[androidx.emoji2:emoji2:1.2.0] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/c23d34eb5aa7a4f3a495d05bfddf5161/transformed/jetified-emoji2-1.2.0/AndroidManifest.xml:31:17-49
+71            <meta-data
+71-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/b2b4cd640768f5437a1b8c882c90dcff/transformed/jetified-lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+72                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+72-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/b2b4cd640768f5437a1b8c882c90dcff/transformed/jetified-lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+73                android:value="androidx.startup" />
+73-->[androidx.lifecycle:lifecycle-process:2.4.1] /Users/gabrielfornydesouzamuniz/.gradle/caches/transforms-3/b2b4cd640768f5437a1b8c882c90dcff/transformed/jetified-lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+74        </provider>
+75    </application>
+76
+77</manifest>

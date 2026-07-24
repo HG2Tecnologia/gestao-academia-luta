@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "timer_sessions": {
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    }
+  }
+}

@@ -2,5 +2,16 @@
   "firestore": {
     "rules": "scripts/migrate-firestore/firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "database": {
+    "rules": "timer-web/database.rules.json"
+  },
+  "hosting": {
+    "target": "timer",
+    "public": "timer-web",
+    "ignore": ["firebase.json", "**/.*", "database.rules.json", "**/*.apk"],
+    "rewrites": [
+      { "source": "/", "destination": "/control.html" }
+    ]
   }
 }

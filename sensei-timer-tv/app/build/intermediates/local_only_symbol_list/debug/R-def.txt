@@ -1,0 +1,13 @@
+R_DEF: Internal format may change without notice
+local
+drawable card_bg
+drawable input_bg
+id btn_conectar
+id btn_redefinir
+id setup_layout
+id tv_erro
+id uid_input
+id webview
+layout activity_main
+string app_name
+style Theme.SenseiTV

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "sensei-manager-d64c0"
+  },
+  "targets": {
+    "sensei-manager-d64c0": {
+      "hosting": {
+        "timer": [
+          "sensei-manager-d64c0"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

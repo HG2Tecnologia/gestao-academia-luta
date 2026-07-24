@@ -1,0 +1,2593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sensei Timer — Controle</title>
+<style>
+/* ── Reset & tokens ───────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --red:      #dc2626;
+  --red-dark: #991b1b;
+  --red-glow: rgba(220,38,38,0.2);
+  --gold:     #c8a84b;
+  --green:    #16a34a;
+  --blue:     #1d4ed8;
+  --bg:       #0d0d0d;
+  --surface:  #141414;
+  --card:     #1e1e1e;
+  --card-hov: #252525;
+  --border:   #2d2d2d;
+  --text:     #f5f5f5;
+  --muted:    #737373;
+  --radius:   12px;
+  --radius-sm:8px;
+  --nav-h:    64px;
+  --header-h: 56px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* ── Auth overlay ─────────────────────────────────────────────────────────── */
+#auth-overlay {
+  position: fixed; inset: 0;
+  z-index: 1000;
+  display: flex;
+  background: var(--bg);
+}
+
+/* branding pane — visible only on ≥768px */
+#auth-brand {
+  display: none;
+  width: 42%;
+  background: linear-gradient(160deg, #1a0000 0%, var(--red-dark) 50%, #0d0d0d 100%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+#auth-brand::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='rgba(200,168,75,0.07)'/%3E%3C/svg%3E") repeat;
+}
+#auth-brand-logo {
+  font-size: 72px;
+  position: relative;
+  z-index: 1;
+}
+#auth-brand-title {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+#auth-brand-sub {
+  font-size: 15px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  #auth-brand { display: flex; }
+}
+
+/* form pane */
+#auth-form-pane {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.auth-logo-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+.auth-logo-mobile .logo-icon { font-size: 48px; }
+.auth-logo-mobile .logo-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--red);
+}
+@media (min-width: 768px) {
+  .auth-logo-mobile { display: none; }
+}
+
+.auth-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.auth-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.form-group input {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.form-group input:focus { border-color: var(--red); }
+
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 8px;
+}
+.btn-primary:hover  { background: #b91c1c; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { background: #555; cursor: not-allowed; }
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 18px;
+  justify-content: center;
+}
+.auth-link {
+  font-size: 14px;
+  color: var(--gold);
+  cursor: pointer;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+.auth-link:hover { text-decoration: underline; }
+
+.auth-error {
+  background: rgba(220,38,38,0.15);
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #fca5a5;
+  margin-bottom: 12px;
+  display: none;
+}
+.auth-error.visible { display: block; }
+
+.auth-success {
+  background: rgba(22,163,74,0.15);
+  border: 1px solid rgba(22,163,74,0.4);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #86efac;
+  margin-bottom: 12px;
+  display: none;
+}
+.auth-success.visible { display: block; }
+
+/* sub-telas auth */
+.auth-screen { display: none; }
+.auth-screen.ativa { display: block; }
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+#app {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+}
+#app.ativo { display: flex; }
+
+/* Header */
+#app-header {
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  gap: 12px;
+}
+#header-academia {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+#mini-timer {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+}
+#mini-timer.visivel { display: flex; }
+#mini-timer-tempo {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+#mini-timer-fase {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+#btn-logout {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+#btn-logout:hover { color: var(--text); border-color: var(--muted); }
+
+/* Content */
+#app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Bottom nav */
+#bottom-nav {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  padding: 6px 0;
+}
+.nav-btn .nav-icon { font-size: 20px; }
+.nav-btn.ativo { color: var(--red); }
+
+/* ── Seções ───────────────────────────────────────────────────────────────── */
+.secao { display: none; padding: 20px 16px 24px; }
+.secao.ativa { display: block; }
+
+/* Títulos de seção */
+.secao-titulo {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+.secao-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+/* ── Dashboard ───────────────────────────────────────────────────────────── */
+.dash-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.dash-user-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.dash-titulo {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.btn-novo-timer {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.btn-novo-timer:hover { background: var(--red-dark); }
+.btn-novo-timer:active { transform: scale(0.97); }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.secao-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.dash-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-card:hover  { background: var(--card-hov); border-color: #3a3a3a; }
+.dash-card:active { transform: scale(0.97); }
+.dash-card-icon {
+  width: 34px;
+  height: 34px;
+  background: var(--red);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.dash-card-icon svg {
+  width: 17px; height: 17px;
+  fill: none; stroke: #fff;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.dash-card-titulo {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.dash-card-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+#dash-ultimo {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Timer ────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1;
+  padding: 9px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.tab-btn.ativo { background: var(--red); color: #fff; }
+
+/* Configuração */
+.config-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.config-card-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+/* Modelos */
+.modelos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.modelo-btn {
+  padding: 10px 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: left;
+}
+.modelo-btn.ativo { border-color: var(--red); background: rgba(220,38,38,0.1); color: var(--red); }
+.modelo-btn:hover { border-color: #555; }
+.modelo-nome { display: block; font-size: 13px; }
+.modelo-info { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.modelo-btn.ativo .modelo-info { color: rgba(220,38,38,0.7); }
+
+/* Stepper */
+.campo-config {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.campo-config:last-child { border-bottom: none; }
+.campo-label { font-size: 14px; color: var(--text); }
+.campo-sub   { font-size: 12px; color: var(--muted); }
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stepper-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1;
+  font-weight: 700;
+}
+.stepper-btn:hover { background: var(--card-hov); border-color: #555; }
+.stepper-btn:active { transform: scale(0.92); }
+.stepper-val {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Display do timer */
+.timer-display-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 20px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.timer-label-fase {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.timer-label-fase.treino  { color: var(--gold); }
+.timer-label-fase.descanso { color: var(--green); }
+.timer-label-fase.fim     { color: var(--red); }
+
+.timer-num {
+  font-size: clamp(72px, 22vw, 110px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -3px;
+  line-height: 1;
+  color: var(--text);
+}
+.timer-num.treino   { color: var(--gold); }
+.timer-num.descanso { color: var(--green); }
+.timer-num.fim      { color: var(--red); animation: pisca 0.7s infinite; }
+@keyframes pisca { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+.timer-round-info {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.dots-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #333;
+  transition: background 0.3s;
+}
+.dot.feito  { background: var(--gold); }
+.dot.atual  { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+/* Controles do timer */
+.timer-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.btn-iniciar {
+  width: 100%;
+  padding: 18px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  box-shadow: 0 4px 20px var(--red-glow);
+  font-family: inherit;
+}
+.btn-iniciar:hover  { background: #b91c1c; }
+.btn-iniciar:active { transform: scale(0.98); }
+.btn-iniciar:disabled { background: #555; box-shadow: none; cursor: not-allowed; }
+
+.controles-row {
+  display: flex;
+  gap: 10px;
+}
+.btn-ctrl {
+  flex: 1;
+  padding: 13px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-ctrl:hover { background: var(--card-hov); border-color: #555; }
+.btn-ctrl:active { transform: scale(0.97); }
+.btn-ctrl.danger { color: var(--red); border-color: rgba(220,38,38,0.4); }
+.btn-ctrl.danger:hover { background: rgba(220,38,38,0.1); }
+.btn-ctrl:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Tab pane */
+.timer-pane { display: none; }
+.timer-pane.ativo { display: block; }
+
+/* ── Placar ──────────────────────────────────────────────────────────────── */
+.placar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.placar-times {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.placar-time-card {
+  flex: 1;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.placar-time-card.azul  { border-color: rgba(29,78,216,0.5); background: rgba(29,78,216,0.08); }
+.placar-time-card.branco { border-color: rgba(150,150,150,0.4); }
+
+.placar-time-nome-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  width: 100%;
+  padding: 4px;
+  outline: none;
+  font-family: inherit;
+}
+
+.placar-pontos-display {
+  font-size: 60px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.placar-time-card.azul  .placar-pontos-display { color: #60a5fa; }
+.placar-time-card.branco .placar-pontos-display { color: #e5e5e5; }
+
+.placar-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.placar-btns-row {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  justify-content: center;
+}
+.pbtn {
+  flex: 1;
+  padding: 7px 4px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.pbtn.plus  { color: #4ade80; border-color: rgba(74,222,128,0.3); }
+.pbtn.minus { color: #f87171; border-color: rgba(248,113,113,0.3); font-size: 11px; }
+.pbtn:hover { background: var(--card-hov); }
+.pbtn:active { transform: scale(0.95); }
+
+.placar-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.placar-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+.placar-sub-label { font-size: 11px; color: var(--muted); }
+.placar-sub-val   { font-size: 18px; font-weight: 700; min-width: 28px; text-align: center; }
+.placar-sub-btns  { display: flex; gap: 6px; }
+.psb {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.psb:hover { background: var(--card-hov); }
+
+/* Timer do placar */
+.placar-timer-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.placar-timer-titulo { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.placar-timer-num { font-size: 48px; font-weight: 900; color: var(--gold); text-align: center; font-variant-numeric: tabular-nums; }
+.placar-dur-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.pdur-btn {
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.pdur-btn.ativo { border-color: var(--gold); color: var(--gold); background: rgba(200,168,75,0.1); }
+.placar-controles { display: flex; gap: 8px; }
+.btn-nova-luta {
+  width: 100%;
+  padding: 13px;
+  background: transparent;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.btn-nova-luta:hover { background: rgba(220,38,38,0.1); }
+
+/* ── Academia ────────────────────────────────────────────────────────────── */
+.academia-logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: var(--card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.academia-logo-wrap:hover { border-color: #555; }
+.academia-logo-wrap.tem-logo { border-style: solid; border-color: var(--border); }
+#academia-logo-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  object-fit: cover;
+  display: none;
+  border: 2px solid var(--border);
+}
+#academia-logo-preview.visivel { display: block; }
+#logo-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+#logo-placeholder.oculto { display: none; }
+.academia-logo-hint { font-size: 13px; color: var(--muted); text-align: center; }
+#logo-input { display: none; }
+
+.field-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.field-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.field-group input[type="text"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+.field-group input[type="text"]:focus { border-color: var(--red); }
+
+.frases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.frase-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+.frase-texto {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  font-style: italic;
+}
+.frase-rem {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+  transition: color 0.15s;
+}
+.frase-rem:hover { color: var(--red); }
+
+.btn-add-frase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-add-frase:hover { border-color: #555; color: var(--text); }
+
+.btn-salvar {
+  width: 100%;
+  padding: 15px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  font-family: inherit;
+  transition: background 0.2s;
+  box-shadow: 0 4px 20px var(--red-glow);
+}
+.btn-salvar:hover { background: #b91c1c; }
+
+.save-ok {
+  background: rgba(22,163,74,0.15);
+  border: 1px solid rgba(22,163,74,0.4);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #86efac;
+  margin-bottom: 10px;
+  display: none;
+  text-align: center;
+}
+.save-ok.visivel { display: block; }
+
+/* ── TV / Modo TV ──────────────────────────────────────────────────────────── */
+.tv-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.tv-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.tv-card-titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.tv-link-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 13px;
+  color: var(--gold);
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  margin-bottom: 10px;
+}
+.btn-copiar {
+  width: 100%;
+  padding: 11px;
+  border: 1.5px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: rgba(200,168,75,0.1);
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+  margin-bottom: 16px;
+}
+.btn-copiar:hover { background: rgba(200,168,75,0.2); }
+.btn-copiar.copiado { color: var(--green); border-color: var(--green); background: rgba(22,163,74,0.1); }
+
+.tv-qr {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+.tv-qr img {
+  border-radius: 12px;
+  border: 8px solid #fff;
+  width: 220px;
+  height: 220px;
+  display: block;
+}
+
+.tv-instrucoes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tv-instrucao-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+.tv-instrucao-icon { font-size: 22px; flex-shrink: 0; }
+.tv-instrucao-texto { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.tv-instrucao-texto strong { color: var(--text); }
+
+.btn-abrir-tv {
+  width: 100%;
+  padding: 18px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 20px var(--red-glow);
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-abrir-tv:hover  { background: #b91c1c; }
+.btn-abrir-tv:active { transform: scale(0.98); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ AUTH OVERLAY ══════════════════════════════════════ -->
+<div id="auth-overlay">
+  <div id="auth-brand">
+    <div id="auth-brand-logo">🥋</div>
+    <div id="auth-brand-title">SENSEI TIMER</div>
+    <div id="auth-brand-sub">Timer profissional para academias de artes marciais</div>
+  </div>
+  <div id="auth-form-pane">
+    <div class="auth-box">
+      <div class="auth-logo-mobile">
+        <span class="logo-icon">🥋</span>
+        <span class="logo-title">SENSEI TIMER</span>
+      </div>
+
+      <!-- Tela: Login -->
+      <div class="auth-screen ativa" id="tela-login">
+        <div class="auth-title">Entrar</div>
+        <div class="auth-sub">Acesse sua academia</div>
+        <div class="auth-error" id="login-erro"></div>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="login-email" placeholder="professor@academia.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn-primary" id="btn-entrar">Entrar</button>
+        <div class="auth-links">
+          <button class="auth-link" id="link-cadastro">Criar conta</button>
+          <button class="auth-link" id="link-esqueci">Esqueci minha senha</button>
+        </div>
+      </div>
+
+      <!-- Tela: Cadastro -->
+      <div class="auth-screen" id="tela-cadastro">
+        <div class="auth-title">Criar conta</div>
+        <div class="auth-sub">Cadastre sua academia</div>
+        <div class="auth-error" id="cadastro-erro"></div>
+        <div class="form-group">
+          <label>Nome da academia</label>
+          <input type="text" id="cadastro-academia" placeholder="Academia Fight Club" autocomplete="organization">
+        </div>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="cadastro-email" placeholder="professor@academia.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="cadastro-senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Confirmar senha</label>
+          <input type="password" id="cadastro-confirmar" placeholder="Repita a senha" autocomplete="new-password">
+        </div>
+        <button class="btn-primary" id="btn-cadastrar">Cadastrar</button>
+        <div class="auth-links">
+          <button class="auth-link" id="link-ja-tenho">Já tenho conta</button>
+        </div>
+      </div>
+
+      <!-- Tela: Esqueci senha -->
+      <div class="auth-screen" id="tela-esqueci">
+        <div class="auth-title">Recuperar senha</div>
+        <div class="auth-sub">Enviaremos um link para o seu e-mail</div>
+        <div class="auth-error" id="esqueci-erro"></div>
+        <div class="auth-success" id="esqueci-ok">E-mail enviado! Verifique sua caixa de entrada.</div>
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="esqueci-email" placeholder="professor@academia.com" autocomplete="email">
+        </div>
+        <button class="btn-primary" id="btn-esqueci">Enviar link</button>
+        <div class="auth-links">
+          <button class="auth-link" id="link-voltar">Voltar ao login</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ APP SHELL ══════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Header -->
+  <header id="app-header">
+    <div id="header-academia"></div>
+    <div id="mini-timer">
+      <div id="mini-timer-tempo">00:00</div>
+      <div id="mini-timer-fase">TREINO</div>
+    </div>
+    <button id="btn-logout">Sair</button>
+  </header>
+
+  <!-- Content -->
+  <div id="app-content">
+
+    <!-- ── INÍCIO ── -->
+    <section class="secao ativa" id="sec-inicio">
+      <div class="dash-header">
+        <div>
+          <div class="dash-user-label" id="dash-user-label"></div>
+          <div class="dash-titulo">Dashboard</div>
+        </div>
+        <button class="btn-novo-timer" id="dash-btn-novo">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Timer
+        </button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-modo">—</div>
+          <div class="stat-label">Último modo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-fase">—</div>
+          <div class="stat-label">Último timer</div>
+        </div>
+      </div>
+
+      <div class="secao-label">Ações</div>
+      <div class="dash-grid">
+        <div class="dash-card" id="dash-rounds">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+          </div>
+          <div class="dash-card-titulo">Criar Timer</div>
+          <div class="dash-card-desc">Configure rounds, treino e descanso.</div>
+        </div>
+        <div class="dash-card" id="dash-tabata">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="dash-card-titulo">Tabata</div>
+          <div class="dash-card-desc">Intervalos de alta intensidade.</div>
+        </div>
+        <div class="dash-card" id="dash-openmat">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="dash-card-titulo">Open Mat</div>
+          <div class="dash-card-desc">Treino livre contínuo sem rounds.</div>
+        </div>
+        <div class="dash-card" id="dash-placar">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          </div>
+          <div class="dash-card-titulo">Placar</div>
+          <div class="dash-card-desc">Placar Jiu-Jitsu estilo campeonato.</div>
+        </div>
+        <div class="dash-card" id="dash-tv-atalho">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+          </div>
+          <div class="dash-card-titulo">Modo TV</div>
+          <div class="dash-card-desc">Tela cheia para Smart TV e projeção.</div>
+        </div>
+        <div class="dash-card" id="dash-academia-atalho">
+          <div class="dash-card-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </div>
+          <div class="dash-card-titulo">Academia</div>
+          <div class="dash-card-desc">Logo, nome e frases motivacionais.</div>
+        </div>
+      </div>
+
+      <div class="secao-label">Último timer</div>
+      <div id="dash-ultimo">Nenhum timer utilizado ainda.</div>
+    </section>
+
+    <!-- ── TIMER ── -->
+    <section class="secao" id="sec-timer">
+      <div class="tabs">
+        <button class="tab-btn ativo" data-tab="rounds">Rounds</button>
+        <button class="tab-btn" data-tab="tabata">Tabata</button>
+        <button class="tab-btn" data-tab="openmat">Open Mat</button>
+      </div>
+
+      <!-- ROUNDS -->
+      <div class="timer-pane ativo" id="pane-rounds">
+        <div class="config-card">
+          <div class="config-card-titulo">Modelo</div>
+          <div class="modelos-grid">
+            <button class="modelo-btn" data-modelo="bjj-inf">
+              <span class="modelo-nome">BJJ Infantil</span>
+              <span class="modelo-info">4 rounds · 3min · 1min desc.</span>
+            </button>
+            <button class="modelo-btn" data-modelo="bjj-adult">
+              <span class="modelo-nome">BJJ Adulto</span>
+              <span class="modelo-info">5 rounds · 6min · 1min30s desc.</span>
+            </button>
+            <button class="modelo-btn" data-modelo="muaythai">
+              <span class="modelo-nome">Muay Thai</span>
+              <span class="modelo-info">3 rounds · 3min · 1min desc.</span>
+            </button>
+            <button class="modelo-btn ativo" data-modelo="custom">
+              <span class="modelo-nome">Personalizado</span>
+              <span class="modelo-info">Configure abaixo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-titulo">Configuração</div>
+          <div class="campo-config">
+            <div>
+              <div class="campo-label">Número de rounds</div>
+            </div>
+            <div class="stepper">
+              <button class="stepper-btn" id="rounds-dec">−</button>
+              <div class="stepper-val" id="rounds-val">5</div>
+              <button class="stepper-btn" id="rounds-inc">+</button>
+            </div>
+          </div>
+          <div class="campo-config">
+            <div>
+              <div class="campo-label">Duração do round</div>
+            </div>
+            <div class="stepper">
+              <button class="stepper-btn" id="dur-round-dec">−</button>
+              <div class="stepper-val" id="dur-round-val">5:00</div>
+              <button class="stepper-btn" id="dur-round-inc">+</button>
+            </div>
+          </div>
+          <div class="campo-config">
+            <div>
+              <div class="campo-label">Descanso</div>
+            </div>
+            <div class="stepper">
+              <button class="stepper-btn" id="desc-dec">−</button>
+              <div class="stepper-val" id="desc-val">1:00</div>
+              <button class="stepper-btn" id="desc-inc">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer-display-wrap" id="rounds-display">
+          <div class="timer-label-fase" id="rounds-label">AGUARDANDO</div>
+          <div class="timer-num" id="rounds-timer">05:00</div>
+          <div class="timer-round-info" id="rounds-info">Round 1/5</div>
+          <div class="dots-row" id="rounds-dots"></div>
+        </div>
+
+        <div class="timer-controles">
+          <button class="btn-iniciar" id="rounds-iniciar">INICIAR</button>
+          <div class="controles-row" id="rounds-ctrl-row" style="display:none">
+            <button class="btn-ctrl" id="rounds-pausar">Pausar</button>
+            <button class="btn-ctrl" id="rounds-prox">Próximo</button>
+            <button class="btn-ctrl danger" id="rounds-parar">Parar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABATA -->
+      <div class="timer-pane" id="pane-tabata">
+        <div class="config-card">
+          <div class="config-card-titulo">Configuração Tabata</div>
+          <div class="campo-config">
+            <div><div class="campo-label">Ciclos</div></div>
+            <div class="stepper">
+              <button class="stepper-btn" id="tab-ciclos-dec">−</button>
+              <div class="stepper-val" id="tab-ciclos-val">8</div>
+              <button class="stepper-btn" id="tab-ciclos-inc">+</button>
+            </div>
+          </div>
+          <div class="campo-config">
+            <div><div class="campo-label">Trabalho</div></div>
+            <div class="stepper">
+              <button class="stepper-btn" id="tab-trab-dec">−</button>
+              <div class="stepper-val" id="tab-trab-val">0:20</div>
+              <button class="stepper-btn" id="tab-trab-inc">+</button>
+            </div>
+          </div>
+          <div class="campo-config">
+            <div><div class="campo-label">Descanso</div></div>
+            <div class="stepper">
+              <button class="stepper-btn" id="tab-desc-dec">−</button>
+              <div class="stepper-val" id="tab-desc-val">0:10</div>
+              <button class="stepper-btn" id="tab-desc-inc">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer-display-wrap">
+          <div class="timer-label-fase" id="tabata-label">AGUARDANDO</div>
+          <div class="timer-num" id="tabata-timer">00:20</div>
+          <div class="timer-round-info" id="tabata-info">Ciclo 1/8</div>
+          <div class="dots-row" id="tabata-dots"></div>
+        </div>
+
+        <div class="timer-controles">
+          <button class="btn-iniciar" id="tabata-iniciar">INICIAR</button>
+          <div class="controles-row" id="tabata-ctrl-row" style="display:none">
+            <button class="btn-ctrl" id="tabata-pausar">Pausar</button>
+            <button class="btn-ctrl" id="tabata-prox">Próximo</button>
+            <button class="btn-ctrl danger" id="tabata-parar">Parar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPEN MAT -->
+      <div class="timer-pane" id="pane-openmat">
+        <div class="config-card">
+          <div class="config-card-titulo">Duração total</div>
+          <div class="campo-config">
+            <div><div class="campo-label">Minutos</div></div>
+            <div class="stepper">
+              <button class="stepper-btn" id="om-dec">−</button>
+              <div class="stepper-val" id="om-val">60:00</div>
+              <button class="stepper-btn" id="om-inc">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer-display-wrap">
+          <div class="timer-label-fase" id="openmat-label">OPEN MAT</div>
+          <div class="timer-num" id="openmat-timer">60:00</div>
+          <div class="timer-round-info" id="openmat-info">Treino livre</div>
+        </div>
+
+        <div class="timer-controles">
+          <button class="btn-iniciar" id="openmat-iniciar">INICIAR</button>
+          <div class="controles-row" id="openmat-ctrl-row" style="display:none">
+            <button class="btn-ctrl" id="openmat-pausar">Pausar</button>
+            <button class="btn-ctrl danger" id="openmat-parar">Parar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PLACAR ── -->
+    <section class="secao" id="sec-placar">
+      <div class="placar-wrap">
+        <div class="placar-times">
+          <!-- Time A -->
+          <div class="placar-time-card azul" id="time-a-card">
+            <input class="placar-time-nome-input" id="nome-a" value="Azul" maxlength="12">
+            <div class="placar-pontos-display" id="pts-a">0</div>
+            <div class="placar-btns">
+              <div class="placar-btns-row">
+                <button class="pbtn plus" data-time="a" data-val="2">+2</button>
+                <button class="pbtn plus" data-time="a" data-val="3">+3</button>
+                <button class="pbtn plus" data-time="a" data-val="4">+4</button>
+              </div>
+              <div class="placar-btns-row">
+                <button class="pbtn minus" data-time="a" data-val="-2">−2</button>
+                <button class="pbtn minus" data-time="a" data-val="-3">−3</button>
+                <button class="pbtn minus" data-time="a" data-val="-4">−4</button>
+              </div>
+            </div>
+            <div class="placar-sub">
+              <div class="placar-sub-row">
+                <span class="placar-sub-label">Vant.</span>
+                <span class="placar-sub-val" id="vant-a">0</span>
+                <div class="placar-sub-btns">
+                  <button class="psb" data-time="a" data-sub="vantagens" data-op="+">+</button>
+                  <button class="psb" data-time="a" data-sub="vantagens" data-op="-">−</button>
+                </div>
+              </div>
+              <div class="placar-sub-row">
+                <span class="placar-sub-label">Pun.</span>
+                <span class="placar-sub-val" id="pun-a">0</span>
+                <div class="placar-sub-btns">
+                  <button class="psb" data-time="a" data-sub="punicoes" data-op="+">+</button>
+                  <button class="psb" data-time="a" data-sub="punicoes" data-op="-">−</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time B -->
+          <div class="placar-time-card branco" id="time-b-card">
+            <input class="placar-time-nome-input" id="nome-b" value="Branco" maxlength="12">
+            <div class="placar-pontos-display" id="pts-b">0</div>
+            <div class="placar-btns">
+              <div class="placar-btns-row">
+                <button class="pbtn plus" data-time="b" data-val="2">+2</button>
+                <button class="pbtn plus" data-time="b" data-val="3">+3</button>
+                <button class="pbtn plus" data-time="b" data-val="4">+4</button>
+              </div>
+              <div class="placar-btns-row">
+                <button class="pbtn minus" data-time="b" data-val="-2">−2</button>
+                <button class="pbtn minus" data-time="b" data-val="-3">−3</button>
+                <button class="pbtn minus" data-time="b" data-val="-4">−4</button>
+              </div>
+            </div>
+            <div class="placar-sub">
+              <div class="placar-sub-row">
+                <span class="placar-sub-label">Vant.</span>
+                <span class="placar-sub-val" id="vant-b">0</span>
+                <div class="placar-sub-btns">
+                  <button class="psb" data-time="b" data-sub="vantagens" data-op="+">+</button>
+                  <button class="psb" data-time="b" data-sub="vantagens" data-op="-">−</button>
+                </div>
+              </div>
+              <div class="placar-sub-row">
+                <span class="placar-sub-label">Pun.</span>
+                <span class="placar-sub-val" id="pun-b">0</span>
+                <div class="placar-sub-btns">
+                  <button class="psb" data-time="b" data-sub="punicoes" data-op="+">+</button>
+                  <button class="psb" data-time="b" data-sub="punicoes" data-op="-">−</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timer do placar -->
+        <div class="placar-timer-card">
+          <div class="placar-timer-titulo">Timer da luta</div>
+          <div class="placar-timer-num" id="placar-timer-num">05:00</div>
+          <div class="placar-dur-btns">
+            <button class="pdur-btn" data-min="3">3 min</button>
+            <button class="pdur-btn ativo" data-min="5">5 min</button>
+            <button class="pdur-btn" data-min="6">6 min</button>
+            <button class="pdur-btn" data-min="7">7 min</button>
+            <button class="pdur-btn" data-min="8">8 min</button>
+            <button class="pdur-btn" data-min="10">10 min</button>
+          </div>
+          <div class="placar-controles">
+            <button class="btn-ctrl" id="placar-iniciar" style="flex:2">Iniciar</button>
+            <button class="btn-ctrl" id="placar-pausar" style="flex:1">Pausar</button>
+            <button class="btn-ctrl danger" id="placar-zerar" style="flex:1">Zerar</button>
+          </div>
+        </div>
+
+        <button class="btn-nova-luta" id="btn-nova-luta">Nova luta (zerar tudo)</button>
+      </div>
+    </section>
+
+    <!-- ── ACADEMIA ── -->
+    <section class="secao" id="sec-academia">
+      <div class="secao-titulo">Minha Academia</div>
+      <div class="secao-sub">Configure as informações exibidas na TV</div>
+
+      <!-- Logo -->
+      <div class="academia-logo-wrap" id="logo-wrap">
+        <img id="academia-logo-preview" src="" alt="Logo">
+        <div id="logo-placeholder">🏫</div>
+        <div class="academia-logo-hint">Toque para fazer upload da logo<br><small>JPG, PNG — máx. 2MB</small></div>
+        <input type="file" id="logo-input" accept="image/*">
+      </div>
+
+      <!-- Nome -->
+      <div class="field-group">
+        <label>Nome da academia</label>
+        <input type="text" id="ac-nome" placeholder="Academia Fight Club" maxlength="50">
+      </div>
+
+      <!-- Frases -->
+      <div class="field-group">
+        <label>Frases motivacionais</label>
+        <div class="frases-list" id="frases-list"></div>
+        <button class="btn-add-frase" id="btn-add-frase">+ Adicionar frase</button>
+      </div>
+
+      <div class="save-ok" id="save-ok">Configurações salvas!</div>
+      <button class="btn-salvar" id="btn-salvar-ac">Salvar configurações</button>
+    </section>
+
+    <!-- ── TV ── -->
+    <section class="secao" id="sec-tv">
+      <div class="secao-titulo">Modo TV</div>
+      <div class="secao-sub">Exiba o timer na tela da academia</div>
+
+      <div class="tv-wrap">
+
+        <!-- QR Code em destaque -->
+        <div class="tv-card" style="text-align:center;">
+          <div class="tv-card-titulo">Escaneie com o celular ou câmera da TV</div>
+          <div class="tv-qr">
+            <img id="tv-qr-img" src="" alt="QR Code">
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:4px;">O QR leva direto ao timer da sua academia</div>
+        </div>
+
+        <!-- Botão principal -->
+        <button class="btn-abrir-tv" id="btn-abrir-tv">📺 Abrir timer para jogar na TV</button>
+        <div style="font-size:12px; color:var(--muted); text-align:center; margin-top:-10px; line-height:1.6;">
+          Abre em nova aba &mdash; no iPhone toque <strong style="color:var(--text)">Compartilhar → AirPlay</strong>
+        </div>
+
+        <!-- Link + copiar -->
+        <div class="tv-card">
+          <div class="tv-card-titulo">Link permanente</div>
+          <div class="tv-link-box" id="tv-link-box"></div>
+          <button class="btn-copiar" id="btn-copiar">Copiar link</button>
+        </div>
+
+        <!-- Guia por tipo de TV -->
+        <div class="tv-card">
+          <div class="tv-card-titulo">Como jogar na TV — por tipo</div>
+          <div class="tv-instrucoes">
+            <div class="tv-instrucao-item">
+              <div class="tv-instrucao-icon">📱</div>
+              <div class="tv-instrucao-texto">
+                <strong>iPhone + LG / Samsung (AirPlay)</strong><br>
+                Toque "Abrir timer" acima → no Safari toque <strong>Compartilhar</strong> (ícone de caixa com seta) → <strong>AirPlay</strong> → selecione sua TV. TV e iPhone precisam estar na mesma rede Wi-Fi.
+              </div>
+            </div>
+            <div class="tv-instrucao-item">
+              <div class="tv-instrucao-icon">🌐</div>
+              <div class="tv-instrucao-texto">
+                <strong>Smart TV com navegador</strong><br>
+                Abra o browser da TV e escaneie o QR code acima com a câmera, ou copie e cole o link no endereço do navegador.
+              </div>
+            </div>
+            <div class="tv-instrucao-item">
+              <div class="tv-instrucao-icon">🔥</div>
+              <div class="tv-instrucao-texto">
+                <strong>Amazon Fire Stick</strong><br>
+                Instale o <strong>Silk Browser</strong> (grátis na loja) → abra e acesse o link copiado acima. Fica salvo no histórico para próximas vezes.
+              </div>
+            </div>
+            <div class="tv-instrucao-item">
+              <div class="tv-instrucao-icon">💻</div>
+              <div class="tv-instrucao-texto">
+                <strong>Notebook + cabo HDMI</strong><br>
+                Conecte o notebook à TV, copie o link e abra em nova aba no Chrome → <strong>F11</strong> (Windows) ou <strong>⌃⌘F</strong> (Mac) para tela cheia. Controle pelo celular normalmente.
+              </div>
+            </div>
+            <div class="tv-instrucao-item">
+              <div class="tv-instrucao-icon">📺</div>
+              <div class="tv-instrucao-texto">
+                <strong>Android TV (TCL, Xiaomi, Philips...)</strong><br>
+                Abra o browser da Android TV e acesse o link, ou use Chromecast: no Chrome do celular toque nos 3 pontos → <strong>Transmitir</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div><!-- /app-content -->
+
+  <!-- Bottom nav -->
+  <nav id="bottom-nav">
+    <button class="nav-btn ativo" data-sec="inicio">
+      <span class="nav-icon">🏠</span>Início
+    </button>
+    <button class="nav-btn" data-sec="timer">
+      <span class="nav-icon">⏱</span>Timer
+    </button>
+    <button class="nav-btn" data-sec="placar">
+      <span class="nav-icon">🏆</span>Placar
+    </button>
+    <button class="nav-btn" data-sec="academia">
+      <span class="nav-icon">🏫</span>Academia
+    </button>
+    <button class="nav-btn" data-sec="tv">
+      <span class="nav-icon">📺</span>TV
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<script type="module">
+import { initializeApp }                 from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         sendPasswordResetEmail, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCO1qg976R4zpsA0Evnhlxu3gt8pSPrD2o",
+  authDomain: "sensei-manager-d64c0.firebaseapp.com",
+  projectId: "sensei-manager-d64c0",
+  storageBucket: "sensei-manager-d64c0.appspot.com",
+  messagingSenderId: "376094928692",
+  appId: "1:376094928692:ios:ac7a3728d7ca031c3e3f61"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(s) {
+  if (s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const ss = Math.floor(s % 60);
+  return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+function fmtSec(s) {
+  if (s < 0) s = 0;
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+}
+
+// ── Auth: navegação entre telas ───────────────────────────────────────────────
+function mostrarTelaAuth(id) {
+  document.querySelectorAll('.auth-screen').forEach(el => el.classList.remove('ativa'));
+  document.getElementById(id).classList.add('ativa');
+  // limpar erros
+  document.querySelectorAll('.auth-error, .auth-success').forEach(el => {
+    el.classList.remove('visible');
+    el.textContent = '';
+  });
+}
+
+document.getElementById('link-cadastro').addEventListener('click', () => mostrarTelaAuth('tela-cadastro'));
+document.getElementById('link-ja-tenho').addEventListener('click', () => mostrarTelaAuth('tela-login'));
+document.getElementById('link-esqueci').addEventListener('click',  () => mostrarTelaAuth('tela-esqueci'));
+document.getElementById('link-voltar').addEventListener('click',   () => mostrarTelaAuth('tela-login'));
+
+function mostrarErroAuth(elId, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+// ── Auth: Login ──────────────────────────────────────────────────────────────
+document.getElementById('btn-entrar').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const senha  = document.getElementById('login-senha').value;
+  if (!email || !senha) { mostrarErroAuth('login-erro', 'Preencha e-mail e senha.'); return; }
+  const btn = document.getElementById('btn-entrar');
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch(e) {
+    mostrarErroAuth('login-erro', traduzirErroFirebase(e.code));
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+});
+
+// Enter no campo de senha
+document.getElementById('login-senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-entrar').click();
+});
+
+// ── Auth: Cadastro ───────────────────────────────────────────────────────────
+document.getElementById('btn-cadastrar').addEventListener('click', async () => {
+  const academia = document.getElementById('cadastro-academia').value.trim();
+  const email    = document.getElementById('cadastro-email').value.trim();
+  const senha    = document.getElementById('cadastro-senha').value;
+  const confirm  = document.getElementById('cadastro-confirmar').value;
+
+  if (!academia) { mostrarErroAuth('cadastro-erro', 'Informe o nome da academia.'); return; }
+  if (!email)    { mostrarErroAuth('cadastro-erro', 'Informe o e-mail.'); return; }
+  if (senha.length < 6) { mostrarErroAuth('cadastro-erro', 'Senha deve ter no mínimo 6 caracteres.'); return; }
+  if (senha !== confirm) { mostrarErroAuth('cadastro-erro', 'As senhas não coincidem.'); return; }
+
+  const btn = document.getElementById('btn-cadastrar');
+  btn.disabled = true; btn.textContent = 'Cadastrando...';
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, senha);
+    const uid = cred.user.uid;
+    await setDoc(doc(db, 'timer_academia', uid), {
+      nome: academia,
+      logo_base64: null,
+      cor_primaria: '#dc2626',
+      frases: ['Disciplina vence talento.', 'Treino duro, luta fácil.'],
+      email: email,
+      created_at: serverTimestamp()
+    });
+  } catch(e) {
+    mostrarErroAuth('cadastro-erro', traduzirErroFirebase(e.code));
+    btn.disabled = false; btn.textContent = 'Cadastrar';
+  }
+});
+
+// ── Auth: Esqueci senha ───────────────────────────────────────────────────────
+document.getElementById('btn-esqueci').addEventListener('click', async () => {
+  const email = document.getElementById('esqueci-email').value.trim();
+  if (!email) { mostrarErroAuth('esqueci-erro', 'Informe o e-mail.'); return; }
+  const btn = document.getElementById('btn-esqueci');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await sendPasswordResetEmail(auth, email);
+    const ok = document.getElementById('esqueci-ok');
+    ok.classList.add('visible');
+  } catch(e) {
+    mostrarErroAuth('esqueci-erro', traduzirErroFirebase(e.code));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar link';
+  }
+});
+
+function traduzirErroFirebase(code) {
+  const mapa = {
+    'auth/user-not-found':       'Usuário não encontrado.',
+    'auth/wrong-password':       'Senha incorreta.',
+    'auth/email-already-in-use': 'E-mail já cadastrado.',
+    'auth/invalid-email':        'E-mail inválido.',
+    'auth/weak-password':        'Senha muito fraca.',
+    'auth/too-many-requests':    'Muitas tentativas. Tente mais tarde.',
+    'auth/invalid-credential':   'E-mail ou senha incorretos.',
+  };
+  return mapa[code] || 'Ocorreu um erro. Tente novamente.';
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
+
+// ── Estado do app ─────────────────────────────────────────────────────────────
+let currentUser = null;
+let estadoTimer = null;
+let academiaDados = { nome: '', logo_base64: null, frases: [] };
+let tickInterval = null;
+
+// ── onAuthStateChanged ────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  currentUser = user;
+  if (!user) {
+    // mostrar auth
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('app').classList.remove('ativo');
+    document.getElementById('btn-entrar').disabled = false;
+    document.getElementById('btn-entrar').textContent = 'Entrar';
+    mostrarTelaAuth('tela-login');
+    if (tickInterval) clearInterval(tickInterval);
+    return;
+  }
+
+  // logado
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('app').classList.add('ativo');
+
+  // Link da TV
+  configurarLinkTV(user.uid);
+
+  // Carregar dados da academia
+  carregarAcademia(user.uid);
+
+  // Escutar timer
+  escutarTimer(user.uid);
+
+  // Tick local
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(tickLocal, 100);
+});
+
+// ── Link TV ───────────────────────────────────────────────────────────────────
+function configurarLinkTV(uid) {
+  const tvUrl = `${location.origin}/display.html?s=${uid}`;
+
+  // Link permanente
+  document.getElementById('tv-link-box').textContent = tvUrl;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(tvUrl)}`;
+  document.getElementById('tv-qr-img').src = qrUrl;
+  document.getElementById('tv-qr-img').alt = 'QR Code do link da TV';
+
+  // Abrir timer em nova aba (usuário usa AirPlay / Cast do browser)
+  document.getElementById('btn-abrir-tv').addEventListener('click', () => {
+    window.open(tvUrl, '_blank');
+  });
+
+  // Copiar link da TV
+  document.getElementById('btn-copiar').addEventListener('click', () => {
+    navigator.clipboard.writeText(tvUrl).then(() => {
+      const btn = document.getElementById('btn-copiar');
+      btn.textContent = 'Copiado!';
+      btn.classList.add('copiado');
+      setTimeout(() => { btn.textContent = 'Copiar link'; btn.classList.remove('copiado'); }, 2000);
+    });
+  });
+}
+
+// ── Carregar / escutar academia ───────────────────────────────────────────────
+function carregarAcademia(uid) {
+  onSnapshot(doc(db, 'timer_academia', uid), snap => {
+    if (!snap.exists()) return;
+    academiaDados = snap.data();
+
+    const nome = academiaDados.nome || 'Minha Academia';
+    document.getElementById('header-academia').textContent = nome;
+
+    const usuario = auth.currentUser;
+    const userLabel = document.getElementById('dash-user-label');
+    if (userLabel) userLabel.textContent = usuario?.email || '';
+
+    // seção academia
+    document.getElementById('ac-nome').value = nome;
+    renderFrases(academiaDados.frases || []);
+
+    if (academiaDados.logo_base64) {
+      document.getElementById('academia-logo-preview').src = academiaDados.logo_base64;
+      document.getElementById('academia-logo-preview').classList.add('visivel');
+      document.getElementById('logo-placeholder').classList.add('oculto');
+      document.getElementById('logo-wrap').classList.add('tem-logo');
+
+      // avatar removido do novo dashboard
+    }
+  });
+}
+
+// ── Escutar timer no Firestore ────────────────────────────────────────────────
+function escutarTimer(uid) {
+  onSnapshot(doc(db, 'timer_sessions', uid), snap => {
+    if (!snap.exists()) {
+      estadoTimer = null;
+      atualizarUI(null);
+      return;
+    }
+    estadoTimer = snap.data();
+    atualizarUI(estadoTimer);
+  });
+}
+
+// ── Calcular remaining ────────────────────────────────────────────────────────
+function calcRemaining(s) {
+  if (!s || !s.rodando) return s ? (s.tempo_pausado || s.duracao_fase || 0) : 0;
+  const elapsed = (Date.now() - (s.iniciado_em || Date.now())) / 1000;
+  return Math.max(0, (s.duracao_fase || 0) - elapsed);
+}
+
+// ── Tick local 100ms ──────────────────────────────────────────────────────────
+let avancandoFase = false;
+
+async function tickLocal() {
+  const s = estadoTimer;
+  if (!s || !s.modo || s.modo === 'parado') return;
+
+  const remaining = calcRemaining(s);
+
+  if (s.modo === 'placar') {
+    document.getElementById('placar-timer-num').textContent = fmtSec(remaining);
+    const mt = document.getElementById('mini-timer-tempo');
+    const mf = document.getElementById('mini-timer-fase');
+    mt.textContent = fmtSec(remaining);
+    mf.textContent = 'LUTA';
+    document.getElementById('mini-timer').classList.add('visivel');
+  } else {
+    const modo = s.modo;
+    const prefMap = { rounds: 'rounds', tabata: 'tabata', openmat: 'openmat' };
+    const pref = prefMap[modo];
+    if (pref) {
+      const el = document.getElementById(`${pref}-timer`);
+      if (el) el.textContent = fmtSec(remaining);
+    }
+
+    // mini-timer
+    if (s.rodando) {
+      document.getElementById('mini-timer-tempo').textContent = fmtSec(remaining);
+      document.getElementById('mini-timer-fase').textContent = s.fase === 'descanso' ? 'DESC.' : 'TREINO';
+      document.getElementById('mini-timer').classList.add('visivel');
+    } else {
+      document.getElementById('mini-timer').classList.remove('visivel');
+    }
+  }
+
+  // auto-avançar
+  if (remaining <= 0 && s.rodando && !avancandoFase && s.fase !== 'fim') {
+    avancandoFase = true;
+    await proxFaseFirestore(s);
+    avancandoFase = false;
+  }
+}
+
+// ── Atualizar UI quando Firestore muda ───────────────────────────────────────
+function atualizarUI(s) {
+  if (!s || !s.modo || s.modo === 'parado') {
+    // tudo parado
+    resetUITimer('rounds');
+    resetUITimer('tabata');
+    resetUITimer('openmat');
+    resetUIplacar();
+    document.getElementById('mini-timer').classList.remove('visivel');
+    return;
+  }
+
+  const cfg = s.cfg || {};
+  const remaining = calcRemaining(s);
+
+  if (s.modo === 'rounds') {
+    atualizarUIRounds(s, cfg, remaining);
+  } else if (s.modo === 'tabata') {
+    atualizarUITabata(s, cfg, remaining);
+  } else if (s.modo === 'openmat') {
+    atualizarUIOpenmat(s, cfg, remaining);
+  } else if (s.modo === 'placar') {
+    atualizarUIPlacar(s, cfg, remaining);
+  }
+}
+
+function setTimerClass(elId, fase) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'timer-num';
+  if (fase === 'trabalho') el.classList.add('treino');
+  else if (fase === 'descanso') el.classList.add('descanso');
+  else if (fase === 'fim') el.classList.add('fim');
+}
+function setLabelClass(elId, fase) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.className = 'timer-label-fase';
+  if (fase === 'trabalho') { el.classList.add('treino'); el.textContent = 'TREINO'; }
+  else if (fase === 'descanso') { el.classList.add('descanso'); el.textContent = 'DESCANSO'; }
+  else if (fase === 'fim') { el.classList.add('fim'); el.textContent = 'FIM'; }
+  else { el.textContent = 'AGUARDANDO'; }
+}
+
+function atualizarUIRounds(s, cfg, remaining) {
+  const rounds = cfg.rounds || 5;
+  const cur    = s.round_atual || 1;
+  const fase   = s.fase || 'parado';
+
+  setTimerClass('rounds-timer', s.rodando ? fase : (fase === 'fim' ? 'fim' : ''));
+  setLabelClass('rounds-label', s.rodando ? fase : (fase === 'fim' ? 'fim' : 'parado'));
+
+  document.getElementById('rounds-timer').textContent = fmtSec(remaining);
+  document.getElementById('rounds-info').textContent = `Round ${cur} / ${rounds}`;
+  renderDots('rounds-dots', rounds, cur, fase);
+
+  const rodando = s.rodando;
+  document.getElementById('rounds-iniciar').style.display = rodando ? 'none' : 'block';
+  document.getElementById('rounds-ctrl-row').style.display = rodando || fase === 'fim' ? 'flex' : 'none';
+
+  const btnPausar = document.getElementById('rounds-pausar');
+  if (s.rodando) { btnPausar.textContent = 'Pausar'; }
+  else if (s.tempo_pausado > 0 && fase !== 'fim') { btnPausar.textContent = 'Retomar'; }
+  else { btnPausar.textContent = 'Pausar'; }
+
+  document.getElementById('rounds-prox').style.display = fase === 'fim' ? 'none' : '';
+}
+
+function atualizarUITabata(s, cfg, remaining) {
+  const ciclos = cfg.tabata_ciclos || 8;
+  const cur    = s.ciclo_atual || 1;
+  const fase   = s.fase || 'parado';
+
+  setTimerClass('tabata-timer', s.rodando ? fase : (fase === 'fim' ? 'fim' : ''));
+  setLabelClass('tabata-label', s.rodando ? fase : (fase === 'fim' ? 'fim' : 'parado'));
+
+  document.getElementById('tabata-timer').textContent = fmtSec(remaining);
+  document.getElementById('tabata-info').textContent = `Ciclo ${cur} / ${ciclos}`;
+  renderDots('tabata-dots', ciclos, cur, fase);
+
+  const rodando = s.rodando;
+  document.getElementById('tabata-iniciar').style.display = rodando ? 'none' : 'block';
+  document.getElementById('tabata-ctrl-row').style.display = rodando || fase === 'fim' ? 'flex' : 'none';
+
+  const btnPausar = document.getElementById('tabata-pausar');
+  if (s.rodando) { btnPausar.textContent = 'Pausar'; }
+  else if (s.tempo_pausado > 0 && fase !== 'fim') { btnPausar.textContent = 'Retomar'; }
+  else { btnPausar.textContent = 'Pausar'; }
+
+  document.getElementById('tabata-prox').style.display = fase === 'fim' ? 'none' : '';
+}
+
+function atualizarUIOpenmat(s, cfg, remaining) {
+  const fase = s.fase || 'parado';
+
+  setTimerClass('openmat-timer', s.rodando ? 'trabalho' : (fase === 'fim' ? 'fim' : ''));
+  document.getElementById('openmat-label').textContent = fase === 'fim' ? 'FIM' : 'OPEN MAT';
+
+  document.getElementById('openmat-timer').textContent = fmtSec(remaining);
+  document.getElementById('openmat-info').textContent = 'Treino livre';
+
+  const rodando = s.rodando;
+  document.getElementById('openmat-iniciar').style.display = rodando ? 'none' : 'block';
+  document.getElementById('openmat-ctrl-row').style.display = rodando || fase === 'fim' ? 'flex' : 'none';
+
+  const btnPausar = document.getElementById('openmat-pausar');
+  if (s.rodando) { btnPausar.textContent = 'Pausar'; }
+  else if (s.tempo_pausado > 0 && fase !== 'fim') { btnPausar.textContent = 'Retomar'; }
+  else { btnPausar.textContent = 'Pausar'; }
+}
+
+function atualizarUIPlacar(s, cfg, remaining) {
+  const p = s.placar || {};
+  const a = p.time_a || { nome:'Azul', pontos:0, vantagens:0, punicoes:0 };
+  const b = p.time_b || { nome:'Branco', pontos:0, vantagens:0, punicoes:0 };
+
+  document.getElementById('nome-a').value = a.nome || 'Azul';
+  document.getElementById('pts-a').textContent  = a.pontos ?? 0;
+  document.getElementById('vant-a').textContent = a.vantagens ?? 0;
+  document.getElementById('pun-a').textContent  = a.punicoes ?? 0;
+
+  document.getElementById('nome-b').value = b.nome || 'Branco';
+  document.getElementById('pts-b').textContent  = b.pontos ?? 0;
+  document.getElementById('vant-b').textContent = b.vantagens ?? 0;
+  document.getElementById('pun-b').textContent  = b.punicoes ?? 0;
+
+  document.getElementById('placar-timer-num').textContent = fmtSec(remaining);
+
+  const btnIniciar = document.getElementById('placar-iniciar');
+  const btnPausar  = document.getElementById('placar-pausar');
+  if (s.rodando) {
+    btnIniciar.textContent = 'Rodando'; btnIniciar.disabled = true;
+    btnPausar.textContent  = 'Pausar'; btnPausar.disabled = false;
+  } else if (s.tempo_pausado > 0 && s.fase !== 'fim') {
+    btnIniciar.textContent = 'Retomar'; btnIniciar.disabled = false;
+    btnPausar.textContent  = 'Pausar'; btnPausar.disabled = true;
+  } else {
+    btnIniciar.textContent = 'Iniciar'; btnIniciar.disabled = false;
+    btnPausar.textContent  = 'Pausar'; btnPausar.disabled = true;
+  }
+}
+
+function resetUITimer(pref) {
+  const el = document.getElementById(`${pref}-timer`);
+  if (el) el.className = 'timer-num';
+  const lb = document.getElementById(`${pref}-label`);
+  if (lb) { lb.className = 'timer-label-fase'; lb.textContent = pref === 'openmat' ? 'OPEN MAT' : 'AGUARDANDO'; }
+  const ic = document.getElementById(`${pref}-iniciar`);
+  if (ic) { ic.style.display = 'block'; ic.disabled = false; }
+  const cr = document.getElementById(`${pref}-ctrl-row`);
+  if (cr) cr.style.display = 'none';
+  const dd = document.getElementById(`${pref}-dots`);
+  if (dd) renderDots(`${pref}-dots`, pref === 'rounds' ? cfgRounds.rounds : cfgTabata.ciclos, 1, 'parado');
+}
+
+function resetUIplacar() {
+  document.getElementById('placar-iniciar').textContent = 'Iniciar';
+  document.getElementById('placar-iniciar').disabled = false;
+  document.getElementById('placar-pausar').disabled = true;
+}
+
+function renderDots(containerId, total, atual, fase) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  // limitar dots na tela
+  const show = Math.min(total, 20);
+  c.innerHTML = '';
+  for (let i = 1; i <= show; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot ' + (i < atual || fase === 'fim' ? 'feito' : i === atual ? 'atual' : '');
+    c.appendChild(d);
+  }
+  if (total > show) {
+    const s = document.createElement('span');
+    s.style.cssText = 'font-size:11px;color:var(--muted);align-self:center';
+    s.textContent = `+${total - show}`;
+    c.appendChild(s);
+  }
+}
+
+// ── Configurações locais ──────────────────────────────────────────────────────
+const cfgRounds = { rounds: 5, dur_round: 300, dur_descanso: 60 };
+const cfgTabata = { ciclos: 8, trabalho: 20, descanso: 10 };
+const cfgOpenmat = { duracao: 3600 };
+const cfgPlacar  = { duracao: 300 };
+
+function setupStepper(decId, incId, valId, cfg, key, min, max, step, displayFn) {
+  const valEl = document.getElementById(valId);
+  const update = () => { valEl.textContent = displayFn(cfg[key]); };
+  document.getElementById(decId).addEventListener('click', () => {
+    cfg[key] = Math.max(min, cfg[key] - step);
+    update();
+  });
+  document.getElementById(incId).addEventListener('click', () => {
+    cfg[key] = Math.min(max, cfg[key] + step);
+    update();
+  });
+  update();
+}
+
+// rounds
+setupStepper('rounds-dec','rounds-inc','rounds-val', cfgRounds, 'rounds', 1, 20, 1, v => v);
+setupStepper('dur-round-dec','dur-round-inc','dur-round-val', cfgRounds, 'dur_round', 30, 1800, 30, fmtSec);
+setupStepper('desc-dec','desc-inc','desc-val', cfgRounds, 'dur_descanso', 0, 600, 30, fmtSec);
+// tabata
+setupStepper('tab-ciclos-dec','tab-ciclos-inc','tab-ciclos-val', cfgTabata, 'ciclos', 1, 30, 1, v => v);
+setupStepper('tab-trab-dec','tab-trab-inc','tab-trab-val', cfgTabata, 'trabalho', 5, 300, 5, fmtSec);
+setupStepper('tab-desc-dec','tab-desc-inc','tab-desc-val', cfgTabata, 'descanso', 5, 120, 5, fmtSec);
+// openmat
+setupStepper('om-dec','om-inc','om-val', cfgOpenmat, 'duracao', 300, 7200, 300, fmtSec);
+
+// Inicializar dots
+renderDots('rounds-dots', cfgRounds.rounds, 1, 'parado');
+renderDots('tabata-dots', cfgTabata.ciclos, 1, 'parado');
+
+// ── Modelos ────────────────────────────────────────────────────────────────────
+const modelos = {
+  'bjj-inf':   { rounds: 4, dur_round: 180, dur_descanso: 60 },
+  'bjj-adult': { rounds: 5, dur_round: 360, dur_descanso: 90 },
+  'muaythai':  { rounds: 3, dur_round: 180, dur_descanso: 60 },
+};
+
+document.querySelectorAll('.modelo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.modelo-btn').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    const k = btn.dataset.modelo;
+    if (k !== 'custom' && modelos[k]) {
+      Object.assign(cfgRounds, modelos[k]);
+      document.getElementById('rounds-val').textContent  = cfgRounds.rounds;
+      document.getElementById('dur-round-val').textContent = fmtSec(cfgRounds.dur_round);
+      document.getElementById('desc-val').textContent    = fmtSec(cfgRounds.dur_descanso);
+      renderDots('rounds-dots', cfgRounds.rounds, 1, 'parado');
+    }
+  });
+});
+
+// ── Tabs timer ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativo'));
+    document.querySelectorAll('.timer-pane').forEach(p => p.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    document.getElementById(`pane-${btn.dataset.tab}`).classList.add('ativo');
+  });
+});
+
+// ── Funções Firestore timer ───────────────────────────────────────────────────
+async function salvarTimer(patch) {
+  if (!currentUser) return;
+  await setDoc(doc(db, 'timer_sessions', currentUser.uid), { ...patch, updated_at: serverTimestamp() }, { merge: true });
+}
+
+async function iniciarRounds() {
+  const cfg = { ...cfgRounds };
+  await salvarTimer({
+    modo: 'rounds', fase: 'trabalho', rodando: true,
+    cfg: { rounds: cfg.rounds, dur_round: cfg.dur_round, dur_descanso: cfg.dur_descanso,
+           tabata_ciclos:8, tabata_trabalho:20, tabata_descanso:10, openmat_duracao:3600, placar_duracao:300 },
+    round_atual: 1, ciclo_atual: 1,
+    duracao_fase: cfg.dur_round,
+    iniciado_em: Date.now(),
+    tempo_pausado: 0,
+    placar: { time_a:{nome:'Azul',pontos:0,vantagens:0,punicoes:0}, time_b:{nome:'Branco',pontos:0,vantagens:0,punicoes:0} }
+  });
+  salvarUltimoUso('rounds');
+}
+
+async function iniciarTabata() {
+  const cfg = { ...cfgTabata };
+  await salvarTimer({
+    modo: 'tabata', fase: 'trabalho', rodando: true,
+    cfg: { rounds:5, dur_round:300, dur_descanso:60,
+           tabata_ciclos: cfg.ciclos, tabata_trabalho: cfg.trabalho, tabata_descanso: cfg.descanso,
+           openmat_duracao:3600, placar_duracao:300 },
+    round_atual: 1, ciclo_atual: 1,
+    duracao_fase: cfg.trabalho,
+    iniciado_em: Date.now(),
+    tempo_pausado: 0,
+    placar: { time_a:{nome:'Azul',pontos:0,vantagens:0,punicoes:0}, time_b:{nome:'Branco',pontos:0,vantagens:0,punicoes:0} }
+  });
+  salvarUltimoUso('tabata');
+}
+
+async function iniciarOpenmat() {
+  const dur = cfgOpenmat.duracao;
+  await salvarTimer({
+    modo: 'openmat', fase: 'trabalho', rodando: true,
+    cfg: { rounds:5, dur_round:300, dur_descanso:60, tabata_ciclos:8, tabata_trabalho:20, tabata_descanso:10,
+           openmat_duracao: dur, placar_duracao:300 },
+    round_atual: 1, ciclo_atual: 1,
+    duracao_fase: dur,
+    iniciado_em: Date.now(),
+    tempo_pausado: 0,
+    placar: { time_a:{nome:'Azul',pontos:0,vantagens:0,punicoes:0}, time_b:{nome:'Branco',pontos:0,vantagens:0,punicoes:0} }
+  });
+  salvarUltimoUso('openmat');
+}
+
+async function pausarTimer() {
+  const s = estadoTimer;
+  if (!s) return;
+  if (s.rodando) {
+    const remaining = calcRemaining(s);
+    await salvarTimer({ rodando: false, tempo_pausado: remaining });
+  } else if (s.tempo_pausado > 0) {
+    // retomar
+    await salvarTimer({ rodando: true, duracao_fase: s.tempo_pausado, iniciado_em: Date.now(), tempo_pausado: 0 });
+  }
+}
+
+async function proxFaseFirestore(s) {
+  const cfg = s.cfg || {};
+  let patch = {};
+
+  if (s.modo === 'rounds') {
+    const rounds = cfg.rounds || 5;
+    if (s.fase === 'trabalho') {
+      if (s.round_atual >= rounds) {
+        patch = { fase: 'fim', rodando: false };
+      } else {
+        patch = { fase: 'descanso', rodando: true, duracao_fase: cfg.dur_descanso || 60, iniciado_em: Date.now(), tempo_pausado: 0 };
+      }
+    } else if (s.fase === 'descanso') {
+      const prox = (s.round_atual || 1) + 1;
+      if (prox > rounds) {
+        patch = { fase: 'fim', rodando: false };
+      } else {
+        patch = { fase: 'trabalho', rodando: true, round_atual: prox, duracao_fase: cfg.dur_round || 300, iniciado_em: Date.now(), tempo_pausado: 0 };
+      }
+    }
+  } else if (s.modo === 'tabata') {
+    const ciclos = cfg.tabata_ciclos || 8;
+    if (s.fase === 'trabalho') {
+      patch = { fase: 'descanso', rodando: true, duracao_fase: cfg.tabata_descanso || 10, iniciado_em: Date.now(), tempo_pausado: 0 };
+    } else if (s.fase === 'descanso') {
+      const prox = (s.ciclo_atual || 1) + 1;
+      if (prox > ciclos) {
+        patch = { fase: 'fim', rodando: false };
+      } else {
+        patch = { fase: 'trabalho', rodando: true, ciclo_atual: prox, duracao_fase: cfg.tabata_trabalho || 20, iniciado_em: Date.now(), tempo_pausado: 0 };
+      }
+    }
+  } else if (s.modo === 'openmat' || s.modo === 'placar') {
+    patch = { fase: 'fim', rodando: false };
+  }
+
+  if (Object.keys(patch).length) {
+    await salvarTimer(patch);
+  }
+}
+
+async function pararTimer() {
+  await salvarTimer({ modo: 'parado', fase: 'parado', rodando: false, tempo_pausado: 0 });
+}
+
+// ── Botões: Rounds ─────────────────────────────────────────────────────────────
+document.getElementById('rounds-iniciar').addEventListener('click', iniciarRounds);
+document.getElementById('rounds-pausar').addEventListener('click', pausarTimer);
+document.getElementById('rounds-prox').addEventListener('click', () => {
+  if (estadoTimer) proxFaseFirestore(estadoTimer);
+});
+document.getElementById('rounds-parar').addEventListener('click', pararTimer);
+
+// ── Botões: Tabata ────────────────────────────────────────────────────────────
+document.getElementById('tabata-iniciar').addEventListener('click', iniciarTabata);
+document.getElementById('tabata-pausar').addEventListener('click', pausarTimer);
+document.getElementById('tabata-prox').addEventListener('click', () => {
+  if (estadoTimer) proxFaseFirestore(estadoTimer);
+});
+document.getElementById('tabata-parar').addEventListener('click', pararTimer);
+
+// ── Botões: Open Mat ──────────────────────────────────────────────────────────
+document.getElementById('openmat-iniciar').addEventListener('click', iniciarOpenmat);
+document.getElementById('openmat-pausar').addEventListener('click', pausarTimer);
+document.getElementById('openmat-parar').addEventListener('click', pararTimer);
+
+// ── Placar ─────────────────────────────────────────────────────────────────────
+let placarLocal = {
+  time_a: { nome: 'Azul', pontos: 0, vantagens: 0, punicoes: 0 },
+  time_b: { nome: 'Branco', pontos: 0, vantagens: 0, punicoes: 0 }
+};
+
+function obterPlacarFirestore() {
+  return estadoTimer?.placar || placarLocal;
+}
+
+async function salvarPlacar() {
+  const p = obterPlacarFirestore();
+  p.time_a.nome = document.getElementById('nome-a').value || 'Azul';
+  p.time_b.nome = document.getElementById('nome-b').value || 'Branco';
+  await salvarTimer({ placar: { time_a: {...p.time_a}, time_b: {...p.time_b} } });
+}
+
+// Pontos
+document.querySelectorAll('.pbtn[data-time]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const time = btn.dataset.time;
+    const val  = parseInt(btn.dataset.val);
+    const p = JSON.parse(JSON.stringify(obterPlacarFirestore()));
+    const key = `time_${time}`;
+    p[key].pontos = Math.max(0, (p[key].pontos || 0) + val);
+    await salvarTimer({ placar: p, modo: 'placar', fase: estadoTimer?.rodando ? 'placar' : 'parado' });
+    document.getElementById(`pts-${time}`).textContent = p[key].pontos;
+  });
+});
+
+// Vantagens / Punições
+document.querySelectorAll('.psb[data-time]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const time = btn.dataset.time;
+    const sub  = btn.dataset.sub;
+    const op   = btn.dataset.op;
+    const p = JSON.parse(JSON.stringify(obterPlacarFirestore()));
+    const key = `time_${time}`;
+    p[key][sub] = Math.max(0, (p[key][sub] || 0) + (op === '+' ? 1 : -1));
+    await salvarTimer({ placar: p, modo: 'placar', fase: estadoTimer?.rodando ? 'placar' : 'parado' });
+    const elId = (sub === 'vantagens' ? 'vant' : 'pun') + '-' + time;
+    document.getElementById(elId).textContent = p[key][sub];
+  });
+});
+
+// Nomes
+['a','b'].forEach(t => {
+  document.getElementById(`nome-${t}`).addEventListener('change', salvarPlacar);
+});
+
+// Timer do placar
+document.querySelectorAll('.pdur-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pdur-btn').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    cfgPlacar.duracao = parseInt(btn.dataset.min) * 60;
+    document.getElementById('placar-timer-num').textContent = fmtSec(cfgPlacar.duracao);
+  });
+});
+
+document.getElementById('placar-iniciar').addEventListener('click', async () => {
+  const s = estadoTimer;
+  if (s && s.modo === 'placar' && !s.rodando && s.tempo_pausado > 0) {
+    // retomar
+    await salvarTimer({ rodando: true, duracao_fase: s.tempo_pausado, iniciado_em: Date.now(), tempo_pausado: 0 });
+  } else {
+    // iniciar nova
+    const p = JSON.parse(JSON.stringify(obterPlacarFirestore()));
+    p.time_a.nome = document.getElementById('nome-a').value || 'Azul';
+    p.time_b.nome = document.getElementById('nome-b').value || 'Branco';
+    await salvarTimer({
+      modo: 'placar', fase: 'placar', rodando: true,
+      cfg: { rounds:5, dur_round:300, dur_descanso:60, tabata_ciclos:8, tabata_trabalho:20, tabata_descanso:10,
+             openmat_duracao:3600, placar_duracao: cfgPlacar.duracao },
+      round_atual:1, ciclo_atual:1,
+      duracao_fase: cfgPlacar.duracao,
+      iniciado_em: Date.now(),
+      tempo_pausado: 0,
+      placar: p
+    });
+    salvarUltimoUso('placar');
+  }
+});
+
+document.getElementById('placar-pausar').addEventListener('click', async () => {
+  const s = estadoTimer;
+  if (!s || !s.rodando) return;
+  const remaining = calcRemaining(s);
+  await salvarTimer({ rodando: false, tempo_pausado: remaining });
+});
+
+document.getElementById('placar-zerar').addEventListener('click', async () => {
+  await salvarTimer({ rodando: false, tempo_pausado: 0, duracao_fase: cfgPlacar.duracao, fase: 'placar' });
+  document.getElementById('placar-timer-num').textContent = fmtSec(cfgPlacar.duracao);
+});
+
+document.getElementById('btn-nova-luta').addEventListener('click', async () => {
+  if (!confirm('Zerar placar e iniciar nova luta?')) return;
+  await salvarTimer({
+    modo: 'placar', fase: 'placar', rodando: false,
+    duracao_fase: cfgPlacar.duracao, tempo_pausado: 0, iniciado_em: 0,
+    placar: {
+      time_a: { nome: document.getElementById('nome-a').value || 'Azul', pontos:0, vantagens:0, punicoes:0 },
+      time_b: { nome: document.getElementById('nome-b').value || 'Branco', pontos:0, vantagens:0, punicoes:0 }
+    }
+  });
+  ['a','b'].forEach(t => {
+    document.getElementById(`pts-${t}`).textContent = 0;
+    document.getElementById(`vant-${t}`).textContent = 0;
+    document.getElementById(`pun-${t}`).textContent = 0;
+  });
+  document.getElementById('placar-timer-num').textContent = fmtSec(cfgPlacar.duracao);
+});
+
+// ── Academia ──────────────────────────────────────────────────────────────────
+let logoBase64 = null;
+
+document.getElementById('logo-wrap').addEventListener('click', () => {
+  document.getElementById('logo-input').click();
+});
+
+document.getElementById('logo-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Imagem muito grande. Máximo 2MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    logoBase64 = ev.target.result;
+    const prev = document.getElementById('academia-logo-preview');
+    prev.src = logoBase64;
+    prev.classList.add('visivel');
+    document.getElementById('logo-placeholder').classList.add('oculto');
+    document.getElementById('logo-wrap').classList.add('tem-logo');
+  };
+  reader.readAsDataURL(file);
+});
+
+function renderFrases(lista) {
+  const container = document.getElementById('frases-list');
+  container.innerHTML = '';
+  lista.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'frase-item';
+    div.innerHTML = `<span class="frase-texto">${f}</span><button class="frase-rem" data-idx="${i}">×</button>`;
+    container.appendChild(div);
+  });
+  container.querySelectorAll('.frase-rem').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      academiaDados.frases = (academiaDados.frases || []).filter((_,j) => j !== idx);
+      renderFrases(academiaDados.frases);
+    });
+  });
+}
+
+document.getElementById('btn-add-frase').addEventListener('click', () => {
+  const frase = prompt('Nova frase motivacional:');
+  if (!frase || !frase.trim()) return;
+  academiaDados.frases = [...(academiaDados.frases || []), frase.trim()];
+  renderFrases(academiaDados.frases);
+});
+
+document.getElementById('btn-salvar-ac').addEventListener('click', async () => {
+  if (!currentUser) return;
+  const btn = document.getElementById('btn-salvar-ac');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    const dados = {
+      nome: document.getElementById('ac-nome').value.trim() || 'Minha Academia',
+      frases: academiaDados.frases || [],
+      cor_primaria: '#dc2626',
+      email: currentUser.email,
+    };
+    if (logoBase64) dados.logo_base64 = logoBase64;
+    await setDoc(doc(db, 'timer_academia', currentUser.uid), dados, { merge: true });
+    const ok = document.getElementById('save-ok');
+    ok.classList.add('visivel');
+    setTimeout(() => ok.classList.remove('visivel'), 3000);
+  } catch(e) {
+    alert('Erro ao salvar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar configurações';
+  }
+});
+
+// ── Navegação bottom nav ──────────────────────────────────────────────────────
+function irParaSecao(id) {
+  document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('ativo'));
+  document.getElementById(`sec-${id}`).classList.add('ativa');
+  document.querySelector(`.nav-btn[data-sec="${id}"]`).classList.add('ativo');
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => irParaSecao(btn.dataset.sec));
+});
+
+// Dashboard — cards de ação rápida
+document.getElementById('dash-rounds').addEventListener('click', () => {
+  irParaSecao('timer');
+  document.querySelector('.tab-btn[data-tab="rounds"]').click();
+});
+document.getElementById('dash-tabata').addEventListener('click', () => {
+  irParaSecao('timer');
+  document.querySelector('.tab-btn[data-tab="tabata"]').click();
+});
+document.getElementById('dash-openmat').addEventListener('click', () => {
+  irParaSecao('timer');
+  document.querySelector('.tab-btn[data-tab="openmat"]').click();
+});
+document.getElementById('dash-placar').addEventListener('click', () => irParaSecao('placar'));
+document.getElementById('dash-tv-atalho').addEventListener('click', () => irParaSecao('tv'));
+document.getElementById('dash-academia-atalho').addEventListener('click', () => irParaSecao('academia'));
+document.getElementById('dash-btn-novo').addEventListener('click', () => irParaSecao('timer'));
+
+// ── Último uso ────────────────────────────────────────────────────────────────
+const nomesModo = { rounds:'Rounds', tabata:'Tabata', openmat:'Open Mat', placar:'Placar BJJ' };
+
+function salvarUltimoUso(modo) {
+  localStorage.setItem('sensei_ultimo_modo', modo);
+  localStorage.setItem('sensei_ultimo_ts', Date.now());
+  atualizarUltimoUso();
+}
+function atualizarUltimoUso() {
+  const modo = localStorage.getItem('sensei_ultimo_modo');
+  const ts   = localStorage.getItem('sensei_ultimo_ts');
+
+  // Stat cards
+  const statModo  = document.getElementById('stat-modo');
+  const statFase  = document.getElementById('stat-fase');
+  if (modo && statModo) statModo.textContent = nomesModo[modo] || modo;
+
+  if (!modo || !ts) return;
+  const el = document.getElementById('dash-ultimo');
+  const data = new Date(parseInt(ts));
+  const h = String(data.getHours()).padStart(2,'0');
+  const m = String(data.getMinutes()).padStart(2,'0');
+  const d = `${data.getDate()}/${data.getMonth()+1}`;
+  const label = `${nomesModo[modo] || modo} — ${d} às ${h}:${m}`;
+  if (el) el.textContent = label;
+  if (statFase) statFase.textContent = `${d} ${h}:${m}`;
+}
+atualizarUltimoUso();
+</script>
+</body>
+</html>

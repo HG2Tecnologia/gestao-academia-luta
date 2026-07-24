@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensei Timer — TV</title>
+<link rel="manifest" href="manifest-display.json">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --red: #dc2626;
+  --gold: #c8a84b;
+  --green: #16a34a;
+  --blue: #1d4ed8;
+  --bg: #0d0d0d;
+  --text: #f5f5f5;
+  --muted: #737373;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  transition: background 0.6s ease;
+}
+
+body.fase-trabalho  { background: radial-gradient(ellipse at center, #1a1100 0%, var(--bg) 70%); }
+body.fase-descanso  { background: radial-gradient(ellipse at center, #001a08 0%, var(--bg) 70%); }
+body.fase-fim       { background: radial-gradient(ellipse at center, #1a0000 0%, var(--bg) 70%); }
+body.fase-placar    { background: radial-gradient(ellipse at center, #00081a 0%, var(--bg) 70%); }
+
+/* ── Status bar ── */
+#status-bar {
+  height: 5px;
+  background: #333;
+  transition: background 0.4s;
+  flex-shrink: 0;
+}
+body.fase-trabalho  #status-bar { background: var(--gold); }
+body.fase-descanso  #status-bar { background: var(--green); }
+body.fase-fim       #status-bar { background: var(--red); }
+body.fase-placar    #status-bar { background: var(--blue); }
+
+/* ── Header ── */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 40px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+#academia-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#academia-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid #333;
+  display: none;
+}
+#academia-logo.visible { display: block; }
+
+#academia-iniciais {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+#academia-nome {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+#relogio {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Main content ── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px 40px;
+}
+
+/* ── Modo timer ── */
+#modo-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+#label-fase {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  color: var(--muted);
+  transition: color 0.4s;
+}
+body.fase-trabalho  #label-fase { color: var(--gold); }
+body.fase-descanso  #label-fase { color: var(--green); }
+body.fase-fim       #label-fase { color: var(--red); }
+
+#timer-display {
+  font-size: clamp(100px, 22vw, 220px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -4px;
+  line-height: 1;
+  color: var(--muted);
+  transition: color 0.4s, text-shadow 0.4s;
+}
+body.fase-trabalho  #timer-display { color: var(--gold); text-shadow: 0 0 60px rgba(200,168,75,0.3); }
+body.fase-descanso  #timer-display { color: var(--green); text-shadow: 0 0 60px rgba(22,163,74,0.3); }
+body.fase-fim       #timer-display { color: var(--red); text-shadow: 0 0 60px rgba(220,38,38,0.5); }
+
+#timer-display.piscando { animation: pisca 0.5s infinite; }
+@keyframes pisca { 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+
+#info-rounds {
+  margin-top: 20px;
+  font-size: 22px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
+#dots-rounds {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.dot-round {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #333;
+  transition: background 0.3s;
+}
+.dot-round.feito   { background: var(--gold); }
+.dot-round.atual   { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.dot-round.futuro  { background: #333; }
+
+/* ── Modo placar ── */
+#modo-placar {
+  display: none;
+  width: 100%;
+  gap: 20px;
+}
+#modo-placar.ativo { display: flex; }
+
+.placar-time {
+  flex: 1;
+  border-radius: 16px;
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.placar-time.azul  { background: rgba(29, 78, 216, 0.2); border: 2px solid rgba(29,78,216,0.4); }
+.placar-time.branco { background: rgba(100, 100, 100, 0.15); border: 2px solid rgba(150,150,150,0.3); }
+
+.time-nome {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.time-pontos {
+  font-size: clamp(80px, 14vw, 160px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.placar-time.azul  .time-pontos { color: #60a5fa; text-shadow: 0 0 40px rgba(96,165,250,0.4); }
+.placar-time.branco .time-pontos { color: #e5e5e5; text-shadow: 0 0 40px rgba(229,229,229,0.2); }
+
+.time-sub {
+  display: flex;
+  gap: 24px;
+}
+.sub-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sub-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.sub-val   { font-size: 32px; font-weight: 700; color: var(--text); }
+
+.placar-sep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 10px;
+}
+.placar-vs {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--muted);
+}
+#placar-timer {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tela aguardando ── */
+#modo-aguardando {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  opacity: 0.5;
+}
+#aguardando-icon {
+  font-size: 80px;
+  animation: pulsa 2s infinite;
+}
+@keyframes pulsa { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.05); } }
+#aguardando-texto {
+  font-size: 24px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Footer / frases ── */
+#footer {
+  padding: 12px 40px 20px;
+  text-align: center;
+  flex-shrink: 0;
+  border-top: 1px solid #1a1a1a;
+  min-height: 56px;
+}
+#frase-motivacional {
+  font-size: 18px;
+  font-style: italic;
+  color: var(--muted);
+  letter-spacing: 1px;
+  transition: opacity 0.6s;
+}
+#frase-motivacional.fade { opacity: 0; }
+</style>
+</head>
+<body class="fase-parado">
+
+<div id="status-bar"></div>
+
+<header id="header">
+  <div id="academia-brand">
+    <img id="academia-logo" src="" alt="Logo">
+    <div id="academia-iniciais">S</div>
+    <div id="academia-nome">Sensei Timer</div>
+  </div>
+  <div id="relogio">00:00:00</div>
+</header>
+
+<main id="main">
+  <!-- Aguardando -->
+  <div id="modo-aguardando">
+    <div id="aguardando-icon">⏱</div>
+    <div id="aguardando-texto">Aguardando sessão</div>
+  </div>
+
+  <!-- Timer (rounds / tabata / openmat) -->
+  <div id="modo-timer" style="display:none">
+    <div id="label-fase">AGUARDANDO</div>
+    <div id="timer-display">00:00</div>
+    <div id="info-rounds"></div>
+    <div id="dots-rounds"></div>
+  </div>
+
+  <!-- Placar -->
+  <div id="modo-placar">
+    <div class="placar-time azul">
+      <div class="time-nome" id="pa-nome">Azul</div>
+      <div class="time-pontos" id="pa-pts">0</div>
+      <div class="time-sub">
+        <div class="sub-item"><span class="sub-label">Vant.</span><span class="sub-val" id="pa-vant">0</span></div>
+        <div class="sub-item"><span class="sub-label">Pun.</span><span class="sub-val" id="pa-pun">0</span></div>
+      </div>
+    </div>
+    <div class="placar-sep">
+      <div class="placar-vs">VS</div>
+      <div id="placar-timer">00:00</div>
+    </div>
+    <div class="placar-time branco">
+      <div class="time-nome" id="pb-nome">Branco</div>
+      <div class="time-pontos" id="pb-pts">0</div>
+      <div class="time-sub">
+        <div class="sub-item"><span class="sub-label">Vant.</span><span class="sub-val" id="pb-vant">0</span></div>
+        <div class="sub-item"><span class="sub-label">Pun.</span><span class="sub-val" id="pb-pun">0</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer id="footer">
+  <div id="frase-motivacional">Disciplina vence talento.</div>
+</footer>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCO1qg976R4zpsA0Evnhlxu3gt8pSPrD2o",
+  authDomain: "sensei-manager-d64c0.firebaseapp.com",
+  projectId: "sensei-manager-d64c0",
+  storageBucket: "sensei-manager-d64c0.appspot.com",
+  messagingSenderId: "376094928692",
+  appId: "1:376094928692:ios:ac7a3728d7ca031c3e3f61"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── Extrair UID da URL ──────────────────────────────────────────────────────
+const uid = new URLSearchParams(location.search).get('s');
+
+if (!uid) {
+  document.getElementById('aguardando-texto').textContent = 'Link inválido — falta parâmetro ?s=UID';
+  throw new Error('UID ausente');
+}
+
+// ── Web Audio API ───────────────────────────────────────────────────────────
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function beep(freq = 880, type = 'square', dur = 0.2, vol = 0.4) {
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+function gongo(vol = 0.5) {
+  beep(200, 'sine', 2.5, vol);
+}
+
+function apito() {
+  beep(880, 'square', 0.2, 0.5);
+}
+
+function fimSessao() {
+  gongo(0.6);
+  setTimeout(() => gongo(0.5), 800);
+  setTimeout(() => gongo(0.4), 1600);
+}
+
+// Desbloquear áudio no primeiro clique/toque
+document.addEventListener('click', () => audioCtx.resume(), { once: true });
+document.addEventListener('touchstart', () => audioCtx.resume(), { once: true });
+
+// ── Estado local ────────────────────────────────────────────────────────────
+let estado = null;
+let tickInterval = null;
+let ultimaFase = null;
+let ultimoRound = null;
+let sonouFim = false;
+
+// ── Relógio ─────────────────────────────────────────────────────────────────
+function atualizarRelogio() {
+  const n = new Date();
+  const h = String(n.getHours()).padStart(2,'0');
+  const m = String(n.getMinutes()).padStart(2,'0');
+  const s = String(n.getSeconds()).padStart(2,'0');
+  document.getElementById('relogio').textContent = `${h}:${m}:${s}`;
+}
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+// ── Frases motivacionais ────────────────────────────────────────────────────
+let frases = ['Disciplina vence talento.', 'Treino duro, luta fácil.', 'Foco e determinação.'];
+let fraseIdx = 0;
+const elFrase = document.getElementById('frase-motivacional');
+
+function proxFrase() {
+  elFrase.classList.add('fade');
+  setTimeout(() => {
+    fraseIdx = (fraseIdx + 1) % frases.length;
+    elFrase.textContent = frases[fraseIdx];
+    elFrase.classList.remove('fade');
+  }, 600);
+}
+setInterval(proxFrase, 8000);
+
+// ── Formatação ──────────────────────────────────────────────────────────────
+function fmt(s) {
+  if (s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const ss = Math.floor(s % 60);
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h}:${String(m % 60).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+  return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+// ── Aplicar corpo de fase ───────────────────────────────────────────────────
+function setBodyFase(fase) {
+  document.body.className = '';
+  if (fase === 'trabalho')  document.body.classList.add('fase-trabalho');
+  else if (fase === 'descanso') document.body.classList.add('fase-descanso');
+  else if (fase === 'fim')  document.body.classList.add('fase-fim');
+  else if (fase === 'placar') document.body.classList.add('fase-placar');
+}
+
+// ── Avançar fase no Firestore (fallback quando display fica sozinho) ────────
+async function proxFaseFirestore(s) {
+  const cfg = s.cfg || {};
+  let patch = {};
+
+  if (s.modo === 'rounds') {
+    if (s.fase === 'trabalho') {
+      // passa para descanso ou fim do round
+      const rounds = cfg.rounds || 5;
+      if (s.round_atual >= rounds) {
+        patch = { fase: 'fim', rodando: false, modo: 'rounds', updated_at: serverTimestamp() };
+      } else {
+        patch = {
+          fase: 'descanso',
+          rodando: true,
+          duracao_fase: cfg.dur_descanso || 60,
+          iniciado_em: Date.now(),
+          tempo_pausado: 0,
+          updated_at: serverTimestamp()
+        };
+      }
+    } else if (s.fase === 'descanso') {
+      const rounds = cfg.rounds || 5;
+      const proxRound = (s.round_atual || 1) + 1;
+      if (proxRound > rounds) {
+        patch = { fase: 'fim', rodando: false, updated_at: serverTimestamp() };
+      } else {
+        patch = {
+          fase: 'trabalho',
+          rodando: true,
+          round_atual: proxRound,
+          duracao_fase: cfg.dur_round || 300,
+          iniciado_em: Date.now(),
+          tempo_pausado: 0,
+          updated_at: serverTimestamp()
+        };
+      }
+    }
+  } else if (s.modo === 'tabata') {
+    const ciclos = cfg.tabata_ciclos || 8;
+    if (s.fase === 'trabalho') {
+      patch = {
+        fase: 'descanso',
+        rodando: true,
+        duracao_fase: cfg.tabata_descanso || 10,
+        iniciado_em: Date.now(),
+        tempo_pausado: 0,
+        updated_at: serverTimestamp()
+      };
+    } else if (s.fase === 'descanso') {
+      const proxCiclo = (s.ciclo_atual || 1) + 1;
+      if (proxCiclo > ciclos) {
+        patch = { fase: 'fim', rodando: false, updated_at: serverTimestamp() };
+      } else {
+        patch = {
+          fase: 'trabalho',
+          rodando: true,
+          ciclo_atual: proxCiclo,
+          duracao_fase: cfg.tabata_trabalho || 20,
+          iniciado_em: Date.now(),
+          tempo_pausado: 0,
+          updated_at: serverTimestamp()
+        };
+      }
+    }
+  } else if (s.modo === 'openmat' || s.modo === 'placar') {
+    patch = { fase: 'fim', rodando: false, updated_at: serverTimestamp() };
+  }
+
+  if (Object.keys(patch).length) {
+    try {
+      await setDoc(doc(db, 'timer_sessions', uid), patch, { merge: true });
+    } catch(e) { console.error('proxFase display error', e); }
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function renderTimer(s, remaining) {
+  const el      = document.getElementById('timer-display');
+  const label   = document.getElementById('label-fase');
+  const info    = document.getElementById('info-rounds');
+  const dots    = document.getElementById('dots-rounds');
+
+  el.textContent = fmt(remaining);
+
+  const cfg = s.cfg || {};
+
+  // label fase
+  if (s.fase === 'trabalho')  { label.textContent = 'TREINO'; }
+  else if (s.fase === 'descanso') { label.textContent = 'DESCANSO'; }
+  else if (s.fase === 'fim')  { label.textContent = 'FIM'; }
+  else                        { label.textContent = 'AGUARDANDO'; }
+
+  // rounds
+  if (s.modo === 'rounds') {
+    const tot = cfg.rounds || 5;
+    const cur = s.round_atual || 1;
+    info.textContent = `ROUND ${cur} / ${tot}`;
+    dots.innerHTML = '';
+    for (let i = 1; i <= tot; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot-round ' + (i < cur ? 'feito' : i === cur ? 'atual' : 'futuro');
+      dots.appendChild(d);
+    }
+  } else if (s.modo === 'tabata') {
+    const tot = cfg.tabata_ciclos || 8;
+    const cur = s.ciclo_atual || 1;
+    info.textContent = `CICLO ${cur} / ${tot}`;
+    dots.innerHTML = '';
+    for (let i = 1; i <= tot; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot-round ' + (i < cur ? 'feito' : i === cur ? 'atual' : 'futuro');
+      dots.appendChild(d);
+    }
+  } else if (s.modo === 'openmat') {
+    info.textContent = 'OPEN MAT';
+    dots.innerHTML = '';
+  } else {
+    info.textContent = '';
+    dots.innerHTML = '';
+  }
+
+  // piscar últimos 10s
+  if (remaining <= 10 && remaining > 0 && s.rodando) {
+    el.classList.add('piscando');
+  } else {
+    el.classList.remove('piscando');
+  }
+}
+
+function renderPlacar(s, remaining) {
+  const p = s.placar || {};
+  const a = p.time_a || { nome: 'Azul', pontos: 0, vantagens: 0, punicoes: 0 };
+  const b = p.time_b || { nome: 'Branco', pontos: 0, vantagens: 0, punicoes: 0 };
+
+  document.getElementById('pa-nome').textContent = a.nome || 'Azul';
+  document.getElementById('pa-pts').textContent  = a.pontos ?? 0;
+  document.getElementById('pa-vant').textContent = a.vantagens ?? 0;
+  document.getElementById('pa-pun').textContent  = a.punicoes ?? 0;
+
+  document.getElementById('pb-nome').textContent = b.nome || 'Branco';
+  document.getElementById('pb-pts').textContent  = b.pontos ?? 0;
+  document.getElementById('pb-vant').textContent = b.vantagens ?? 0;
+  document.getElementById('pb-pun').textContent  = b.punicoes ?? 0;
+
+  document.getElementById('placar-timer').textContent = fmt(remaining);
+}
+
+// ── Tick local ──────────────────────────────────────────────────────────────
+function calcRemaining(s) {
+  if (!s || !s.rodando) return s ? (s.tempo_pausado || s.duracao_fase || 0) : 0;
+  const elapsed = (Date.now() - (s.iniciado_em || Date.now())) / 1000;
+  return Math.max(0, (s.duracao_fase || 0) - elapsed);
+}
+
+let avancandoFase = false;
+
+function tick() {
+  if (!estado) return;
+  const s = estado;
+  const remaining = calcRemaining(s);
+
+  if (s.modo === 'placar') {
+    renderPlacar(s, remaining);
+  } else if (s.modo && s.modo !== 'parado') {
+    renderTimer(s, remaining);
+  }
+
+  // auto-avançar quando zera
+  if (remaining <= 0 && s.rodando && !avancandoFase && s.fase !== 'fim') {
+    avancandoFase = true;
+    // Sons
+    if (s.fase === 'trabalho')  gongo();
+    else if (s.fase === 'descanso') apito();
+
+    proxFaseFirestore(s).finally(() => { avancandoFase = false; });
+  }
+
+  // som de fim de sessão
+  if (s.fase === 'fim' && !sonouFim) {
+    sonouFim = true;
+    fimSessao();
+  } else if (s.fase !== 'fim') {
+    sonouFim = false;
+  }
+
+  // sons de transição
+  if (ultimaFase !== null && ultimaFase !== s.fase) {
+    if (s.fase === 'trabalho')  apito();
+    if (s.fase === 'descanso')  beep(440, 'sine', 0.5, 0.3);
+  }
+  ultimaFase = s.fase;
+
+  if (ultimoRound !== null && ultimoRound !== s.round_atual) {
+    apito();
+  }
+  ultimoRound = s.round_atual;
+}
+
+// ── Mostrar / ocultar seções ────────────────────────────────────────────────
+function exibir(s) {
+  const ag = document.getElementById('modo-aguardando');
+  const tm = document.getElementById('modo-timer');
+  const pl = document.getElementById('modo-placar');
+
+  ag.style.display = 'none';
+  tm.style.display = 'none';
+  pl.classList.remove('ativo');
+
+  if (!s || !s.modo || s.modo === 'parado') {
+    ag.style.display = 'flex';
+    setBodyFase('parado');
+  } else if (s.modo === 'placar') {
+    pl.classList.add('ativo');
+    setBodyFase('placar');
+  } else {
+    tm.style.display = 'flex';
+    const fase = s.rodando ? (s.fase || 'parado') : (s.fase === 'fim' ? 'fim' : 'parado');
+    setBodyFase(fase);
+  }
+}
+
+// ── Firestore onSnapshot ─────────────────────────────────────────────────────
+onSnapshot(doc(db, 'timer_sessions', uid), snap => {
+  if (!snap.exists()) {
+    estado = null;
+    exibir(null);
+    return;
+  }
+  estado = snap.data();
+  exibir(estado);
+  tick(); // atualização imediata
+});
+
+// Dados da academia
+onSnapshot(doc(db, 'timer_academia', uid), snap => {
+  if (!snap.exists()) return;
+  const d = snap.data();
+
+  document.getElementById('academia-nome').textContent = d.nome || 'Sensei Timer';
+
+  const iniciais = (d.nome || 'S').split(' ').slice(0,2).map(w => w[0].toUpperCase()).join('');
+  document.getElementById('academia-iniciais').textContent = iniciais;
+
+  if (d.logo_base64) {
+    document.getElementById('academia-logo').src = d.logo_base64;
+    document.getElementById('academia-logo').classList.add('visible');
+    document.getElementById('academia-iniciais').style.display = 'none';
+  } else {
+    document.getElementById('academia-logo').classList.remove('visible');
+    document.getElementById('academia-iniciais').style.display = 'flex';
+  }
+
+  if (d.frases && d.frases.length) {
+    frases = d.frases;
+    elFrase.textContent = frases[0];
+    fraseIdx = 0;
+  }
+});
+
+// ── Tick 100ms ──────────────────────────────────────────────────────────────
+tickInterval = setInterval(tick, 100);
+
+// ── PWA Service Worker ───────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+-keepattributes *Annotation*
+-keep class br.com.senseitimer.tv.** { *; }
