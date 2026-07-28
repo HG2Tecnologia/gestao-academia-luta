@@ -84,6 +84,11 @@ abstract class AuthStorage {
     if (refreshToken != null) await p.setString(_refreshKey, refreshToken);
   }
 
+  static Future<void> saveUser(StoredUser user) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_userKey, jsonEncode(user.toJson()));
+  }
+
   static Future<void> updateToken(String token, {String? refreshToken}) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_tokenKey, token);

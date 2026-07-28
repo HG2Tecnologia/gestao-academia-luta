@@ -88,10 +88,15 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       // mesmo para a busca de cadastro. A sessão anônima é encerrada logo
       // após a busca; a conta real é criada em _criarConta().
       await FirebaseAuth.instance.signInAnonymously();
+      final anon = FirebaseAuth.instance.currentUser;
 
       final usuarios = await firestoreService.buscarUsuariosPorEmailOuTelefone(valor);
 
-      await FirebaseAuth.instance.signOut();
+      try {
+        await anon?.delete();
+      } catch (_) {
+        await FirebaseAuth.instance.signOut();
+      }
 
       if (!mounted) return;
       if (usuarios.isEmpty) {
@@ -176,6 +181,11 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       );
 
       final perfilNome = usuario['perfil_nome'] as String? ?? 'Aluno';
+      final dadosAtivados = await firestoreService.getUserByFirebaseUid(uid);
+      final rawPermissoes = dadosAtivados?['permissoes'] ?? usuario['permissoes'];
+      final permissoes = rawPermissoes is Map
+          ? rawPermissoes.map<String, bool>((k, v) => MapEntry(k.toString(), v == true))
+          : <String, bool>{};
 
       // Monta lista de perfis para armazenar localmente (grupo familiar)
       final perfisLocais = _todosUsuarios.map((u) => {
@@ -193,6 +203,7 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
           email: email,
           perfil: perfilNome,
           academiaId: usuario['academiaId'] as String?,
+          permissoes: permissoes,
           perfis: perfisLocais.length > 1 ? perfisLocais : [],
         ),
       );

@@ -99,7 +99,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
       final academiaRef = db.collection('academias').doc();
       final academiaId = academiaRef.id;
 
-      await academiaRef.set({
+      final batch = db.batch();
+      batch.set(academiaRef, {
         'id': academiaId,
         'nome': nomeAcademia,
         'email': email,
@@ -115,7 +116,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
       final usuarioRef = db.collection('academias').doc(academiaId).collection('usuarios').doc();
       final usuarioId = usuarioRef.id;
 
-      await usuarioRef.set({
+      batch.set(usuarioRef, {
         'id': usuarioId,
         'academia_id': academiaId,
         'firebase_uid': uid,
@@ -132,13 +133,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
       });
 
       // 4. Documento de lookup Firebase UID → academia
-      await db.collection('usuariosFirebase').doc(uid).set({
+      batch.set(db.collection('usuariosFirebase').doc(uid), {
         'academiaId': academiaId,
         'usuarioId': usuarioId,
         'perfil': 'Admin',
         'nome': nome,
         'email': email,
       });
+      await batch.commit();
 
       // 5. Popular academia com modalidades e faixas padrão
       await firestoreService.popularModalidadesDefault(academiaId);

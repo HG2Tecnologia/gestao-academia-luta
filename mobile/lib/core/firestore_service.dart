@@ -1,6 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'academia_seeds.dart';
+import 'permissoes.dart';
+
+class CheckinBloqueadoException implements Exception {
+  const CheckinBloqueadoException(this.mensagem);
+  final String mensagem;
+
+  @override
+  String toString() => mensagem;
+}
 
 /// Substitui todas as chamadas de API REST ao backend Render.
 /// Todos os dados vêm diretamente do Firebase Firestore.
@@ -39,7 +48,8 @@ class FirestoreService {
     final colecao = data['colecao'] as String? ?? 'usuarios';
     final usuarioId = data['usuarioId'] as String?;
     final academiaId = data['academiaId'] as String?;
-    Map<String, bool> permissoes = {};
+    final perfil = data['perfil'] as String? ?? '';
+    Map<String, bool> permissoes = permissoesParaPerfil(perfil);
 
     if (usuarioId != null && academiaId != null && colecao == 'funcionarios') {
       try {
@@ -177,8 +187,9 @@ class FirestoreService {
           },
     ];
 
-    // Cria entrada de lookup
-    await _db.collection('usuariosFirebase').doc(firebaseUid).set({
+    // Cria lookup e vínculos juntos, sem janela de autorização parcial.
+    final batch = _db.batch();
+    batch.set(_db.collection('usuariosFirebase').doc(firebaseUid), {
       'academiaId': academiaId,
       'usuarioId': usuarioId,
       'colecao': colecao,
@@ -188,8 +199,7 @@ class FirestoreService {
       if (todosPerfis.length > 1) 'perfis': todosPerfis,
     });
 
-    // Marca o usuário selecionado como vinculado
-    await _doc(academiaId, colecao, usuarioId).update({
+    batch.update(_doc(academiaId, colecao, usuarioId), {
       'firebaseUid': firebaseUid,
       'conta_ativa': true,
     });
@@ -201,12 +211,11 @@ class FirestoreService {
         final pAcad = p['academiaId'] as String? ?? academiaId;
         final pId = (p['usuarioId'] ?? p['id']) as String?;
         if (pId != null) {
-          try {
-            await _doc(pAcad, pCol, pId).update({'firebaseUid': firebaseUid, 'conta_ativa': true});
-          } catch (_) {}
+          batch.update(_doc(pAcad, pCol, pId), {'firebaseUid': firebaseUid, 'conta_ativa': true});
         }
       }
     }
+    await batch.commit();
   }
 
   // ─── ACADEMIA ──────────────────────────────────────────────────────────────
@@ -578,9 +587,54 @@ class FirestoreService {
   }
 
   Future<String> addPresenca(String academiaId, Map<String, dynamic> data) async {
+    final alunoId = data['aluno_id']?.toString() ?? '';
+    if (alunoId.isEmpty) {
+      throw const CheckinBloqueadoException('Não foi possível identificar o aluno.');
+    }
+    final bloqueio = await motivoBloqueioCheckin(academiaId, alunoId);
+    if (bloqueio != null) throw CheckinBloqueadoException(bloqueio);
+
     final ref = _col(academiaId, 'presencas').doc();
     await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
     return ref.id;
+  }
+
+  /// Retorna null quando o aluno pode fazer check-in. Cobranças futuras e
+  /// alunos sem cobrança permanecem liberados para compatibilidade.
+  Future<String?> motivoBloqueioCheckin(String academiaId, String alunoId) async {
+    final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
+    if (!alunoDoc.exists) return 'Aluno não encontrado.';
+    final aluno = alunoDoc.data() as Map<String, dynamic>? ?? {};
+    if (aluno['ativo'] == false) {
+      return 'Cadastro inativo. Procure a secretaria da academia.';
+    }
+
+    final snap = await _col(academiaId, 'pagamentos')
+        .where('aluno_id', isEqualTo: alunoId)
+        .get();
+    final agora = DateTime.now();
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    for (final doc in snap.docs) {
+      final pagamento = doc.data() as Map<String, dynamic>? ?? {};
+      final rawStatus = pagamento['status'];
+      final status = rawStatus is num ? rawStatus.toInt() : int.tryParse(rawStatus?.toString() ?? '');
+      if (status == 1) continue;
+      if (status == 2) {
+        return 'Check-in bloqueado: existe um pagamento em atraso. Procure a secretaria.';
+      }
+      final rawVencimento = pagamento['data_vencimento'] ?? pagamento['dataVencimento'];
+      DateTime? vencimento;
+      if (rawVencimento is Timestamp) {
+        vencimento = rawVencimento.toDate();
+      } else if (rawVencimento != null) {
+        vencimento = DateTime.tryParse(rawVencimento.toString());
+      }
+      if (vencimento != null &&
+          DateTime(vencimento.year, vencimento.month, vencimento.day).isBefore(hoje)) {
+        return 'Check-in bloqueado: existe um pagamento vencido. Procure a secretaria.';
+      }
+    }
+    return null;
   }
 
   /// Retorna os aluno_ids que já têm presença registrada para turmaId+data.
@@ -595,6 +649,21 @@ class FirestoreService {
         .toSet();
   }
 
+  Future<Map<String, String>> getPresencasPorAluno(
+      String academiaId, String turmaId, String dataStr) async {
+    final snap = await _col(academiaId, 'presencas')
+        .where('turma_id', isEqualTo: turmaId)
+        .where('data', isEqualTo: dataStr)
+        .get();
+    final result = <String, String>{};
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+      final alunoId = data['aluno_id']?.toString() ?? '';
+      if (alunoId.isNotEmpty) result[alunoId] = doc.id;
+    }
+    return result;
+  }
+
   Future<void> deletePresenca(String academiaId, String presencaId) async {
     await _col(academiaId, 'presencas').doc(presencaId).delete();
   }
@@ -602,16 +671,51 @@ class FirestoreService {
   // ─── GRADUAÇÕES ────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getGraduacoes(String academiaId,
-      {String? alunoId}) async {
+      {String? alunoId, bool detalhadas = false}) async {
     Query q = _col(academiaId, 'graduacoes').orderBy('data_exame', descending: true);
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     final snap = await q.get();
-    return snap.docs.map(_convertDoc).toList();
+    final graduacoes = snap.docs.map(_convertDoc).toList();
+    if (graduacoes.isEmpty || !detalhadas) return graduacoes;
+    final faixas = await getFaixas(academiaId);
+    final modalidades = await getModalidades(academiaId);
+    final faixaMap = {for (final f in faixas) f['id'].toString(): f};
+    final modalidadeMap = {for (final m in modalidades) m['id'].toString(): m};
+    return graduacoes.map((g) {
+      final faixa = faixaMap[g['faixa_id']?.toString() ?? ''] ?? const {};
+      final modalidadeId =
+          (g['modalidade_id'] ?? faixa['modalidadeId'] ?? faixa['modalidade_id'])?.toString() ?? '';
+      final modalidade = modalidadeMap[modalidadeId] ?? const {};
+      return <String, dynamic>{
+        ...g,
+        'dataExame': g['data_exame'] ?? g['dataExame'] ?? '',
+        'faixaId': g['faixa_id'] ?? g['faixaId'] ?? '',
+        'modalidadeId': modalidadeId,
+        'nomeModalidade': modalidade['nome'] ?? faixa['modalidade_nome'] ?? 'Modalidade',
+        'nomeFaixa': faixa['nome'] ?? g['nomeFaixa'] ?? '',
+        'corFaixa': faixa['cor'] ?? g['corFaixa'] ?? '#FFFFFF',
+        'corBarraFaixa': faixa['cor_barra'] ?? g['corBarraFaixa'] ?? '#000000',
+        'faixaTemGraus': faixa['tem_graus'] == true || g['faixaTemGraus'] == true,
+        'faixaMaxGraus': (faixa['max_graus'] as num?)?.toInt() ??
+            (g['faixaMaxGraus'] as num?)?.toInt() ?? 0,
+      };
+    }).toList();
   }
 
   Future<String> addGraduacao(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'graduacoes').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    final faixaId = data['faixa_id']?.toString() ?? '';
+    final faixa = faixaId.isEmpty ? null : await _doc(academiaId, 'faixas', faixaId).get();
+    final faixaData = faixa?.data() as Map<String, dynamic>?;
+    final modalidadeId =
+        (data['modalidade_id'] ?? faixaData?['modalidadeId'] ?? faixaData?['modalidade_id'])
+            ?.toString();
+    await ref.set({
+      ...data,
+      if (modalidadeId != null && modalidadeId.isNotEmpty) 'modalidade_id': modalidadeId,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 

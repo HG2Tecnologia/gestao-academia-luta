@@ -19,13 +19,14 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
   static final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
 
   Future<void> _enviar() async {
-    final email = _emailCtrl.text.trim();
+    final email = _emailCtrl.text.trim().toLowerCase();
     if (email.isEmpty || !_emailRegex.hasMatch(email)) {
       setState(() => _erro = 'Informe um e-mail válido.');
       return;
     }
     setState(() { _loading = true; _erro = null; });
     try {
+      await FirebaseAuth.instance.setLanguageCode('pt-BR');
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (mounted) setState(() { _enviado = true; _loading = false; });
     } on FirebaseAuthException catch (e) {

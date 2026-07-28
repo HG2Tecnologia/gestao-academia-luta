@@ -153,14 +153,94 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         .trim();
   }
 
-  Color _faixaCor() {
-    final hex = _aluno?['faixaAtualCor'] as String? ?? '';
-    try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
-  }
-
   Color _parseHex(String? hex) {
     if (hex == null || hex.isEmpty) return Colors.black;
     try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return Colors.black; }
+  }
+
+  Map<String, dynamic>? _primaryFaixaData() {
+    final faixasAtuais = _aluno?['faixasAtuais'] as Map<String, dynamic>?;
+    if (faixasAtuais == null || faixasAtuais.isEmpty) return null;
+    final principalId = _aluno?['faixaPrincipalModalidadeId'] as String?;
+    if (principalId != null && principalId.isNotEmpty && faixasAtuais.containsKey(principalId)) {
+      return faixasAtuais[principalId] as Map<String, dynamic>?;
+    }
+    return faixasAtuais.values.first as Map<String, dynamic>?;
+  }
+
+  int _faixasCount() {
+    final faixasAtuais = _aluno?['faixasAtuais'] as Map<String, dynamic>?;
+    return faixasAtuais?.length ?? 0;
+  }
+
+  Future<void> _escolherFaixaPrincipal() async {
+    final faixasAtuais = _aluno?['faixasAtuais'] as Map<String, dynamic>?;
+    if (faixasAtuais == null || faixasAtuais.length <= 1) return;
+    final principalAtual = _aluno?['faixaPrincipalModalidadeId'] as String?;
+
+    final modId = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
+            Text('Faixa Principal', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('Escolha qual graduação exibir no seu perfil', style: TextStyle(color: kText2, fontSize: 13)),
+            const SizedBox(height: 16),
+            ...faixasAtuais.entries.map((entry) {
+              final id = entry.key;
+              final f = entry.value as Map<String, dynamic>;
+              final cor = _parseHex(f['faixaCor'] as String?);
+              final corBarra = _parseHex(f['faixaCorBarra'] as String?);
+              final grau = (f['grau'] as num?)?.toInt() ?? 0;
+              final temGraus = f['faixaTemGraus'] == true || grau > 0;
+              final maxGraus = ((f['faixaMaxGraus'] as num?)?.toInt() ?? 0).clamp(1, 99);
+              final isPrincipal = id == principalAtual;
+              return GestureDetector(
+                onTap: () => Navigator.pop(context, id),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isPrincipal ? kPrimary.withOpacity(0.08) : kBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isPrincipal ? kPrimary.withOpacity(0.4) : kBorder),
+                  ),
+                  child: Row(children: [
+                    BeltBadge(cor: cor, corBarra: corBarra, temGraus: temGraus, grau: grau, maxGraus: maxGraus > 0 ? maxGraus : 4, height: 14, minWidth: 32),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(f['modalidadeNome'] as String? ?? '', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
+                      Text(grau > 0 ? '${f['faixaNome']} · $grau° Grau' : (f['faixaNome'] as String? ?? ''),
+                          style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
+                    ])),
+                    if (isPrincipal) Icon(Icons.check_circle_rounded, color: kPrimary, size: 20),
+                  ]),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+
+    if (modId != null && mounted) {
+      setState(() {
+        _aluno = {...?_aluno, 'faixaPrincipalModalidadeId': modId};
+      });
+      final user = await AuthStorage.getUser();
+      if (user == null || !mounted) return;
+      await firestoreService.updateAluno(user.academiaId!, user.id, {'faixaPrincipalModalidadeId': modId});
+      _load();
+    }
   }
 
   void _mostrarQrCode() {
@@ -357,12 +437,16 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final a = _aluno ?? {};
     final nome = a['nome'] as String? ?? '';
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
-    final faixaCor = _faixaCor();
-    final faixaNome = a['faixaAtualNome'] as String? ?? 'Sem faixa';
-    final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
-    final faixaCorBarra = _parseHex(a['faixaAtualCorBarra'] as String?);
-    final faixaTemGraus = (a['faixaAtualTemGraus'] as bool? ?? false) || grauAtual > 0;
-    final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+    final primaryFaixa = _primaryFaixaData();
+    final faixasCount = _faixasCount();
+    final faixaCor = primaryFaixa != null
+        ? _parseHex(primaryFaixa['faixaCor'] as String?)
+        : (() { final hex = a['faixaAtualCor'] as String? ?? ''; try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; } })();
+    final faixaNome = primaryFaixa?['faixaNome'] as String? ?? a['faixaAtualNome'] as String? ?? 'Sem faixa';
+    final grauAtual = ((primaryFaixa != null ? primaryFaixa['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
+    final faixaCorBarra = _parseHex(primaryFaixa?['faixaCorBarra'] as String? ?? a['faixaAtualCorBarra'] as String?);
+    final faixaTemGraus = (primaryFaixa != null ? primaryFaixa['faixaTemGraus'] == true : (a['faixaAtualTemGraus'] as bool? ?? false)) || grauAtual > 0;
+    final maxGrausRaw = ((primaryFaixa != null ? primaryFaixa['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
     final faixaMaxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
     final turmasDetalhes = (a['turmasDetalhes'] as List? ?? []).cast<Map<String, dynamic>>();
     final finRaw = a['situacaoFinanceira'] as String?;
@@ -504,25 +588,45 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                         style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 8),
                       // Belt badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: beltColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: beltColor.withOpacity(0.5)),
+                      GestureDetector(
+                        onTap: faixasCount > 1 ? _escolherFaixaPrincipal : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: beltColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: beltColor.withOpacity(0.5)),
+                          ),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(
+                                grauAtual > 0 ? '$faixaNome · ${grauAtual}° Grau' : faixaNome,
+                                style: TextStyle(color: accentLight, fontSize: 13, fontWeight: FontWeight.w700),
+                              ),
+                              if (faixasCount > 1) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text('+${faixasCount - 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ]),
+                            const SizedBox(height: 6),
+                            BeltBadge(
+                              cor: faixaCor, corBarra: faixaCorBarra,
+                              temGraus: faixaTemGraus, grau: grauAtual, maxGraus: faixaMaxGraus,
+                              height: 14, minWidth: 52,
+                            ),
+                            if (faixasCount > 1) ...[
+                              const SizedBox(height: 4),
+                              Text('Toque para escolher', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            ],
+                          ]),
                         ),
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text(
-                            grauAtual > 0 ? '$faixaNome · ${grauAtual}° Grau' : faixaNome,
-                            style: TextStyle(color: accentLight, fontSize: 13, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          BeltBadge(
-                            cor: faixaCor, corBarra: faixaCorBarra,
-                            temGraus: faixaTemGraus, grau: grauAtual, maxGraus: faixaMaxGraus,
-                            height: 14, minWidth: 52,
-                          ),
-                        ]),
                       ),
                       const SizedBox(height: 12),
                     ],

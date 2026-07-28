@@ -83,6 +83,38 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
     return s;
   }
 
+  Future<void> _remover(Map<String, dynamic> presenca) async {
+    final id = presenca['id']?.toString() ?? '';
+    if (id.isEmpty || _academiaId == null) return;
+    final nome = (presenca['nomeAluno'] ?? presenca['aluno_id'] ?? 'este aluno').toString();
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Remover presença', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        content: Text('Deseja remover a presença de $nome nesta aula?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    try {
+      await firestoreService.deletePresenca(_academiaId!, id);
+      if (!mounted) return;
+      setState(() => _presencas.removeWhere((p) => p['id'] == id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Presença removida.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Não foi possível remover a presença.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fmtExib = DateFormat('dd/MM/yyyy (EEEE)', 'pt_BR');
@@ -246,6 +278,11 @@ class _ProfPresencaHistoricoScreenState extends State<ProfPresencaHistoricoScree
                                               ),
                                               child: Text('Pendente', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
                                             ),
+                                          IconButton(
+                                            onPressed: () => _remover(p),
+                                            tooltip: 'Remover presença',
+                                            icon: Icon(Icons.delete_outline_rounded, color: kDanger, size: 20),
+                                          ),
                                         ],
                                       ),
                                     );

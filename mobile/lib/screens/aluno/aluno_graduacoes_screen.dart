@@ -14,7 +14,7 @@ class AlunoGraduacoesScreen extends StatefulWidget {
 
 class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
   List<Map<String, dynamic>> _graduacoes = [];
-  Map<String, dynamic>? _faixaAtual;
+  List<Map<String, dynamic>> _faixasAtuais = [];
   bool _loading = true;
   bool _erro = false;
   String? _histModFiltro;
@@ -30,18 +30,28 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) return;
-      final list = await firestoreService.getGraduacoes(user.academiaId!, alunoId: user.id);
+      final list = await firestoreService.getGraduacoes(
+        user.academiaId!,
+        alunoId: user.id,
+        detalhadas: true,
+      );
       // Sort by date descending
       list.sort((a, b) {
         final da = a['dataExame']?.toString() ?? '';
         final db = b['dataExame']?.toString() ?? '';
         return db.compareTo(da);
       });
-      // Find current belt (most recent approved)
+      // Uma faixa atual por modalidade (a consulta já vem em ordem decrescente).
       final aprovadas = list.where((g) => g['aprovado'] == true).toList();
+      final atuaisPorModalidade = <String, Map<String, dynamic>>{};
+      for (final graduacao in aprovadas) {
+        final modalidade = graduacao['modalidadeId']?.toString() ??
+            graduacao['nomeModalidade']?.toString() ?? 'modalidade';
+        atuaisPorModalidade.putIfAbsent(modalidade, () => graduacao);
+      }
       if (mounted) setState(() {
         _graduacoes = list;
-        _faixaAtual = aprovadas.isNotEmpty ? aprovadas.first : null;
+        _faixasAtuais = atuaisPorModalidade.values.toList();
       });
     } catch (_) {
       if (mounted) setState(() => _erro = true);
@@ -54,6 +64,45 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     final mr = (g['faixaMaxGraus'] as num?)?.toInt() ?? 0;
     final gr = (g['grau'] as num?)?.toInt() ?? 0;
     return mr > 0 ? mr : (gr > 0 ? gr : 4);
+  }
+
+  Widget _faixaAtualCard(Map<String, dynamic> faixaAtual) {
+    final corFaixa = _hexCor(faixaAtual['corFaixa'] as String?);
+    final corBarra = _hexCor(faixaAtual['corBarraFaixa'] as String? ?? '#000000');
+    final grau = (faixaAtual['grau'] as num?)?.toInt() ?? 0;
+    final temGraus = faixaAtual['faixaTemGraus'] == true || grau > 0;
+    final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [corFaixa.withOpacity(0.25), corFaixa.withOpacity(0.08)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: corFaixa.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        BeltBadge(
+          cor: corFaixa, corBarra: corBarra, temGraus: temGraus,
+          grau: grau, maxGraus: _effectiveMaxGraus(faixaAtual), height: 22, minWidth: 52,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(faixaAtual['nomeModalidade']?.toString() ?? 'Modalidade',
+                style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
+            Text(faixaAtual['nomeFaixa']?.toString() ?? '',
+                style: TextStyle(color: accentLight, fontSize: 19, fontWeight: FontWeight.w900)),
+            if (temGraus && grau > 0)
+              Text('$grau° grau',
+                  style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ]),
+    );
   }
 
   List<Widget> _buildHistoricoByMod([String? modFiltro]) {
@@ -205,16 +254,6 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     if (_loading) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: Center(child: CircularProgressIndicator(color: kPrimary)));
     if (_erro) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: SafeArea(child: ErroConexao(onRetry: _load)));
 
-    final faixaAtual = _faixaAtual;
-    final corFaixa = _hexCor(faixaAtual?['corFaixa'] as String?);
-    final corBarra = _hexCor(faixaAtual?['corBarraFaixa'] as String? ?? '#000000');
-    final temGraus = faixaAtual?['faixaTemGraus'] == true || ((faixaAtual?['grau'] as num?)?.toInt() ?? 0) > 0;
-    final grauAtual = (faixaAtual?['grau'] as num?)?.toInt() ?? 0;
-    final maxGrausRaw = (faixaAtual?['faixaMaxGraus'] as num?)?.toInt() ?? 0;
-    final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
-    final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
-    final aprovadas = _graduacoes.where((g) => g['aprovado'] == true).toList();
-
     // Modality filter
     final mods = _graduacoes
         .map((g) => g['nomeModalidade']?.toString() ?? '')
@@ -248,61 +287,20 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                 ),
               ),
 
-              // ── Faixa atual ───────────────────────────
-              if (faixaAtual != null)
+              // ── Faixas atuais por modalidade ──────────
+              if (_faixasAtuais.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [corFaixa.withOpacity(0.25), corFaixa.withOpacity(0.08)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: corFaixa.withOpacity(0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          // Belt visual
-                          BeltBadge(
-                            cor: corFaixa,
-                            corBarra: corBarra,
-                            temGraus: temGraus,
-                            grau: grauAtual,
-                            maxGraus: maxGraus,
-                            height: 22,
-                            minWidth: 52,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Faixa atual', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
-                                Text(faixaAtual['nomeFaixa'] ?? '', style: TextStyle(color: accentLight, fontSize: 20, fontWeight: FontWeight.w900)),
-                                Row(children: [
-                                  if (faixaAtual['nomeModalidade'] != null)
-                                    Text(faixaAtual['nomeModalidade'], style: TextStyle(color: kText2, fontSize: 12)),
-                                  if (temGraus && grauAtual > 0) ...[
-                                    Text(' · ', style: TextStyle(color: kText2, fontSize: 12)),
-                                    Text('$grauAtual° grau', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
-                                  ],
-                                ]),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('${aprovadas.length}', style: TextStyle(color: corFaixa, fontSize: 28, fontWeight: FontWeight.w900)),
-                              Text('gradua${aprovadas.length == 1 ? 'ção' : 'ções'}', style: TextStyle(color: kText2, fontSize: 11)),
-                            ],
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('FAIXAS ATUAIS',
+                            style: TextStyle(color: kText2, fontSize: 11,
+                                fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                        const SizedBox(height: 10),
+                        ..._faixasAtuais.map(_faixaAtualCard),
+                      ],
                     ),
                   ),
                 ),

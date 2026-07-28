@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
 
 class ProfessorShell extends StatefulWidget {
   const ProfessorShell({super.key, required this.shell});
@@ -13,7 +14,7 @@ class ProfessorShell extends StatefulWidget {
   State<ProfessorShell> createState() => _ProfessorShellState();
 }
 
-class _ProfessorShellState extends State<ProfessorShell> {
+class _ProfessorShellState extends State<ProfessorShell> with WidgetsBindingObserver {
   static const _allItems = [
     (icon: Icons.groups_rounded,          iconOff: Icons.groups_outlined,               label: 'Turmas',     perm: 'tela_turmas',    idx: 0),
     (icon: Icons.schedule_rounded,        iconOff: Icons.schedule_outlined,             label: 'Horários',   perm: 'tela_horarios',  idx: 1),
@@ -29,17 +30,53 @@ class _ProfessorShellState extends State<ProfessorShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _carregarPermissoes();
   }
 
   Future<void> _carregarPermissoes() async {
-    final user = await AuthStorage.getUser();
+    var user = await AuthStorage.getUser();
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      try {
+        final remoto = await firestoreService.getUserByFirebaseUid(firebaseUser.uid);
+        if (remoto != null && user != null) {
+          final raw = remoto['permissoes'];
+          final permissoes = raw is Map
+              ? raw.map<String, bool>((k, v) => MapEntry(k.toString(), v == true))
+              : <String, bool>{};
+          user = StoredUser(
+            id: user.id,
+            nome: remoto['nome'] as String? ?? user.nome,
+            email: remoto['email'] as String? ?? user.email,
+            perfil: remoto['perfil'] as String? ?? user.perfil,
+            academiaId: remoto['academiaId'] as String? ?? user.academiaId,
+            permissoes: permissoes,
+            perfis: user.perfis,
+          );
+          await AuthStorage.saveUser(user);
+        }
+      } catch (_) {
+        // Mantém a última configuração válida para funcionamento offline.
+      }
+    }
     if (mounted) {
       setState(() {
         _permissoes = user?.permissoes ?? {};
         _permLoaded = true;
       });
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _carregarPermissoes();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   bool _temPermissao(String perm) {

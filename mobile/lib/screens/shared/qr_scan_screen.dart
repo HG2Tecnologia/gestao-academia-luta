@@ -159,7 +159,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     } catch (e) {
       setState(() {
         _sucesso = false;
-        _mensagemFinal = 'Erro ao registrar presença.';
+        _mensagemFinal = e is CheckinBloqueadoException ? e.mensagem : 'Erro ao registrar presença.';
         _registrando = false;
       });
     }

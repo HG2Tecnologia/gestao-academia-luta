@@ -350,7 +350,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Erro ao registrar presença.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(e is CheckinBloqueadoException ? e.mensagem : 'Erro ao registrar presença.'),
+          backgroundColor: kDanger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _marcando.remove(alunoId));
@@ -602,11 +606,20 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     final count = _presencaCount[alunoId] ?? 0;
     final apto = _aptosGraduar.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
-    final faixaCor = a['faixaAtualCor'] as String?;
-    final faixaNome = a['faixaAtualNome'] as String?;
-    final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
-    final temGraus = a['faixaAtualTemGraus'] == true || grauAtual > 0;
-    final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+    final faixasAtuaisMap = a['faixasAtuais'] as Map<String, dynamic>?;
+    final faixasCount = faixasAtuaisMap?.length ?? 0;
+    Map<String, dynamic>? primary;
+    if (faixasAtuaisMap != null && faixasAtuaisMap.isNotEmpty) {
+      final principalId = a['faixaPrincipalModalidadeId'] as String?;
+      primary = (principalId != null && faixasAtuaisMap.containsKey(principalId)
+          ? faixasAtuaisMap[principalId]
+          : faixasAtuaisMap.values.first) as Map<String, dynamic>?;
+    }
+    final faixaCor = primary?['faixaCor'] as String? ?? a['faixaAtualCor'] as String?;
+    final faixaNome = primary?['faixaNome'] as String? ?? a['faixaAtualNome'] as String?;
+    final grauAtual = ((primary != null ? primary['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
+    final temGraus = (primary != null ? primary['faixaTemGraus'] == true : a['faixaAtualTemGraus'] == true) || grauAtual > 0;
+    final maxGrausRaw = ((primary != null ? primary['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
     final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
 
     return Dismissible(
@@ -659,6 +672,17 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
                           height: 12,
                           minWidth: 28,
                         ),
+                        if (faixasCount > 1) ...[
+                          const SizedBox(width: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: kPrimary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text('+${faixasCount - 1}', style: TextStyle(color: kPrimary, fontSize: 9, fontWeight: FontWeight.w700)),
+                          ),
+                        ],
                         const SizedBox(width: 5),
                       ],
                       if (faixaNome != null)

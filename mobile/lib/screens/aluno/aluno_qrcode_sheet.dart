@@ -249,7 +249,7 @@ class _EscanearTabState extends State<_EscanearTab> {
     } catch (e) {
       setState(() {
         _sucesso = false;
-        _mensagem = 'Erro ao registrar presença.';
+        _mensagem = e is CheckinBloqueadoException ? e.mensagem : 'Erro ao registrar presença.';
       });
     }
   }

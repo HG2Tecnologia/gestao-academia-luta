@@ -52,7 +52,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
       final results = await Future.wait([
         firestoreService.getAluno(academiaId, widget.alunoId),
-        firestoreService.getGraduacoes(academiaId, alunoId: widget.alunoId),
+        firestoreService.getGraduacoes(academiaId, alunoId: widget.alunoId, detalhadas: true),
         firestoreService.getAtestadoAluno(academiaId, widget.alunoId),
         firestoreService.getParQ(academiaId, widget.alunoId),
         firestoreService.getGruposFamiliares(academiaId),
@@ -124,7 +124,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           'faixaTemGraus': f['tem_graus'] == true,
           'faixaMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
           'faixaOrdem': (f['ordem'] as num?)?.toInt() ?? 0,
-          'nomeModalidade': f['modalidade_nome'] ?? '',
+          'nomeModalidade': g['nomeModalidade'] ?? f['modalidade_nome'] ?? 'Modalidade',
           'dataExame': g['data_exame'] ?? '',
           'nomeProfessor': '',
           'grau': (g['grau'] as num?)?.toInt() ?? 0,
@@ -1515,13 +1515,26 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           'observacoes': obsCtrl.text.trim(),
                           'academia_id': _academiaId!,
                         });
-                        await firestoreService.updateAluno(_academiaId!, widget.alunoId, {
-                          'faixaAtualNome': faixaSel!['nome'],
-                          'faixaAtualCor': faixaSel!['cor'],
-                          'faixaAtualTemGraus': faixaSel!['temGraus'] == true,
-                          'faixaAtualMaxGraus': (faixaSel!['maxGraus'] as num?)?.toInt() ?? 0,
-                          'grauAtual': grauFinal,
-                        });
+                        // Atualiza faixasAtuais no doc do aluno (mapa por modalidade, usado nas listas)
+                        final modId = modSel?['id']?.toString() ?? '';
+                        final modNome = modSel?['nome']?.toString() ?? '';
+                        if (modId.isNotEmpty) {
+                          final jaTemPrincipal = (_aluno?['faixaPrincipalModalidadeId'] as String?)?.isNotEmpty == true;
+                          final updateData = <String, dynamic>{
+                            'faixasAtuais.$modId': {
+                              'modalidadeId': modId,
+                              'modalidadeNome': modNome,
+                              'faixaNome': faixaSel!['nome'],
+                              'faixaCor': faixaSel!['cor'],
+                              'faixaCorBarra': faixaSel!['corBarra'] ?? faixaSel!['cor_barra'],
+                              'faixaTemGraus': faixaSel!['temGraus'] == true,
+                              'faixaMaxGraus': (faixaSel!['maxGraus'] as num?)?.toInt() ?? 4,
+                              'grau': grauFinal,
+                            },
+                            if (!jaTemPrincipal) 'faixaPrincipalModalidadeId': modId,
+                          };
+                          await firestoreService.updateAluno(_academiaId!, widget.alunoId, updateData);
+                        }
                         if (gerarCobranca && valorCtrl.text.isNotEmpty) {
                           final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
                           if (valor > 0) {

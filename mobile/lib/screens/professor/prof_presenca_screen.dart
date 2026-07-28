@@ -18,6 +18,7 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
   List<Map<String, dynamic>> _alunos = [];
   final _selecionados = <String>{};
   final _jaPresentes = <String>{};
+  final _presencaIds = <String, String>{};
   int _step = 0;
   bool _loading = true;
   bool _saving = false;
@@ -62,10 +63,11 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
       // Carrega matrículas e alunos em paralelo com presenças já registradas
       final results = await Future.wait([
         firestoreService.getMatriculas(_academiaId!, turmaId: turmaId),
-        firestoreService.getAlunosComPresenca(_academiaId!, turmaId, _dataStr),
+        firestoreService.getPresencasPorAluno(_academiaId!, turmaId, _dataStr),
       ]);
       final matriculas = results[0] as List<Map<String, dynamic>>;
-      final jaPresentes = results[1] as Set<String>;
+      final presencasPorAluno = results[1] as Map<String, String>;
+      final jaPresentes = presencasPorAluno.keys.toSet();
 
       final alunos = <Map<String, dynamic>>[];
       for (final m in matriculas) {
@@ -83,6 +85,9 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
           _jaPresentes
             ..clear()
             ..addAll(jaPresentes);
+          _presencaIds
+            ..clear()
+            ..addAll(presencasPorAluno);
           // Pré-selecionar quem já tem presença (exibição travada)
           _selecionados
             ..clear()
@@ -131,31 +136,91 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
     final now = DateTime.now();
     final horaStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     try {
-      await Future.wait(novos.map((alunoId) => firestoreService.addPresenca(_academiaId!, {
-        'aluno_id': alunoId,
-        'turma_id': _turmaSel!['id'].toString(),
-        'horario_id': '',
-        'data': _dataStr,
-        'hora_checkin': horaStr,
-        'metodo_checkin': 1,
-        'confirmado': true,
-        'academia_id': _academiaId,
-      })));
+      final bloqueios = await Future.wait(
+        novos.map((id) => firestoreService.motivoBloqueioCheckin(_academiaId!, id)),
+      );
+      final liberados = <String>[];
+      var bloqueados = 0;
+      var i = 0;
+      for (final alunoId in novos) {
+        if (bloqueios[i++] == null) {
+          liberados.add(alunoId);
+        } else {
+          bloqueados++;
+        }
+      }
+      final novosIds = await Future.wait(liberados.map((alunoId) =>
+          firestoreService.addPresenca(_academiaId!, {
+            'aluno_id': alunoId,
+            'turma_id': _turmaSel!['id'].toString(),
+            'horario_id': '',
+            'data': _dataStr,
+            'hora_checkin': horaStr,
+            'metodo_checkin': 1,
+            'confirmado': true,
+            'academia_id': _academiaId,
+          })));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${novos.length} presença(s) registrada(s)!'),
-            backgroundColor: kSuccess,
+            content: Text(bloqueados == 0
+                ? '${liberados.length} presença(s) registrada(s)!'
+                : '${liberados.length} registrada(s); $bloqueados bloqueada(s) por pendência financeira.'),
+            backgroundColor: bloqueados == 0 ? kSuccess : kWarning,
             behavior: SnackBarBehavior.floating,
           ),
         );
         setState(() {
-          _jaPresentes.addAll(novos);
+          _jaPresentes.addAll(liberados);
+          for (var j = 0; j < liberados.length; j++) {
+            _presencaIds[liberados[j]] = novosIds[j];
+          }
+          _selecionados
+            ..clear()
+            ..addAll(_jaPresentes);
         });
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Erro ao registrar.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _removerPresenca(String alunoId, String nome) async {
+    final presencaId = _presencaIds[alunoId];
+    if (presencaId == null || _academiaId == null) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Remover presença', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        content: Text('Deseja remover a presença de $nome em $_dataLabel?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    setState(() => _saving = true);
+    try {
+      await firestoreService.deletePresenca(_academiaId!, presencaId);
+      if (mounted) {
+        setState(() {
+          _jaPresentes.remove(alunoId);
+          _selecionados.remove(alunoId);
+          _presencaIds.remove(alunoId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Presença removida.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Não foi possível remover a presença.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -337,7 +402,9 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
                 final sel = _selecionados.contains(alunoId);
                 final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
                 return GestureDetector(
-                  onTap: jaPresente ? null : () => setState(() => sel ? _selecionados.remove(alunoId) : _selecionados.add(alunoId)),
+                  onTap: jaPresente
+                      ? () => _removerPresenca(alunoId, nome)
+                      : () => setState(() => sel ? _selecionados.remove(alunoId) : _selecionados.add(alunoId)),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(14),
@@ -371,7 +438,7 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
                             children: [
                               Text(nome, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
                               if (jaPresente)
-                                Text('Presença já registrada', style: TextStyle(color: kSuccess, fontSize: 11)),
+                                Text('Presença registrada · toque para remover', style: TextStyle(color: kSuccess, fontSize: 11)),
                             ],
                           ),
                         ),

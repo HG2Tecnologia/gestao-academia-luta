@@ -64,7 +64,8 @@ service cloud.firestore {
       // Admin/secretaria podem atualizar tudo; usuário pode vincular UID (primeiro acesso) e atualizar foto
       allow update: if isAdminOuSecretaria(academiaId) ||
         (isAuth() &&
-         request.auth.uid == resource.data.firebaseUid &&
+         resource.data.get('firebaseUid', '') in ['', request.auth.uid] &&
+         request.resource.data.firebaseUid == request.auth.uid &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa', 'fotoBase64', 'atualizado_em']));
       allow delete: if isAdminOuSecretaria(academiaId);
     }
@@ -76,6 +77,7 @@ service cloud.firestore {
       // Admin/secretaria podem atualizar tudo; funcionário pode apenas vincular seu UID (primeiro acesso)
       allow update: if isAdminOuSecretaria(academiaId) ||
         (isAuth() &&
+         resource.data.get('firebaseUid', '') in ['', request.auth.uid] &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa']) &&
          request.resource.data.firebaseUid == request.auth.uid);
     }

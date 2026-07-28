@@ -124,6 +124,16 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
     super.dispose();
   }
 
+  Map<String, dynamic>? _primaryFaixa(Map<String, dynamic> a) {
+    final faixasAtuais = a['faixasAtuais'] as Map<String, dynamic>?;
+    if (faixasAtuais == null || faixasAtuais.isEmpty) return null;
+    final principalId = a['faixaPrincipalModalidadeId'] as String?;
+    if (principalId != null && principalId.isNotEmpty && faixasAtuais.containsKey(principalId)) {
+      return faixasAtuais[principalId] as Map<String, dynamic>?;
+    }
+    return faixasAtuais.values.first as Map<String, dynamic>?;
+  }
+
   Color _finCor(String? s) {
     if (s == 'Inadimplente') return kDanger;
     if (s == 'Pendente') return kWarning;
@@ -201,13 +211,15 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final atestadoValidade = a['atestadoValidade'] != null ? DateTime.tryParse(a['atestadoValidade']) : null;
                                   final atestadoProblema = statusAtestado == null || statusAtestado == 0 || statusAtestado == 2 || statusAtestado == 3
                                       || (statusAtestado == 1 && atestadoValidade != null && atestadoValidade.isBefore(DateTime.now().add(const Duration(days: 7))));
-                                  final faixaCor = a['faixaAtualCor'] as String?;
-                                  final faixaCorBarra = a['faixaAtualCorBarra'] as String?;
-                                  final grauAtual = (a['grauAtual'] as num?)?.toInt() ?? 0;
-                                  final maxGrausRaw = (a['faixaAtualMaxGraus'] as num?)?.toInt() ?? 4;
+                                  final primary = _primaryFaixa(a);
+                                  final faixasCount = (a['faixasAtuais'] as Map?)?.length ?? 0;
+                                  final faixaCor = primary?['faixaCor'] as String? ?? a['faixaAtualCor'] as String?;
+                                  final faixaCorBarra = primary?['faixaCorBarra'] as String? ?? a['faixaAtualCorBarra'] as String?;
+                                  final grauAtual = ((primary != null ? primary['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
+                                  final maxGrausRaw = ((primary != null ? primary['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
                                   final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
-                                  final temGraus = a['faixaAtualTemGraus'] == true || grauAtual > 0;
-                                  final faixaNome = a['faixaAtualNome'] as String?;
+                                  final temGraus = (primary != null ? primary['faixaTemGraus'] == true : a['faixaAtualTemGraus'] == true) || grauAtual > 0;
+                                  final faixaNome = primary?['faixaNome'] as String? ?? a['faixaAtualNome'] as String?;
                                   Color parseCor(String? hex) {
                                     try { return Color(int.parse((hex ?? '').replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
                                   }
@@ -243,6 +255,17 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                                       height: 14,
                                                       minWidth: 32,
                                                     ),
+                                                    if (faixasCount > 1) ...[
+                                                      const SizedBox(width: 4),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: kPrimary.withOpacity(0.15),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text('+${faixasCount - 1}', style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
+                                                      ),
+                                                    ],
                                                     const SizedBox(width: 6),
                                                   ],
                                                   Flexible(child: Text(
