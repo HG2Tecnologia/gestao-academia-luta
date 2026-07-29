@@ -562,19 +562,32 @@ class FirestoreService {
   Future<List<Map<String, dynamic>>> getPresencas(String academiaId,
       {String? alunoId, String? horarioId, String? turmaId, String? dataStr}) async {
     if (turmaId != null) {
+      // Query directly by turma_id (manual check-ins from admin screen)
+      final byTurmaSnap = await _col(academiaId, 'presencas')
+          .where('turma_id', isEqualTo: turmaId)
+          .get();
+      final results = byTurmaSnap.docs.map(_convertDoc).toList();
+      final seenIds = results.map((p) => p['id']?.toString() ?? '').toSet();
+
+      // Also query via horario_id (QR code check-ins linked to a horario)
       final horariosSnap = await _col(academiaId, 'horarios')
           .where('turma_id', isEqualTo: turmaId)
           .get();
       final ids = horariosSnap.docs.map((d) => d.id).toList();
-      if (ids.isEmpty) return [];
-      final results = <Map<String, dynamic>>[];
       for (var i = 0; i < ids.length; i += 30) {
         final chunk = ids.sublist(i, (i + 30).clamp(0, ids.length));
         final snap = await _col(academiaId, 'presencas')
             .where('horario_id', whereIn: chunk)
             .orderBy('criado_em', descending: true)
             .get();
-        results.addAll(snap.docs.map(_convertDoc));
+        for (final doc in snap.docs) {
+          final p = _convertDoc(doc);
+          final pid = p['id']?.toString() ?? '';
+          if (pid.isNotEmpty && !seenIds.contains(pid)) {
+            results.add(p);
+            seenIds.add(pid);
+          }
+        }
       }
       return results;
     }

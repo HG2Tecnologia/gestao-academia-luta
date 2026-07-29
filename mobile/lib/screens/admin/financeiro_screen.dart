@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -98,11 +99,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         final statusRaw = p['status'];
         final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
         final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        final rawNome = (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '').toString();
+        final rawTipo = p['tipo']?.toString() ?? '';
         return {
           ...p,
           'status': statusStr,
-          'nomeAluno': p['nome_aluno'] ?? p['nomeAluno'] ?? '',
+          'nomeAluno': rawNome == 'null' ? '' : rawNome,
           'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
+          'tipo': (rawTipo.isEmpty || rawTipo == 'null') ? 'Mensalidade' : rawTipo,
         };
       }).toList();
 
@@ -130,6 +134,12 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     });
     _load();
   }
+
+  static final _brl = NumberFormat('#,##0.00', 'pt_BR');
+  static final _brlInt = NumberFormat('#,##0', 'pt_BR');
+
+  String _fmtVal(num v) => 'R\$ ${_brl.format(v)}';
+  String _fmtInt(num v) => 'R\$ ${_brlInt.format(v)}';
 
   Color _statusCor(String? s) {
     if (s == 'Pago') return kSuccess;
@@ -438,7 +448,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             Text('Marcar como pago', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text('${c['nomeAluno']} · ${c['tipo']}', style: TextStyle(color: kText2, fontSize: 13)),
-            Text('R\$ ${((c['valor'] as num?) ?? 0).toStringAsFixed(2).replaceAll('.', ',')}',
+            Text(_fmtVal((c['valor'] as num?) ?? 0),
                 style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 24),
             FilledButton(
@@ -615,9 +625,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         mainAxisSpacing: 10,
                         childAspectRatio: 1.6,
                         children: [
-                          _met('Recebido', 'R\$ ${((r['totalRecebidoMes'] as num?) ?? 0).toStringAsFixed(0)}', kSuccess),
-                          _met('Pendente', 'R\$ ${((r['totalPendenteMes'] as num?) ?? 0).toStringAsFixed(0)}', kWarning),
-                          _met('Atrasado', 'R\$ ${((r['totalAtrasado'] as num?) ?? 0).toStringAsFixed(0)}', kDanger),
+                          _met('Recebido', _fmtInt((r['totalRecebidoMes'] as num?) ?? 0), kSuccess),
+                          _met('Pendente', _fmtInt((r['totalPendenteMes'] as num?) ?? 0), kWarning),
+                          _met('Atrasado', _fmtInt((r['totalAtrasado'] as num?) ?? 0), kDanger),
                           _met('Inadimplentes', '${r['alunosInadimplentes'] ?? 0}', kDanger),
                         ],
                       ),
@@ -674,7 +684,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                          'R\$ ${((c['valor'] as num?) ?? 0).toStringAsFixed(2).replaceAll('.', ',')}',
+                                          _fmtVal((c['valor'] as num?) ?? 0),
                                           style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700),
                                         ),
                                         Text(status ?? '', style: TextStyle(color: _statusCor(status), fontSize: 12, fontWeight: FontWeight.w600)),

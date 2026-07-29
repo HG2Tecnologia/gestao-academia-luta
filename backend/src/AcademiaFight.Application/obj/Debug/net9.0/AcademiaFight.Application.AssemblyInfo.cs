@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AcademiaFight.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f840cb809023e48e69a7cc3a00cda90b99e93e99")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+efabbe2e32a70f0bc87d42f99829bcbadc3858c1")]
 [assembly: System.Reflection.AssemblyProductAttribute("AcademiaFight.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AcademiaFight.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

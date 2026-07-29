@@ -129,8 +129,42 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
       if (dados != null) {
         try {
-          final lista = await firestoreService.getPresencas(academiaId, alunoId: user.id);
-          if (mounted) setState(() => _presencasRecentes = lista.take(7).toList());
+          final results2 = await Future.wait([
+            firestoreService.getPresencas(academiaId, alunoId: user.id),
+            firestoreService.getMatriculas(academiaId, alunoId: user.id, ativasOnly: true),
+          ]);
+          final presencas = (results2[0] as List).cast<Map<String, dynamic>>();
+          final matriculas = (results2[1] as List).cast<Map<String, dynamic>>();
+
+          // Conta presenças por turma
+          final countPerTurma = <String, int>{};
+          for (final p in presencas) {
+            final tid = p['turma_id']?.toString() ?? '';
+            if (tid.isNotEmpty) countPerTurma[tid] = (countPerTurma[tid] ?? 0) + 1;
+          }
+
+          // Carrega nome de cada turma em paralelo
+          final turmaIds = matriculas
+              .map((m) => m['turma_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toList();
+          final turmaData = await Future.wait(
+            turmaIds.map((id) => firestoreService.getTurma(academiaId, id).catchError((_) => null)),
+          );
+          final turmasDetalhes = <Map<String, dynamic>>[];
+          for (var i = 0; i < turmaIds.length; i++) {
+            final turma = turmaData[i] as Map<String, dynamic>?;
+            turmasDetalhes.add({
+              'turmaId': turmaIds[i],
+              'nome': turma?['nome'] ?? '',
+              'totalPresencas': countPerTurma[turmaIds[i]] ?? 0,
+            });
+          }
+
+          if (mounted) setState(() {
+            _aluno = {...?_aluno, 'turmasDetalhes': turmasDetalhes};
+            _presencasRecentes = presencas.take(7).toList();
+          });
         } catch (_) {}
       }
     } catch (_) {} finally {

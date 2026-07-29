@@ -343,6 +343,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         setState(() {
           _presentesNaData.add(alunoId);
           if (pid.isNotEmpty) _presencaIds[alunoId] = pid;
+          _presencaCount[alunoId] = (_presencaCount[alunoId] ?? 0) + 1;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Presença registrada!'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)),
@@ -395,6 +396,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         setState(() {
           _presentesNaData.remove(alunoId);
           _presencaIds.remove(alunoId);
+          _presencaCount[alunoId] = ((_presencaCount[alunoId] ?? 1) - 1).clamp(0, 999999);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Presença removida.'), backgroundColor: kSuccess, behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)),
