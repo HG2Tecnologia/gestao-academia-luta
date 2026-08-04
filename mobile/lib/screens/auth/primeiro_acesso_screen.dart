@@ -108,7 +108,17 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
         return;
       }
 
-      _todosUsuarios = usuarios;
+      // Filtra cadastros inativos — aluno bloqueado não pode criar conta
+      final ativos = usuarios.where((u) => u['ativo'] != false).toList();
+      if (ativos.isEmpty) {
+        setState(() {
+          _erro = 'Seu cadastro está inativo. Entre em contato com a secretaria da sua academia.';
+          _loading = false;
+        });
+        return;
+      }
+
+      _todosUsuarios = ativos;
 
       if (usuarios.length == 1) {
         // Apenas 1 perfil → pula seleção

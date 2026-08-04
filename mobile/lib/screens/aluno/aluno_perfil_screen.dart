@@ -37,8 +37,14 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _parq;
   List<Map<String, dynamic>> _noticias = [];
   List<Map<String, dynamic>> _presencasRecentes = [];
+  List<Map<String, dynamic>> _pagamentos = [];
   bool _loading = true;
   bool _uploadingFoto = false;
+  bool _pesquisaAtiva = false;
+  int _pesquisaXpRecompensa = 50;
+  bool _pesquisaRespondidaMes = true;
+  Map<String, dynamic>? _pesquisaTemplate;
+  bool _pesquisaAutoAberta = false;
 
   @override
   void initState() {
@@ -105,11 +111,13 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         firestoreService.getAluno(academiaId, user.id),
         firestoreService.getAtestadoAluno(academiaId, user.id).catchError((_) => null),
         firestoreService.getParQ(academiaId, user.id).catchError((_) => null),
+        firestoreService.getPagamentos(academiaId, alunoId: user.id).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final dados = results[0] as Map<String, dynamic>?;
       final atestadoDados = results[1] as Map<String, dynamic>?;
       final parqDados = results[2] as Map<String, dynamic>?;
+      final pagamentosDados = (results[3] as List).cast<Map<String, dynamic>>();
 
       if (mounted) setState(() {
         // Preserva a foto local se o upload ainda está em andamento ou Firestore ainda não confirmou
@@ -120,11 +128,42 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         };
         _atestado = atestadoDados;
         _parq = parqDados;
+        _pagamentos = pagamentosDados;
       });
 
       try {
         final lista = await firestoreService.getNoticias(academiaId);
         if (mounted) setState(() => _noticias = lista.take(5).toList());
+      } catch (_) {}
+
+      // Carrega config da pesquisa + verifica se já respondeu este mês
+      try {
+        final now = DateTime.now();
+        final mes = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        final acadData = await firestoreService.getAcademia(academiaId);
+        final pesquisaAtiva = acadData?['pesquisa_satisfacao_ativa'] == true;
+        Map<String, dynamic>? template;
+        if (pesquisaAtiva) {
+          template = await firestoreService.getPesquisaTemplateAtivo(academiaId);
+        }
+        final jaRespondeu = await firestoreService.jaRespondeuPesquisaMes(
+          academiaId, user.id, mes,
+          templateId: template?['id'] as String?,
+        );
+        if (mounted) setState(() {
+          _pesquisaAtiva = pesquisaAtiva;
+          _pesquisaXpRecompensa = (acadData?['pesquisa_xp_recompensa'] as num?)?.toInt() ?? 50;
+          _pesquisaRespondidaMes = jaRespondeu;
+          _pesquisaTemplate = template;
+        });
+        if (pesquisaAtiva && !jaRespondeu && !_pesquisaAutoAberta) {
+          _pesquisaAutoAberta = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Future.delayed(const Duration(milliseconds: 700), () {
+              if (mounted) _mostrarPesquisaSatisfacao();
+            });
+          });
+        }
       } catch (_) {}
 
       if (dados != null) {
@@ -286,6 +325,159 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     );
   }
 
+  void _mostrarPesquisaSatisfacao() {
+    int notaSelecionada = 0;
+    final comentarioCtrl = TextEditingController();
+    bool enviando = false;
+    bool enviado = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) {
+          if (enviado) {
+            return Container(
+              decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
+                Icon(Icons.check_circle_rounded, color: kSuccess, size: 56),
+                const SizedBox(height: 16),
+                Text('Obrigado pelo feedback!', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Text(
+                  _pesquisaXpRecompensa > 0 ? '+$_pesquisaXpRecompensa XP adicionados ao seu perfil.' : 'Sua avaliação foi registrada.',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ]),
+            );
+          }
+
+          return Container(
+            decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+            padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 28),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
+              Row(children: [
+                Container(width: 38, height: 38,
+                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.star_rounded, color: kPrimary, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    _pesquisaTemplate?['titulo']?.toString() ?? 'Pesquisa de satisfação',
+                    style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    _pesquisaTemplate?['descricao']?.toString() ?? 'Como está sendo sua experiência?',
+                    style: TextStyle(color: kText2, fontSize: 12),
+                  ),
+                ])),
+              ]),
+              const SizedBox(height: 24),
+              // Estrelas
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (i) {
+                final estrela = i + 1;
+                return GestureDetector(
+                  onTap: () => setModal(() => notaSelecionada = estrela),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      estrela <= notaSelecionada ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: estrela <= notaSelecionada ? kPrimary : kText2,
+                      size: 44,
+                    ),
+                  ),
+                );
+              })),
+              const SizedBox(height: 8),
+              Center(child: Text(
+                notaSelecionada == 0 ? 'Toque para avaliar' : ['', 'Muito ruim', 'Ruim', 'Regular', 'Bom', 'Excelente!'][notaSelecionada],
+                style: TextStyle(color: notaSelecionada == 0 ? kText2 : kPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+              )),
+              const SizedBox(height: 20),
+              // Comentário opcional
+              TextField(
+                controller: comentarioCtrl,
+                maxLines: 3,
+                maxLength: 300,
+                style: TextStyle(color: kText1, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Deixe um comentário (opcional)',
+                  hintStyle: TextStyle(color: kText2, fontSize: 13),
+                  filled: true, fillColor: kBg,
+                  counterStyle: TextStyle(color: kText2),
+                  contentPadding: const EdgeInsets.all(14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botão enviar
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: (notaSelecionada == 0 || enviando) ? null : () async {
+                    setModal(() => enviando = true);
+                    try {
+                      final user = await AuthStorage.getUser();
+                      if (user == null) {
+                        setModal(() => enviando = false);
+                        return;
+                      }
+                      final now = DateTime.now();
+                      final mes = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+                      await firestoreService.addRespostaPesquisa(user.academiaId!, {
+                        'aluno_id': user.id,
+                        'nota': notaSelecionada,
+                        'mes': mes,
+                        if (_pesquisaTemplate != null) 'template_id': _pesquisaTemplate!['id'],
+                        if (comentarioCtrl.text.trim().isNotEmpty) 'comentario': comentarioCtrl.text.trim(),
+                      });
+                      if (_pesquisaXpRecompensa > 0) {
+                        await firestoreService.adicionarXp(user.academiaId!, user.id, _pesquisaXpRecompensa).catchError((_) {});
+                      }
+                      setModal(() { enviando = false; enviado = true; });
+                      if (mounted) setState(() => _pesquisaRespondidaMes = true);
+                      await Future.delayed(const Duration(seconds: 2));
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    } catch (e) {
+                      setModal(() => enviando = false);
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Erro ao enviar resposta. Verifique sua conexão.'),
+                          backgroundColor: kDanger,
+                          behavior: SnackBarBehavior.floating,
+                        ));
+                      }
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: enviando
+                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(
+                          _pesquisaXpRecompensa > 0 ? 'Enviar e ganhar +$_pesquisaXpRecompensa XP' : 'Enviar avaliação',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+
   void _editarPerfil() {
     final nomeCtrl = TextEditingController(text: _aluno?['nome'] as String? ?? '');
     final telCtrl = TextEditingController(text: _aluno?['telefone'] as String? ?? '');
@@ -377,6 +569,19 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     );
   }
 
+  bool get _temMensalidadeAtrasada {
+    for (final p in _pagamentos) {
+      final rawStatus = p['status'];
+      final status = rawStatus is int ? rawStatus : int.tryParse(rawStatus?.toString() ?? '');
+      if (status == 2) return true;
+      if (status == 1) continue;
+      final rawVenc = p['data_vencimento'] ?? p['dataVencimento'];
+      final venc = rawVenc is String ? DateTime.tryParse(rawVenc) : null;
+      if (venc != null && venc.isBefore(DateTime.now())) return true;
+    }
+    return false;
+  }
+
   bool _deveExibirBannerAtestado() {
     if (_atestado == null) return true;
     final status = _atestado!['status'] as int? ?? 0;
@@ -397,6 +602,88 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     if (status == 2) return 'Atestado rejeitado — envie um novo';
     if (status == 3) return 'Atestado expirado — envie um novo';
     return 'Atestado vencendo em breve';
+  }
+
+  void _abrirModalPesei(BuildContext ctx) {
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: const Color(0xFF121212),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      isScrollControlled: true,
+      builder: (modalCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 10),
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 24),
+          // Header com logo
+          Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset('assets/logo_pesei.png', width: 64, height: 64, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('PESEI', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              const Text('Seu parceiro de saúde e bem-estar', style: TextStyle(color: Colors.white60, fontSize: 13)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFF2E7D32), borderRadius: BorderRadius.circular(20)),
+                child: const Text('Gratuito · iOS & Android', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+            ])),
+          ]),
+          const SizedBox(height: 24),
+          // Features
+          _peseiFeature(Icons.monitor_weight_rounded, 'Controle de Peso', 'Acompanhe ganhos e perdas com gráficos e histórico'),
+          const SizedBox(height: 12),
+          _peseiFeature(Icons.water_drop_rounded, 'Hidratação Diária', 'Meta de consumo de água personalizada com alertas'),
+          const SizedBox(height: 12),
+          _peseiFeature(Icons.medication_rounded, 'Medicamentos', 'Lembretes para não esquecer seus remédios e suplementos'),
+          const SizedBox(height: 12),
+          _peseiFeature(Icons.insights_rounded, 'Evolução Visual', 'Gráficos de progresso para manter o foco nos seus objetivos'),
+          const SizedBox(height: 28),
+          // Botão download
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                Navigator.of(modalCtx).pop();
+                final peseiUrl = defaultTargetPlatform == TargetPlatform.iOS
+                    ? 'https://apps.apple.com/br/app/pesei/id6760273528'
+                    : 'https://play.google.com/store/apps/details?id=br.com.hg2tecnologia.pesei';
+                final uri = Uri.parse(peseiUrl);
+                if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text('Baixar gratuitamente', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _peseiFeature(IconData icon, String title, String subtitle) {
+    return Row(children: [
+      Container(
+        width: 42, height: 42,
+        decoration: BoxDecoration(color: const Color(0xFF2E7D32).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
+      ),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+      ])),
+    ]);
   }
 
   Widget _buildSemanaWidget() {
@@ -673,25 +960,29 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
           // ── Frequência semanal ──
           SliverToBoxAdapter(child: _buildSemanaWidget()),
 
-          // ── Situação financeira ──
-          if (fin == 'Inadimplente' || fin == 'Pendente')
+          // ── Mensalidade em atraso ──
+          if (_temMensalidadeAtrasada)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: finCor().withOpacity(0.08), borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: finCor().withOpacity(0.3)),
+                child: GestureDetector(
+                  onTap: () => context.go('/aluno/financeiro'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: kDanger.withOpacity(0.08), borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kDanger.withOpacity(0.3)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.credit_card_off_rounded, color: kDanger, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Mensalidade em atraso', style: TextStyle(color: kDanger, fontSize: 13, fontWeight: FontWeight.w700)),
+                        Text('Toque para ver detalhes e regularizar.', style: TextStyle(color: kText2, fontSize: 12)),
+                      ])),
+                      Icon(Icons.chevron_right_rounded, color: kDanger, size: 18),
+                    ]),
                   ),
-                  child: Row(children: [
-                    Icon(Icons.warning_amber_rounded, color: finCor(), size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Situação: $fin', style: TextStyle(color: finCor(), fontSize: 13, fontWeight: FontWeight.w700)),
-                      Text('Entre em contato com a secretaria.', style: TextStyle(color: kText2, fontSize: 12)),
-                    ])),
-                  ]),
                 ),
               ),
             ),
@@ -717,6 +1008,37 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                         Text('Toque para resolver', style: TextStyle(color: kText2, fontSize: 12)),
                       ])),
                       Icon(Icons.chevron_right, color: kDanger, size: 20),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Pesquisa de satisfação ──
+          if (_pesquisaAtiva && !_pesquisaRespondidaMes)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: GestureDetector(
+                  onTap: () => _mostrarPesquisaSatisfacao(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: kPrimary.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: kPrimary.withOpacity(0.35)),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.star_rounded, color: kPrimary, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(
+                          _pesquisaTemplate?['titulo']?.toString() ?? 'Avalie sua experiência!',
+                          style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                        Text('Ganhe +$_pesquisaXpRecompensa XP respondendo a pesquisa do mês', style: TextStyle(color: kText2, fontSize: 11)),
+                      ])),
+                      Icon(Icons.chevron_right_rounded, color: kPrimary, size: 18),
                     ]),
                   ),
                 ),
@@ -906,6 +1228,61 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
           ],
+
+          // ── PESEI ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: GestureDetector(
+                onTap: () => _abrirModalPesei(context),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: const Color(0xFF2E7D32).withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset('assets/logo_pesei.png', width: 52, height: 52, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        const Text('PESEI', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('GRÁTIS', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                        ),
+                      ]),
+                      const SizedBox(height: 3),
+                      Text('Controle de peso, água e saúde', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
+                    ])),
+                    Column(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Ver app', style: TextStyle(color: Color(0xFF2E7D32), fontSize: 12, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                  ]),
+                ),
+              ),
+            ),
+          ),
 
           // ── Legal ──
           SliverToBoxAdapter(

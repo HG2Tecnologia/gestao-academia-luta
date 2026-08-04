@@ -31,6 +31,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   bool _erro = false;
   String _subdominio = '';
   String? _logoBase64;
+  bool _bloqueioCheckinAtivo = false;
+  int _carenciaDias = 3;
+  bool _pesquisaAtiva = false;
+  int _pesquisaXpRecompensa = 50;
+  bool _taxaAtrasoAtiva = false;
+  int _taxaAtrasoTipo = 0; // 0=percentual, 1=fixo
+  final _taxaAtrasoValorCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -44,6 +51,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     _emailCtrl.dispose();
     _telefoneCtrl.dispose();
     _cnpjCtrl.dispose();
+    _taxaAtrasoValorCtrl.dispose();
     super.dispose();
   }
 
@@ -60,6 +68,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _cnpjCtrl.text = dados['cnpj'] as String? ?? '';
       _subdominio = dados['subdominio'] as String? ?? '';
       _logoBase64 = dados['logoUrl'] as String?;
+      _bloqueioCheckinAtivo = dados['bloqueio_checkin_ativo'] as bool? ?? false;
+      _carenciaDias = (dados['bloqueio_checkin_carencia_dias'] as num?)?.toInt() ?? 3;
+      _pesquisaAtiva = dados['pesquisa_satisfacao_ativa'] as bool? ?? false;
+      _pesquisaXpRecompensa = (dados['pesquisa_xp_recompensa'] as num?)?.toInt() ?? 50;
+      _taxaAtrasoAtiva = dados['taxa_atraso_ativa'] as bool? ?? false;
+      _taxaAtrasoTipo = (dados['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
+      _taxaAtrasoValorCtrl.text = ((dados['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2).replaceAll('.', ',');
       if (mounted) setState(() { _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
@@ -90,6 +105,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
         'telefone': _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
         'cnpj': _cnpjCtrl.text.trim().isEmpty ? null : _cnpjCtrl.text.trim(),
         'logoUrl': _logoBase64,
+        'bloqueio_checkin_ativo': _bloqueioCheckinAtivo,
+        'bloqueio_checkin_carencia_dias': _carenciaDias,
+        'pesquisa_satisfacao_ativa': _pesquisaAtiva,
+        'pesquisa_xp_recompensa': _pesquisaXpRecompensa,
+        'taxa_atraso_ativa': _taxaAtrasoAtiva,
+        'taxa_atraso_tipo': _taxaAtrasoTipo,
+        'taxa_atraso_valor': double.tryParse(_taxaAtrasoValorCtrl.text.replaceAll(',', '.')) ?? 0.0,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,6 +273,61 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 24),
+                        _SectionLabel('Alunos'),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: kBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('Bloquear check-in por mensalidade vencida', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 2),
+                                  Text('Impede check-in de alunos com pagamento vencido', style: TextStyle(color: kText2, fontSize: 12)),
+                                ])),
+                                Switch(
+                                  value: _bloqueioCheckinAtivo,
+                                  onChanged: (v) => setState(() => _bloqueioCheckinAtivo = v),
+                                  activeColor: kPrimary,
+                                ),
+                              ]),
+                              if (_bloqueioCheckinAtivo) ...[
+                                const Divider(height: 20),
+                                Row(children: [
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('Dias de carência', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                                    Text('Bloqueia após este número de dias do vencimento', style: TextStyle(color: kText2, fontSize: 12)),
+                                  ])),
+                                  Row(children: [
+                                    IconButton(
+                                      icon: Icon(Icons.remove_circle_outline_rounded, color: _carenciaDias > 0 ? kPrimary : kBorder),
+                                      onPressed: _carenciaDias > 0 ? () => setState(() => _carenciaDias--) : null,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text('$_carenciaDias', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.add_circle_outline_rounded, color: _carenciaDias < 30 ? kPrimary : kBorder),
+                                      onPressed: _carenciaDias < 30 ? () => setState(() => _carenciaDias++) : null,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ]),
+                                ]),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         _SectionLabel('Financeiro'),
                         const SizedBox(height: 12),
                         GestureDetector(
@@ -261,6 +338,87 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             label: 'Planos de Pagamento',
                             subtitle: 'Criar, editar e excluir planos de mensalidade',
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: kBorder),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('Taxa de atraso', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                                Text('Valor extra exibido em cobranças vencidas', style: TextStyle(color: kText2, fontSize: 12)),
+                              ])),
+                              Switch(
+                                value: _taxaAtrasoAtiva,
+                                onChanged: (v) => setState(() => _taxaAtrasoAtiva = v),
+                                activeColor: kPrimary,
+                              ),
+                            ]),
+                            if (_taxaAtrasoAtiva) ...[
+                              const Divider(height: 20),
+                              Row(children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _taxaAtrasoTipo = 0),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 150),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: _taxaAtrasoTipo == 0 ? kPrimary : kBg,
+                                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                        border: Border.all(color: _taxaAtrasoTipo == 0 ? kPrimary : kBorder),
+                                      ),
+                                      child: Text('Percentual (%)', textAlign: TextAlign.center,
+                                          style: TextStyle(color: _taxaAtrasoTipo == 0 ? Colors.white : kText2, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _taxaAtrasoTipo = 1),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 150),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: _taxaAtrasoTipo == 1 ? kPrimary : kBg,
+                                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                                        border: Border.all(color: _taxaAtrasoTipo == 1 ? kPrimary : kBorder),
+                                      ),
+                                      child: Text('Valor fixo (R\$)', textAlign: TextAlign.center,
+                                          style: TextStyle(color: _taxaAtrasoTipo == 1 ? Colors.white : kText2, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _taxaAtrasoValorCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                style: TextStyle(color: kText1),
+                                decoration: InputDecoration(
+                                  labelText: _taxaAtrasoTipo == 0 ? 'Percentual de atraso' : 'Valor fixo de atraso',
+                                  labelStyle: TextStyle(color: kText2, fontSize: 13),
+                                  prefixText: _taxaAtrasoTipo == 1 ? 'R\$ ' : null,
+                                  suffixText: _taxaAtrasoTipo == 0 ? '%' : null,
+                                  filled: true,
+                                  fillColor: kBg,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  helperText: _taxaAtrasoTipo == 0
+                                      ? 'Ex: 2,00 = 2% sobre o valor da cobrança'
+                                      : 'Ex: 20,00 = R\$ 20,00 a mais no vencimento',
+                                  helperStyle: TextStyle(color: kText2, fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ]),
                         ),
                         const SizedBox(height: 24),
                         _SectionLabel('Graduações'),
@@ -304,6 +462,77 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             iconColor: const Color(0xFFC9A020),
                             label: 'Notícias',
                             subtitle: 'Publicar notícias e comunicados para alunos e professores',
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _SectionLabel('Pesquisa de Satisfação'),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: kBorder),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('Ativar pesquisa mensal', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
+                                Text('Alunos serão convidados a avaliar a academia 1x/mês', style: TextStyle(color: kText2, fontSize: 11)),
+                              ])),
+                              Switch(
+                                value: _pesquisaAtiva,
+                                onChanged: (v) => setState(() => _pesquisaAtiva = v),
+                                activeColor: kPrimary,
+                              ),
+                            ]),
+                            if (_pesquisaAtiva) ...[
+                              const Divider(height: 20),
+                              Row(children: [
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('XP por resposta', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  Text('Pontos XP concedidos ao aluno após responder', style: TextStyle(color: kText2, fontSize: 11)),
+                                ])),
+                                Row(children: [
+                                  IconButton(
+                                    icon: Icon(Icons.remove_circle_outline_rounded, color: _pesquisaXpRecompensa > 0 ? kPrimary : kBorder),
+                                    onPressed: _pesquisaXpRecompensa >= 25 ? () => setState(() => _pesquisaXpRecompensa -= 25) : null,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: Text('$_pesquisaXpRecompensa', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.add_circle_outline_rounded, color: _pesquisaXpRecompensa < 500 ? kPrimary : kBorder),
+                                    onPressed: _pesquisaXpRecompensa < 500 ? () => setState(() => _pesquisaXpRecompensa += 25) : null,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ]),
+                              ]),
+                            ],
+                          ]),
+                        ),
+                        const SizedBox(height: 10),
+                        GestureDetector(
+                          onTap: () => context.push('/admin/pesquisa/templates'),
+                          child: _NavTile(
+                            icon: Icons.poll_rounded,
+                            iconColor: kPrimary,
+                            label: 'Gerenciar pesquisas',
+                            subtitle: 'Criar, ativar e ver resultados por tipo de pesquisa',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () => context.push('/admin/pesquisa'),
+                          child: _NavTile(
+                            icon: Icons.bar_chart_rounded,
+                            iconColor: kPrimary,
+                            label: 'Ver todas as respostas',
+                            subtitle: 'Visualizar avaliações e comentários dos alunos',
                           ),
                         ),
                         const SizedBox(height: 24),

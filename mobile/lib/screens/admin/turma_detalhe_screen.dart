@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -133,7 +134,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
           'nome': aluno['nome'] ?? '',
           'nomeAluno': aluno['nome'] ?? '',
         };
-      }).where((a) => (a['alunoId'] as String).isNotEmpty).toList();
+      }).where((a) {
+        if ((a['alunoId'] as String).isEmpty) return false;
+        // Oculta alunos inativos da lista da turma
+        if (a['ativo'] == false) return false;
+        return true;
+      }).toList();
 
       // Compute 180-day presença count per aluno for this turma
       final countMap = <String, int>{};
@@ -333,11 +339,16 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
 
     setState(() => _marcando.add(alunoId));
     try {
+      final now = DateTime.now();
+      final horaStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
       final pid = await firestoreService.addPresenca(_academiaId!, {
         'aluno_id': alunoId,
         'turma_id': widget.turmaId,
         'data': _dataStr,
         'data_presenca': _dataStr,
+        'hora_checkin': horaStr,
+        'metodo_checkin': 2,
+        'confirmado': true,
       });
       if (mounted) {
         setState(() {
@@ -608,6 +619,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     final count = _presencaCount[alunoId] ?? 0;
     final apto = _aptosGraduar.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final foto = a['fotoBase64'] as String? ?? a['foto_base64'] as String?;
     final faixasAtuaisMap = a['faixasAtuais'] as Map<String, dynamic>?;
     final faixasCount = faixasAtuaisMap?.length ?? 0;
     Map<String, dynamic>? primary;
@@ -653,8 +665,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
               CircleAvatar(
                 radius: 20,
                 backgroundColor: (apto ? kSuccess : kPrimary).withOpacity(0.2),
-                child: Text(initials.isEmpty ? '?' : initials,
-                    style: TextStyle(color: apto ? kSuccess : kPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
+                backgroundImage: foto != null && foto.contains(',')
+                    ? MemoryImage(base64Decode(foto.split(',').last))
+                    : null,
+                child: foto == null || !foto.contains(',')
+                    ? Text(initials.isEmpty ? '?' : initials,
+                        style: TextStyle(color: apto ? kSuccess : kPrimary, fontSize: 13, fontWeight: FontWeight.w800))
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1007,6 +1024,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
     final presente = _presentesNaData.contains(alunoId);
     final carregando = _marcando.contains(alunoId);
     final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final foto = a['fotoBase64'] as String? ?? a['foto_base64'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1021,8 +1039,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
           CircleAvatar(
             radius: 20,
             backgroundColor: presente ? kSuccess.withOpacity(0.2) : kPrimary.withOpacity(0.2),
-            child: Text(initials.isEmpty ? '?' : initials,
-                style: TextStyle(color: presente ? kSuccess : kPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
+            backgroundImage: foto != null && foto.contains(',')
+                ? MemoryImage(base64Decode(foto.split(',').last))
+                : null,
+            child: foto == null || !foto.contains(',')
+                ? Text(initials.isEmpty ? '?' : initials,
+                    style: TextStyle(color: presente ? kSuccess : kPrimary, fontSize: 13, fontWeight: FontWeight.w800))
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(

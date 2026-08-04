@@ -117,6 +117,13 @@ service cloud.firestore {
       allow create, delete: if isAdminOuSecretaria(academiaId);
     }
 
+    // Respostas de pesquisa: qualquer membro pode criar (self-submit)
+    match /academias/{academiaId}/respostas_pesquisa/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow create: if pertenceAcademia(academiaId);
+      allow update, delete: if isAdminOuSecretaria(academiaId);
+    }
+
     // Resto: admin/secretaria gerencia tudo; membros leem
     match /academias/{academiaId}/{colecao}/{doc} {
       allow read: if pertenceAcademia(academiaId);

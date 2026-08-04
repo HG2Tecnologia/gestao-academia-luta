@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
@@ -248,6 +249,36 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Erro ao alterar status.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleAcessoApp() async {
+    final a = _aluno;
+    if (a == null) return;
+    final bloqueado = a['acesso_app_bloqueado'] == true;
+    final acao = bloqueado ? 'liberar' : 'bloquear';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Confirmar', style: TextStyle(color: kText1)),
+        content: Text('Deseja $acao o acesso ao app de ${a['nome']}?', style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Confirmar', style: TextStyle(color: kPrimary))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await firestoreService.updateAluno(_academiaId!, widget.alunoId, {'acesso_app_bloqueado': !bloqueado});
+      _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Erro ao alterar acesso.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
         );
       }
     }
@@ -893,6 +924,53 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       if (valorMensal != null)
         _row('Valor mensal', 'R\$ ${valorMensal.toStringAsFixed(2).replaceAll('.', ',')}'),
       if (diaVenc != null) _row('Vencimento', 'Todo dia $diaVenc'),
+    ]);
+  }
+
+  // ── Acesso ao App ─────────────────────────────────────
+
+  Widget _buildAcessoAppCard(Map<String, dynamic> a) {
+    final bloqueado = a['acesso_app_bloqueado'] == true;
+    return _buildCard([
+      _sectionTitle('Acesso ao App'),
+      Row(
+        children: [
+          Icon(
+            bloqueado ? Icons.lock_rounded : Icons.lock_open_rounded,
+            color: bloqueado ? kDanger : kSuccess,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bloqueado ? 'Acesso bloqueado' : 'Acesso liberado',
+                  style: TextStyle(
+                    color: bloqueado ? kDanger : kSuccess,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  bloqueado
+                      ? 'Aluno não consegue entrar no app.'
+                      : 'Aluno pode usar o app normalmente.',
+                  style: TextStyle(color: kText2, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: !bloqueado,
+            activeColor: kSuccess,
+            inactiveThumbColor: kDanger,
+            inactiveTrackColor: kDanger.withOpacity(0.3),
+            onChanged: (_) => _toggleAcessoApp(),
+          ),
+        ],
+      ),
     ]);
   }
 
@@ -2053,7 +2131,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             const SizedBox(height: 12),
                             _row('Nome', a['nome']),
                             _row('Email', a['email']),
-                            _row('Telefone', a['telefone']),
+                            _rowWhatsApp('Telefone', a['telefone'], a['nome']?.toString() ?? ''),
                             _row('Nascimento', _formatDate(a['dataNascimento'])),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2126,6 +2204,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ]),
                           const SizedBox(height: 12),
                           _buildPlanoCard(a),
+                          const SizedBox(height: 12),
+                          _buildAcessoAppCard(a),
                           const SizedBox(height: 12),
                           _buildAtestadoCard(),
                           const SizedBox(height: 12),
@@ -2240,9 +2320,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           if (a['contatoEmergenciaNome'] != null) ...[
                             const SizedBox(height: 12),
                             _buildCard([
-                              _sectionTitle('Contato de Emergência'),
+                              _sectionTitle(_eMenorDeIdade(a['dataNascimento']) ? 'Responsável' : 'Contato de Emergência'),
                               _row('Nome', a['contatoEmergenciaNome']),
-                              _row('Telefone', a['contatoEmergenciaTelefone']),
+                              if (_eMenorDeIdade(a['dataNascimento']))
+                                _rowWhatsApp('Telefone', a['contatoEmergenciaTelefone'], a['contatoEmergenciaNome']?.toString() ?? '')
+                              else
+                                _row('Telefone', a['contatoEmergenciaTelefone']),
                             ]),
                           ],
                           const SizedBox(height: 24),
@@ -2554,6 +2637,22 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         child: Text(t, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
       );
 
+  bool _eMenorDeIdade(dynamic dataNascimento) {
+    final nasc = DateTime.tryParse(dataNascimento?.toString() ?? '');
+    if (nasc == null) return false;
+    return DateTime.now().difference(nasc).inDays < 365 * 18;
+  }
+
+  void _abrirWhatsApp(String? telefone, String nome) async {
+    if (telefone == null || telefone.isEmpty) return;
+    final digits = telefone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) return;
+    final ddi = digits.startsWith('55') ? digits : '55$digits';
+    final msg = Uri.encodeComponent('Olá $nome, ');
+    final url = Uri.parse('https://wa.me/$ddi?text=$msg');
+    launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
   Widget _row(String label, dynamic value) {
     if (value == null || value.toString().isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -2563,6 +2662,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         children: [
           SizedBox(width: 110, child: Text(label, style: TextStyle(color: kText2, fontSize: 13))),
           Expanded(child: Text(value.toString(), style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+  }
+
+  Widget _rowWhatsApp(String label, dynamic value, String nome) {
+    if (value == null || value.toString().isEmpty) return const SizedBox.shrink();
+    final tel = value.toString();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 110, child: Text(label, style: TextStyle(color: kText2, fontSize: 13))),
+          Expanded(child: Text(tel, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
+          GestureDetector(
+            onTap: () => _abrirWhatsApp(tel, nome),
+            child: const FaIcon(FontAwesomeIcons.whatsapp, color: Color(0xFF25D366), size: 18),
+          ),
         ],
       ),
     );

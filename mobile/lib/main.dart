@@ -50,6 +50,8 @@ import 'screens/shared/qr_scan_screen.dart';
 import 'screens/noticias_screen.dart';
 import 'screens/admin/admin_noticias_screen.dart';
 import 'screens/admin/grupos_familiares_screen.dart';
+import 'screens/admin/admin_pesquisa_screen.dart';
+import 'screens/admin/admin_pesquisa_templates_screen.dart';
 import 'screens/aluno/aluno_parq_screen.dart';
 
 final routerKey = GlobalKey<NavigatorState>();
@@ -76,6 +78,13 @@ final _router = GoRouter(
     GoRoute(path: '/admin/noticias', builder: (_, __) => const AdminNoticiasScreen()),
     GoRoute(path: '/admin/grupos-familiares', builder: (_, __) => const AdminGruposFamiliaresScreen()),
     GoRoute(path: '/aluno/parq', builder: (_, __) => const AlunoParQScreen()),
+    GoRoute(
+      path: '/admin/pesquisa',
+      builder: (_, state) => AdminPesquisaScreen(
+        template: state.extra as Map<String, dynamic>?,
+      ),
+    ),
+    GoRoute(path: '/admin/pesquisa/templates', builder: (_, __) => const AdminPesquisaTemplatesScreen()),
     GoRoute(
       path: '/admin/rankings',
       builder: (_, __) => const AdminRankingsScreen(),

@@ -43,6 +43,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   DateTime? _dataNascimento;
   List<Map<String, dynamic>> _planos = [];
   String? _planoId;
+  bool _acessoAppAtivo = true;
   bool _salvando = false;
   String? _erro;
 
@@ -135,6 +136,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         if (_emergenciaTel.text.trim().isNotEmpty) 'contatoEmergenciaTelefone': _emergenciaTel.text.trim(),
         if (_planoId != null) 'planoId': _planoId,
         if (_diaVenc.text.trim().isNotEmpty) 'diaVencimento': int.tryParse(_diaVenc.text.trim()),
+        if (!_acessoAppAtivo) 'acesso_app_bloqueado': true,
       });
       if (mounted) context.pop();
     } catch (e) {
@@ -325,6 +327,47 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               const SizedBox(height: 10),
             ],
             _field(_diaVenc, 'Dia de vencimento (1-31)', keyboard: TextInputType.number),
+            const SizedBox(height: 24),
+            _section('Acesso ao App'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: kSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _acessoAppAtivo ? kBorder : kDanger.withOpacity(0.5)),
+              ),
+              child: Row(children: [
+                Icon(
+                  _acessoAppAtivo ? Icons.lock_open_rounded : Icons.lock_rounded,
+                  color: _acessoAppAtivo ? kSuccess : kDanger,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    _acessoAppAtivo ? 'Acesso ao app liberado' : 'Acesso ao app bloqueado',
+                    style: TextStyle(
+                      color: _acessoAppAtivo ? kSuccess : kDanger,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _acessoAppAtivo
+                        ? 'Aluno poderá fazer login normalmente'
+                        : 'Aluno não conseguirá entrar no app',
+                    style: TextStyle(color: kText2, fontSize: 11),
+                  ),
+                ])),
+                Switch(
+                  value: _acessoAppAtivo,
+                  activeColor: kSuccess,
+                  inactiveThumbColor: kDanger,
+                  inactiveTrackColor: kDanger.withOpacity(0.3),
+                  onChanged: (v) => setState(() => _acessoAppAtivo = v),
+                ),
+              ]),
+            ),
             const SizedBox(height: 24),
             if (_erro != null)
               Container(

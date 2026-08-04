@@ -18,6 +18,9 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   bool _loading = true;
   bool _erro = false;
   String _filtro = 'Todos';
+  bool _taxaAtrasoAtiva = false;
+  int _taxaAtrasoTipo = 0;
+  double _taxaAtrasoValor = 0.0;
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
   static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
@@ -39,11 +42,32 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     if (alunoTabNotifier.value == 3) _load();
   }
 
+  num _valorComTaxa(num valor) {
+    if (!_taxaAtrasoAtiva) return valor;
+    if (_taxaAtrasoTipo == 0) return valor * (1 + _taxaAtrasoValor / 100);
+    return valor + _taxaAtrasoValor;
+  }
+
+  String _fmtTaxa() {
+    if (_taxaAtrasoTipo == 0) return '+${_taxaAtrasoValor.toStringAsFixed(1).replaceAll('.', ',')}%';
+    return '+R\$ ${_taxaAtrasoValor.toStringAsFixed(2).replaceAll('.', ',')}';
+  }
+
   Future<void> _load() async {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) { if (mounted) setState(() { _erro = true; _loading = false; }); return; }
-      final list = await firestoreService.getPagamentos(user.academiaId!, alunoId: user.id);
+      final results = await Future.wait([
+        firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
+        firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
+      ]);
+      final list = List<Map<String, dynamic>>.from(results[0] as List);
+      final acadData = results[1] as Map<String, dynamic>? ?? {};
+      if (mounted) setState(() {
+        _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
+        _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
+        _taxaAtrasoValor = (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+      });
       final converted = list.map((p) {
         final statusRaw = p['status'];
         final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
@@ -51,8 +75,8 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         return <String, dynamic>{
           ...p,
           'status': statusStr,
-          'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
-          'tipo': p['tipo'] ?? p['plano_nome'] ?? 'Cobrança',
+          'dataVencimento': _fmtDate(p['data_vencimento'] ?? p['dataVencimento']),
+          'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
         };
       }).toList();
       if (mounted) setState(() => _cobrancas = converted);
@@ -75,13 +99,18 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     return Icons.warning_rounded;
   }
 
-  String _fmtDate(String? s) {
+  String _fmtDate(dynamic s) {
     if (s == null) return '';
+    if (s is int) {
+      final ms = s > 100000000000 ? s : s * 1000;
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    }
     try {
-      final dt = DateTime.parse(s);
+      final dt = DateTime.parse(s.toString());
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
-      return s;
+      return s.toString();
     }
   }
 
@@ -291,8 +320,8 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                                     children: [
                                       Text(c['tipo'] ?? 'Cobrança',
                                           style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-                                      if (c['dataVencimento'] != null)
-                                        Text('Vencimento: ${_fmtDate(c['dataVencimento'])}',
+                                      if ((c['dataVencimento'] as String).isNotEmpty)
+                                        Text('Vencimento: ${c['dataVencimento']}',
                                             style: TextStyle(color: kText2, fontSize: 12)),
                                     ],
                                   ),
@@ -300,8 +329,14 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(_fmtMoeda(c['valor'] as num?),
-                                        style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w800)),
+                                    if (atrasado && _taxaAtrasoAtiva && (c['valor'] as num?) != null) ...[
+                                      Text(_fmtMoeda((c['valor'] as num?)),
+                                          style: TextStyle(color: kText2, fontSize: 12, decoration: TextDecoration.lineThrough)),
+                                      Text(_fmtMoeda(_valorComTaxa(c['valor'] as num)),
+                                          style: TextStyle(color: kDanger, fontSize: 16, fontWeight: FontWeight.w800)),
+                                    ] else
+                                      Text(_fmtMoeda(c['valor'] as num?),
+                                          style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w800)),
                                     Container(
                                       margin: const EdgeInsets.only(top: 4),
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -309,8 +344,10 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                                         color: cor.withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: Text(s ?? '',
-                                          style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700)),
+                                      child: Text(
+                                        atrasado && _taxaAtrasoAtiva ? '${s ?? ''} ${_fmtTaxa()}' : s ?? '',
+                                        style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -346,21 +383,22 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
             ),
 
             if (filtrados.isEmpty)
-              SliverToBoxAdapter(
+              SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(children: [
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       Icon(Icons.receipt_long_rounded, color: kBorder, size: 56),
                       const SizedBox(height: 16),
                       Text('Nenhuma cobrança nessa categoria',
                           style: TextStyle(color: kText2, fontSize: 14), textAlign: TextAlign.center),
-                    ]),
+                    ],
                   ),
                 ),
-              ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              )
+            else
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
       ),

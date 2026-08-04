@@ -122,6 +122,37 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      // Verifica bloqueios de acesso (aluno inativo, acesso suspenso, mensalidade)
+      if ((userData['perfil'] as String?) == 'Aluno') {
+        final alunoId = userData['usuarioId'] as String?;
+        final academiaId = userData['academiaId'] as String?;
+        if (alunoId != null && academiaId != null) {
+          final alunoDoc = await firestoreService.getUsuario(academiaId, alunoId);
+          if (alunoDoc != null) {
+            if (alunoDoc['ativo'] == false) {
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
+              setState(() => _erro = 'Seu cadastro está inativo. Entre em contato com a secretaria.');
+              return;
+            }
+            if (alunoDoc['acesso_app_bloqueado'] == true) {
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
+              setState(() => _erro = 'Seu acesso ao app está suspenso. Entre em contato com a secretaria.');
+              return;
+            }
+            // Verifica bloqueio por mensalidade vencida (respeita config da academia)
+            final motivoMensalidade = await firestoreService.motivoBloqueioCheckin(academiaId, alunoId);
+            if (motivoMensalidade != null) {
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
+              setState(() => _erro = 'Acesso bloqueado: mensalidade vencida. Regularize seu pagamento e tente novamente.');
+              return;
+            }
+          }
+        }
+      }
+
       // Extrai permissões (para professor/secretaria)
       final rawPerm = userData['permissoes'];
       final permissoes = rawPerm is Map

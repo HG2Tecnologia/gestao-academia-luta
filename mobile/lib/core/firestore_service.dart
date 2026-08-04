@@ -612,8 +612,8 @@ class FirestoreService {
     return ref.id;
   }
 
-  /// Retorna null quando o aluno pode fazer check-in. Cobranças futuras e
-  /// alunos sem cobrança permanecem liberados para compatibilidade.
+  /// Retorna null quando o aluno pode fazer check-in.
+  /// Respeita a configuração da academia (bloqueio_checkin_ativo + bloqueio_checkin_carencia_dias).
   Future<String?> motivoBloqueioCheckin(String academiaId, String alunoId) async {
     final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
     if (!alunoDoc.exists) return 'Aluno não encontrado.';
@@ -622,19 +622,23 @@ class FirestoreService {
       return 'Cadastro inativo. Procure a secretaria da academia.';
     }
 
+    final academiaDoc = await _db.collection('academias').doc(academiaId).get();
+    final academia = academiaDoc.data() as Map<String, dynamic>? ?? {};
+    if (academia['bloqueio_checkin_ativo'] != true) return null;
+
+    final carenciaDias = (academia['bloqueio_checkin_carencia_dias'] as num?)?.toInt() ?? 0;
+    final agora = DateTime.now();
+    final limiteBloquio = DateTime(agora.year, agora.month, agora.day)
+        .subtract(Duration(days: carenciaDias));
+
     final snap = await _col(academiaId, 'pagamentos')
         .where('aluno_id', isEqualTo: alunoId)
         .get();
-    final agora = DateTime.now();
-    final hoje = DateTime(agora.year, agora.month, agora.day);
     for (final doc in snap.docs) {
       final pagamento = doc.data() as Map<String, dynamic>? ?? {};
       final rawStatus = pagamento['status'];
       final status = rawStatus is num ? rawStatus.toInt() : int.tryParse(rawStatus?.toString() ?? '');
       if (status == 1) continue;
-      if (status == 2) {
-        return 'Check-in bloqueado: existe um pagamento em atraso. Procure a secretaria.';
-      }
       final rawVencimento = pagamento['data_vencimento'] ?? pagamento['dataVencimento'];
       DateTime? vencimento;
       if (rawVencimento is Timestamp) {
@@ -642,9 +646,11 @@ class FirestoreService {
       } else if (rawVencimento != null) {
         vencimento = DateTime.tryParse(rawVencimento.toString());
       }
-      if (vencimento != null &&
-          DateTime(vencimento.year, vencimento.month, vencimento.day).isBefore(hoje)) {
-        return 'Check-in bloqueado: existe um pagamento vencido. Procure a secretaria.';
+      if (vencimento == null) continue;
+      final dataVenc = DateTime(vencimento.year, vencimento.month, vencimento.day);
+      if (dataVenc.isBefore(limiteBloquio)) {
+        final diasAtraso = limiteBloquio.difference(dataVenc).inDays + carenciaDias;
+        return 'Check-in bloqueado: mensalidade vencida há $diasAtraso dias. Procure a secretaria.';
       }
     }
     return null;
@@ -1086,6 +1092,94 @@ class FirestoreService {
       'pagamentos_em_dia': pgSnap.docs.length,
       'presencas_mes': presSnap.docs.length,
     };
+  }
+
+  // ─── PESQUISA DE SATISFAÇÃO ───────────────────────────────────────────────
+
+  Future<bool> jaRespondeuPesquisaMes(
+      String academiaId, String alunoId, String mes, {String? templateId}) async {
+    Query q = _col(academiaId, 'respostas_pesquisa')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('mes', isEqualTo: mes);
+    if (templateId != null) {
+      q = q.where('template_id', isEqualTo: templateId);
+    }
+    final snap = await q.limit(1).get();
+    return snap.docs.isNotEmpty;
+  }
+
+  Future<String> addRespostaPesquisa(
+      String academiaId, Map<String, dynamic> data) async {
+    final ref = _col(academiaId, 'respostas_pesquisa').doc();
+    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    return ref.id;
+  }
+
+  Future<List<Map<String, dynamic>>> getRespostasPesquisa(
+      String academiaId, {String? mes, String? templateId}) async {
+    Query q = _col(academiaId, 'respostas_pesquisa')
+        .orderBy('criado_em', descending: true);
+    if (mes != null) q = q.where('mes', isEqualTo: mes);
+    if (templateId != null) q = q.where('template_id', isEqualTo: templateId);
+    final snap = await q.get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
+  // ─── TEMPLATES DE PESQUISA ────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getPesquisaTemplates(String academiaId) async {
+    final snap = await _col(academiaId, 'pesquisa_templates')
+        .orderBy('criado_em', descending: true)
+        .get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
+  Future<Map<String, dynamic>?> getPesquisaTemplateAtivo(String academiaId) async {
+    final snap = await _col(academiaId, 'pesquisa_templates')
+        .where('ativa', isEqualTo: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return _convertDoc(snap.docs.first);
+  }
+
+  Future<String> addPesquisaTemplate(String academiaId, Map<String, dynamic> data) async {
+    final ref = _col(academiaId, 'pesquisa_templates').doc();
+    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    return ref.id;
+  }
+
+  Future<void> updatePesquisaTemplate(String academiaId, String id, Map<String, dynamic> data) async {
+    await _doc(academiaId, 'pesquisa_templates', id).update(data);
+  }
+
+  Future<void> deletePesquisaTemplate(String academiaId, String id) async {
+    await _doc(academiaId, 'pesquisa_templates', id).delete();
+  }
+
+  Future<void> ativarPesquisaTemplate(String academiaId, String id) async {
+    // Desativa todos antes de ativar o escolhido
+    final snap = await _col(academiaId, 'pesquisa_templates')
+        .where('ativa', isEqualTo: true)
+        .get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'ativa': false});
+    }
+    batch.update(_doc(academiaId, 'pesquisa_templates', id), {'ativa': true});
+    await batch.commit();
+  }
+
+  Future<void> desativarPesquisaTemplate(String academiaId, String id) async {
+    await _doc(academiaId, 'pesquisa_templates', id).update({'ativa': false});
+  }
+
+  Future<void> adicionarXp(String academiaId, String alunoId, int xp) async {
+    if (xp <= 0) return;
+    await _doc(academiaId, 'usuarios', alunoId).update({
+      'xp_total': FieldValue.increment(xp),
+      'xp_mensal': FieldValue.increment(xp),
+    });
   }
 
   // ─── SENHA ─────────────────────────────────────────────────────────────────

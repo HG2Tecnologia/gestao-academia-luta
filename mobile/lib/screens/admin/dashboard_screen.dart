@@ -22,6 +22,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<Map<String, dynamic>> _aniversariantes = [];
   List<Map<String, dynamic>> _proximosGraduacao = [];
   List<Map<String, dynamic>> _noticias = [];
+  List<Map<String, dynamic>> _alertasEvasao = [];
   StoredUser? _user;
   bool _loading = true;
   bool _erro = false;
@@ -145,6 +146,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return pa.compareTo(pb);
       });
 
+      // Alertas de evasão: alunos ativos sem presença há 7+ dias
+      final Map<String, DateTime> ultimaPresencaPorAluno = {};
+      final Map<String, int> presencas7DiasPorAluno = {};
+      final limite7 = now.subtract(const Duration(days: 7));
+      for (final p in presencas) {
+        final aId = p['aluno_id']?.toString() ?? '';
+        if (aId.isEmpty) continue;
+        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        if (dataStr.isEmpty) continue;
+        final dataPres = DateTime.tryParse(dataStr);
+        if (dataPres == null) continue;
+        final atual = ultimaPresencaPorAluno[aId];
+        if (atual == null || dataPres.isAfter(atual)) ultimaPresencaPorAluno[aId] = dataPres;
+        if (dataPres.isAfter(limite7)) {
+          presencas7DiasPorAluno[aId] = (presencas7DiasPorAluno[aId] ?? 0) + 1;
+        }
+      }
+      final alertas = <Map<String, dynamic>>[];
+      for (final aluno in alunos.where((a) => a['ativo'] == true)) {
+        final aId = aluno['id']?.toString() ?? '';
+        if (aId.isEmpty) continue;
+        final ultima = ultimaPresencaPorAluno[aId];
+        if (ultima == null) continue; // nunca treinou → não é evasão
+        if ((presencas7DiasPorAluno[aId] ?? 0) >= 4) continue; // voltou com força
+        final dias = now.difference(ultima).inDays;
+        if (dias >= 7) {
+          alertas.add({
+            ...aluno,
+            'diasSemPresenca': dias,
+            'nivelAlerta': dias >= 14 ? 'red' : 'yellow',
+          });
+        }
+      }
+      alertas.sort((a, b) =>
+          ((b['diasSemPresenca'] as int?) ?? 0).compareTo((a['diasSemPresenca'] as int?) ?? 0));
+
       // Noticias: sort by publicada_em desc, take 5
       final noticiasOrdered = List<Map<String, dynamic>>.from(noticiasList);
       noticiasOrdered.sort((a, b) {
@@ -165,6 +202,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _aniversariantes = aniversariantes.cast<Map<String, dynamic>>();
           _proximosGraduacao = proximosGrad;
           _noticias = noticiasMapped;
+          _alertasEvasao = alertas;
           _temModalidades = modalidades.isNotEmpty;
           _temPlanos = planos.isNotEmpty;
           _temProfessores = profs.isNotEmpty;
@@ -221,6 +259,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildOnboarding()),
               SliverToBoxAdapter(child: _buildMetrics()),
               SliverToBoxAdapter(child: _buildQuickActions()),
+              if (_alertasEvasao.isNotEmpty)
+                SliverToBoxAdapter(child: _buildAlertaEvasao()),
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
               SliverToBoxAdapter(child: _buildProximosGraduacao()),
@@ -667,6 +707,111 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           if (bloqueado)
             Icon(Icons.lock_outline_rounded, size: 15, color: kText2.withOpacity(0.5)),
+        ]),
+      ),
+    );
+  }
+
+  // ─── ALERTA DE EVASÃO ────────────────────────────────────────────────────────
+
+  Widget _buildAlertaEvasao() {
+    final vermelhos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'red').length;
+    final amarelos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'yellow').length;
+    final borderColor = vermelhos > 0 ? kDanger : kWarning;
+    final iconColor = vermelhos > 0 ? kDanger : kWarning;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor.withOpacity(0.4)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header
+          Row(children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.person_off_rounded, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Risco de evasão', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
+              Text(
+                [
+                  if (vermelhos > 0) '$vermelhos ausente${vermelhos > 1 ? 's' : ''} há 14+ dias',
+                  if (amarelos > 0) '$amarelos ausente${amarelos > 1 ? 's' : ''} há 7–13 dias',
+                ].join(' · '),
+                style: TextStyle(color: kText2, fontSize: 11),
+              ),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('${_alertasEvasao.length}', style: TextStyle(color: iconColor, fontSize: 13, fontWeight: FontWeight.w800)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ..._alertasEvasao.take(8).map((a) {
+            final nome = a['nome']?.toString() ?? '';
+            final alunoId = a['id']?.toString() ?? '';
+            final dias = (a['diasSemPresenca'] as int?) ?? 0;
+            final isRed = a['nivelAlerta'] == 'red';
+            final cor = isRed ? kDanger : kWarning;
+            final initials = nome.trim().split(RegExp(r'\s+')).take(2)
+                .map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+
+            return GestureDetector(
+              onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cor.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: cor.withOpacity(0.2)),
+                ),
+                child: Row(children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: cor.withOpacity(0.15),
+                    child: Text(
+                      initials.isEmpty ? '?' : initials,
+                      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                    child: Text(
+                      '$dias dias',
+                      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(Icons.chevron_right_rounded, color: kText2, size: 16),
+                ]),
+              ),
+            );
+          }),
+          if (_alertasEvasao.length > 8)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Center(
+                child: Text(
+                  '+ ${_alertasEvasao.length - 8} alunos',
+                  style: TextStyle(color: kText2, fontSize: 12),
+                ),
+              ),
+            ),
         ]),
       ),
     );

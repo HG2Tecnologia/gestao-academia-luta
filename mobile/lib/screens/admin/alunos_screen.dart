@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
@@ -220,6 +221,8 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
                                   final temGraus = (primary != null ? primary['faixaTemGraus'] == true : a['faixaAtualTemGraus'] == true) || grauAtual > 0;
                                   final faixaNome = primary?['faixaNome'] as String? ?? a['faixaAtualNome'] as String?;
+                                  final foto = a['fotoBase64'] as String? ?? a['foto_base64'] as String?;
+                                  final initials = (a['nome'] as String? ?? '').trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
                                   Color parseCor(String? hex) {
                                     try { return Color(int.parse((hex ?? '').replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
                                   }
@@ -238,6 +241,18 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                       ),
                                       child: Row(
                                         children: [
+                                          CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: kPrimary.withOpacity(0.15),
+                                            backgroundImage: foto != null && foto.contains(',')
+                                                ? MemoryImage(base64Decode(foto.split(',').last))
+                                                : null,
+                                            child: foto == null || !foto.contains(',')
+                                                ? Text(initials.isEmpty ? '?' : initials,
+                                                    style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w800))
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 12),
                                           Expanded(
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
