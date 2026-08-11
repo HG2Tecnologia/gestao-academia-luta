@@ -900,8 +900,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       ),
     );
 
-    nomeCtrl.dispose();
-    cpfCtrl.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nomeCtrl.dispose();
+      cpfCtrl.dispose();
+    });
   }
 
   // ── Plano ─────────────────────────────────────────────
@@ -919,7 +921,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     }
 
     return _buildCard([
-      _sectionTitle('Plano'),
+      Row(children: [
+        Expanded(child: _sectionTitle('Plano')),
+        GestureDetector(
+          onTap: _editarAluno,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
+          ),
+        ),
+      ]),
       if (planoNome != null) _row('Plano', planoNome),
       if (valorMensal != null)
         _row('Valor mensal', 'R\$ ${valorMensal.toStringAsFixed(2).replaceAll('.', ',')}'),
@@ -1924,11 +1935,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final nomeCtrl = TextEditingController(text: a['nome']?.toString() ?? '');
     final emailCtrl = TextEditingController(text: a['email']?.toString() ?? '');
     final telefoneCtrl = TextEditingController(text: a['telefone']?.toString() ?? '');
+    final cpfCtrl = TextEditingController(text: _fmtCpf(a['cpf']));
     final nascCtrl = TextEditingController(text: _isoToDdMmAaaa(a['dataNascimento']) ?? '');
     final emergNomeCtrl = TextEditingController(text: a['contatoEmergenciaNome']?.toString() ?? '');
     final emergTelCtrl = TextEditingController(text: a['contatoEmergenciaTelefone']?.toString() ?? '');
     final diaVencCtrl = TextEditingController(text: a['diaVencimento']?.toString() ?? '');
-    String? planoIdSel = a['planoId']?.toString();
+    final planoIdAntes = a['planoId']?.toString();
+    String? planoIdSel = planoIdAntes;
     bool salvando = false;
     String? erro;
 
@@ -1958,8 +1971,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 _editField(nomeCtrl, 'Nome completo *'),
                 _editField(emailCtrl, 'E-mail', keyboard: TextInputType.emailAddress),
                 _editField(telefoneCtrl, 'Telefone', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
+                _editField(cpfCtrl, 'CPF (opcional)', keyboard: TextInputType.number, formatters: [CpfInputFormatter()]),
                 _editField(nascCtrl, 'Data de nascimento (DD/MM/AAAA)', keyboard: TextInputType.number, formatters: [_DateMaskFormatter()]),
-                _editSection('Contato de emergência'),
+                _editSection('Responsável / Emergência'),
                 _editField(emergNomeCtrl, 'Nome do contato'),
                 _editField(emergTelCtrl, 'Telefone do contato', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
                 _editSection('Plano financeiro'),
@@ -2030,10 +2044,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       setModal(() { salvando = true; erro = null; });
                       try {
                         final nascText = nascCtrl.text.trim();
+                        final cpfDigits = cpfCtrl.text.trim().replaceAll(RegExp(r'\D'), '');
                         await firestoreService.updateAluno(_academiaId!, widget.alunoId, {
                           'nome': nomeCtrl.text.trim(),
                           'email': emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim(),
                           'telefone': telefoneCtrl.text.trim(),
+                          if (cpfDigits.isNotEmpty) 'cpf': cpfDigits,
                           if (nascText.length == 10) 'data_nascimento': _toIsoDate(nascText),
                           if (emergNomeCtrl.text.trim().isNotEmpty) 'contato_emergencia_nome': emergNomeCtrl.text.trim(),
                           if (emergTelCtrl.text.trim().isNotEmpty) 'contato_emergencia_telefone': emergTelCtrl.text.trim(),
@@ -2041,6 +2057,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           if (diaVencCtrl.text.trim().isNotEmpty) 'dia_vencimento': int.tryParse(diaVencCtrl.text.trim()),
                           'ativo': a['ativo'] == true,
                         });
+                        // Auto-gerar cobrança se plano foi definido pela primeira vez
+                        final diaVencInt = int.tryParse(diaVencCtrl.text.trim());
+                        if (planoIdSel != null && planoIdAntes == null && diaVencInt != null) {
+                          try {
+                            await firestoreService.gerarPagamentoMesSeNecessario(
+                              _academiaId!, widget.alunoId, nomeCtrl.text.trim(), planoIdSel!, diaVencInt);
+                          } catch (_) {}
+                        }
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2075,13 +2099,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       ),
     );
 
-    nomeCtrl.dispose();
-    emailCtrl.dispose();
-    telefoneCtrl.dispose();
-    nascCtrl.dispose();
-    emergNomeCtrl.dispose();
-    emergTelCtrl.dispose();
-    diaVencCtrl.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nomeCtrl.dispose();
+      emailCtrl.dispose();
+      telefoneCtrl.dispose();
+      cpfCtrl.dispose();
+      nascCtrl.dispose();
+      emergNomeCtrl.dispose();
+      emergTelCtrl.dispose();
+      diaVencCtrl.dispose();
+    });
   }
 
   @override
@@ -2133,6 +2160,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                             _row('Email', a['email']),
                             _rowWhatsApp('Telefone', a['telefone'], a['nome']?.toString() ?? ''),
                             _row('Nascimento', _formatDate(a['dataNascimento'])),
+                            if ((a['cpf'] as String? ?? '').isNotEmpty) _row('CPF', _fmtCpf(a['cpf'])),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -2562,6 +2590,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         child: Text('Pendente', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
                     ],
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _confirmarExcluirGraduacao(g),
+                      child: Icon(Icons.delete_outline_rounded, color: kDanger.withValues(alpha: 0.6), size: 16),
+                    ),
                   ],
                 ),
               ],
@@ -2570,6 +2603,50 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmarExcluirGraduacao(Map<String, dynamic> g) async {
+    final grau = (g['grau'] as num?)?.toInt() ?? 0;
+    final nomeFaixa = g['nomeFaixa']?.toString() ?? '';
+    final label = grau > 0 ? '$nomeFaixa · $grau° Grau' : nomeFaixa;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Remover graduação?', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
+        content: Text(
+          'Esta ação remove "$label" do histórico de graduações e não pode ser desfeita.',
+          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (!ok || !mounted || _academiaId == null) return;
+    try {
+      final gradId = g['id']?.toString() ?? '';
+      if (gradId.isEmpty) return;
+      await firestoreService.deleteGraduacao(_academiaId!, gradId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Graduação removida.'),
+          backgroundColor: kSuccess,
+          behavior: SnackBarBehavior.floating,
+        ));
+        _load();
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Erro ao remover graduação.'),
+        backgroundColor: kDanger,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Widget _buildCard(List<Widget> children) => Container(
@@ -2695,6 +2772,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         child: Text(ativo ? 'Ativo' : 'Inativo',
             style: TextStyle(color: ativo ? kSuccess : kText2, fontSize: 12, fontWeight: FontWeight.w700)),
       );
+
+  String _fmtCpf(dynamic raw) {
+    final d = raw?.toString().replaceAll(RegExp(r'\D'), '') ?? '';
+    if (d.length == 11) return '${d.substring(0, 3)}.${d.substring(3, 6)}.${d.substring(6, 9)}-${d.substring(9)}';
+    return d;
+  }
 
   String? _formatDate(dynamic raw) {
     if (raw == null) return null;

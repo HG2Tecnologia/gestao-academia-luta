@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
+import '../../core/widgets.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
@@ -36,6 +37,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   final _nome = TextEditingController();
   final _email = TextEditingController();
   final _telefone = TextEditingController();
+  final _cpf = TextEditingController();
   final _emergenciaNome = TextEditingController();
   final _emergenciaTel = TextEditingController();
   final _diaVenc = TextEditingController();
@@ -131,9 +133,10 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         'email': emailVal.isEmpty ? null : emailVal,
         'telefone': telVal,
         if (telDigits.isNotEmpty) 'telefone_digits': telDigits,
-        if (nascIso != null) 'dataNascimento': nascIso,
-        if (_emergenciaNome.text.trim().isNotEmpty) 'contatoEmergenciaNome': _emergenciaNome.text.trim(),
-        if (_emergenciaTel.text.trim().isNotEmpty) 'contatoEmergenciaTelefone': _emergenciaTel.text.trim(),
+        if (nascIso != null) 'data_nascimento': nascIso,
+        if (_cpf.text.trim().isNotEmpty) 'cpf': _cpf.text.trim().replaceAll(RegExp(r'\D'), ''),
+        if (_emergenciaNome.text.trim().isNotEmpty) 'contato_emergencia_nome': _emergenciaNome.text.trim(),
+        if (_emergenciaTel.text.trim().isNotEmpty) 'contato_emergencia_telefone': _emergenciaTel.text.trim(),
         if (_planoId != null) 'planoId': _planoId,
         if (_diaVenc.text.trim().isNotEmpty) 'diaVencimento': int.tryParse(_diaVenc.text.trim()),
         if (!_acessoAppAtivo) 'acesso_app_bloqueado': true,
@@ -204,6 +207,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     _nome.dispose();
     _email.dispose();
     _telefone.dispose();
+    _cpf.dispose();
     _emergenciaNome.dispose();
     _emergenciaTel.dispose();
     _diaVenc.dispose();
@@ -235,6 +239,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             _field(_nome, 'Nome completo *', required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
             _field(_telefone, 'Telefone', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
+            _field(_cpf, 'CPF (opcional)', keyboard: TextInputType.number, formatters: [CpfInputFormatter()]),
 
             // Date picker field
             Padding(
@@ -280,22 +285,16 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             ),
 
             const SizedBox(height: 16),
-            _sectionWithBadge(
-              'Contato de emergência',
-              _menorDeIdade ? '* obrigatório' : 'opcional',
-              obrigatorio: _menorDeIdade,
-            ),
+            _sectionWithBadge('Responsável / Emergência', 'opcional'),
             _field(
               _emergenciaNome,
-              _menorDeIdade ? 'Nome do responsável *' : 'Nome do contato',
-              required: _menorDeIdade,
+              _menorDeIdade ? 'Nome do responsável' : 'Nome do contato de emergência',
             ),
             _field(
               _emergenciaTel,
-              _menorDeIdade ? 'Telefone do responsável *' : 'Telefone do contato',
+              _menorDeIdade ? 'Telefone do responsável' : 'Telefone do contato',
               keyboard: TextInputType.phone,
               formatters: [_PhoneMaskFormatter()],
-              required: _menorDeIdade,
             ),
             const SizedBox(height: 16),
             _section('Plano financeiro'),

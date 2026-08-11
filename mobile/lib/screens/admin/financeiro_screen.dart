@@ -26,8 +26,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   late int _ano;
   late int _mes;
 
+  String _busca = '';
+  final TextEditingController _buscaCtrl = TextEditingController();
+  String _tabFiltro = 'todos'; // todos | pendente | atrasado | pago | desconsiderado
+
+  bool _taxaAtrasoAtiva = false;
+  int _taxaAtrasoTipo = 0;
+  double _taxaAtrasoValor = 0.0;
+
   static const _meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
+  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto', 4: 'Desconsiderado'};
 
   @override
   void initState() {
@@ -42,6 +50,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   @override
   void dispose() {
     adminTabNotifier.removeListener(_onTabChanged);
+    _buscaCtrl.dispose();
     super.dispose();
   }
 
@@ -56,7 +65,20 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       _academiaId = user?.academiaId ?? '';
       if (_academiaId!.isEmpty) return;
 
-      final todos = await firestoreService.getPagamentos(_academiaId!);
+      final results = await Future.wait([
+        firestoreService.getPagamentos(_academiaId!),
+        firestoreService.getAcademia(_academiaId!).catchError((_) => null),
+      ]);
+
+      final todos = results[0] as List<Map<String, dynamic>>;
+      final acadData = results[1] as Map<String, dynamic>? ?? {};
+
+      _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
+      _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
+      _taxaAtrasoValor = (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+
+      final now = DateTime.now();
+      final hoje = DateTime(now.year, now.month, now.day);
 
       // Filter for selected month
       final doMes = todos.where((p) {
@@ -70,16 +92,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         }
       }).toList();
 
-      // Compute resumo client-side
+      // Compute resumo client-side (exclude desconsiderado)
       double recebido = 0, pendente = 0, atrasado = 0;
       final Set<String> inadimplentesSet = {};
-      final now = DateTime.now();
 
       for (final p in todos) {
         final statusRaw = p['status'];
         final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
         final statusStr = _statusMap[statusInt] ?? 'Pendente';
-        final valor = (p['valor'] as num? ?? 0).toDouble();
+        if (statusStr == 'Desconsiderado') continue;
+        final valorPago = (p['valor_pago'] as num?)?.toDouble();
+        final valor = valorPago ?? (p['valor'] as num? ?? 0).toDouble();
         final venc = p['data_vencimento'] as String? ?? '';
         DateTime? vencDt;
         try { vencDt = DateTime.parse(venc); } catch (_) {}
@@ -88,7 +111,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) recebido += valor;
         } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
           if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) pendente += valor;
-          if (vencDt != null && vencDt.isBefore(now)) {
+          if (vencDt != null && DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
             atrasado += valor;
             final alunoId = p['aluno_id']?.toString() ?? '';
             if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
@@ -96,11 +119,20 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         }
       }
 
-      // Convert status for display
+      // Convert status for display; compute effective status (Atrasado if pending+overdue)
       final cobrancasComStatus = doMes.map((p) {
         final statusRaw = p['status'];
         final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
-        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        String statusStr = _statusMap[statusInt] ?? 'Pendente';
+        final venc = p['data_vencimento'] as String? ?? '';
+        DateTime? vencDt;
+        try { vencDt = DateTime.parse(venc); } catch (_) {}
+        // Override Pendente → Atrasado if past due date
+        if ((statusStr == 'Pendente' || statusStr == 'Previsto') &&
+            vencDt != null &&
+            DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
+          statusStr = 'Atrasado';
+        }
         final rawNome = (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '').toString();
         final rawTipo = p['tipo']?.toString() ?? '';
         return {
@@ -128,6 +160,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     }
   }
 
+  List<Map<String, dynamic>> get _cobrancasFiltradas {
+    final busca = _busca.toLowerCase().trim();
+    return _cobrancas.where((c) {
+      final nome = (c['nomeAluno'] as String? ?? '').toLowerCase();
+      if (busca.isNotEmpty && !nome.contains(busca)) return false;
+      final status = c['status'] as String? ?? '';
+      switch (_tabFiltro) {
+        case 'pendente': return status == 'Pendente';
+        case 'atrasado': return status == 'Atrasado';
+        case 'pago': return status == 'Pago';
+        case 'desconsiderado': return status == 'Desconsiderado';
+        default: return status != 'Desconsiderado'; // "todos" oculta desconsiderados por padrão
+      }
+    }).toList();
+  }
+
   void _navMes(int delta) {
     setState(() {
       _mes += delta;
@@ -147,7 +195,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (s == 'Pago') return kSuccess;
     if (s == 'Pendente') return kWarning;
     if (s == 'Previsto') return kText2;
-    return kDanger;
+    if (s == 'Desconsiderado') return kText2;
+    return kDanger; // Atrasado
   }
 
   Future<void> _criarCobrancaAvulsa() async {
@@ -398,16 +447,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     List<Map<String, dynamic>> turmasList = [];
     List<Map<String, dynamic>> todosAlunos = [];
     List<Map<String, dynamic>> todosPagamentos = [];
+    Map<String, Map<String, dynamic>> planosMap = {};
 
     try {
       final results = await Future.wait([
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getAlunos(_academiaId!, ativosOnly: true),
         firestoreService.getPagamentos(_academiaId!),
+        firestoreService.getPlanos(_academiaId!),
       ]);
       turmasList = List<Map<String, dynamic>>.from(results[0] as List);
       todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
       todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
+      planosMap = {
+        for (final p in (results[3] as List).cast<Map<String, dynamic>>())
+          if ((p['id'] as String? ?? '').isNotEmpty) p['id'] as String: p,
+      };
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Erro ao carregar dados.'),
@@ -698,7 +753,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             for (final a in previewAlunos) {
                               final id = a['id']?.toString() ?? '';
                               if (id.isEmpty) continue;
-                              final valor = (a['valor_mensalidade'] as num? ?? a['valorMensalidade'] as num? ?? 0).toDouble();
+                              final planoId = (a['plano_id'] ?? a['planoId'])?.toString() ?? '';
+                              final plano = planosMap[planoId];
+                              final valor = (plano?['valor_mensal'] as num?)?.toDouble() ?? 0.0;
                               final dia = a['dia_vencimento'] as int? ?? 10;
                               final dataStr = '$_ano-${_mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}';
                               await firestoreService.addPagamento(_academiaId!, {
@@ -821,55 +878,100 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   }
 
   Future<void> _marcarPago(Map<String, dynamic> c) async {
-    final ok = await showModalBottomSheet<bool>(
+    final valorBase = (c['valor'] as num? ?? 0).toDouble();
+    final descontoCtrl = TextEditingController();
+    final result = await showModalBottomSheet<Map<String, dynamic>?>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: kSurface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20, left: 0),
-                decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-            Text('Marcar como pago', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text('${c['nomeAluno']} · ${c['tipo']}', style: TextStyle(color: kText2, fontSize: 13)),
-            Text(_fmtVal((c['valor'] as num?) ?? 0),
-                style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: kSuccess,
-                minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Confirmar pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setM) {
+          double desconto = double.tryParse(descontoCtrl.text.replaceAll(',', '.')) ?? 0.0;
+          final valorPago = (valorBase - desconto).clamp(0.0, double.infinity);
+          return Padding(
+            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+                Text('Marcar como pago', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text('${c['nomeAluno']} · ${c['tipo']}', style: TextStyle(color: kText2, fontSize: 13)),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Valor base', style: TextStyle(color: kText2, fontSize: 11)),
+                    Text(_fmtVal(valorBase), style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
+                  ]),
+                  if (desconto > 0) ...[
+                    const SizedBox(width: 24),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('A receber', style: TextStyle(color: kText2, fontSize: 11)),
+                      Text(_fmtVal(valorPago), style: TextStyle(color: kSuccess, fontSize: 18, fontWeight: FontWeight.w800)),
+                    ]),
+                  ],
+                ]),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descontoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: kText1),
+                  onChanged: (_) => setM(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Desconto (opcional)',
+                    hintStyle: TextStyle(color: kText2, fontSize: 14),
+                    prefixText: 'R\$ ',
+                    prefixStyle: TextStyle(color: kText2),
+                    filled: true,
+                    fillColor: kBg,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop({'desconto': desconto, 'valorPago': valorPago}),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kSuccess,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Confirmar pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(null),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kText2,
+                    side: BorderSide(color: kBorder),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: kText2,
-                side: BorderSide(color: kBorder),
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Cancelar'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
-    if (ok != true || !mounted || _academiaId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => descontoCtrl.dispose());
+    if (result == null || !mounted || _academiaId == null) return;
     try {
       final now = DateTime.now();
       final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final desconto = (result['desconto'] as double? ?? 0.0);
+      final valorPago = (result['valorPago'] as double? ?? valorBase);
       await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
         'status': 1,
         'data_pagamento': dataStr,
+        if (desconto > 0) 'desconto': desconto,
+        if (desconto > 0) 'valor_pago': valorPago,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -886,6 +988,102 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         behavior: SnackBarBehavior.floating,
       ));
     }
+  }
+
+  Future<void> _estornar(Map<String, dynamic> c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Estornar pagamento?', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
+        content: Text(
+          'Isso vai marcar o pagamento de ${c['nomeAluno']} como pendente novamente.',
+          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Estornar', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (!ok || !mounted || _academiaId == null) return;
+    try {
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+        'status': 0,
+        'data_pagamento': null,
+        'desconto': null,
+        'valor_pago': null,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Pagamento estornado.'),
+          backgroundColor: kWarning,
+          behavior: SnackBarBehavior.floating,
+        ));
+        _load();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _desconsiderar(Map<String, dynamic> c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Desconsiderar cobrança?', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
+        content: Text(
+          'A cobrança de ${c['nomeAluno']} não será mais cobrada e sai dos totais do financeiro. Você pode restaurá-la depois.',
+          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Desconsiderar', style: TextStyle(color: kWarning, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ) ?? false;
+    if (!ok || !mounted || _academiaId == null) return;
+    try {
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {'status': 4});
+      if (mounted) { _load(); }
+    } catch (_) {}
+  }
+
+  Future<void> _restaurar(Map<String, dynamic> c) async {
+    if (!mounted || _academiaId == null) return;
+    try {
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {'status': 0});
+      if (mounted) { _load(); }
+    } catch (_) {}
+  }
+
+  Future<void> _excluirCobranca(Map<String, dynamic> c) async {
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Excluir cobrança', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Text('Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.', style: TextStyle(color: kText2, fontSize: 14)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted || _academiaId == null) return;
+    try {
+      await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
+      if (mounted) { _load(); }
+    } catch (_) {}
   }
 
   @override
@@ -1020,100 +1218,256 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         ],
                       ),
                     ),
+                  // ── Busca ──────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                      child: Text(
-                        _cobrancas.isEmpty ? 'Nenhuma cobrança neste período.' : 'Cobranças · ${_cobrancas.length}',
-                        style: TextStyle(color: kText2, fontSize: 13, fontWeight: FontWeight.w700),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: TextField(
+                        controller: _buscaCtrl,
+                        style: TextStyle(color: kText1, fontSize: 14),
+                        onChanged: (v) => setState(() => _busca = v),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar aluno...',
+                          hintStyle: TextStyle(color: kText2, fontSize: 14),
+                          prefixIcon: Icon(Icons.search_rounded, color: kText2, size: 20),
+                          suffixIcon: _busca.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.close_rounded, color: kText2, size: 18),
+                                  onPressed: () {
+                                    _buscaCtrl.clear();
+                                    setState(() => _busca = '');
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: kSurface,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+                        ),
                       ),
                     ),
                   ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (_, i) {
-                        final c = _cobrancas[i];
-                        final status = c['status'] as String?;
-                        String? dataStr;
-                        final rawVenc = c['dataVencimento'] ?? c['data_vencimento'];
-                        if (rawVenc != null) {
-                          try {
-                            final dt = DateTime.parse(rawVenc.toString());
-                            dataStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-                          } catch (_) {}
-                        }
-                        final isPago = status == 'Pago';
-                        return Container(
-                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          decoration: BoxDecoration(
-                            color: kSurface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: !isPago ? _statusCor(status).withOpacity(0.3) : kBorder),
-                          ),
-                          child: Column(
-                            children: [
+                  // ── Tabs de status ──────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final tab in [
+                              ('todos', 'Todos'),
+                              ('pendente', 'Pendentes'),
+                              ('atrasado', 'Atrasados'),
+                              ('pago', 'Pagos'),
+                              ('desconsiderado', 'Desconsiderados'),
+                            ])
                               Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(c['nomeAluno'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-                                          Text(
-                                            [c['tipo'], if (dataStr != null) 'Venc. $dataStr'].join(' · '),
-                                            style: TextStyle(color: kText2, fontSize: 12),
-                                          ),
-                                        ],
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _tabFiltro = tab.$1),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: _tabFiltro == tab.$1 ? kPrimary : kSurface,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: _tabFiltro == tab.$1 ? kPrimary : kBorder),
+                                    ),
+                                    child: Text(
+                                      tab.$2,
+                                      style: TextStyle(
+                                        color: _tabFiltro == tab.$1 ? Colors.white : kText2,
+                                        fontSize: 12,
+                                        fontWeight: _tabFiltro == tab.$1 ? FontWeight.w700 : FontWeight.normal,
                                       ),
                                     ),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          _fmtVal((c['valor'] as num?) ?? 0),
-                                          style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700),
-                                        ),
-                                        Text(status ?? '', style: TextStyle(color: _statusCor(status), fontSize: 12, fontWeight: FontWeight.w600)),
-                                      ],
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                              if (!isPago)
-                                InkWell(
-                                  onTap: () => _marcarPago(c),
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(12),
-                                    bottomRight: Radius.circular(12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                      child: Builder(builder: (_) {
+                        final lista = _cobrancasFiltradas;
+                        return Text(
+                          lista.isEmpty ? 'Nenhuma cobrança.' : 'Cobranças · ${lista.length}',
+                          style: TextStyle(color: kText2, fontSize: 13, fontWeight: FontWeight.w700),
+                        );
+                      }),
+                    ),
+                  ),
+                  // ── Lista de cobranças ──────────────────────────────────
+                  Builder(builder: (_) {
+                    final lista = _cobrancasFiltradas;
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) {
+                          final c = lista[i];
+                          final status = c['status'] as String?;
+                          final isDesconsiderado = status == 'Desconsiderado';
+                          String? dataStr;
+                          final rawVenc = c['dataVencimento'] ?? c['data_vencimento'];
+                          if (rawVenc != null) {
+                            try {
+                              final dt = DateTime.parse(rawVenc.toString());
+                              dataStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+                            } catch (_) {}
+                          }
+                          final isPago = status == 'Pago';
+                          final valorBase = (c['valor'] as num? ?? 0).toDouble();
+                          final desconto = (c['desconto'] as num?)?.toDouble() ?? 0.0;
+                          final valorPago = (c['valor_pago'] as num?)?.toDouble();
+                          // Taxa de atraso (só exibe se pendente/atrasado e taxa ativa)
+                          final isOverdue = status == 'Atrasado';
+                          double taxaValor = 0.0;
+                          if (_taxaAtrasoAtiva && isOverdue) {
+                            taxaValor = _taxaAtrasoTipo == 0
+                                ? valorBase * _taxaAtrasoValor / 100
+                                : _taxaAtrasoValor;
+                          }
+
+                          return Opacity(
+                            opacity: isDesconsiderado ? 0.5 : 1.0,
+                            child: Container(
+                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                              decoration: BoxDecoration(
+                                color: kSurface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDesconsiderado ? kBorder : (!isPago ? _statusCor(status).withOpacity(0.3) : kBorder),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(c['nomeAluno'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+                                              Text(
+                                                [c['tipo'], if (dataStr != null) 'Venc. $dataStr'].join(' · '),
+                                                style: TextStyle(color: kText2, fontSize: 12),
+                                              ),
+                                              // Breakdown (taxa + desconto)
+                                              if (taxaValor > 0 || desconto > 0) ...[
+                                                const SizedBox(height: 6),
+                                                if (taxaValor > 0)
+                                                  Text('+ Taxa de atraso: ${_fmtVal(taxaValor)}',
+                                                      style: TextStyle(color: kDanger, fontSize: 11)),
+                                                if (desconto > 0)
+                                                  Text('- Desconto: ${_fmtVal(desconto)}',
+                                                      style: TextStyle(color: kSuccess, fontSize: 11)),
+                                                if (valorPago != null)
+                                                  Text('Recebido: ${_fmtVal(valorPago)}',
+                                                      style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w700)),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              _fmtVal(valorBase),
+                                              style: TextStyle(
+                                                color: kText1,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                decoration: desconto > 0 ? TextDecoration.lineThrough : null,
+                                                decorationColor: kText2,
+                                              ),
+                                            ),
+                                            Text(status ?? '', style: TextStyle(color: _statusCor(status), fontSize: 12, fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                        // Menu "..."
+                                        PopupMenuButton<String>(
+                                          icon: Icon(Icons.more_vert_rounded, color: kText2, size: 18),
+                                          color: kSurface,
+                                          padding: EdgeInsets.zero,
+                                          itemBuilder: (_) => [
+                                            if (isPago)
+                                              PopupMenuItem(value: 'estornar', child: Row(children: [
+                                                Icon(Icons.undo_rounded, size: 16, color: kDanger),
+                                                const SizedBox(width: 8),
+                                                Text('Estornar pagamento', style: TextStyle(color: kText1, fontSize: 13)),
+                                              ])),
+                                            if (!isPago && !isDesconsiderado)
+                                              PopupMenuItem(value: 'desconsiderar', child: Row(children: [
+                                                Icon(Icons.block_rounded, size: 16, color: kWarning),
+                                                const SizedBox(width: 8),
+                                                Text('Desconsiderar', style: TextStyle(color: kText1, fontSize: 13)),
+                                              ])),
+                                            if (isDesconsiderado)
+                                              PopupMenuItem(value: 'restaurar', child: Row(children: [
+                                                Icon(Icons.restore_rounded, size: 16, color: kSuccess),
+                                                const SizedBox(width: 8),
+                                                Text('Restaurar cobrança', style: TextStyle(color: kText1, fontSize: 13)),
+                                              ])),
+                                            PopupMenuItem(value: 'excluir', child: Row(children: [
+                                              Icon(Icons.delete_outline_rounded, size: 16, color: kDanger),
+                                              const SizedBox(width: 8),
+                                              Text('Excluir cobrança', style: TextStyle(color: kDanger, fontSize: 13)),
+                                            ])),
+                                          ],
+                                          onSelected: (v) {
+                                            if (v == 'estornar') _estornar(c);
+                                            if (v == 'desconsiderar') _desconsiderar(c);
+                                            if (v == 'restaurar') _restaurar(c);
+                                            if (v == 'excluir') _excluirCobranca(c);
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: kSuccess.withOpacity(0.08),
+                                  if (!isPago && !isDesconsiderado)
+                                    InkWell(
+                                      onTap: () => _marcarPago(c),
                                       borderRadius: const BorderRadius.only(
                                         bottomLeft: Radius.circular(12),
                                         bottomRight: Radius.circular(12),
                                       ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: kSuccess.withOpacity(0.08),
+                                          borderRadius: const BorderRadius.only(
+                                            bottomLeft: Radius.circular(12),
+                                            bottomRight: Radius.circular(12),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.check_circle_outline_rounded, color: kSuccess, size: 16),
+                                            const SizedBox(width: 6),
+                                            Text('Marcar como pago', style: TextStyle(color: kSuccess, fontSize: 13, fontWeight: FontWeight.w700)),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.check_circle_outline_rounded, color: kSuccess, size: 16),
-                                        const SizedBox(width: 6),
-                                        Text('Marcar como pago', style: TextStyle(color: kSuccess, fontSize: 13, fontWeight: FontWeight.w700)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                      childCount: _cobrancas.length,
-                    ),
-                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: lista.length,
+                      ),
+                    );
+                  }),
                   const SliverToBoxAdapter(child: AdBannerWidget()),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   ], // end else

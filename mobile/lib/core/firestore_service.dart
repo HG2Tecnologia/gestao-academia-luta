@@ -721,6 +721,9 @@ class FirestoreService {
     }).toList();
   }
 
+  Future<void> deleteGraduacao(String academiaId, String graduacaoId) =>
+      _doc(academiaId, 'graduacoes', graduacaoId).delete();
+
   Future<String> addGraduacao(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'graduacoes').doc();
     final faixaId = data['faixa_id']?.toString() ?? '';
@@ -754,6 +757,40 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
+  /// Gera pagamento do mês corrente para o aluno se não existir ainda.
+  Future<void> gerarPagamentoMesSeNecessario(
+      String academiaId, String alunoId, String alunoNome, String planoId, int diaVenc) async {
+    final now = DateTime.now();
+    final mesRef =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final existing = await _col(academiaId, 'pagamentos')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('mes_referencia', isEqualTo: mesRef)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) return;
+    final planoDoc = await _doc(academiaId, 'planos', planoId).get();
+    if (!planoDoc.exists) return;
+    final plano = planoDoc.data() as Map<String, dynamic>;
+    final valor = (plano['valor_mensal'] as num?)?.toDouble() ?? 0.0;
+    final dia = diaVenc.clamp(1, 28);
+    final vencStr =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}';
+    final pagRef = _col(academiaId, 'pagamentos').doc();
+    await pagRef.set({
+      'id': pagRef.id,
+      'aluno_id': alunoId,
+      'aluno_nome': alunoNome,
+      'plano_id': planoId,
+      'plano_nome': plano['nome'] ?? '',
+      'valor': valor,
+      'data_vencimento': vencStr,
+      'status': 0,
+      'mes_referencia': mesRef,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<String> addPagamento(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'pagamentos').doc();
     await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
@@ -762,6 +799,9 @@ class FirestoreService {
 
   Future<void> updatePagamento(String academiaId, String id, Map<String, dynamic> data) =>
       _doc(academiaId, 'pagamentos', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+
+  Future<void> deletePagamento(String academiaId, String id) =>
+      _doc(academiaId, 'pagamentos', id).delete();
 
   // ─── PLANOS ────────────────────────────────────────────────────────────────
 
