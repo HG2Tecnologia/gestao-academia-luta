@@ -5,6 +5,7 @@ import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
+import 'pix_pagamento_sheet.dart';
 
 class AlunoFinanceiroScreen extends StatefulWidget {
   const AlunoFinanceiroScreen({super.key});
@@ -21,6 +22,11 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   bool _taxaAtrasoAtiva = false;
   int _taxaAtrasoTipo = 0;
   double _taxaAtrasoValor = 0.0;
+
+  bool _pixDisponivel = false;
+  String? _academiaId;
+  String? _alunoNome;
+  String? _alunoEmail;
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
   static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
@@ -57,12 +63,19 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) { if (mounted) setState(() { _erro = true; _loading = false; }); return; }
+      _academiaId = user.academiaId;
       final results = await Future.wait([
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
+        firestoreService.getAsaasConfig(user.academiaId!).catchError((_) => null),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
+      final asaasData = results[2] as Map<String, dynamic>?;
+
+      _pixDisponivel = asaasData?['status'] == 'ATIVO';
+      _alunoNome = user.nome;
+      _alunoEmail = user.email;
       if (mounted) setState(() {
         _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
         _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
@@ -354,7 +367,40 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                               ],
                             ),
                           ),
-                          if (atrasado)
+                          // Botão PIX para cobranças pendentes/atrasadas
+                          if (_pixDisponivel && (s == 'Pendente' || s == 'Atrasado'))
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final valor = (c['valor'] as num?)?.toDouble() ?? 0.0;
+                                    final tipo = c['tipo']?.toString() ?? 'Mensalidade';
+                                    final pago = await PixPagamentoSheet.show(
+                                      context,
+                                      academiaId: _academiaId!,
+                                      pagamentoId: c['id'].toString(),
+                                      valor: valor,
+                                      descricao: tipo,
+                                      alunoNome: _alunoNome ?? '',
+                                      alunoEmail: _alunoEmail,
+                                    );
+                                    if (pago) _load();
+                                  },
+                                  icon: const Icon(Icons.pix_rounded, size: 16),
+                                  label: const Text('Pagar via PIX', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF32BCAD),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    elevation: 0,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else if (atrasado)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               decoration: BoxDecoration(

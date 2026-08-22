@@ -803,6 +803,29 @@ class FirestoreService {
   Future<void> deletePagamento(String academiaId, String id) =>
       _doc(academiaId, 'pagamentos', id).delete();
 
+  Stream<Map<String, dynamic>?> streamPagamento(String academiaId, String id) =>
+      _doc(academiaId, 'pagamentos', id).snapshots().map((s) => s.data() as Map<String, dynamic>?);
+
+  // ─── ASAAS / PAGAMENTOS DIGITAIS ────────────────────────────────────────────
+
+  Future<Map<String, dynamic>?> getAsaasConfig(String academiaId) async {
+    final doc = await _db
+        .collection('academias')
+        .doc(academiaId)
+        .collection('integracoes')
+        .doc('asaas')
+        .get();
+    return doc.data();
+  }
+
+  Stream<Map<String, dynamic>?> streamAsaasConfig(String academiaId) => _db
+      .collection('academias')
+      .doc(academiaId)
+      .collection('integracoes')
+      .doc('asaas')
+      .snapshots()
+      .map((s) => s.data());
+
   // ─── PLANOS ────────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPlanos(String academiaId) async {

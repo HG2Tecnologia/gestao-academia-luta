@@ -10,6 +10,7 @@ import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import 'modalidades_screen.dart';
+import 'pagamentos_config_screen.dart';
 import 'planos_screen.dart';
 
 class AdminConfiguracoesScreen extends StatefulWidget {
@@ -337,6 +338,16 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             iconColor: kSuccess,
                             label: 'Planos de Pagamento',
                             subtitle: 'Criar, editar e excluir planos de mensalidade',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PagamentosConfigScreen())),
+                          child: _NavTile(
+                            icon: Icons.payments_rounded,
+                            iconColor: kPrimary,
+                            label: 'Pagamentos via App',
+                            subtitle: 'Permitir que alunos paguem via PIX pelo app',
                           ),
                         ),
                         const SizedBox(height: 12),

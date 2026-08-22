@@ -1,0 +1,1114 @@
+<title>Pagamentos — Academia Fight</title>
+<style>
+  :root {
+    --bg: #F6F9FC;
+    --bg-2: #EEF3F8;
+    --surface: #FFFFFF;
+    --surface-2: #F1F6FB;
+    --surface-3: #E4EDF6;
+    --border: #C8D8E8;
+    --border-soft: #DDE8F2;
+    --text-1: #0D1821;
+    --text-2: #455A6E;
+    --text-3: #7A9BBC;
+    --accent: #00B88A;
+    --accent-glow: rgba(0,184,138,.12);
+    --accent-2: #2A8FD4;
+    --accent-2-glow: rgba(42,143,212,.10);
+    --danger: #D93025;
+    --warn: #D97706;
+    --success: #059669;
+    --badge-rec-bg: rgba(0,184,138,.1);
+    --badge-rec-txt: #00966E;
+    --badge-risk-bg: rgba(217,48,37,.09);
+    --badge-risk-txt: #B02018;
+    --badge-impl-bg: rgba(42,143,212,.10);
+    --badge-impl-txt: #1A6FA8;
+    --badge-info-bg: rgba(0,0,0,.06);
+    --badge-info-txt: #455A6E;
+    --code-bg: #EEF3F8;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+    --shadow-lg: 0 2px 8px rgba(0,0,0,.08), 0 12px 40px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1821;
+      --bg-2: #0A1218;
+      --surface: #162433;
+      --surface-2: #1A2D40;
+      --surface-3: #1E3148;
+      --border: #243547;
+      --border-soft: #1C2D3E;
+      --text-1: #E8F2FF;
+      --text-2: #7A9BBC;
+      --text-3: #3E5A72;
+      --accent: #00D4A0;
+      --accent-glow: rgba(0,212,160,.10);
+      --accent-2: #3B9EE8;
+      --accent-2-glow: rgba(59,158,232,.08);
+      --danger: #FF5A4E;
+      --warn: #F59E0B;
+      --success: #10B981;
+      --badge-rec-bg: rgba(0,212,160,.10);
+      --badge-rec-txt: #00D4A0;
+      --badge-risk-bg: rgba(255,90,78,.10);
+      --badge-risk-txt: #FF7A70;
+      --badge-impl-bg: rgba(59,158,232,.10);
+      --badge-impl-txt: #5BB8F5;
+      --badge-info-bg: rgba(255,255,255,.05);
+      --badge-info-txt: #7A9BBC;
+      --code-bg: #0F1E2C;
+      --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+      --shadow-lg: 0 2px 8px rgba(0,0,0,.3), 0 12px 40px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1821;
+    --bg-2: #0A1218;
+    --surface: #162433;
+    --surface-2: #1A2D40;
+    --surface-3: #1E3148;
+    --border: #243547;
+    --border-soft: #1C2D3E;
+    --text-1: #E8F2FF;
+    --text-2: #7A9BBC;
+    --text-3: #3E5A72;
+    --accent: #00D4A0;
+    --accent-glow: rgba(0,212,160,.10);
+    --accent-2: #3B9EE8;
+    --accent-2-glow: rgba(59,158,232,.08);
+    --danger: #FF5A4E;
+    --warn: #F59E0B;
+    --success: #10B981;
+    --badge-rec-bg: rgba(0,212,160,.10);
+    --badge-rec-txt: #00D4A0;
+    --badge-risk-bg: rgba(255,90,78,.10);
+    --badge-risk-txt: #FF7A70;
+    --badge-impl-bg: rgba(59,158,232,.10);
+    --badge-impl-txt: #5BB8F5;
+    --badge-info-bg: rgba(255,255,255,.05);
+    --badge-info-txt: #7A9BBC;
+    --code-bg: #0F1E2C;
+    --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+    --shadow-lg: 0 2px 8px rgba(0,0,0,.3), 0 12px 40px rgba(0,0,0,.25);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  header {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+    background: var(--surface);
+  }
+  .header-left { flex: 1; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--text-1);
+    text-wrap: balance;
+    letter-spacing: -.5px;
+  }
+  .header-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .meta-chip {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  /* Sidebar TOC */
+  aside {
+    padding: 28px 20px;
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+  .toc-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 14px;
+    padding-left: 8px;
+  }
+  .toc-item {
+    display: block;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--text-2);
+    text-decoration: none;
+    line-height: 1.4;
+    border-left: 2px solid transparent;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .toc-item:hover { color: var(--text-1); background: var(--surface-2); }
+  .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-glow); }
+  .toc-item.sub { padding-left: 18px; font-size: 12px; }
+  .toc-divider { height: 1px; background: var(--border-soft); margin: 10px 0; }
+  .toc-num {
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    color: var(--text-3);
+    margin-right: 4px;
+  }
+
+  /* Main content */
+  main {
+    padding: 40px 48px;
+    max-width: 780px;
+  }
+
+  /* Sections */
+  section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .section-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+    min-width: 24px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -.3px;
+    color: var(--text-1);
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-1);
+    margin: 24px 0 8px;
+    letter-spacing: .01em;
+  }
+
+  p { color: var(--text-2); margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  strong { color: var(--text-1); font-weight: 600; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .badge-rec { background: var(--badge-rec-bg); color: var(--badge-rec-txt); }
+  .badge-risk { background: var(--badge-risk-bg); color: var(--badge-risk-txt); }
+  .badge-impl { background: var(--badge-impl-bg); color: var(--badge-impl-txt); }
+  .badge-info { background: var(--badge-info-bg); color: var(--badge-info-txt); }
+  .badge-warn { background: rgba(245,158,11,.1); color: var(--warn); }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .card-accent {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, var(--surface) 60%, var(--accent-glow));
+    position: relative;
+  }
+  .card-accent::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent-glow), transparent);
+    pointer-events: none;
+  }
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: -.2px;
+  }
+  .card-sub {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+
+  /* Provider comparison table */
+  .table-wrap { overflow-x: auto; margin-bottom: 16px; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-2);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr.highlight td { background: var(--accent-glow); }
+  tr.highlight td:first-child { border-left: 3px solid var(--accent); }
+  td.name { font-weight: 700; color: var(--text-1); }
+  .check { color: var(--success); font-weight: 700; }
+  .cross { color: var(--danger); }
+  .partial { color: var(--warn); }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .flow-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-1);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .flow-box.accent { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+  .flow-box.blue { background: var(--accent-2-glow); border-color: var(--accent-2); color: var(--accent-2); }
+  .flow-label { font-size: 10px; color: var(--text-3); font-weight: 500; text-align: center; max-width: 80px; }
+  .flow-arrow {
+    font-size: 18px;
+    color: var(--text-3);
+    padding: 0 6px;
+    flex-shrink: 0;
+    margin-bottom: 18px;
+  }
+
+  /* Steps list */
+  .steps { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-num.accent { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+  .step-content { flex: 1; }
+  .step-title { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 3px; }
+  .step-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+
+  /* Risk list */
+  .risks { display: flex; flex-direction: column; gap: 10px; }
+  .risk {
+    display: flex;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    border-left: 3px solid var(--border);
+  }
+  .risk.high { border-left-color: var(--danger); }
+  .risk.med { border-left-color: var(--warn); }
+  .risk.low { border-left-color: var(--accent); }
+  .risk-icon { font-size: 16px; flex-shrink: 0; }
+  .risk-title { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 3px; }
+  .risk-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+
+  /* Code inline */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    background: var(--code-bg);
+    color: var(--accent-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border-soft);
+  }
+
+  /* Timeline phases */
+  .phases { display: flex; flex-direction: column; gap: 0; }
+  .phase {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .phase:last-child { border-bottom: none; }
+  .phase-label { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; padding-top: 2px; }
+  .phase-name { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 6px; }
+  .phase-items { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .phase-items li { font-size: 13px; color: var(--text-2); display: flex; gap: 8px; }
+  .phase-items li::before { content: '—'; color: var(--text-3); flex-shrink: 0; }
+
+  /* Summary box */
+  .summary-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .summary-item { }
+  .summary-item-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+  .summary-item-value { font-size: 14px; font-weight: 700; color: var(--text-1); }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { display: none; }
+    main { padding: 24px 20px; }
+    header { padding: 20px; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="layout">
+  <header>
+    <div class="header-left">
+      <div class="eyebrow">Academia Fight · Planejamento Estratégico</div>
+      <h1>Integração de Meios de Pagamento</h1>
+      <div class="header-meta">
+        <span class="meta-chip">Fluxo: Aluno → Academia</span>
+        <span class="meta-chip">Plataforma: Flutter + Firebase</span>
+        <span class="meta-chip">Mercado: Brasil</span>
+        <span class="meta-chip">Agosto 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <aside>
+    <div class="toc-label">Conteúdo</div>
+    <a href="#contexto" class="toc-item active"><span class="toc-num">01</span> Contexto e Premissas</a>
+    <a href="#fluxo" class="toc-item"><span class="toc-num">02</span> Como o Dinheiro Vai Fluir</a>
+    <a href="#provedores" class="toc-item"><span class="toc-num">03</span> Escolha do Provedor</a>
+    <a href="#recomendacao" class="toc-item sub">↳ Recomendação: Asaas</a>
+    <a href="#metodos" class="toc-item"><span class="toc-num">04</span> Métodos de Pagamento</a>
+    <a href="#metodos" class="toc-item sub">↳ PIX</a>
+    <a href="#metodos" class="toc-item sub">↳ Cartão / Recorrência</a>
+    <a href="#arquitetura" class="toc-item"><span class="toc-num">05</span> Arquitetura Técnica</a>
+    <a href="#seguranca" class="toc-item"><span class="toc-num">06</span> Segurança</a>
+    <a href="#impacto" class="toc-item"><span class="toc-num">07</span> Impacto no App</a>
+    <a href="#fases" class="toc-item"><span class="toc-num">08</span> Fases de Implementação</a>
+    <a href="#taxas" class="toc-item"><span class="toc-num">09</span> Taxas e Custos</a>
+    <a href="#taxas" class="toc-item sub">↳ Quem paga a taxa?</a>
+    <div class="toc-divider"></div>
+    <a href="#decisao" class="toc-item" style="color:var(--accent);font-weight:700;">→ Decisão Final</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 CONTEXTO -->
+    <section id="contexto">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2 class="section-title">Contexto e Premissas</h2>
+      </div>
+
+      <p>O Academia Fight é um SaaS onde <strong>academias pagam pelo uso do app</strong> nas lojas (Apple/Google). O fluxo de pagamento que queremos implementar é diferente: é o <strong>aluno pagando a academia</strong> pelo app — mensalidades, matrículas, graduações, taxas de material.</p>
+      <p>O app age como <strong>plataforma facilitadora</strong>, não como intermediário financeiro. Não há split de receita para o Academia Fight — a academia recebe 100% do valor pago pelo aluno (menos a taxa do provedor de pagamentos, que é cobrada da academia, não de nós).</p>
+
+      <div class="card card-accent">
+        <div class="card-head">
+          <span class="card-title">Premissa central</span>
+          <span class="badge badge-rec">Definido</span>
+        </div>
+        <p class="card-sub">Academia Fight <strong>não recebe comissão</strong> sobre pagamentos entre alunos e academias. A academia é o recebedor final. O provedor de pagamentos cobra taxa diretamente da academia (ou do valor recebido). Nosso negócio é o SaaS — não processamento de pagamentos.</p>
+      </div>
+    </section>
+
+    <!-- 02 FLUXO -->
+    <section id="fluxo">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2 class="section-title">Como o Dinheiro Vai Fluir</h2>
+      </div>
+
+      <h3>Fluxo geral</h3>
+      <div class="flow">
+        <div class="flow-node">
+          <div class="flow-box accent">App do Aluno</div>
+          <div class="flow-label">seleciona cobrança pendente</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box blue">Cloud Function</div>
+          <div class="flow-label">cria cobrança no provedor</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box blue">Provedor (Asaas)</div>
+          <div class="flow-label">processa pagamento</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box accent">Conta da Academia</div>
+          <div class="flow-label">recebe o valor</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box">Webhook → Firestore</div>
+          <div class="flow-label">status atualizado</div>
+        </div>
+      </div>
+
+      <h3>Modelo de conta da academia</h3>
+      <p>Cada academia cadastrada no sistema precisa ter uma <strong>subconta no provedor</strong> (Asaas chama de "conta digital"). O Academia Fight terá uma conta principal (Master) e cada academia vinculada terá sua subconta. Todo pagamento de aluno vai direto para a subconta da academia correspondente.</p>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Onboarding da academia</span>
+          <span class="badge badge-impl">Implementação</span>
+        </div>
+        <p class="card-sub">Ao ativar pagamentos, a academia preenche seus dados (CNPJ ou CPF, banco, dados pessoais do responsável) diretamente na tela do app admin. O Asaas faz o KYC (verificação de identidade) automaticamente. Após aprovação, a academia recebe um <code>subAccountId</code> armazenado no Firestore.</p>
+      </div>
+    </section>
+
+    <!-- 03 PROVEDORES -->
+    <section id="provedores">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2 class="section-title">Escolha do Provedor</h2>
+      </div>
+
+      <p>Avaliamos os principais provedores do mercado brasileiro para o modelo marketplace (aluno paga → academia recebe diretamente).</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Provedor</th>
+              <th>Marketplace</th>
+              <th>PIX nativo</th>
+              <th>Recorrência</th>
+              <th>KYC auto</th>
+              <th>Complexidade</th>
+              <th>Brasil-first</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight">
+              <td class="name">Asaas ⭐</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td>Baixa</td>
+              <td class="check">✓</td>
+            </tr>
+            <tr>
+              <td class="name">Iugu</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="partial">Parcial</td>
+              <td>Média</td>
+              <td class="check">✓</td>
+            </tr>
+            <tr>
+              <td class="name">Pagar.me</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="partial">Parcial</td>
+              <td>Média</td>
+              <td class="check">✓</td>
+            </tr>
+            <tr>
+              <td class="name">Stripe Connect</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td class="check">✓</td>
+              <td>Alta</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td class="name">Mercado Pago</td>
+              <td class="partial">Limitado</td>
+              <td class="check">✓</td>
+              <td class="partial">Parcial</td>
+              <td class="check">✓</td>
+              <td>Média</td>
+              <td class="check">✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="recomendacao" class="card card-accent">
+        <div class="card-head">
+          <span class="card-title">Recomendação: Asaas</span>
+          <span class="badge badge-rec">Recomendado</span>
+        </div>
+        <p class="card-sub"><strong>Por quê Asaas?</strong> É o provedor mais amigável para o modelo marketplace no Brasil. Tem API REST simples, subcontas nativas, PIX integrado, boleto, cartão de crédito/débito, recorrência automática e KYC automático para as academias. A documentação é em português, o suporte é brasileiro, e a integração pode ser feita em poucos dias. Aceita tanto PF quanto PJ como recebedoras.</p>
+        <p class="card-sub" style="margin-top:8px;">O Iugu é uma boa segunda opção se o Asaas apresentar algum bloqueio contratual — a arquitetura seria idêntica.</p>
+      </div>
+    </section>
+
+    <!-- 04 MÉTODOS DE PAGAMENTO -->
+    <section id="metodos">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2 class="section-title">Métodos de Pagamento</h2>
+      </div>
+
+      <h3>PIX — Prioridade 1</h3>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">PIX (pagamento instantâneo)</span>
+          <span class="badge badge-rec">Alta prioridade</span>
+        </div>
+        <p class="card-sub">O aluno toca em "Pagar" → Cloud Function solicita ao Asaas um QR Code PIX para a subconta da academia → app exibe o QR Code e a chave copia-e-cola → aluno paga pelo banco → Asaas detecta o pagamento e dispara webhook → Cloud Function atualiza o Firestore → aluno vê "Pago" em tempo real via stream do Firestore.</p>
+        <p class="card-sub" style="margin-top:6px;">Taxa Asaas: geralmente <strong>R$ 1,99 por PIX recebido</strong> (cobrado da academia). Zero pra nós.</p>
+      </div>
+
+      <h3>Cartão de crédito — Prioridade 2</h3>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Cartão (avulso ou recorrente)</span>
+          <span class="badge badge-impl">Implementação</span>
+        </div>
+        <p class="card-sub">O aluno digita os dados do cartão <strong>diretamente no SDK do Asaas</strong> (nunca passam pelo nosso servidor — PCI DSS). O Asaas gera um token (<code>creditCardToken</code>) que armazenamos no Firestore vinculado ao aluno. Para mensalidades recorrentes, o Asaas gerencia automaticamente as cobranças mensais e dispara webhooks de sucesso/falha.</p>
+        <p class="card-sub" style="margin-top:6px;">Taxa Asaas: ~<strong>2,49% + R$ 0,49</strong> por transação de crédito (cobrado da academia).</p>
+      </div>
+
+      <h3>O que não implementar (por ora)</h3>
+      <div class="card">
+        <div class="card-sub">
+          <strong>Boleto bancário</strong>: alta taxa de inadimplência, compensação em D+2, gera complexidade operacional. Descartado na v1.<br><br>
+          <strong>Débito em conta</strong>: requer autorização do banco do aluno, muito fricção. Descartado na v1.
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 ARQUITETURA -->
+    <section id="arquitetura">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2 class="section-title">Arquitetura Técnica</h2>
+      </div>
+
+      <p>O app mobile <strong>nunca chama o Asaas diretamente</strong>. Toda comunicação com o provedor passa por <strong>Cloud Functions</strong>, que atuam como camada de segurança e orquestração.</p>
+
+      <h3>Componentes novos no sistema</h3>
+      <ul class="steps">
+        <li class="step">
+          <div class="step-num accent">1</div>
+          <div class="step-content">
+            <div class="step-title">Cloud Functions — Gateway de Pagamento</div>
+            <div class="step-desc">Funções: <code>criarCobrancaPix</code>, <code>criarCobrancaCartao</code>, <code>salvarCartao</code>, <code>cancelarCobranca</code>, <code>webhookAsaas</code>. Guardam a API Key do Asaas em Secret Manager — nunca exposta ao cliente.</div>
+          </div>
+        </li>
+        <li class="step">
+          <div class="step-num accent">2</div>
+          <div class="step-content">
+            <div class="step-title">Firestore — Novas coleções</div>
+            <div class="step-desc"><code>academias/{id}/asaas</code> (subAccountId, status KYC), <code>academias/{id}/pagamentos_metodos</code> (tokens de cartão por aluno), <code>academias/{id}/transacoes</code> (registro de cada cobrança do Asaas com status).</div>
+          </div>
+        </li>
+        <li class="step">
+          <div class="step-num accent">3</div>
+          <div class="step-content">
+            <div class="step-title">Webhook Endpoint</div>
+            <div class="step-desc">URL pública (Cloud Function) que o Asaas chama quando um pagamento muda de status. Valida a assinatura do Asaas (<code>asaas-access-token</code> no header), atualiza o documento de <code>pagamentos</code> no Firestore e notifica o aluno via FCM se necessário.</div>
+          </div>
+        </li>
+        <li class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Secret Manager (Google Cloud)</div>
+            <div class="step-desc">API Key do Asaas, token de validação de webhook e quaisquer segredos ficam no Secret Manager — acessados apenas pelas Cloud Functions em runtime, nunca hardcoded nem em variáveis de ambiente visíveis.</div>
+          </div>
+        </li>
+      </ul>
+
+      <h3>Fluxo detalhado — PIX</h3>
+      <ul class="steps">
+        <li class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Aluno toca em "Pagar via PIX"</div><div class="step-desc">App chama <code>criarCobrancaPix({pagamentoId, academiaId})</code> via Firebase callable function.</div></div></li>
+        <li class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Cloud Function cria cobrança</div><div class="step-desc">Busca o <code>subAccountId</code> da academia, chama API do Asaas com valor, vencimento e dados do aluno. Asaas retorna QR Code e payload PIX.</div></div></li>
+        <li class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">App exibe QR Code</div><div class="step-desc">Salva o <code>asaasChargeId</code> no documento do pagamento. Aluno paga no banco. App faz stream do documento — quando o status muda para "pago", exibe confirmação.</div></div></li>
+        <li class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Asaas dispara webhook</div><div class="step-desc">Cloud Function <code>webhookAsaas</code> valida a assinatura, encontra o pagamento pelo <code>asaasChargeId</code>, atualiza <code>status: 1 (Pago)</code> no Firestore.</div></div></li>
+      </ul>
+    </section>
+
+    <!-- 06 SEGURANÇA -->
+    <section id="seguranca">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2 class="section-title">Segurança</h2>
+      </div>
+
+      <p>Pagamentos exigem atenção redobrada. Aqui estão todos os vetores de risco e como cada um é mitigado.</p>
+
+      <div class="risks">
+        <div class="risk high">
+          <div class="risk-icon">🔐</div>
+          <div>
+            <div class="risk-title">Dados de cartão — PCI DSS</div>
+            <div class="risk-desc"><strong>Risco: alto.</strong> Se dados de cartão passarem pelos nossos servidores, precisamos de auditoria PCI DSS completa (custo alto, processo longo).<br><strong>Mitigação:</strong> O aluno digita o cartão diretamente no SDK do Asaas (tokenização no lado do cliente). Nosso servidor recebe apenas o <code>creditCardToken</code> — nunca o número do cartão, CVV ou validade. O Asaas é PCI DSS nível 1.</div>
+          </div>
+        </div>
+        <div class="risk high">
+          <div class="risk-icon">🔑</div>
+          <div>
+            <div class="risk-title">Exposição da API Key do Asaas</div>
+            <div class="risk-desc"><strong>Risco: alto.</strong> API Key exposta = acesso irrestrito a todas as subcontas.<br><strong>Mitigação:</strong> API Key armazenada exclusivamente no Secret Manager do Google Cloud. Nenhuma variável de ambiente em código, nenhum arquivo <code>.env</code> commitado. Acesso somente pelas Cloud Functions em runtime.</div>
+          </div>
+        </div>
+        <div class="risk high">
+          <div class="risk-icon">🪝</div>
+          <div>
+            <div class="risk-title">Webhook falso (spoofing)</div>
+            <div class="risk-desc"><strong>Risco: alto.</strong> Um atacante poderia enviar um webhook falso marcando pagamentos como pagos sem que o aluno pagasse.<br><strong>Mitigação:</strong> Validar o header <code>asaas-access-token</code> em toda requisição webhook. Rejeitar imediatamente qualquer chamada sem token válido. Nunca processar webhooks de IPs não documentados pelo Asaas (whitelist opcional).</div>
+          </div>
+        </div>
+        <div class="risk med">
+          <div class="risk-icon">🔒</div>
+          <div>
+            <div class="risk-title">Regras do Firestore — isolamento de dados</div>
+            <div class="risk-desc"><strong>Risco: médio.</strong> Aluno A acessar dados financeiros do Aluno B, ou academia X ver dados da academia Y.<br><strong>Mitigação:</strong> Security Rules do Firestore: aluno só lê/escreve nos seus próprios documentos de pagamento. Admin só acessa documentos da sua academia. Cloud Functions usam Admin SDK (bypass de rules) — devem validar <code>academiaId</code> do contexto de autenticação antes de qualquer operação.</div>
+          </div>
+        </div>
+        <div class="risk med">
+          <div class="risk-icon">🛡️</div>
+          <div>
+            <div class="risk-title">LGPD — dados financeiros</div>
+            <div class="risk-desc"><strong>Risco: médio.</strong> Dados de pagamento são dados sensíveis sob a LGPD.<br><strong>Mitigação:</strong> Armazenar apenas o necessário: token do cartão (não dados brutos), histórico de pagamentos da academia. Exibir consentimento explícito ao aluno ao salvar cartão. Permitir exclusão do token a qualquer momento. Documentar na Política de Privacidade.</div>
+          </div>
+        </div>
+        <div class="risk low">
+          <div class="risk-icon">🔄</div>
+          <div>
+            <div class="risk-title">Dupla cobrança / idempotência</div>
+            <div class="risk-desc"><strong>Risco: baixo-médio.</strong> Retry de network pode criar duas cobranças para o mesmo pagamento.<br><strong>Mitigação:</strong> Enviar <code>externalReference: pagamentoId</code> em toda cobrança. Antes de criar, verificar se já existe cobrança ativa com aquele ID. Asaas suporta idempotência por referência externa.</div>
+          </div>
+        </div>
+        <div class="risk low">
+          <div class="risk-icon">📱</div>
+          <div>
+            <div class="risk-title">Man-in-the-middle no app</div>
+            <div class="risk-desc"><strong>Risco: baixo.</strong> App Flutter usa HTTPS obrigatório. Cloud Functions são HTTPS by default. QR Code PIX é exibido localmente — sem transmissão de dados sensíveis pelo app.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 IMPACTO NO APP -->
+    <section id="impacto">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2 class="section-title">Impacto no App</h2>
+      </div>
+
+      <h3>App Admin (academia)</h3>
+      <ul class="steps">
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Nova tela: Configurar Recebimentos</div><div class="step-desc">Formulário de onboarding Asaas (CPF/CNPJ, dados bancários, responsável). Mostra status do KYC ("Pendente", "Aprovado", "Rejeitado"). Exibe saldo disponível na subconta.</div></div></li>
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Financeiro — sem mudança visual</div><div class="step-desc">A tela atual de cobranças continua igual. Só adicionamos um badge "Pago via PIX/Cartão" e o <code>asaasChargeId</code> fica armazenado internamente. O admin não precisa fazer nada extra — o webhook atualiza tudo automaticamente.</div></div></li>
+      </ul>
+
+      <h3>App do Aluno</h3>
+      <ul class="steps">
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Nova seção: Financeiro do Aluno</div><div class="step-desc">Lista de cobranças pendentes/pagas. Botões "Pagar via PIX" e "Pagar com Cartão" em cada cobrança pendente.</div></div></li>
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Tela de pagamento PIX</div><div class="step-desc">QR Code em destaque + botão "Copiar chave". Timer de expiração (30 min). Polling/stream no Firestore para confirmar pagamento em tempo real.</div></div></li>
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Tela de pagamento por cartão</div><div class="step-desc">Campo nome, número, validade, CVV — renderizados pelo SDK do Asaas (WebView segura). Opção "Salvar cartão para próximas cobranças". Se cartão salvo: lista os cartões disponíveis e permite pagar com 1 toque.</div></div></li>
+        <li class="step"><div class="step-num">→</div><div class="step-content"><div class="step-title">Mensalidade recorrente</div><div class="step-desc">Ao ativar recorrência, o Asaas cobra automaticamente no dia de vencimento configurado pelo admin. O aluno recebe push notification quando a cobrança é criada e quando é confirmada.</div></div></li>
+      </ul>
+    </section>
+
+    <!-- 08 FASES -->
+    <section id="fases">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h2 class="section-title">Fases de Implementação</h2>
+      </div>
+
+      <div class="phases">
+        <div class="phase">
+          <div class="phase-label"><span class="badge badge-impl">Fase 1</span><br><br>~3 semanas</div>
+          <div>
+            <div class="phase-name">Fundação — PIX apenas</div>
+            <ul class="phase-items">
+              <li>Conta Asaas e configuração do ambiente sandbox</li>
+              <li>Cloud Functions: <code>criarCobrancaPix</code> e <code>webhookAsaas</code></li>
+              <li>Secret Manager para API Key</li>
+              <li>Tela de onboarding da academia (dados Asaas)</li>
+              <li>App do aluno: tela de pendências + pagamento PIX</li>
+              <li>Regras Firestore para isolamento de dados financeiros</li>
+              <li>Testes em sandbox com academias reais</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-label"><span class="badge badge-impl">Fase 2</span><br><br>~2 semanas</div>
+          <div>
+            <div class="phase-name">Cartão de crédito</div>
+            <ul class="phase-items">
+              <li>Integração SDK Asaas para tokenização de cartão</li>
+              <li>Cloud Function <code>criarCobrancaCartao</code> e <code>salvarCartao</code></li>
+              <li>Tela de pagamento por cartão no app do aluno</li>
+              <li>Gestão de cartões salvos (listar, remover)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-label"><span class="badge badge-impl">Fase 3</span><br><br>~2 semanas</div>
+          <div>
+            <div class="phase-name">Recorrência automática</div>
+            <ul class="phase-items">
+              <li>Config de assinatura mensal por aluno no Asaas</li>
+              <li>Webhook de falha de cobrança recorrente</li>
+              <li>Push notification para cobrança criada/confirmada/falhou</li>
+              <li>Retry automático de cartão em caso de falha</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-label"><span class="badge badge-info">Futuro</span></div>
+          <div>
+            <div class="phase-name">Relatório financeiro avançado</div>
+            <ul class="phase-items">
+              <li>Dashboard de repasse para a academia (D+1 cartão, D+0 PIX)</li>
+              <li>Exportação de extrato de recebimentos</li>
+              <li>Saldo disponível em tempo real no painel admin</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 TAXAS -->
+    <section id="taxas">
+      <div class="section-header">
+        <span class="section-num">09</span>
+        <h2 class="section-title">Taxas e Custos</h2>
+      </div>
+
+      <p>O Asaas <strong>não é gratuito</strong> — cobra taxas por transação processada. A boa notícia: quem paga a taxa é a academia (ou o aluno, dependendo da decisão abaixo), <strong>nunca o Academia Fight</strong>. Abaixo estão as taxas vigentes para o modelo subconta/marketplace.</p>
+
+      <div class="card" style="margin-bottom:20px;border-left:3px solid var(--warn)">
+        <div class="card-head">
+          <span class="card-title" style="color:var(--warn)">Aviso importante</span>
+        </div>
+        <p class="card-sub">As taxas abaixo são baseadas na tabela pública do Asaas e estão sujeitas a alteração. Confirme os valores vigentes em <strong>asaas.com/precos</strong> antes de tomar decisões financeiras. Para subcontas, o Asaas pode negociar taxas menores conforme o volume mensal de transações da plataforma.</p>
+      </div>
+
+      <h3>Tabela de taxas por método de pagamento</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Método</th>
+              <th>Taxa por transação</th>
+              <th>Quem paga</th>
+              <th>Quando é debitado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="name">PIX</td>
+              <td>~R$ 1,99 fixo <em>ou</em> ~0,99% (plano volume)</td>
+              <td>Subconta da academia</td>
+              <td>No momento do recebimento</td>
+            </tr>
+            <tr>
+              <td class="name">Cartão de crédito (à vista)</td>
+              <td>~2,99% do valor</td>
+              <td>Subconta da academia</td>
+              <td>Na liquidação (D+30)</td>
+            </tr>
+            <tr>
+              <td class="name">Cartão de crédito (2–12x)</td>
+              <td>~3,49% + juros de parcelamento</td>
+              <td>Subconta da academia</td>
+              <td>Na liquidação de cada parcela</td>
+            </tr>
+            <tr>
+              <td class="name">Cartão de débito</td>
+              <td>~1,99%</td>
+              <td>Subconta da academia</td>
+              <td>Na liquidação (D+1)</td>
+            </tr>
+            <tr>
+              <td class="name">Boleto bancário</td>
+              <td>R$ 1,99 a R$ 3,49 (por emissão)</td>
+              <td>Subconta da academia</td>
+              <td>No pagamento do boleto</td>
+            </tr>
+            <tr>
+              <td class="name">Saque PIX (subconta → banco)</td>
+              <td>Gratuito ou ~R$ 0,50</td>
+              <td>Subconta da academia</td>
+              <td>No momento do saque</td>
+            </tr>
+            <tr>
+              <td class="name">Saque TED (subconta → banco)</td>
+              <td>~R$ 2,00 a R$ 5,00</td>
+              <td>Subconta da academia</td>
+              <td>No momento do saque</td>
+            </tr>
+            <tr>
+              <td class="name" style="color:var(--success)">Taxa do Academia Fight</td>
+              <td style="color:var(--success);font-weight:700">R$ 0,00</td>
+              <td style="color:var(--success)">—</td>
+              <td style="color:var(--success)">Nunca cobramos comissão</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Impacto real por mensalidade</h3>
+      <p>Para uma mensalidade de <strong>R$ 250,00</strong>, o que a academia recebe de fato:</p>
+      <div class="table-wrap" style="margin-bottom:24px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Método de pagamento</th>
+              <th>Valor pago pelo aluno</th>
+              <th>Taxa Asaas</th>
+              <th>Academia recebe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PIX</td>
+              <td>R$ 250,00</td>
+              <td>R$ 1,99</td>
+              <td><strong>R$ 248,01</strong></td>
+            </tr>
+            <tr>
+              <td>Cartão crédito (à vista)</td>
+              <td>R$ 250,00</td>
+              <td>R$ 7,48 (2,99%)</td>
+              <td><strong>R$ 242,52</strong></td>
+            </tr>
+            <tr>
+              <td>Cartão crédito (2x)</td>
+              <td>R$ 250,00</td>
+              <td>R$ 8,73 (~3,49%)</td>
+              <td><strong>R$ 241,27</strong></td>
+            </tr>
+            <tr>
+              <td>Dinheiro/manual (atual)</td>
+              <td>R$ 250,00</td>
+              <td>R$ 0,00</td>
+              <td><strong>R$ 250,00</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="quem-paga" class="card card-accent">
+        <div class="card-head">
+          <span class="card-title">Decisão: quem arca com a taxa?</span>
+          <span class="badge badge-warn">Validar com sócio</span>
+        </div>
+        <p class="card-sub">Existem 3 modelos possíveis:</p>
+
+        <div class="risks" style="margin-top:12px;">
+          <div class="risk" style="border-left-color:var(--accent)">
+            <div class="risk-icon">🏫</div>
+            <div>
+              <div class="risk-title">Opção A — Academia absorve (recomendado)</div>
+              <div class="risk-desc">A taxa é descontada do valor que a academia recebe. O aluno paga R$ 250 e a academia recebe R$ 248,01 no PIX. <strong>Mais simples de implementar.</strong> Academias já pagam taxa de maquininha (geralmente 1,5% a 3,5%) — é um modelo familiar. Bom argumento: "com nossa maquininha você ia perder R$ 8, com o app perde só R$ 2 via PIX".</div>
+            </div>
+          </div>
+          <div class="risk" style="border-left-color:var(--accent-2)">
+            <div class="risk-icon">👨‍🎓</div>
+            <div>
+              <div class="risk-title">Opção B — Aluno paga a taxa de conveniência</div>
+              <div class="risk-desc">A academia recebe o valor cheio. O aluno vê "R$ 250,00 + R$ 1,99 de taxa de conveniência". Requer lógica extra no app para calcular e exibir o breakdown. O aluno pode preferir pagar no dinheiro para evitar a taxa — <strong>pode reduzir adoção.</strong></div>
+            </div>
+          </div>
+          <div class="risk" style="border-left-color:var(--danger)">
+            <div class="risk-icon">❌</div>
+            <div>
+              <div class="risk-title">Opção C — Academia Fight absorve</div>
+              <div class="risk-desc">Nós bancamos as taxas do nosso próprio caixa. <strong>Não recomendado.</strong> Em 100 academias com 30 alunos cada pagando R$ 1,99/mês de PIX, são ~R$ 6.000/mês em taxas que sairíamos do nosso bolso sem retorno.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Conta Master do Academia Fight no Asaas</h3>
+      <p>A conta principal (Master) precisa ser mantida. O Asaas pode cobrar uma <strong>mensalidade da conta Master</strong> dependendo do volume de transações — geralmente isenta a partir de certo volume mensal. Verifique as condições em <strong>asaas.com/precos</strong> durante o onboarding. Para MVP (fase 1 com poucas academias), pode haver uma taxa fixa mensal baixa (~R$ 50–200/mês), que desaparece conforme o volume cresce.</p>
+
+    </section>
+
+    <!-- DECISÃO FINAL -->
+    <section id="decisao">
+      <div class="section-header">
+        <span class="section-num" style="color:var(--accent)">→</span>
+        <h2 class="section-title">Decisão Final</h2>
+      </div>
+
+      <div class="summary-box">
+        <p style="color:var(--text-2);font-size:13px;margin-bottom:0">Resumo executivo das escolhas estratégicas</p>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="summary-item-label">Provedor</div>
+            <div class="summary-item-value">Asaas (marketplace)</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-item-label">Modelo financeiro</div>
+            <div class="summary-item-value">Aluno → Academia (100%)</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-item-label">V1 — métodos</div>
+            <div class="summary-item-value">PIX + Cartão de crédito</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-item-label">Infraestrutura</div>
+            <div class="summary-item-value">Cloud Functions + Secret Manager</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-item-label">Dados de cartão</div>
+            <div class="summary-item-value">SDK Asaas (PCI DSS L1)</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-item-label">Prazo estimado</div>
+            <div class="summary-item-value">~7 semanas (todas as fases)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-accent">
+        <div class="card-head">
+          <span class="card-title">O que você precisa validar antes de começar</span>
+          <span class="badge badge-warn">Ação necessária</span>
+        </div>
+        <p class="card-sub">1. <strong>Criar conta no Asaas</strong> (asaas.com) e verificar as taxas vigentes para o modelo marketplace.<br><br>2. <strong>Confirmar com as academias piloto</strong> que aceitam fornecer CPF/CNPJ e dados bancários para o onboarding Asaas.<br><br>3. <strong>Revisar Termos do Asaas</strong> para marketplace — confirmar que o modelo "plataforma sem split para si própria" é suportado sem restrições contratuais.<br><br>4. <strong>Definir quem arca com a taxa</strong> do provedor: academia absorve (mais simples), ou é repassada ao aluno como "taxa de conveniência" (requer config extra).</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const toc = document.querySelectorAll('.toc-item');
+  const sections = document.querySelectorAll('section[id]');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        toc.forEach(t => t.classList.remove('active'));
+        const active = document.querySelector(`.toc-item[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => obs.observe(s));
+</script>
