@@ -91,6 +91,8 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
   Future<void> _editarFuncionario(Map<String, dynamic> f) async {
     final nomeCtrl = TextEditingController(text: f['nome'] as String? ?? '');
     final cargoCtrl = TextEditingController(text: f['cargo'] as String? ?? '');
+    final emailCtrl = TextEditingController(text: f['email'] as String? ?? '');
+    final telCtrl = TextEditingController(text: f['telefone'] as String? ?? '');
     String perfil = f['perfil'] as String? ?? 'Professor';
 
     // Carrega permissões existentes ou defaults do perfil
@@ -109,7 +111,7 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             child: Form(
@@ -121,7 +123,17 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                   Row(children: [
                     Text('Editar membro', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
                     const Spacer(),
-                    IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
+                    IconButton(
+                      onPressed: () {
+                        // Tira o foco antes de fechar: se o usuário selecionou/copiou
+                        // texto num campo, a barra de seleção (Overlay) ainda ativa
+                        // entra em conflito com o fechamento do modal e derruba o app
+                        // com um erro interno do Flutter (_dependents.isEmpty).
+                        FocusScope.of(ctx).unfocus();
+                        Navigator.of(ctx).pop();
+                      },
+                      icon: Icon(Icons.close, color: kText2),
+                    ),
                   ]),
                   const Divider(height: 20),
                   // Nome
@@ -136,6 +148,34 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  // E-mail
+                  TextFormField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: kText1),
+                    decoration: InputDecoration(
+                      labelText: 'E-mail',
+                      labelStyle: TextStyle(color: kText2),
+                      filled: true, fillColor: kBg,
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Telefone
+                  TextFormField(
+                    controller: telCtrl,
+                    keyboardType: TextInputType.phone,
+                    style: TextStyle(color: kText1),
+                    decoration: InputDecoration(
+                      labelText: 'Telefone',
+                      labelStyle: TextStyle(color: kText2),
+                      filled: true, fillColor: kBg,
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   // Cargo
@@ -157,7 +197,7 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                   GestureDetector(
                     onTap: () async {
                       final sel = await showDialog<String>(
-                        context: context,
+                        context: ctx,
                         builder: (dCtx) => SimpleDialog(
                           backgroundColor: kSurface,
                           title: Text('Perfil', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
@@ -189,6 +229,8 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                     _buildPermissoesGrupo('Telas', kPermissoesInfo.keys.where((k) => k.startsWith('tela_')).toList(), permissoes, setSt),
                     const SizedBox(height: 10),
                     _buildPermissoesGrupo('Ações', kPermissoesInfo.keys.where((k) => k.startsWith('acao_')).toList(), permissoes, setSt),
+                    const SizedBox(height: 10),
+                    _buildPermissoesGrupo('Acesso avançado', kPermissoesInfo.keys.where((k) => k.startsWith('acesso_')).toList(), permissoes, setSt),
                   ],
                   const SizedBox(height: 24),
                   SizedBox(
@@ -196,13 +238,27 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (!formKey.currentState!.validate()) return;
+                        // Lê os valores dos controllers ANTES de fechar o modal:
+                        // fechar dispara o dispose() dos controllers em
+                        // _editarFuncionario, e ler `.text` depois disso é uma
+                        // condição de corrida (controller usado após dispose,
+                        // que derruba o app com um erro interno do Flutter).
+                        final nomeVal = nomeCtrl.text.trim();
+                        final cargoVal = cargoCtrl.text.trim();
+                        final emailVal = emailCtrl.text.trim();
+                        final telVal = telCtrl.text.trim();
+                        final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
+                        FocusScope.of(ctx).unfocus();
                         Navigator.of(ctx).pop();
                         try {
                           final user = await AuthStorage.getUser();
                           final academiaId = user!.academiaId!;
                           await firestoreService.updateFuncionario(academiaId, f['id'] as String, {
-                            'nome': nomeCtrl.text.trim(),
-                            'cargo': cargoCtrl.text.trim().isEmpty ? null : cargoCtrl.text.trim(),
+                            'nome': nomeVal,
+                            'cargo': cargoVal.isEmpty ? null : cargoVal,
+                            'email': emailVal.isEmpty ? null : emailVal.toLowerCase(),
+                            'telefone': telVal,
+                            if (telDigits.isNotEmpty) 'telefone_digits': telDigits,
                             'perfil': perfil,
                             'perfil_nome': perfil,
                             'permissoes': perfil == 'Admin' ? <String, bool>{} : permissoes,
@@ -228,8 +284,13 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
       ),
     );
 
-    nomeCtrl.dispose();
-    cargoCtrl.dispose();
+    // NÃO faz dispose aqui: `await showModalBottomSheet` resolve assim que o
+    // modal é fechado (pop), mas o widget continua montado e desenhando
+    // frames durante a animação de saída (~250ms). Destruir os controllers
+    // nesse meio tempo derruba o app ("TextEditingController usado após
+    // dispose"). Como esses controllers são locais e não retêm listeners
+    // depois que o TextField correspondente é desmontado, deixar sem dispose
+    // aqui é seguro (nenhum vazamento relevante).
   }
 
   Widget _buildPermissoesGrupo(String titulo, List<String> chaves, Map<String, bool> perm, StateSetter setSt) {

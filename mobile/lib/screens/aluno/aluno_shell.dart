@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/whats_new_service.dart';
 import 'aluno_qrcode_sheet.dart';
 
 class AlunoShell extends StatefulWidget {
@@ -16,23 +18,62 @@ class AlunoShell extends StatefulWidget {
 }
 
 class _AlunoShellState extends State<AlunoShell> {
+  List<Map<String, dynamic>> _perfis = [];
+
+  @override
+  void initState() {
+    super.initState();
+    AuthStorage.getUser().then((u) {
+      if (mounted) setState(() => _perfis = u?.perfis ?? []);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) WhatsNewService.checkAndShow(context);
+    });
+  }
+
   static const _items = [
-    (icon: Icons.person_rounded, iconOff: Icons.person_outline_rounded, label: 'Perfil'),
-    (icon: Icons.schedule_rounded, iconOff: Icons.schedule_outlined, label: 'Horários'),
-    (icon: Icons.check_circle_rounded, iconOff: Icons.check_circle_outline_rounded, label: 'Presenças'),
-    (icon: Icons.credit_card_rounded, iconOff: Icons.credit_card_outlined, label: 'Financeiro'),
-    (icon: Icons.emoji_events_rounded, iconOff: Icons.emoji_events_outlined, label: 'Ranking'),
+    (
+      icon: Icons.person_rounded,
+      iconOff: Icons.person_outline_rounded,
+      label: 'Perfil',
+    ),
+    (
+      icon: Icons.schedule_rounded,
+      iconOff: Icons.schedule_outlined,
+      label: 'Horários',
+    ),
+    (
+      icon: Icons.check_circle_rounded,
+      iconOff: Icons.check_circle_outline_rounded,
+      label: 'Presenças',
+    ),
+    (
+      icon: Icons.credit_card_rounded,
+      iconOff: Icons.credit_card_outlined,
+      label: 'Financeiro',
+    ),
+    (
+      icon: Icons.emoji_events_rounded,
+      iconOff: Icons.emoji_events_outlined,
+      label: 'Ranking',
+    ),
   ];
 
   void _navegar(int index) {
     alunoTabNotifier.value = index;
-    widget.shell.goBranch(index, initialLocation: index == widget.shell.currentIndex);
+    widget.shell.goBranch(
+      index,
+      initialLocation: index == widget.shell.currentIndex,
+    );
     Navigator.of(context).pop();
   }
 
   void _navegarEAcionar(int index, String action) {
     Navigator.of(context).pop();
-    widget.shell.goBranch(index, initialLocation: index == widget.shell.currentIndex);
+    widget.shell.goBranch(
+      index,
+      initialLocation: index == widget.shell.currentIndex,
+    );
     alunoTabNotifier.value = index;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       alunoDrawerActionNotifier.value = action;
@@ -53,7 +94,9 @@ class _AlunoShellState extends State<AlunoShell> {
 
   Future<void> _sair() async {
     Navigator.of(context).pop();
-    try { await FirebaseAuth.instance.signOut(); } catch (_) {}
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
     await AuthStorage.clear();
     if (mounted) context.go('/login');
   }
@@ -66,11 +109,26 @@ class _AlunoShellState extends State<AlunoShell> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: kSurface,
-        title: Text('Excluir conta?', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
-        content: Text('Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.', style: TextStyle(color: kText2)),
+        title: Text(
+          'Excluir conta?',
+          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.',
+          style: TextStyle(color: kText2),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar', style: TextStyle(color: kText2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Excluir',
+              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );
@@ -81,7 +139,14 @@ class _AlunoShellState extends State<AlunoShell> {
       await AuthStorage.clear();
       if (mounted) context.go('/login');
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Erro ao excluir conta.'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao excluir conta.'),
+            backgroundColor: kDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
@@ -99,23 +164,57 @@ class _AlunoShellState extends State<AlunoShell> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [kPrimary.withOpacity(0.4), const Color(0xFF0A0A0A)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: kPrimary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kPrimary.withOpacity(0.3)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: kPrimary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: kPrimary.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: kPrimary,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Área do Aluno',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Meu espaço',
+                          style: TextStyle(color: kText2, fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(Icons.person_rounded, color: kPrimary, size: 22),
-                ),
-                const SizedBox(height: 12),
-                const Text('Área do Aluno', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                Text('Meu espaço', style: TextStyle(color: kText2, fontSize: 12)),
-              ]),
+                  if (_perfis.length > 1)
+                    IconButton(
+                      onPressed: () => mostrarTrocarPerfil(context),
+                      icon: Icon(Icons.swap_horiz_rounded, color: Colors.white),
+                      tooltip: 'Trocar perfil',
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -163,8 +262,19 @@ class _AlunoShellState extends State<AlunoShell> {
 
                   // Conta
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    child: Text('CONTA', style: TextStyle(color: kText2, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      'CONTA',
+                      style: TextStyle(
+                        color: kText2,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                   ),
                   _DrawerItem(
                     icon: Icons.edit_rounded,
@@ -188,24 +298,26 @@ class _AlunoShellState extends State<AlunoShell> {
             // Sair + Excluir Conta fixos no rodapé
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: Column(children: [
-                const Divider(height: 16),
-                _DrawerItem(
-                  icon: Icons.logout_rounded,
-                  label: 'Sair',
-                  selected: false,
-                  onTap: _sair,
-                  textColor: kText2,
-                ),
-                _DrawerItem(
-                  icon: Icons.delete_forever_rounded,
-                  label: 'Excluir conta',
-                  selected: false,
-                  onTap: _excluirConta,
-                  textColor: kDanger.withOpacity(0.7),
-                  iconColor: kDanger.withOpacity(0.7),
-                ),
-              ]),
+              child: Column(
+                children: [
+                  const Divider(height: 16),
+                  _DrawerItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Sair',
+                    selected: false,
+                    onTap: _sair,
+                    textColor: kText2,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'Excluir conta',
+                    selected: false,
+                    onTap: _excluirConta,
+                    textColor: kDanger.withOpacity(0.7),
+                    iconColor: kDanger.withOpacity(0.7),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -252,11 +364,20 @@ class _DrawerItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(children: [
-            Icon(icon, color: iColor, size: 20),
-            const SizedBox(width: 14),
-            Text(label, style: TextStyle(color: tColor, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 14)),
-          ]),
+          child: Row(
+            children: [
+              Icon(icon, color: iColor, size: 20),
+              const SizedBox(width: 14),
+              Text(
+                label,
+                style: TextStyle(
+                  color: tColor,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

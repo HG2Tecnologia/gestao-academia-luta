@@ -8,7 +8,10 @@ import '../../core/permissoes.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue current) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue old,
+    TextEditingValue current,
+  ) {
     final digits = current.text.replaceAll(RegExp(r'\D'), '');
     final buf = StringBuffer();
     for (var i = 0; i < digits.length && i < 11; i++) {
@@ -61,13 +64,39 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _salvando = true; _erro = null; });
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
     try {
       final user = await AuthStorage.getUser();
       final academiaId = user!.academiaId!;
       final emailVal = _email.text.trim().toLowerCase();
       final telVal = _telefone.text.trim();
       final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
+
+      // Se o telefone já pertence a um Aluno, avisa que isso vai vincular os
+      // dois perfis na mesma pessoa (ex: aluno que também dá aula).
+      if (telDigits.isNotEmpty) {
+        final vinculos = await firestoreService.buscarPerfisMesmaAcademia(
+          academiaId,
+          telDigits,
+        );
+        final alunos = vinculos
+            .where((v) => v['_colecao'] == 'usuarios')
+            .toList();
+        final aluno = alunos.isNotEmpty ? alunos.first : null;
+        if (aluno != null && mounted) {
+          setState(() => _salvando = false);
+          final confirmar = await _confirmarVinculo(aluno);
+          if (!confirmar) return;
+          setState(() {
+            _salvando = true;
+            _erro = null;
+          });
+        }
+      }
+
       await firestoreService.addFuncionario(academiaId, {
         'nome': _nome.text.trim(),
         'email': emailVal.isEmpty ? null : emailVal,
@@ -84,6 +113,84 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
+  }
+
+  Future<bool> _confirmarVinculo(Map<String, dynamic> aluno) async {
+    final nome = aluno['nome'] as String? ?? 'um aluno';
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(
+              'Vincular perfis?',
+              style: TextStyle(
+                color: kText1,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Esse telefone já pertence a:',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: kBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sports_martial_arts,
+                        color: kPrimary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$nome (Aluno)',
+                          style: TextStyle(
+                            color: kText1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Deseja vincular esse cadastro de funcionário ao mesmo contato? '
+                  'A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.',
+                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancelar', style: TextStyle(color: kText2)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Vincular também',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override
@@ -103,7 +210,10 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         backgroundColor: kSurface,
         foregroundColor: kText1,
         elevation: 0,
-        title: Text('Novo Funcionário', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Novo Funcionário',
+          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -113,7 +223,13 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
             _section('Dados pessoais'),
             _field(_nome, 'Nome completo *', required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
-            _field(_telefone, 'Telefone *', keyboard: TextInputType.phone, required: true, phoneMask: true),
+            _field(
+              _telefone,
+              'Telefone *',
+              keyboard: TextInputType.phone,
+              required: true,
+              phoneMask: true,
+            ),
             const SizedBox(height: 16),
             _section('Cargo e perfil'),
             _field(_cargo, 'Cargo (ex: Professor de BJJ)'),
@@ -125,36 +241,61 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                   context: context,
                   builder: (dCtx) => SimpleDialog(
                     backgroundColor: kSurface,
-                    title: Text('Perfil', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-                    children: _perfis.map((p) => SimpleDialogOption(
-                      onPressed: () => Navigator.of(dCtx).pop(p),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(p, style: TextStyle(color: kText1, fontSize: 15)),
+                    title: Text(
+                      'Perfil',
+                      style: TextStyle(
+                        color: kText1,
+                        fontWeight: FontWeight.w700,
                       ),
-                    )).toList(),
+                    ),
+                    children: _perfis
+                        .map(
+                          (p) => SimpleDialogOption(
+                            onPressed: () => Navigator.of(dCtx).pop(p),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Text(
+                                p,
+                                style: TextStyle(color: kText1, fontSize: 15),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 );
                 if (sel != null) _onPerfilChanged(sel);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: kSurface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kBorder),
                 ),
-                child: Row(children: [
-                  Expanded(child: Text(_perfil, style: TextStyle(color: kText1, fontSize: 14))),
-                  Icon(Icons.expand_more_rounded, color: kText2, size: 20),
-                ]),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _perfil,
+                        style: TextStyle(color: kText1, fontSize: 14),
+                      ),
+                    ),
+                    Icon(Icons.expand_more_rounded, color: kText2, size: 20),
+                  ],
+                ),
               ),
             ),
             // Permissões (só para professor e secretaria)
             if (_perfil != 'Admin') ...[
               const SizedBox(height: 24),
               _section('Permissões'),
-              _infoBox('Defina o que esse funcionário pode acessar e fazer no aplicativo.'),
+              _infoBox(
+                'Defina o que esse funcionário pode acessar e fazer no aplicativo.',
+              ),
               const SizedBox(height: 12),
               _permissoesWidget(),
             ],
@@ -163,8 +304,14 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: kDanger.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+                decoration: BoxDecoration(
+                  color: kDanger.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _erro!,
+                  style: TextStyle(color: kDanger, fontSize: 13),
+                ),
               ),
             SizedBox(
               height: 50,
@@ -173,11 +320,26 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _salvando
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Cadastrar funcionário', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Cadastrar funcionário',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 24),
@@ -189,8 +351,15 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
 
   Widget _permissoesWidget() {
     // Agrupa telas e ações
-    final telasKeys = kPermissoesInfo.keys.where((k) => k.startsWith('tela_')).toList();
-    final acoesKeys = kPermissoesInfo.keys.where((k) => k.startsWith('acao_')).toList();
+    final telasKeys = kPermissoesInfo.keys
+        .where((k) => k.startsWith('tela_'))
+        .toList();
+    final acoesKeys = kPermissoesInfo.keys
+        .where((k) => k.startsWith('acao_'))
+        .toList();
+    final acessoKeys = kPermissoesInfo.keys
+        .where((k) => k.startsWith('acesso_'))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,6 +367,8 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         _permissaoGrupo('Telas visíveis', telasKeys),
         const SizedBox(height: 12),
         _permissaoGrupo('Ações permitidas', acoesKeys),
+        const SizedBox(height: 12),
+        _permissaoGrupo('Acesso avançado', acessoKeys),
       ],
     );
   }
@@ -214,7 +385,15 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Text(titulo, style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            child: Text(
+              titulo,
+              style: TextStyle(
+                color: kText2,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
           for (int i = 0; i < chaves.length; i++) ...[
             if (i > 0) Divider(height: 1, color: kBorder, indent: 16),
@@ -235,7 +414,14 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
       value: valor,
       onChanged: (v) => setState(() => _permissoes[chave] = v),
       activeColor: kPrimary,
-      title: Text(label, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: kText1,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       subtitle: Text(desc, style: TextStyle(color: kText2, fontSize: 12)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       dense: true,
@@ -243,43 +429,78 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   }
 
   Widget _section(String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: kText2,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
 
   Widget _infoBox(String msg) => Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: kPrimary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kPrimary.withOpacity(0.2)),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: kPrimary.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: kPrimary.withOpacity(0.2)),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.info_outline_rounded, color: kPrimary, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(msg, style: TextStyle(color: kPrimary, fontSize: 12)),
         ),
-        child: Row(children: [
-          Icon(Icons.info_outline_rounded, color: kPrimary, size: 16),
-          const SizedBox(width: 8),
-          Expanded(child: Text(msg, style: TextStyle(color: kPrimary, fontSize: 12))),
-        ]),
-      );
+      ],
+    ),
+  );
 
-  Widget _field(TextEditingController ctrl, String hint, {bool required = false, TextInputType? keyboard, bool phoneMask = false}) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextFormField(
-          controller: ctrl,
-          keyboardType: keyboard,
-          inputFormatters: phoneMask ? [_PhoneMaskFormatter()] : null,
-          style: TextStyle(color: kText1),
-          validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null : null,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: kText2, fontSize: 14),
-            filled: true,
-            fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-          ),
+  Widget _field(
+    TextEditingController ctrl,
+    String hint, {
+    bool required = false,
+    TextInputType? keyboard,
+    bool phoneMask = false,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: TextFormField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      inputFormatters: phoneMask ? [_PhoneMaskFormatter()] : null,
+      style: TextStyle(color: kText1),
+      validator: required
+          ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null
+          : null,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: kText2, fontSize: 14),
+        filled: true,
+        fillColor: kSurface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
-      );
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kPrimary),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kDanger),
+        ),
+      ),
+    ),
+  );
 }

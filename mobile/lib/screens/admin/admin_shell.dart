@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/whats_new_service.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key, required this.shell});
@@ -15,18 +17,46 @@ class AdminShell extends StatefulWidget {
 }
 
 class _AdminShellState extends State<AdminShell> {
+  List<Map<String, dynamic>> _perfis = [];
+
+  @override
+  void initState() {
+    super.initState();
+    AuthStorage.getUser().then((u) {
+      if (mounted) setState(() => _perfis = u?.perfis ?? []);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) WhatsNewService.checkAndShow(context);
+    });
+  }
+
   static const _items = [
-    (icon: Icons.bar_chart_rounded, label: 'Dashboard', route: '/admin/dashboard'),
+    (
+      icon: Icons.bar_chart_rounded,
+      label: 'Dashboard',
+      route: '/admin/dashboard',
+    ),
     (icon: Icons.sports_martial_arts, label: 'Alunos', route: '/admin/alunos'),
     (icon: Icons.groups_rounded, label: 'Turmas', route: '/admin/turmas'),
     (icon: Icons.badge_rounded, label: 'Equipe', route: '/admin/equipe'),
-    (icon: Icons.credit_card_rounded, label: 'Financeiro', route: '/admin/financeiro'),
-    (icon: Icons.emoji_events_rounded, label: 'Ranking', route: '/admin/ranking'),
+    (
+      icon: Icons.credit_card_rounded,
+      label: 'Financeiro',
+      route: '/admin/financeiro',
+    ),
+    (
+      icon: Icons.emoji_events_rounded,
+      label: 'Ranking',
+      route: '/admin/ranking',
+    ),
   ];
 
   void _navegar(int index) {
     adminTabNotifier.value = index;
-    widget.shell.goBranch(index, initialLocation: index == widget.shell.currentIndex);
+    widget.shell.goBranch(
+      index,
+      initialLocation: index == widget.shell.currentIndex,
+    );
     Navigator.of(context).pop();
   }
 
@@ -48,19 +78,52 @@ class _AdminShellState extends State<AdminShell> {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
-                    borderRadius: BorderRadius.circular(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [kPrimary, const Color(0xFF0A0A0A)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.admin_panel_settings_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Administrador',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Painel de Gestão',
+                          style: TextStyle(color: kText2, fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 22),
-                ),
-                const SizedBox(height: 12),
-                const Text('Administrador', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                Text('Painel de Gestão', style: TextStyle(color: kText2, fontSize: 12)),
-              ]),
+                  if (_perfis.length > 1)
+                    IconButton(
+                      onPressed: () => mostrarTrocarPerfil(context),
+                      icon: Icon(Icons.swap_horiz_rounded, color: Colors.white),
+                      tooltip: 'Trocar perfil',
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -98,20 +161,24 @@ class _AdminShellState extends State<AdminShell> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: Column(children: [
-                const Divider(height: 16),
-                _DrawerItem(
-                  icon: Icons.logout_rounded,
-                  label: 'Sair',
-                  selected: false,
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    try { await FirebaseAuth.instance.signOut(); } catch (_) {}
-                    await AuthStorage.clear();
-                    if (context.mounted) context.go('/login');
-                  },
-                ),
-              ]),
+              child: Column(
+                children: [
+                  const Divider(height: 16),
+                  _DrawerItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Sair',
+                    selected: false,
+                    onTap: () async {
+                      Navigator.of(context).pop();
+                      try {
+                        await FirebaseAuth.instance.signOut();
+                      } catch (_) {}
+                      await AuthStorage.clear();
+                      if (context.mounted) context.go('/login');
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -134,7 +201,12 @@ class _DrawerItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _DrawerItem({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -146,11 +218,20 @@ class _DrawerItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(children: [
-            Icon(icon, color: selected ? kPrimary : kText2, size: 20),
-            const SizedBox(width: 14),
-            Text(label, style: TextStyle(color: selected ? kPrimary : kText1, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, fontSize: 14)),
-          ]),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? kPrimary : kText2, size: 20),
+              const SizedBox(width: 14),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? kPrimary : kText1,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

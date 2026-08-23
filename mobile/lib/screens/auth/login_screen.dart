@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
+import '../../core/push_service.dart';
 
 class _SmartInputFormatter extends TextInputFormatter {
   static final _onlyDigits = RegExp(r'\D');
@@ -155,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Extrai permissões (para professor/secretaria)
       final rawPerm = userData['permissoes'];
-      final permissoes = rawPerm is Map
+      var permissoes = rawPerm is Map
           ? Map<String, bool>.from(rawPerm.map((k, v) => MapEntry(k.toString(), v == true)))
           : <String, bool>{};
 
@@ -178,6 +179,21 @@ class _LoginScreenState extends State<LoginScreen> {
           usuarioId = selecionado['usuarioId'] as String? ?? usuarioId;
           nomeUsuario = selecionado['nome'] as String? ?? nomeUsuario;
           academiaId = selecionado['academiaId'] as String? ?? academiaId;
+          // Perfil escolhido pode ser de um tipo diferente do vinculado ao
+          // login (ex: Professor que também é Aluno em outra modalidade) —
+          // sem isso o app continuava navegando/aplicando permissões do
+          // perfil original, ignorando a escolha do usuário.
+          final colecaoSel = selecionado['colecao'] as String? ?? 'usuarios';
+          perfilNome = selecionado['perfil_nome'] as String? ?? perfilNome;
+          if (colecaoSel == 'funcionarios' && academiaId != null) {
+            final func = await firestoreService.getFuncionario(academiaId, usuarioId);
+            final rawPermSel = func?['permissoes'];
+            permissoes = rawPermSel is Map
+                ? Map<String, bool>.from(rawPermSel.map((k, v) => MapEntry(k.toString(), v == true)))
+                : <String, bool>{};
+          } else {
+            permissoes = <String, bool>{};
+          }
         }
       }
 
@@ -197,13 +213,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      // Registra o token de push (silencioso) para quem pode ver o financeiro,
+      // para receber alertas de vencimento das Contas da Academia.
+      if (perfilNome == 'Admin' || perfilNome == 'Secretaria') {
+        PushService.init();
+      }
+
       // 4. Navegar conforme perfil
       switch (perfilNome) {
         case 'Admin':
         case 'Secretaria':
           context.go('/admin/dashboard');
         case 'Professor':
-          context.go('/professor/turmas');
+          context.go('/professor/dashboard');
         case 'Aluno':
           context.go('/aluno/perfil');
         default:

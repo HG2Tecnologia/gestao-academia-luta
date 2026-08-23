@@ -32,9 +32,17 @@ service cloud.firestore {
     // Lookup Firebase UID → academia
     match /usuariosFirebase/{uid} {
       allow read: if isAuth() && request.auth.uid == uid;
-      // Criação e atualização permitidas pelo próprio usuário (registro e primeiro acesso)
+      // Criação permitida apenas pelo próprio usuário (registro e primeiro acesso).
       // O doc pode já existir se uma tentativa anterior falhou parcialmente.
-      allow create, update: if isAuth() && request.auth.uid == uid;
+      allow create: if isAuth() && request.auth.uid == uid;
+      // Atualização: o próprio usuário, OU um Admin/Secretaria da MESMA academia
+      // do dono do doc (necessário para manter `perfil` sincronizado quando o
+      // admin promove/edita um funcionário para Admin/Secretaria em
+      // `funcionarios/{id}` — sem isso a troca de perfil nunca surte efeito).
+      allow update: if isAuth() && (
+        request.auth.uid == uid ||
+        isAdminOuSecretaria(resource.data.academiaId)
+      );
       allow delete: if false;
     }
 

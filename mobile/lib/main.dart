@@ -1,10 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/ad_service.dart';
 import 'core/constants.dart';
+import 'core/push_service.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -21,6 +23,7 @@ import 'screens/admin/turma_detalhe_screen.dart';
 import 'screens/admin/equipe_screen.dart';
 import 'screens/admin/equipe_criar_screen.dart';
 import 'screens/admin/financeiro_screen.dart';
+import 'screens/admin/contas_academia_screen.dart';
 import 'screens/admin/configuracoes_screen.dart';
 import 'screens/admin/faixas_screen.dart';
 import 'screens/admin/relatorio_anual_screen.dart';
@@ -31,6 +34,7 @@ import 'screens/admin/modelos_contrato_screen.dart';
 import 'screens/admin/rankings_screen.dart';
 import 'screens/admin/ranking_detalhe_screen.dart';
 import 'screens/professor/professor_shell.dart';
+import 'screens/professor/prof_dashboard_screen.dart';
 import 'screens/professor/prof_turmas_screen.dart';
 import 'screens/professor/prof_horarios_screen.dart';
 import 'screens/professor/prof_presenca_screen.dart';
@@ -59,6 +63,7 @@ final routerKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await AdService.instance.init();
   runApp(const TatameApp());
 }
@@ -68,23 +73,40 @@ final _router = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-    GoRoute(path: '/alterar-senha', builder: (_, __) => const AlterarSenhaScreen()),
+    GoRoute(
+      path: '/alterar-senha',
+      builder: (_, __) => const AlterarSenhaScreen(),
+    ),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/primeiro-acesso', builder: (_, __) => const PrimeiroAcessoScreen()),
+    GoRoute(
+      path: '/primeiro-acesso',
+      builder: (_, __) => const PrimeiroAcessoScreen(),
+    ),
     GoRoute(path: '/cadastrar', builder: (_, __) => const CadastroScreen()),
-    GoRoute(path: '/esqueci-senha', builder: (_, __) => const EsqueciSenhaScreen()),
+    GoRoute(
+      path: '/esqueci-senha',
+      builder: (_, __) => const EsqueciSenhaScreen(),
+    ),
     GoRoute(path: '/scan-qr', builder: (_, __) => const QrScanScreen()),
     GoRoute(path: '/noticias', builder: (_, __) => const NoticiasScreen()),
-    GoRoute(path: '/admin/noticias', builder: (_, __) => const AdminNoticiasScreen()),
-    GoRoute(path: '/admin/grupos-familiares', builder: (_, __) => const AdminGruposFamiliaresScreen()),
+    GoRoute(
+      path: '/admin/noticias',
+      builder: (_, __) => const AdminNoticiasScreen(),
+    ),
+    GoRoute(
+      path: '/admin/grupos-familiares',
+      builder: (_, __) => const AdminGruposFamiliaresScreen(),
+    ),
     GoRoute(path: '/aluno/parq', builder: (_, __) => const AlunoParQScreen()),
     GoRoute(
       path: '/admin/pesquisa',
-      builder: (_, state) => AdminPesquisaScreen(
-        template: state.extra as Map<String, dynamic>?,
-      ),
+      builder: (_, state) =>
+          AdminPesquisaScreen(template: state.extra as Map<String, dynamic>?),
     ),
-    GoRoute(path: '/admin/pesquisa/templates', builder: (_, __) => const AdminPesquisaTemplatesScreen()),
+    GoRoute(
+      path: '/admin/pesquisa/templates',
+      builder: (_, __) => const AdminPesquisaTemplatesScreen(),
+    ),
     GoRoute(
       path: '/admin/rankings',
       builder: (_, __) => const AdminRankingsScreen(),
@@ -103,59 +125,112 @@ final _router = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => AdminShell(shell: shell),
       branches: [
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/admin/dashboard',
-            builder: (_, __) => const AdminDashboardScreen(),
-            routes: [
-              GoRoute(path: 'configuracoes', builder: (_, __) => const AdminConfiguracoesScreen()),
-              GoRoute(path: 'faixas', builder: (_, __) => const AdminFaixasScreen()),
-              GoRoute(path: 'contratos', builder: (_, __) => const AdminModelosContratoScreen()),
-              GoRoute(path: 'aniversariantes', builder: (_, __) => const AdminAniversariantesScreen()),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/admin/alunos',
-            builder: (_, __) => const AdminAlunosScreen(),
-            routes: [
-              GoRoute(path: 'novo', builder: (_, __) => const AdminAlunoCriarScreen()),
-              GoRoute(path: ':id', builder: (_, state) => AdminAlunoDetalheScreen(alunoId: state.pathParameters['id']!)),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/admin/turmas',
-            builder: (_, __) => const AdminTurmasScreen(),
-            routes: [
-              GoRoute(path: 'relatorio', builder: (_, __) => const AdminRelatorioPresencasScreen()),
-              GoRoute(path: ':id', builder: (_, state) => AdminTurmaDetalheScreen(turmaId: state.pathParameters['id']!)),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/admin/equipe',
-            builder: (_, __) => const AdminEquipeScreen(),
-            routes: [
-              GoRoute(path: 'novo', builder: (_, __) => const AdminEquipeCriarScreen()),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/admin/financeiro',
-            builder: (_, __) => const AdminFinanceiroScreen(),
-            routes: [
-              GoRoute(path: 'relatorio', builder: (_, __) => const AdminRelatorioAnualScreen()),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/admin/ranking', builder: (_, __) => const ProfRankingScreen()),
-        ]),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/dashboard',
+              builder: (_, __) => const AdminDashboardScreen(),
+              routes: [
+                GoRoute(
+                  path: 'configuracoes',
+                  builder: (_, __) => const AdminConfiguracoesScreen(),
+                ),
+                GoRoute(
+                  path: 'faixas',
+                  builder: (_, __) => const AdminFaixasScreen(),
+                ),
+                GoRoute(
+                  path: 'contratos',
+                  builder: (_, __) => const AdminModelosContratoScreen(),
+                ),
+                GoRoute(
+                  path: 'aniversariantes',
+                  builder: (_, __) => const AdminAniversariantesScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/alunos',
+              builder: (_, __) => const AdminAlunosScreen(),
+              routes: [
+                GoRoute(
+                  path: 'novo',
+                  builder: (_, __) => const AdminAlunoCriarScreen(),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => AdminAlunoDetalheScreen(
+                    alunoId: state.pathParameters['id']!,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/turmas',
+              builder: (_, __) => const AdminTurmasScreen(),
+              routes: [
+                GoRoute(
+                  path: 'relatorio',
+                  builder: (_, __) => const AdminRelatorioPresencasScreen(),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => AdminTurmaDetalheScreen(
+                    turmaId: state.pathParameters['id']!,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/equipe',
+              builder: (_, __) => const AdminEquipeScreen(),
+              routes: [
+                GoRoute(
+                  path: 'novo',
+                  builder: (_, __) => const AdminEquipeCriarScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/financeiro',
+              builder: (_, __) => const AdminFinanceiroScreen(),
+              routes: [
+                GoRoute(
+                  path: 'relatorio',
+                  builder: (_, __) => const AdminRelatorioAnualScreen(),
+                ),
+                GoRoute(
+                  path: 'contas',
+                  builder: (_, __) => const AdminContasAcademiaScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/admin/ranking',
+              builder: (_, __) => const ProfRankingScreen(),
+            ),
+          ],
+        ),
       ],
     ),
 
@@ -163,37 +238,72 @@ final _router = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => ProfessorShell(shell: shell),
       branches: [
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/professor/turmas', builder: (_, __) => const ProfTurmasScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/professor/horarios',
-            builder: (_, __) => const ProfHorariosScreen(),
-            routes: [
-              GoRoute(
-                path: ':id/presencas',
-                builder: (_, state) => ProfPresencaHistoricoScreen(
-                  horarioId: state.pathParameters['id']!,
-                  nomeTurma: state.uri.queryParameters['turma'] ?? '',
-                  horario: state.uri.queryParameters['horario'] ?? '',
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/dashboard',
+              builder: (_, __) => const ProfDashboardScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/turmas',
+              builder: (_, __) => const ProfTurmasScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/horarios',
+              builder: (_, __) => const ProfHorariosScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id/presencas',
+                  builder: (_, state) => ProfPresencaHistoricoScreen(
+                    horarioId: state.pathParameters['id']!,
+                    nomeTurma: state.uri.queryParameters['turma'] ?? '',
+                    horario: state.uri.queryParameters['horario'] ?? '',
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/professor/presenca', builder: (_, __) => const ProfPresencaScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/professor/graduacao', builder: (_, __) => const ProfGraduacaoScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/professor/rankings', builder: (_, __) => const ProfRankingScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/professor/perfil', builder: (_, __) => const ProfPerfilScreen()),
-        ]),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/presenca',
+              builder: (_, __) => const ProfPresencaScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/graduacao',
+              builder: (_, __) => const ProfGraduacaoScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/rankings',
+              builder: (_, __) => const ProfRankingScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/perfil',
+              builder: (_, __) => const ProfPerfilScreen(),
+            ),
+          ],
+        ),
       ],
     ),
 
@@ -201,33 +311,58 @@ final _router = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => AlunoShell(shell: shell),
       branches: [
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/aluno/perfil',
-            builder: (_, __) => const AlunoPerfilScreen(),
-            routes: [
-              GoRoute(path: 'graduacoes', builder: (_, __) => const AlunoGraduacoesScreen()),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/aluno/horarios', builder: (_, __) => const AlunoHorariosScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/aluno/presencas', builder: (_, __) => const AlunoPresencasScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/aluno/financeiro', builder: (_, __) => const AlunoFinanceiroScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/aluno/ranking',
-            builder: (_, __) => const AlunoRankingScreen(),
-            routes: [
-              GoRoute(path: 'conquistas', builder: (_, __) => const AlunoConquistasScreen()),
-            ],
-          ),
-        ]),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/aluno/perfil',
+              builder: (_, __) => const AlunoPerfilScreen(),
+              routes: [
+                GoRoute(
+                  path: 'graduacoes',
+                  builder: (_, __) => const AlunoGraduacoesScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/aluno/horarios',
+              builder: (_, __) => const AlunoHorariosScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/aluno/presencas',
+              builder: (_, __) => const AlunoPresencasScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/aluno/financeiro',
+              builder: (_, __) => const AlunoFinanceiroScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/aluno/ranking',
+              builder: (_, __) => const AlunoRankingScreen(),
+              routes: [
+                GoRoute(
+                  path: 'conquistas',
+                  builder: (_, __) => const AlunoConquistasScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
     ),
   ],
@@ -258,7 +393,11 @@ class TatameApp extends StatelessWidget {
           indicatorColor: kPrimary.withOpacity(0.2),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w600);
+              return TextStyle(
+                color: kPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              );
             }
             return TextStyle(color: kText2, fontSize: 11);
           }),

@@ -10,6 +10,7 @@ const kPermissoesDefault = {
     'tela_rankings': true,
     'acao_dar_presenca': true,
     'acao_graduar': true,
+    'acesso_turmas_todas': false,
   },
   'Secretaria': {
     'tela_turmas': true,
@@ -19,6 +20,7 @@ const kPermissoesDefault = {
     'tela_rankings': true,
     'acao_dar_presenca': true,
     'acao_graduar': true,
+    'acesso_turmas_todas': false,
   },
 };
 
@@ -31,6 +33,7 @@ const kPermissoesInfo = <String, (String, String)>{
   'tela_rankings':   ('Ver Rankings',            'Visualizar o ranking da academia'),
   'acao_dar_presenca':('Registrar Presença',     'Marcar alunos como presentes'),
   'acao_graduar':    ('Graduar Alunos',          'Promover alunos para nova faixa'),
+  'acesso_turmas_todas': ('Ver todas as turmas', 'Além das próprias, ver e acompanhar todas as turmas da academia (como um admin)'),
 };
 
 Map<String, bool> permissoesParaPerfil(String perfil) {

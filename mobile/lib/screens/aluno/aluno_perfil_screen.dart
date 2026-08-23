@@ -51,6 +51,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     super.initState();
     alunoTabNotifier.addListener(_onTabChanged);
     alunoDrawerActionNotifier.addListener(_onDrawerAction);
+    perfilTrocadoNotifier.addListener(_load);
     _load();
   }
 
@@ -58,6 +59,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   void dispose() {
     alunoTabNotifier.removeListener(_onTabChanged);
     alunoDrawerActionNotifier.removeListener(_onDrawerAction);
+    perfilTrocadoNotifier.removeListener(_load);
     super.dispose();
   }
 

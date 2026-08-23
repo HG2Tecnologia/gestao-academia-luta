@@ -900,10 +900,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      nomeCtrl.dispose();
-      cpfCtrl.dispose();
-    });
+    // NÃO faz dispose aqui: o modal continua desenhando frames durante a
+    // animação de saída depois que o Future resolve (um único post-frame
+    // callback não é suficiente margem). Controllers locais sem listeners
+    // pendentes não vazam de forma relevante ao deixar de ser destruídos.
   }
 
   // ── Plano ─────────────────────────────────────────────
@@ -1963,7 +1963,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 Row(children: [
                   Text('Editar Aluno', style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
                   const Spacer(),
-                  IconButton(onPressed: () => Navigator.of(ctx).pop(), icon: Icon(Icons.close, color: kText2)),
+                  IconButton(
+                    onPressed: () {
+                      // Tira o foco antes de fechar: evita corrida entre a barra
+                      // de seleção de texto e o fechamento do modal, que derruba
+                      // o app (erro interno do Flutter, _dependents.isEmpty).
+                      FocusScope.of(ctx).unfocus();
+                      Navigator.of(ctx).pop();
+                    },
+                    icon: Icon(Icons.close, color: kText2),
+                  ),
                 ]),
                 Text(a['nome']?.toString() ?? '', style: TextStyle(color: kText2, fontSize: 13)),
                 const Divider(height: 20),
@@ -1981,7 +1990,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                   GestureDetector(
                     onTap: () async {
                       final sel = await showDialog<String>(
-                        context: context,
+                        context: ctx,
                         builder: (dCtx) => SimpleDialog(
                           backgroundColor: kSurface,
                           title: Text('Selecionar Plano', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
@@ -2065,7 +2074,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               _academiaId!, widget.alunoId, nomeCtrl.text.trim(), planoIdSel!, diaVencInt);
                           } catch (_) {}
                         }
-                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        if (ctx.mounted) {
+                          FocusScope.of(ctx).unfocus();
+                          Navigator.of(ctx).pop();
+                        }
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: const Text('Aluno atualizado com sucesso!'),
@@ -2099,16 +2111,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      nomeCtrl.dispose();
-      emailCtrl.dispose();
-      telefoneCtrl.dispose();
-      cpfCtrl.dispose();
-      nascCtrl.dispose();
-      emergNomeCtrl.dispose();
-      emergTelCtrl.dispose();
-      diaVencCtrl.dispose();
-    });
+    // NÃO faz dispose aqui: o modal continua desenhando frames durante a
+    // animação de saída depois que o Future resolve (um único post-frame
+    // callback não é suficiente margem). Controllers locais sem listeners
+    // pendentes não vazam de forma relevante ao deixar de ser destruídos.
   }
 
   @override

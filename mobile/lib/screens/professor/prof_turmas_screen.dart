@@ -3,6 +3,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/tab_refresh.dart';
 import 'prof_turma_detalhe_screen.dart';
 
 class ProfTurmasScreen extends StatefulWidget {
@@ -21,7 +22,14 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
   @override
   void initState() {
     super.initState();
+    perfilTrocadoNotifier.addListener(_load);
     _load();
+  }
+
+  @override
+  void dispose() {
+    perfilTrocadoNotifier.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -31,9 +39,13 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
       if (user == null) return;
       _academiaId = user.academiaId;
 
+      // Com a permissão "acesso_turmas_todas" o professor/secretaria vê todas
+      // as turmas da academia, não só as que ele é o professor titular.
+      final verTodas = user.temPermissao('acesso_turmas_todas');
+
       // Carrega turmas e matrículas em paralelo para calcular totalAlunos
       final results = await Future.wait([
-        firestoreService.getTurmas(user.academiaId!, professorId: user.id),
+        firestoreService.getTurmas(user.academiaId!, professorId: verTodas ? null : user.id),
         firestoreService.getMatriculas(user.academiaId!, ativasOnly: true),
       ]);
       final turmasList = (results[0] as List).cast<Map<String, dynamic>>();
@@ -44,9 +56,29 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
         final tid = m['turma_id']?.toString() ?? '';
         if (tid.isNotEmpty) countPorTurma[tid] = (countPorTurma[tid] ?? 0) + 1;
       }
+
+      // Se essa mesma pessoa também tem um perfil de Aluno (multi-perfil),
+      // marca em quais turmas ela está matriculada como aluno também.
+      final alunoUsuarioId = user.perfis
+          .firstWhere((p) => p['colecao'] == 'usuarios', orElse: () => const {})['usuarioId']
+          as String?;
+      final turmasComoAluno = <String>{};
+      if (alunoUsuarioId != null) {
+        for (final m in matriculas) {
+          if (m['aluno_id']?.toString() == alunoUsuarioId) {
+            turmasComoAluno.add(m['turma_id']?.toString() ?? '');
+          }
+        }
+      }
+
       final enriched = turmasList.map((t) {
         final id = t['id']?.toString() ?? '';
-        return <String, dynamic>{...t, 'totalAlunos': countPorTurma[id] ?? 0};
+        return <String, dynamic>{
+          ...t,
+          'totalAlunos': countPorTurma[id] ?? 0,
+          'souProfessor': t['professorId'] == user.id,
+          'souAluno': turmasComoAluno.contains(id),
+        };
       }).toList();
 
       if (mounted) setState(() => _turmas = enriched);
@@ -130,7 +162,14 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(t['nome'] ?? '', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700)),
+                                                  Row(children: [
+                                                    Expanded(child: Text(t['nome'] ?? '', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700))),
+                                                    if (t['souProfessor'] == true) _papelBadge('Professor', kPrimary),
+                                                    if (t['souAluno'] == true) ...[
+                                                      const SizedBox(width: 6),
+                                                      _papelBadge('Aluno', kSuccess),
+                                                    ],
+                                                  ]),
                                                   if ((t['nomeModalidade'] ?? t['modalidade_nome']) != null)
                                                     Padding(
                                                       padding: const EdgeInsets.only(top: 3),
@@ -163,4 +202,10 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
       ),
     );
   }
+
+  Widget _papelBadge(String label, Color cor) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: cor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+        child: Text(label, style: TextStyle(color: cor, fontSize: 10, fontWeight: FontWeight.w700)),
+      );
 }

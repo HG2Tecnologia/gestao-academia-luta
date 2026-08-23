@@ -6,6 +6,7 @@ import '../core/constants.dart';
 import '../core/firestore_service.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
+import '../core/push_service.dart';
 import '../core/version_check_service.dart';
 
 const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
@@ -160,12 +161,15 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
     if (!mounted) return;
+    if (user?.perfil == 'Admin' || user?.perfil == 'Secretaria') {
+      PushService.init();
+    }
     switch (user?.perfil) {
       case 'Admin':
       case 'Secretaria':
         context.go('/admin/dashboard');
       case 'Professor':
-        context.go('/professor/turmas');
+        context.go('/professor/dashboard');
       case 'Aluno':
         context.go('/aluno/perfil');
       default:
