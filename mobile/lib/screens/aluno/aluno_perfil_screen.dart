@@ -9,6 +9,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/graduacao_order.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 import 'aluno_atestado_screen.dart';
@@ -114,18 +115,23 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         firestoreService.getAtestadoAluno(academiaId, user.id).catchError((_) => null),
         firestoreService.getParQ(academiaId, user.id).catchError((_) => null),
         firestoreService.getPagamentos(academiaId, alunoId: user.id).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getGraduacoes(academiaId, alunoId: user.id, detalhadas: true).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final dados = results[0] as Map<String, dynamic>?;
       final atestadoDados = results[1] as Map<String, dynamic>?;
       final parqDados = results[2] as Map<String, dynamic>?;
       final pagamentosDados = (results[3] as List).cast<Map<String, dynamic>>();
+      final graduacoesDados = (results[4] as List).cast<Map<String, dynamic>>();
+      final faixasAtuais =
+          montarFaixasAtuaisPorAluno(graduacoesDados)[user.id] ?? const {};
 
       if (mounted) setState(() {
         // Preserva a foto local se o upload ainda está em andamento ou Firestore ainda não confirmou
         final fotoAtual = _aluno?['fotoBase64'] as String?;
         _aluno = dados == null ? null : {
           ...dados,
+          'faixasAtuais': faixasAtuais,
           if (dados['fotoBase64'] == null && fotoAtual != null) 'fotoBase64': fotoAtual,
         };
         _atestado = atestadoDados;
@@ -764,12 +770,12 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final faixasCount = _faixasCount();
     final faixaCor = primaryFaixa != null
         ? _parseHex(primaryFaixa['faixaCor'] as String?)
-        : (() { final hex = a['faixaAtualCor'] as String? ?? ''; try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; } })();
-    final faixaNome = primaryFaixa?['faixaNome'] as String? ?? a['faixaAtualNome'] as String? ?? 'Sem faixa';
-    final grauAtual = ((primaryFaixa != null ? primaryFaixa['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
-    final faixaCorBarra = _parseHex(primaryFaixa?['faixaCorBarra'] as String? ?? a['faixaAtualCorBarra'] as String?);
-    final faixaTemGraus = (primaryFaixa != null ? primaryFaixa['faixaTemGraus'] == true : (a['faixaAtualTemGraus'] as bool? ?? false)) || grauAtual > 0;
-    final maxGrausRaw = ((primaryFaixa != null ? primaryFaixa['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
+        : kPrimary;
+    final faixaNome = primaryFaixa?['faixaNome'] as String? ?? 'Sem graduação';
+    final grauAtual = (primaryFaixa?['grau'] as num?)?.toInt() ?? 0;
+    final faixaCorBarra = _parseHex(primaryFaixa?['faixaCorBarra'] as String?);
+    final faixaTemGraus = primaryFaixa?['faixaTemGraus'] == true || grauAtual > 0;
+    final maxGrausRaw = (primaryFaixa?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
     final faixaMaxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
     final turmasDetalhes = (a['turmasDetalhes'] as List? ?? []).cast<Map<String, dynamic>>();
     final finRaw = a['situacaoFinanceira'] as String?;

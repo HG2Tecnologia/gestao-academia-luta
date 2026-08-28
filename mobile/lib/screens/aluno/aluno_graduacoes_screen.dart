@@ -3,6 +3,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/graduacao_order.dart';
 import '../../core/widgets.dart';
 
 class AlunoGraduacoesScreen extends StatefulWidget {
@@ -35,19 +36,20 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
         alunoId: user.id,
         detalhadas: true,
       );
-      // Sort by date descending
-      list.sort((a, b) {
-        final da = a['dataExame']?.toString() ?? '';
-        final db = b['dataExame']?.toString() ?? '';
-        return db.compareTo(da);
-      });
-      // Uma faixa atual por modalidade (a consulta já vem em ordem decrescente).
+      // Linha do tempo: registro mais antigo primeiro.
+      list.sort(compararGraduacoesCronologicamente);
+      // Uma faixa atual por modalidade, definida pela ordem configurada da
+      // faixa e pelo grau (não pela posição visual do histórico).
       final aprovadas = list.where((g) => g['aprovado'] == true).toList();
       final atuaisPorModalidade = <String, Map<String, dynamic>>{};
       for (final graduacao in aprovadas) {
         final modalidade = graduacao['modalidadeId']?.toString() ??
             graduacao['nomeModalidade']?.toString() ?? 'modalidade';
-        atuaisPorModalidade.putIfAbsent(modalidade, () => graduacao);
+        final atual = atuaisPorModalidade[modalidade];
+        if (atual == null ||
+            compararProgressaoGraduacoes(graduacao, atual) > 0) {
+          atuaisPorModalidade[modalidade] = graduacao;
+        }
       }
       if (mounted) setState(() {
         _graduacoes = list;
@@ -110,7 +112,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
         ? _graduacoes
         : _graduacoes.where((g) => g['nomeModalidade']?.toString() == modFiltro).toList();
 
-    // Group by modality preserving insertion order (already sorted by date desc)
+    // Agrupa por modalidade preservando a linha do tempo antiga -> nova.
     final Map<String, List<Map<String, dynamic>>> byMod = {};
     for (final g in source) {
       final mod = g['nomeModalidade']?.toString() ?? 'Sem modalidade';
@@ -172,7 +174,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                           decoration: BoxDecoration(
                             color: kSurface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: aprovado && isFirst ? cor.withOpacity(0.4) : kBorder),
+                            border: Border.all(color: aprovado && isLast ? cor.withOpacity(0.4) : kBorder),
                           ),
                           child: Row(children: [
                             BeltBadge(

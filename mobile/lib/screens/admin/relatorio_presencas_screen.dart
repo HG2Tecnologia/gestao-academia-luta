@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
+import '../../core/relatorio_presencas.dart';
 
 class AdminRelatorioPresencasScreen extends StatefulWidget {
   const AdminRelatorioPresencasScreen({super.key});
@@ -59,9 +60,14 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
     if (_turmaId == null || _academiaId == null) return;
     setState(() { _loading = true; _erro = false; });
     try {
-      // Get all presencas for this turma and filter by date range
-      final presencas = await firestoreService.getPresencas(_academiaId!, turmaId: _turmaId!);
-      final lista = presencas.cast<Map<String, dynamic>>();
+      final results = await Future.wait([
+        firestoreService.getPresencas(_academiaId!, turmaId: _turmaId!),
+        firestoreService.getMatriculas(_academiaId!, turmaId: _turmaId!),
+        firestoreService.getAlunos(_academiaId!),
+      ]);
+      final lista = (results[0] as List).cast<Map<String, dynamic>>();
+      final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
+      final alunos = (results[2] as List).cast<Map<String, dynamic>>();
 
       // Filter by date range
       final deStr = DateFormat('yyyy-MM-dd').format(_de);
@@ -71,65 +77,16 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
         return dataStr.compareTo(deStr) >= 0 && dataStr.compareTo(ateStr) <= 0;
       }).toList();
 
-      // Count distinct dates (aulas)
-      final datasUnicas = filtered.map((p) => (p['data'] ?? p['data_presenca'] ?? '').toString()).toSet();
-      final totalAulas = datasUnicas.length;
-
-      // Group by aluno
-      // Load alunos in turma to get names and faltas
-      final turma = _turmas.firstWhere((t) => t['id']?.toString() == _turmaId, orElse: () => {});
-      final alunosNaTurma = (turma['alunos'] as List? ?? []).cast<Map<String, dynamic>>();
-
-      final Map<String, Map<String, dynamic>> byAluno = {};
-      for (final p in filtered) {
-        final alunoId = (p['aluno_id'] ?? p['alunoId'] ?? '').toString();
-        final nomeAluno = p['nome_aluno']?.toString() ?? p['nomeAluno']?.toString() ?? '';
-        if (alunoId.isEmpty) continue;
-        if (!byAluno.containsKey(alunoId)) {
-          byAluno[alunoId] = {
-            'alunoId': alunoId,
-            'nomeAluno': nomeAluno.isNotEmpty ? nomeAluno : _nomeFromTurma(alunoId, alunosNaTurma),
-            'presencas': 0,
-          };
-        }
-        byAluno[alunoId]!['presencas'] = (byAluno[alunoId]!['presencas'] as int) + 1;
-      }
-
-      // Build alunos report list
-      final alunosList = byAluno.values.map((a) {
-        final pres = a['presencas'] as int;
-        final faltas = totalAulas > pres ? totalAulas - pres : 0;
-        final pct = totalAulas > 0 ? (pres / totalAulas * 100) : 0.0;
-        return {
-          ...a,
-          'faltas': faltas,
-          'percentual': pct,
-        };
-      }).toList();
-
-      final mediaFreq = alunosList.isEmpty
-          ? 0.0
-          : alunosList.fold(0.0, (s, a) => s + (a['percentual'] as num).toDouble()) / alunosList.length;
-
-      final dados = {
-        'totalAulas': totalAulas,
-        'mediaFrequencia': mediaFreq,
-        'alunos': alunosList,
-      };
+      final dados = montarRelatorioPresencas(
+        presencas: filtered,
+        matriculas: matriculas,
+        alunos: alunos,
+      );
 
       if (mounted) setState(() { _relatorio = dados; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _erro = true; _loading = false; });
     }
-  }
-
-  String _nomeFromTurma(String alunoId, List<Map<String, dynamic>> alunos) {
-    try {
-      return alunos.firstWhere(
-        (a) => (a['alunoId'] ?? a['aluno_id'])?.toString() == alunoId,
-        orElse: () => {},
-      )['nomeAluno']?.toString() ?? '';
-    } catch (_) { return ''; }
   }
 
   void _aplicarPreset(int dias) {

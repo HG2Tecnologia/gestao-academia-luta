@@ -6,6 +6,7 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
+import '../../core/graduacao_order.dart';
 import '../../core/widgets.dart';
 import 'turmas_screen.dart' show TurmaFormSheet;
 
@@ -76,8 +77,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
         firestoreService.getAptosGraduacao(_academiaId!),
         firestoreService.getMatriculas(_academiaId!, turmaId: widget.turmaId, ativasOnly: false),
         firestoreService.getAlunos(_academiaId!),
-        firestoreService.getGraduacoes(_academiaId!),
-        firestoreService.getFaixas(_academiaId!),
+        firestoreService.getGraduacoes(_academiaId!, detalhadas: true),
       ]);
 
       final turmaData = results[0] as Map<String, dynamic>?;
@@ -91,33 +91,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
       final matriculas = (results[4] as List).cast<Map<String, dynamic>>();
       final todosAlunos = (results[5] as List).cast<Map<String, dynamic>>();
       final graduacoes = (results[6] as List).cast<Map<String, dynamic>>();
-      final faixas = (results[7] as List).cast<Map<String, dynamic>>();
-
-      // Enriquece alunos com faixa atual a partir das graduações
-      final faixaMap = <String, Map<String, dynamic>>{
-        for (final f in faixas) f['id'].toString(): f,
-      };
-      final melhorGrad = <String, Map<String, dynamic>>{};
-      for (final g in graduacoes) {
-        if (g['aprovado'] != true) continue;
-        final aid = g['aluno_id']?.toString() ?? '';
-        if (aid.isEmpty) continue;
-        final f = faixaMap[g['faixa_id']?.toString() ?? ''];
-        if (f == null) continue;
-        final ordem = (f['ordem'] as num?)?.toInt() ?? 0;
-        final grau = (g['grau'] as num?)?.toInt() ?? 0;
-        final ex = melhorGrad[aid];
-        if (ex == null || ordem > (ex['_o'] as int? ?? -1) || (ordem == (ex['_o'] as int? ?? -1) && grau > (ex['grauAtual'] as int? ?? -1))) {
-          melhorGrad[aid] = {
-            'faixaAtualNome': f['nome'],
-            'faixaAtualCor': f['cor'],
-            'faixaAtualTemGraus': f['tem_graus'] == true,
-            'faixaAtualMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 0,
-            'grauAtual': grau,
-            '_o': ordem,
-          };
-        }
-      }
+      final faixasAtuaisPorAluno = montarFaixasAtuaisPorAluno(graduacoes);
 
       final alunoMap = <String, Map<String, dynamic>>{
         for (final a in todosAlunos) a['id'].toString(): a,
@@ -125,10 +99,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
       final alunosList = matriculas.map((m) {
         final alunoId = m['aluno_id']?.toString() ?? '';
         final aluno = alunoMap[alunoId] ?? {};
-        final grad = aluno['faixaAtualCor'] != null ? {} : (melhorGrad[alunoId] ?? {});
-        final enriched = <String, dynamic>{...aluno, ...grad}..remove('_o');
         return <String, dynamic>{
-          ...enriched,
+          ...aluno,
+          'faixasAtuais': faixasAtuaisPorAluno[alunoId] ?? const {},
           'matriculaId': m['id'],
           'alunoId': alunoId,
           'nome': aluno['nome'] ?? '',
@@ -629,11 +602,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
           ? faixasAtuaisMap[principalId]
           : faixasAtuaisMap.values.first) as Map<String, dynamic>?;
     }
-    final faixaCor = primary?['faixaCor'] as String? ?? a['faixaAtualCor'] as String?;
-    final faixaNome = primary?['faixaNome'] as String? ?? a['faixaAtualNome'] as String?;
-    final grauAtual = ((primary != null ? primary['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
-    final temGraus = (primary != null ? primary['faixaTemGraus'] == true : a['faixaAtualTemGraus'] == true) || grauAtual > 0;
-    final maxGrausRaw = ((primary != null ? primary['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
+    final faixaCor = primary?['faixaCor'] as String?;
+    final faixaNome = primary?['faixaNome'] as String?;
+    final grauAtual = (primary?['grau'] as num?)?.toInt() ?? 0;
+    final temGraus = primary?['faixaTemGraus'] == true || grauAtual > 0;
+    final maxGrausRaw = (primary?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
     final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
 
     return Dismissible(
@@ -712,6 +685,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen> with 
                         ))
                       else if (apto)
                         Text('Apto para graduar', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600)),
+                      if (faixaNome == null && !apto)
+                        Text('Sem graduação', style: TextStyle(color: kText2, fontSize: 11)),
                     ]),
                   ],
                 ),

@@ -1015,6 +1015,10 @@ class FirestoreService {
         'nomeFaixa': faixa['nome'] ?? g['nomeFaixa'] ?? '',
         'corFaixa': faixa['cor'] ?? g['corFaixa'] ?? '#FFFFFF',
         'corBarraFaixa': faixa['cor_barra'] ?? g['corBarraFaixa'] ?? '#000000',
+        'faixaOrdem':
+            (faixa['ordem'] as num?)?.toInt() ??
+            (g['faixaOrdem'] as num?)?.toInt() ??
+            0,
         'faixaTemGraus':
             faixa['tem_graus'] == true || g['faixaTemGraus'] == true,
         'faixaMaxGraus':

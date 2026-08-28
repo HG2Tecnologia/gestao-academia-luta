@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
+import '../../core/graduacao_order.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunoDetalheScreen extends StatefulWidget {
@@ -210,12 +211,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         _plano = planoData;
         _faixasPorModalidade = faixasMod;
         _graduacoes = List.of(enrichedGraduacoes)
-          ..sort((a, b) {
-            try {
-              return DateTime.parse(b['dataExame'].toString())
-                  .compareTo(DateTime.parse(a['dataExame'].toString()));
-            } catch (_) { return 0; }
-          });
+          ..sort(compararGraduacoesCronologicamente);
       });
     } catch (_) {
       if (mounted) setState(() => _erro = 'Erro ao carregar aluno.');
@@ -1604,26 +1600,6 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           'observacoes': obsCtrl.text.trim(),
                           'academia_id': _academiaId!,
                         });
-                        // Atualiza faixasAtuais no doc do aluno (mapa por modalidade, usado nas listas)
-                        final modId = modSel?['id']?.toString() ?? '';
-                        final modNome = modSel?['nome']?.toString() ?? '';
-                        if (modId.isNotEmpty) {
-                          final jaTemPrincipal = (_aluno?['faixaPrincipalModalidadeId'] as String?)?.isNotEmpty == true;
-                          final updateData = <String, dynamic>{
-                            'faixasAtuais.$modId': {
-                              'modalidadeId': modId,
-                              'modalidadeNome': modNome,
-                              'faixaNome': faixaSel!['nome'],
-                              'faixaCor': faixaSel!['cor'],
-                              'faixaCorBarra': faixaSel!['corBarra'] ?? faixaSel!['cor_barra'],
-                              'faixaTemGraus': faixaSel!['temGraus'] == true,
-                              'faixaMaxGraus': (faixaSel!['maxGraus'] as num?)?.toInt() ?? 4,
-                              'grau': grauFinal,
-                            },
-                            if (!jaTemPrincipal) 'faixaPrincipalModalidadeId': modId,
-                          };
-                          await firestoreService.updateAluno(_academiaId!, widget.alunoId, updateData);
-                        }
                         if (gerarCobranca && valorCtrl.text.isNotEmpty) {
                           final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
                           if (valor > 0) {
@@ -2196,7 +2172,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               ],
                             ),
                             if (_faixasPorModalidade.isEmpty)
-                              _row('Faixa atual', a['faixaAtualNome'])
+                              _row('Faixa atual', 'Nenhuma graduação')
                             else
                               ..._faixasPorModalidade.entries.map((e) {
                                 final eGrau = (e.value['grau'] as num?)?.toInt() ?? 0;

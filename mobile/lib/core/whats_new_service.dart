@@ -7,10 +7,12 @@ import 'constants.dart';
 /// tenha mudanças relevantes para o usuário — o modal só aparece uma vez por
 /// versão (controlado por `_prefKey`, comparando com a versão já vista).
 const List<String> kNovidadesVersaoAtual = [
-  'Agora dá para cadastrar mais de um filho com o telefone do mesmo responsável.',
-  'Professores que também treinam podem ter dois perfis (Professor e Aluno) e trocar entre eles pelo menu.',
-  'Corrigido: trocar o perfil de um funcionário para Admin ou Secretaria agora funciona de verdade.',
-  'Nova tela em Financeiro: "Contas da Academia", para cadastrar água, luz, aluguel etc. com alerta de vencimento.',
+  'Permissões de professores corrigidas: turmas, horários e graduações aparecem imediatamente após o cadastro.',
+  'Gestores agora podem remover presenças registradas por engano, e o check-in respeita o bloqueio financeiro configurado.',
+  'Graduações agora são independentes por modalidade, seguem a ordem correta no histórico e somem de todas as telas quando excluídas.',
+  'O relatório de presenças voltou a exibir os nomes e agora inclui matriculados sem presença no período.',
+  'Cadastro e primeiro acesso ficaram mais estáveis, sem o erro de rota após criar a conta.',
+  'Corrigido o envio do e-mail de recuperação de senha.',
 ];
 
 abstract class WhatsNewService {
@@ -35,27 +37,38 @@ abstract class WhatsNewService {
           title: Row(children: [
             Icon(Icons.auto_awesome_rounded, color: kPrimary, size: 22),
             const SizedBox(width: 10),
-            Text('Novidades', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+            Expanded(
+              child: Text(
+                'Novidades da versão $versaoAtual',
+                style: TextStyle(
+                  color: kText1,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ]),
           content: SizedBox(
             width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final item in kNovidadesVersaoAtual)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.check_circle_rounded, color: kSuccess, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(item, style: TextStyle(color: kText2, fontSize: 13, height: 1.4))),
-                      ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final item in kNovidadesVersaoAtual)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.check_circle_rounded, color: kSuccess, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(item, style: TextStyle(color: kText2, fontSize: 13, height: 1.4))),
+                        ],
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
