@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AcademiaFight.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1f9a7d8c6cb80d31e83b520c77c219c6d0c84b95")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ed1e7f654de8975046588b0387365026e8c9ef0f")]
 [assembly: System.Reflection.AssemblyProductAttribute("AcademiaFight.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AcademiaFight.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

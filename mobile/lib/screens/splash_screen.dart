@@ -6,6 +6,7 @@ import '../core/constants.dart';
 import '../core/firestore_service.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
+import '../core/profile_session_service.dart';
 import '../core/push_service.dart';
 import '../core/version_check_service.dart';
 
@@ -121,8 +122,16 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // Tenta carregar dados locais; se não tiver, busca no Firestore
+    // Atualiza os vínculos mesmo quando já existe uma sessão local. Assim,
+    // novos irmãos/perfis aparecem sem refazer o Primeiro Acesso.
     var user = await AuthStorage.getUser();
+    try {
+      user = await ProfileSessionService.refresh() ?? user;
+    } catch (_) {
+      // Mantém a sessão local para funcionamento offline.
+    }
+
+    // Fallback para instalações antigas sem sessão local completa.
     if (user == null) {
       try {
         final userData = await firestoreService.getUserByFirebaseUid(firebaseUser.uid);

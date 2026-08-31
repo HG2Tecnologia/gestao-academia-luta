@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
-import '../../core/firestore_service.dart';
 import '../../core/perfil_switch.dart';
+import '../../core/profile_session_service.dart';
 import '../../core/whats_new_service.dart';
 
 class ProfessorShell extends StatefulWidget {
@@ -73,6 +73,7 @@ class _ProfessorShellState extends State<ProfessorShell>
   Map<String, bool> _permissoes = {};
   bool _permLoaded = false;
   List<Map<String, dynamic>> _perfis = [];
+  String _nomePerfilAtual = '';
 
   @override
   void initState() {
@@ -86,38 +87,16 @@ class _ProfessorShellState extends State<ProfessorShell>
 
   Future<void> _carregarPermissoes() async {
     var user = await AuthStorage.getUser();
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser != null) {
-      try {
-        final remoto = await firestoreService.getUserByFirebaseUid(
-          firebaseUser.uid,
-        );
-        if (remoto != null && user != null) {
-          final raw = remoto['permissoes'];
-          final permissoes = raw is Map
-              ? raw.map<String, bool>(
-                  (k, v) => MapEntry(k.toString(), v == true),
-                )
-              : <String, bool>{};
-          user = StoredUser(
-            id: user.id,
-            nome: remoto['nome'] as String? ?? user.nome,
-            email: remoto['email'] as String? ?? user.email,
-            perfil: remoto['perfil'] as String? ?? user.perfil,
-            academiaId: remoto['academiaId'] as String? ?? user.academiaId,
-            permissoes: permissoes,
-            perfis: user.perfis,
-          );
-          await AuthStorage.saveUser(user);
-        }
-      } catch (_) {
-        // Mantém a última configuração válida para funcionamento offline.
-      }
+    try {
+      user = await ProfileSessionService.refresh() ?? user;
+    } catch (_) {
+      // Mantém a última configuração válida para funcionamento offline.
     }
     if (mounted) {
       setState(() {
         _permissoes = user?.permissoes ?? {};
         _perfis = user?.perfis ?? [];
+        _nomePerfilAtual = user?.nome ?? '';
         _permLoaded = true;
       });
     }
@@ -205,17 +184,20 @@ class _ProfessorShellState extends State<ProfessorShell>
                           ),
                         ),
                         Text(
-                          'Painel do professor',
+                          _nomePerfilAtual.isNotEmpty
+                              ? _nomePerfilAtual
+                              : 'Painel do professor',
                           style: TextStyle(color: kText2, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                   if (_perfis.length > 1)
-                    IconButton(
-                      onPressed: () => mostrarTrocarPerfil(context),
-                      icon: Icon(Icons.swap_horiz_rounded, color: Colors.white),
-                      tooltip: 'Trocar perfil',
+                    PerfilSwitchButton(
+                      onPressed: () async {
+                        await mostrarTrocarPerfil(context);
+                        _carregarPermissoes();
+                      },
                     ),
                 ],
               ),

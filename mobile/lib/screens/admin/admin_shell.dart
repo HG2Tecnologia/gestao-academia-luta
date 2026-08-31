@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/perfil_switch.dart';
+import '../../core/profile_session_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/whats_new_service.dart';
 
@@ -16,18 +17,42 @@ class AdminShell extends StatefulWidget {
   State<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> {
+class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _perfis = [];
+  String _nomePerfilAtual = '';
 
   @override
   void initState() {
     super.initState();
-    AuthStorage.getUser().then((u) {
-      if (mounted) setState(() => _perfis = u?.perfis ?? []);
-    });
+    WidgetsBinding.instance.addObserver(this);
+    _atualizarPerfis();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) WhatsNewService.checkAndShow(context);
     });
+  }
+
+  Future<void> _atualizarPerfis() async {
+    var user = await AuthStorage.getUser();
+    try {
+      user = await ProfileSessionService.refresh() ?? user;
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _perfis = user?.perfis ?? [];
+        _nomePerfilAtual = user?.nome ?? '';
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _atualizarPerfis();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   static const _items = [
@@ -110,17 +135,20 @@ class _AdminShellState extends State<AdminShell> {
                           ),
                         ),
                         Text(
-                          'Painel de Gestão',
+                          _nomePerfilAtual.isNotEmpty
+                              ? _nomePerfilAtual
+                              : 'Painel de Gestão',
                           style: TextStyle(color: kText2, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                   if (_perfis.length > 1)
-                    IconButton(
-                      onPressed: () => mostrarTrocarPerfil(context),
-                      icon: Icon(Icons.swap_horiz_rounded, color: Colors.white),
-                      tooltip: 'Trocar perfil',
+                    PerfilSwitchButton(
+                      onPressed: () async {
+                        await mostrarTrocarPerfil(context);
+                        _atualizarPerfis();
+                      },
                     ),
                 ],
               ),

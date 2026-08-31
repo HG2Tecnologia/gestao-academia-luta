@@ -81,17 +81,28 @@ class FirestoreService {
     // vínculo criado DEPOIS (ex: Professor que passou a ser também Aluno em
     // outra modalidade) aparece no seletor sem precisar reativar a conta.
     var perfis = <Map<String, dynamic>>[];
-    final chaveBusca = (telefoneBusca != null && telefoneBusca.isNotEmpty)
-        ? telefoneBusca
-        : emailBusca;
-    if (chaveBusca != null && chaveBusca.isNotEmpty && academiaId != null) {
+    var buscaDinamicaConcluida = false;
+    final chavesBusca = <String>{
+      if (telefoneBusca != null && telefoneBusca.isNotEmpty) telefoneBusca,
+      if (emailBusca != null && emailBusca.isNotEmpty) emailBusca,
+    };
+    if (chavesBusca.isNotEmpty && academiaId != null) {
       try {
-        final encontrados = await buscarPerfisMesmaAcademia(
-          academiaId,
-          chaveBusca,
-        );
-        if (encontrados.length > 1) {
-          perfis = encontrados
+        final encontradosPorId = <String, Map<String, dynamic>>{};
+        for (final chave in chavesBusca) {
+          final encontrados = await buscarPerfisMesmaAcademia(
+            academiaId,
+            chave,
+          );
+          for (final encontrado in encontrados) {
+            final id =
+                '${encontrado['_colecao']}:${encontrado['usuarioId']}';
+            encontradosPorId[id] = encontrado;
+          }
+        }
+        buscaDinamicaConcluida = true;
+        if (encontradosPorId.length > 1) {
+          perfis = encontradosPorId.values
               .map(
                 (e) => {
                   'usuarioId': e['usuarioId'],
@@ -105,7 +116,7 @@ class FirestoreService {
         }
       } catch (_) {}
     }
-    if (perfis.isEmpty) {
+    if (perfis.isEmpty && !buscaDinamicaConcluida) {
       final rawPerfis = data['perfis'];
       if (rawPerfis is List) {
         perfis = rawPerfis
@@ -137,21 +148,38 @@ class FirestoreService {
 
     Future<void> buscarEm(String colecao, {required bool isAluno}) async {
       final col = _col(academiaId, colecao);
-      final snap = isEmail
-          ? await col
-                .where('email', isEqualTo: telefoneOuEmail.toLowerCase().trim())
-                .get()
-          : await col.where('telefone_digits', isEqualTo: digits).get();
-      for (final d in snap.docs) {
-        final data = _convertDoc(d);
-        if (isAluno && (data['perfil'] as int?) != 3) continue;
+      final docs = <String, QueryDocumentSnapshot>{};
+
+      Future<void> adicionarQuery(String campo, String valor) async {
+        if (valor.isEmpty) return;
+        final snap = await col.where(campo, isEqualTo: valor).get();
+        for (final doc in snap.docs) {
+          docs[doc.id] = doc;
+        }
+      }
+
+      if (isEmail) {
+        await adicionarQuery('email', telefoneOuEmail.toLowerCase().trim());
+        if (telefoneOuEmail.trim() != telefoneOuEmail.toLowerCase().trim()) {
+          await adicionarQuery('email', telefoneOuEmail.trim());
+        }
+      } else {
+        await adicionarQuery('telefone_digits', digits);
+        // Compatibilidade com cadastros antigos editados antes da criação de
+        // telefone_digits. A edição atual passa a manter ambos sincronizados.
+        await adicionarQuery('telefone', telefoneOuEmail.trim());
+      }
+
+      for (final d in docs.values) {
+        final item = _convertDoc(d);
+        if (isAluno && (item['perfil'] as int?) != 3) continue;
         results.add({
-          ...data,
+          ...item,
           'academiaId': academiaId,
-          'usuarioId': data['id'],
+          'usuarioId': item['id'],
           'perfil_nome': isAluno
               ? 'Aluno'
-              : (data['perfil'] as String? ?? 'Professor'),
+              : (item['perfil'] as String? ?? 'Professor'),
           '_colecao': colecao,
         });
       }
@@ -423,11 +451,22 @@ class FirestoreService {
     String academiaId,
     String id,
     Map<String, dynamic> data,
-  ) => _doc(
-    academiaId,
-    'usuarios',
-    id,
-  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  ) async {
+    final normalizado = <String, dynamic>{...data};
+    if (data.containsKey('email')) {
+      final email = data['email']?.toString().trim() ?? '';
+      normalizado['email'] = email.isEmpty ? null : email.toLowerCase();
+    }
+    if (data.containsKey('telefone')) {
+      final telefone = data['telefone']?.toString().trim() ?? '';
+      normalizado['telefone'] = telefone;
+      normalizado['telefone_digits'] = telefone.replaceAll(RegExp(r'\D'), '');
+    }
+    await _doc(academiaId, 'usuarios', id).update({
+      ...normalizado,
+      'atualizado_em': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<List<Map<String, dynamic>>> getAniversariantes(
     String academiaId,
