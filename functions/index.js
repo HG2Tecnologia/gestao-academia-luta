@@ -7,6 +7,25 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
+const accountFunctions = require("./account-functions");
+exports.discoverAccessProfiles = accountFunctions.discoverAccessProfiles;
+exports.activateAccessAccount = accountFunctions.activateAccessAccount;
+exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
+
+const adminFunctions = require("./admin-functions");
+exports.adminResetPassword = adminFunctions.adminResetPassword;
+exports.completeMandatoryPasswordChange = adminFunctions.completeMandatoryPasswordChange;
+
+const graduacaoFunctions = require("./graduacao-functions");
+exports.editarGraduacao = graduacaoFunctions.editarGraduacao;
+
+const turmaFunctions = require("./turma-functions");
+exports.arquivarTurma = turmaFunctions.arquivarTurma;
+
+const financeFunctions = require("./finance-functions");
+exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
+exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

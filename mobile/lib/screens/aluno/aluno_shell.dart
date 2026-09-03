@@ -123,7 +123,7 @@ class _AlunoShellState extends State<AlunoShell> with WidgetsBindingObserver {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     await AuthStorage.clear();
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/boas-vindas');
   }
 
   Future<void> _excluirConta() async {
@@ -162,7 +162,7 @@ class _AlunoShellState extends State<AlunoShell> with WidgetsBindingObserver {
       final user = FirebaseAuth.instance.currentUser;
       await user?.delete();
       await AuthStorage.clear();
-      if (mounted) context.go('/login');
+      if (mounted) context.go('/boas-vindas');
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(

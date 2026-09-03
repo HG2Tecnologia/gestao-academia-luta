@@ -93,15 +93,14 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                 itemCount: sessionUser.perfis.length,
                 itemBuilder: (_, index) {
                   final p = sessionUser.perfis[index];
-                  final atual = p['usuarioId'] == sessionUser.id &&
+                  final atual =
+                      p['usuarioId'] == sessionUser.id &&
                       p['academiaId'] == sessionUser.academiaId;
                   final nome = p['nome'] as String? ?? '';
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: atual
-                          ? kPrimary.withValues(alpha: 0.10)
-                          : kBg,
+                      color: atual ? kPrimary.withValues(alpha: 0.10) : kBg,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: atual
@@ -193,7 +192,8 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
   );
 
   if (selecionado == null ||
-      selecionado['usuarioId'] == sessionUser.id ||
+      (selecionado['usuarioId'] == sessionUser.id &&
+          selecionado['academiaId'] == sessionUser.academiaId) ||
       !context.mounted) {
     return;
   }
@@ -251,7 +251,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
     case 'Aluno':
       context.go('/aluno/perfil');
     default:
-      context.go('/login');
+      context.go('/boas-vindas');
   }
 }
 
@@ -272,18 +272,12 @@ class PerfilSwitchButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.18),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.switch_account_rounded,
-                color: Colors.white,
-                size: 19,
-              ),
+              Icon(Icons.switch_account_rounded, color: Colors.white, size: 19),
               SizedBox(width: 7),
               Text(
                 'Trocar perfil',

@@ -37,7 +37,12 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getMatriculas(_academiaId!, ativasOnly: true),
       ]);
-      final turmasList = (results[0] as List).cast<Map<String, dynamic>>();
+      // Turmas excluídas (soft delete) somem das listagens operacionais —
+      // o histórico continua íntegro, só não aparecem mais aqui.
+      final turmasList = (results[0] as List)
+          .cast<Map<String, dynamic>>()
+          .where((t) => t['deleted_at'] == null)
+          .toList();
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
 
       final countPorTurma = <String, int>{};
@@ -57,7 +62,8 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
           _filtrar();
         });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -80,8 +86,12 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
           ? List.from(_turmas)
           : _turmas.where((t) {
               final nome = (t['nome'] as String? ?? '').toLowerCase();
-              final mod = (t['modalidadeNome'] ?? t['nome_modalidade'] as String? ?? '').toLowerCase();
-              final prof = (t['professorNome'] ?? t['nome_professor'] as String? ?? '').toLowerCase();
+              final mod =
+                  (t['modalidadeNome'] ?? t['nome_modalidade'] as String? ?? '')
+                      .toLowerCase();
+              final prof =
+                  (t['professorNome'] ?? t['nome_professor'] as String? ?? '')
+                      .toLowerCase();
               return nome.contains(q) || mod.contains(q) || prof.contains(q);
             }).toList();
     });
@@ -110,12 +120,22 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Row(
                 children: [
-                  Text('Turmas', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+                  Text(
+                    'Turmas',
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => context.push('/admin/turmas/relatorio'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: kSurface,
                         borderRadius: BorderRadius.circular(10),
@@ -124,15 +144,29 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people_alt_rounded, color: kText2, size: 14),
+                          Icon(
+                            Icons.people_alt_rounded,
+                            color: kText2,
+                            size: 14,
+                          ),
                           const SizedBox(width: 5),
-                          Text('Presenças', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                            'Presenças',
+                            style: TextStyle(
+                              color: kText2,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                  GestureDetector(
+                    onTap: openAppDrawer,
+                    child: Icon(Icons.menu_rounded, color: kText1, size: 26),
+                  ),
                 ],
               ),
             ),
@@ -147,10 +181,22 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                   prefixIcon: Icon(Icons.search, color: kText2),
                   filled: true,
                   fillColor: kSurface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: kPrimary),
+                  ),
                 ),
               ),
             ),
@@ -159,87 +205,158 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
               child: _loading
                   ? Center(child: CircularProgressIndicator(color: kPrimary))
                   : _filtradas.isEmpty
-                      ? Center(child: Text('Nenhuma turma encontrada.', style: TextStyle(color: kText2)))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _filtradas.length,
-                            itemBuilder: (_, i) {
-                              final t = _filtradas[i];
-                              final ativa = t['ativo'] == true;
-                              final total = t['totalAlunos'] ?? 0;
-                              final cap = t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? 0;
-                              final modalidadeNome = t['modalidadeNome'] ?? t['nome_modalidade'] ?? '';
-                              final professorNome = t['professorNome'] ?? t['nome_professor'] ?? '';
-                              return GestureDetector(
-                                onTap: () => context.push('/admin/turmas/${t['id']}', extra: t),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: kSurface,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: kBorder),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                  ? Center(
+                      child: Text(
+                        'Nenhuma turma encontrada.',
+                        style: TextStyle(color: kText2),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _filtradas.length,
+                        itemBuilder: (_, i) {
+                          final t = _filtradas[i];
+                          final ativa = t['ativo'] == true;
+                          final total = t['totalAlunos'] ?? 0;
+                          final cap =
+                              t['capacidadeMaxima'] ??
+                              t['capacidade_maxima'] ??
+                              0;
+                          final modalidadeNome =
+                              t['modalidadeNome'] ?? t['nome_modalidade'] ?? '';
+                          final professorNome =
+                              t['professorNome'] ?? t['nome_professor'] ?? '';
+                          return GestureDetector(
+                            onTap: () async {
+                              // A tela de detalhe pode excluir a turma (soft
+                              // delete) — recarrega ao voltar pra refletir na
+                              // hora, sem precisar de pull-to-refresh manual.
+                              await context.push(
+                                '/admin/turmas/${t['id']}',
+                                extra: t,
+                              );
+                              if (mounted) _load();
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: kSurface,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: kBorder),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(t['nome'] ?? '', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700)),
+                                      Expanded(
+                                        child: Text(
+                                          t['nome'] ?? '',
+                                          style: TextStyle(
+                                            color: kText1,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: ativa ? kSuccess.withOpacity(0.15) : kText2.withOpacity(0.15),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              ativa ? 'Ativa' : 'Inativa',
-                                              style: TextStyle(color: ativa ? kSuccess : kText2, fontSize: 11, fontWeight: FontWeight.w700),
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        [modalidadeNome, t['nivel']].where((s) => s != null && s != '').join(' · '),
-                                        style: TextStyle(color: kText2, fontSize: 13),
-                                      ),
-                                      if (professorNome.isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        Text('Prof. $professorNome', style: TextStyle(color: kPrimary, fontSize: 12)),
-                                      ],
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Text('$total', style: TextStyle(color: kPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
-                                          Text(' / $cap alunos', style: TextStyle(color: kText2, fontSize: 13)),
-                                          const Spacer(),
-                                          GestureDetector(
-                                            onTap: () => _abrirForm(turma: t),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: kPrimary.withOpacity(0.10),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
-                                            ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: ativa
+                                              ? kSuccess.withOpacity(0.15)
+                                              : kText2.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Icon(Icons.chevron_right, color: kText2, size: 18),
-                                        ],
+                                        ),
+                                        child: Text(
+                                          ativa ? 'Ativa' : 'Inativa',
+                                          style: TextStyle(
+                                            color: ativa ? kSuccess : kText2,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    [modalidadeNome, t['nivel']]
+                                        .where((s) => s != null && s != '')
+                                        .join(' · '),
+                                    style: TextStyle(
+                                      color: kText2,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (professorNome.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Prof. $professorNome',
+                                      style: TextStyle(
+                                        color: kPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '$total',
+                                        style: TextStyle(
+                                          color: kPrimary,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        ' / $cap alunos',
+                                        style: TextStyle(
+                                          color: kText2,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      GestureDetector(
+                                        onTap: () => _abrirForm(turma: t),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: kPrimary.withOpacity(0.10),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.edit_rounded,
+                                            color: kPrimary,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        color: kText2,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
             ),
             const AdBannerWidget(),
           ],
@@ -275,7 +392,12 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
   bool _loading = true;
   bool _salvando = false;
 
-  static const _niveis = ['Iniciante', 'Intermediário', 'Avançado', 'Todos os níveis'];
+  static const _niveis = [
+    'Iniciante',
+    'Intermediário',
+    'Avançado',
+    'Todos os níveis',
+  ];
 
   bool get _editando => widget.turma != null;
 
@@ -285,7 +407,8 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
     if (_editando) {
       final t = widget.turma!;
       _nomeCtrl.text = t['nome'] as String? ?? '';
-      _capCtrl.text = (t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? '').toString();
+      _capCtrl.text = (t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? '')
+          .toString();
       _nivel = t['nivel'] as String?;
       _ativo = t['ativo'] == true;
     }
@@ -321,29 +444,42 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
           if (_editando) {
             final t = widget.turma!;
-            final modNome = (t['modalidadeNome'] ?? t['nome_modalidade'])?.toString() ?? '';
+            final modNome =
+                (t['modalidadeNome'] ?? t['nome_modalidade'])?.toString() ?? '';
             final modId = t['modalidadeId']?.toString();
             final modIdExiste = mods.any((m) => m['id']?.toString() == modId);
             String? modIdPorNome;
             if (!modIdExiste) {
               try {
-                modIdPorNome = mods.firstWhere(
-                  (m) => m['nome']?.toString() == modNome,
-                  orElse: () => {},
-                )['id']?.toString();
+                modIdPorNome = mods
+                    .firstWhere(
+                      (m) => m['nome']?.toString() == modNome,
+                      orElse: () => {},
+                    )['id']
+                    ?.toString();
               } catch (_) {}
             }
             _modalidadeId = modIdExiste ? modId : modIdPorNome;
 
-            final profNome = (t['professorNome'] ?? t['nome_professor'])?.toString() ?? '';
+            final profNome =
+                (t['professorNome'] ?? t['nome_professor'])?.toString() ?? '';
             final profId = t['professorId']?.toString();
-            _professorId = profId ?? profs.firstWhere(
-              (p) => p['nome']?.toString() == profNome || p['nomeUsuario']?.toString() == profNome,
-              orElse: () => {},
-            )['usuarioId']?.toString() ?? profs.firstWhere(
-              (p) => p['nome']?.toString() == profNome,
-              orElse: () => {},
-            )['id']?.toString();
+            _professorId =
+                profId ??
+                profs
+                    .firstWhere(
+                      (p) =>
+                          p['nome']?.toString() == profNome ||
+                          p['nomeUsuario']?.toString() == profNome,
+                      orElse: () => {},
+                    )['usuarioId']
+                    ?.toString() ??
+                profs
+                    .firstWhere(
+                      (p) => p['nome']?.toString() == profNome,
+                      orElse: () => {},
+                    )['id']
+                    ?.toString();
           }
 
           _loading = false;
@@ -361,14 +497,19 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       final body = {
         'nome': _nomeCtrl.text.trim(),
         'modalidadeId': _modalidadeId,
-        if (_professorId != null && _professorId!.isNotEmpty) 'professorId': _professorId,
+        if (_professorId != null && _professorId!.isNotEmpty)
+          'professorId': _professorId,
         'capacidadeMaxima': int.tryParse(_capCtrl.text.trim()) ?? 30,
         if (_nivel != null) 'nivel': _nivel,
         'ativo': _ativo,
       };
 
       if (_editando) {
-        await firestoreService.updateTurma(widget.academiaId, widget.turma!['id'].toString(), body);
+        await firestoreService.updateTurma(
+          widget.academiaId,
+          widget.turma!['id'].toString(),
+          body,
+        );
       } else {
         await firestoreService.addTurma(widget.academiaId, body);
       }
@@ -378,7 +519,11 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       if (!mounted) return;
       final msg = _editando ? 'Erro ao editar turma' : 'Erro ao criar turma';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: kDanger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _salvando = false);
@@ -398,26 +543,52 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: kBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(height: 20),
           Row(
             children: [
               Text(
                 _editando ? 'Editar Turma' : 'Nova Turma',
-                style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: kText1,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const Spacer(),
               if (_salvando)
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               else
                 TextButton(
                   onPressed: _salvar,
                   style: TextButton.styleFrom(
                     backgroundColor: kPrimary.withOpacity(0.12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: Text('Salvar', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Salvar',
+                    style: TextStyle(
+                      color: kPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -432,47 +603,91 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
               key: _formKey,
               child: Column(
                 children: [
-                  _field(_nomeCtrl, 'Nome da Turma', Icons.groups_rounded,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null),
+                  _field(
+                    _nomeCtrl,
+                    'Nome da Turma',
+                    Icons.groups_rounded,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     value: _modalidadeId,
-                    decoration: _inputDecoration('Modalidade', Icons.sports_martial_arts_rounded),
+                    decoration: _inputDecoration(
+                      'Modalidade',
+                      Icons.sports_martial_arts_rounded,
+                    ),
                     dropdownColor: kSurface,
                     style: TextStyle(color: kText1, fontSize: 15),
-                    items: (_editando ? _modalidades : _modalidades.where((m) => m['ativo'] == true).toList()).map((m) => DropdownMenuItem(
-                      value: m['id']?.toString(),
-                      child: Text(m['nome']?.toString() ?? '', style: TextStyle(color: kText1)),
-                    )).toList(),
+                    items:
+                        (_editando
+                                ? _modalidades
+                                : _modalidades
+                                      .where((m) => m['ativo'] == true)
+                                      .toList())
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m['id']?.toString(),
+                                child: Text(
+                                  m['nome']?.toString() ?? '',
+                                  style: TextStyle(color: kText1),
+                                ),
+                              ),
+                            )
+                            .toList(),
                     onChanged: (v) => setState(() => _modalidadeId = v),
-                    validator: (v) => v == null ? 'Selecione a modalidade' : null,
+                    validator: (v) =>
+                        v == null ? 'Selecione a modalidade' : null,
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     value: _niveis.contains(_nivel) ? _nivel : null,
-                    decoration: _inputDecoration('Nível', Icons.bar_chart_rounded),
+                    decoration: _inputDecoration(
+                      'Nível',
+                      Icons.bar_chart_rounded,
+                    ),
                     dropdownColor: kSurface,
                     style: TextStyle(color: kText1, fontSize: 15),
-                    items: _niveis.map((n) => DropdownMenuItem(
-                      value: n,
-                      child: Text(n, style: TextStyle(color: kText1)),
-                    )).toList(),
+                    items: _niveis
+                        .map(
+                          (n) => DropdownMenuItem(
+                            value: n,
+                            child: Text(n, style: TextStyle(color: kText1)),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (v) => setState(() => _nivel = v),
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
-                    value: _professores.any((p) =>
-                        (p['usuarioId'] ?? p['id'])?.toString() == _professorId)
+                    value:
+                        _professores.any(
+                          (p) =>
+                              (p['usuarioId'] ?? p['id'])?.toString() ==
+                              _professorId,
+                        )
                         ? _professorId
                         : null,
-                    decoration: _inputDecoration('Professor (opcional)', Icons.person_rounded),
+                    decoration: _inputDecoration(
+                      'Professor (opcional)',
+                      Icons.person_rounded,
+                    ),
                     dropdownColor: kSurface,
                     style: TextStyle(color: kText1, fontSize: 15),
                     items: [
-                      DropdownMenuItem<String>(value: null, child: Text('Sem professor', style: TextStyle(color: kText2))),
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text(
+                          'Sem professor',
+                          style: TextStyle(color: kText2),
+                        ),
+                      ),
                       ..._professores.map((p) {
                         final id = (p['usuarioId'] ?? p['id'])?.toString();
-                        final nome = p['nome']?.toString() ?? p['nomeUsuario']?.toString() ?? '';
+                        final nome =
+                            p['nome']?.toString() ??
+                            p['nomeUsuario']?.toString() ??
+                            '';
                         return DropdownMenuItem(
                           value: id,
                           child: Text(nome, style: TextStyle(color: kText1)),
@@ -482,17 +697,25 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     onChanged: (v) => setState(() => _professorId = v),
                   ),
                   const SizedBox(height: 14),
-                  _field(_capCtrl, 'Capacidade máxima', Icons.people_rounded,
-                      keyboard: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                        if (int.tryParse(v.trim()) == null) return 'Número inválido';
-                        return null;
-                      }),
+                  _field(
+                    _capCtrl,
+                    'Capacidade máxima',
+                    Icons.people_rounded,
+                    keyboard: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Obrigatório';
+                      if (int.tryParse(v.trim()) == null)
+                        return 'Número inválido';
+                      return null;
+                    },
+                  ),
                   if (_editando) ...[
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: kSurface,
                         borderRadius: BorderRadius.circular(12),
@@ -500,9 +723,18 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.toggle_on_rounded, color: kText2, size: 18),
+                          Icon(
+                            Icons.toggle_on_rounded,
+                            color: kText2,
+                            size: 18,
+                          ),
                           const SizedBox(width: 10),
-                          Expanded(child: Text('Turma ativa', style: TextStyle(color: kText1))),
+                          Expanded(
+                            child: Text(
+                              'Turma ativa',
+                              style: TextStyle(color: kText1),
+                            ),
+                          ),
                           Switch(
                             value: _ativo,
                             onChanged: (v) => setState(() => _ativo = v),
@@ -526,26 +758,44 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
     IconData icon, {
     TextInputType keyboard = TextInputType.text,
     String? Function(String?)? validator,
-  }) =>
-      TextFormField(
-        controller: ctrl,
-        keyboardType: keyboard,
-        validator: validator,
-        style: TextStyle(color: kText1, fontSize: 15),
-        decoration: _inputDecoration(label, icon),
-      );
+  }) => TextFormField(
+    controller: ctrl,
+    keyboardType: keyboard,
+    validator: validator,
+    style: TextStyle(color: kText1, fontSize: 15),
+    decoration: _inputDecoration(label, icon),
+  );
 
-  InputDecoration _inputDecoration(String label, IconData icon) => InputDecoration(
+  InputDecoration _inputDecoration(String label, IconData icon) =>
+      InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: kText2, fontSize: 13),
         prefixIcon: Icon(icon, color: kText2, size: 18),
         filled: true,
         fillColor: kSurface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kPrimary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kDanger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kDanger, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       );
 }

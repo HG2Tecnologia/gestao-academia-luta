@@ -48,7 +48,10 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
         firestoreService.getTurmas(user.academiaId!, professorId: verTodas ? null : user.id),
         firestoreService.getMatriculas(user.academiaId!, ativasOnly: true),
       ]);
-      final turmasList = (results[0] as List).cast<Map<String, dynamic>>();
+      final turmasList = (results[0] as List)
+          .cast<Map<String, dynamic>>()
+          .where((t) => t['deleted_at'] == null)
+          .toList();
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
 
       final countPorTurma = <String, int>{};

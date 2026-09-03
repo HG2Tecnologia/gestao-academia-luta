@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
+import '../../core/phone_normalizer.dart';
 
 // ─── Formatter de telefone ────────────────────────────────────────────────────
 
@@ -12,7 +15,10 @@ class _PhoneFormatter extends TextInputFormatter {
   static final _onlyDigits = RegExp(r'\D');
 
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue old,
+    TextEditingValue next,
+  ) {
     final text = next.text;
     if (text.isEmpty) return next;
     if (RegExp(r'[a-zA-Z@]').hasMatch(text)) return next;
@@ -43,7 +49,10 @@ enum _Etapa { busca, escolherPerfil, criaSenha, sucesso }
 // ─── Tela ─────────────────────────────────────────────────────────────────────
 
 class PrimeiroAcessoScreen extends StatefulWidget {
-  const PrimeiroAcessoScreen({super.key});
+  /// 'aluno' ou 'academia'; propagado de volta ao login ao concluir/voltar.
+  final String? contexto;
+
+  const PrimeiroAcessoScreen({super.key, this.contexto});
 
   @override
   State<PrimeiroAcessoScreen> createState() => _PrimeiroAcessoScreenState();
@@ -66,6 +75,29 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
   static final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
   bool get _isEmail => _buscaCtrl.text.contains('@');
 
+  void _voltarLogin() {
+    final contexto = widget.contexto;
+    if (contexto != null) {
+      context.go('/login', extra: {'contexto': contexto});
+    } else {
+      context.go('/boas-vindas');
+    }
+  }
+
+  String _mensagemFunctions(FirebaseFunctionsException erro) {
+    switch (erro.code) {
+      case 'failed-precondition':
+      case 'not-found':
+      case 'invalid-argument':
+        return erro.message ?? 'Não foi possível concluir o acesso.';
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return 'Serviço temporariamente indisponível. Tente novamente em instantes.';
+      default:
+        return 'Não foi possível concluir o acesso. Tente novamente.';
+    }
+  }
+
   Future<void> _buscar() async {
     final valor = _buscaCtrl.text.trim();
     if (valor.isEmpty) {
@@ -82,55 +114,68 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       return;
     }
 
-    setState(() { _loading = true; _erro = null; });
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     try {
-      // Login anônimo temporário: as regras do Firestore exigem autenticação
-      // mesmo para a busca de cadastro. A sessão anônima é encerrada logo
-      // após a busca; a conta real é criada em _criarConta().
-      await FirebaseAuth.instance.signInAnonymously();
-      final anon = FirebaseAuth.instance.currentUser;
-
-      final usuarios = await firestoreService.buscarUsuariosPorEmailOuTelefone(valor);
-
-      try {
-        await anon?.delete();
-      } catch (_) {
-        await FirebaseAuth.instance.signOut();
-      }
+      final discovery = await firebaseIdentityService.discoverProfiles(valor);
+      final usuarios = discovery.profiles;
 
       if (!mounted) return;
       if (usuarios.isEmpty) {
         setState(() {
-          _erro = 'Nenhum cadastro encontrado com esse ${_isEmail ? 'e-mail' : 'telefone'}.\n'
+          _erro =
+              'Nenhum cadastro encontrado com esse ${_isEmail ? 'e-mail' : 'telefone'}.\n'
               'Verifique os dados ou contate o administrador da sua academia.';
           _loading = false;
         });
         return;
       }
 
-      // Filtra cadastros inativos — aluno bloqueado não pode criar conta
-      final ativos = usuarios.where((u) => u['ativo'] != false).toList();
-      if (ativos.isEmpty) {
+      if (discovery.accountExists) {
         setState(() {
-          _erro = 'Seu cadastro está inativo. Entre em contato com a secretaria da sua academia.';
+          _erro =
+              'Este contato já possui uma conta de acesso. Entre com a senha existente. '
+              'Os novos perfis serão vinculados automaticamente. Se não lembrar a senha, use “Esqueci minha senha”.';
           _loading = false;
         });
         return;
       }
 
-      _todosUsuarios = ativos;
+      _todosUsuarios = usuarios;
 
       if (usuarios.length == 1) {
         // Apenas 1 perfil → pula seleção
         _usuarioSelecionado = usuarios.first;
-        setState(() { _etapa = _Etapa.criaSenha; _loading = false; });
+        setState(() {
+          _etapa = _Etapa.criaSenha;
+          _loading = false;
+        });
       } else {
         // Múltiplos perfis (grupo familiar ou professor + aluno)
-        setState(() { _etapa = _Etapa.escolherPerfil; _loading = false; });
+        setState(() {
+          _etapa = _Etapa.escolherPerfil;
+          _loading = false;
+        });
       }
-    } catch (e) {
+    } on FirebaseFunctionsException catch (e) {
       await FirebaseAuth.instance.signOut().catchError((_) {});
-      if (mounted) setState(() { _erro = 'Erro ao buscar cadastro: $e'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _erro = _mensagemFunctions(e);
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      await FirebaseAuth.instance.signOut().catchError((_) {});
+      if (mounted) {
+        setState(() {
+          _erro =
+              'Não foi possível buscar seu cadastro. Verifique sua conexão e tente novamente.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -148,62 +193,57 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
     }
 
     final usuario = _usuarioSelecionado!;
-    var email = (usuario['email'] as String? ?? '').trim().toLowerCase();
+    var email = _isEmail ? _buscaCtrl.text.trim().toLowerCase() : '';
 
     if (email.isEmpty) {
-      // Cadastro sem e-mail: usa telefone como chave sintética no Firebase Auth
-      final digits = (usuario['telefone'] as String? ?? '').replaceAll(RegExp(r'\D'), '');
-      if (digits.isEmpty) {
-        setState(() => _erro = 'Seu cadastro não possui e-mail nem telefone. Contate o administrador.');
+      // Uma identidade de telefone possui uma única conta Firebase, mesmo que
+      // represente vários alunos. O e-mail sintético sempre usa E.164.
+      final canonicalDigits = PhoneNormalizer.digits(_buscaCtrl.text);
+      if (canonicalDigits == null) {
+        setState(
+          () => _erro =
+              'Seu cadastro não possui e-mail nem telefone. Contate o administrador.',
+        );
         return;
       }
-      email = '$digits@sensei.app';
+      email = '$canonicalDigits@sensei.app';
     }
 
-    setState(() { _loading = true; _erro = null; });
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     try {
-      UserCredential credential;
-      try {
-        credential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(email: email, password: senha);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'email-already-in-use') {
-          credential = await FirebaseAuth.instance
-              .signInWithEmailAndPassword(email: email, password: senha);
-        } else {
-          rethrow;
-        }
-      }
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: senha);
 
       final uid = credential.user!.uid;
-
-      // Demais perfis com o mesmo e-mail (grupo familiar)
-      final outrosPerfis = _todosUsuarios
-          .where((u) => u['usuarioId'] != usuario['usuarioId'])
-          .toList();
-
-      await firestoreService.ativarContaUsuario(
-        firebaseUid: uid,
-        academiaId: usuario['academiaId'] as String,
-        usuarioId: usuario['usuarioId'] as String,
-        dadosUsuario: usuario,
-        outrosPerfis: outrosPerfis.isNotEmpty ? outrosPerfis : null,
-      );
+      Map<String, dynamic> account;
+      try {
+        account = await firebaseIdentityService.activateAccount(
+          identifier: _buscaCtrl.text.trim(),
+          primaryProfileKey: usuario['profileKey'] as String,
+        );
+      } catch (_) {
+        // Não deixa uma credencial órfã se a associação server-side falhar.
+        await credential.user?.delete();
+        rethrow;
+      }
 
       final perfilNome = usuario['perfil_nome'] as String? ?? 'Aluno';
       final dadosAtivados = await firestoreService.getUserByFirebaseUid(uid);
-      final rawPermissoes = dadosAtivados?['permissoes'] ?? usuario['permissoes'];
+      final rawPermissoes = dadosAtivados?['permissoes'];
       final permissoes = rawPermissoes is Map
-          ? rawPermissoes.map<String, bool>((k, v) => MapEntry(k.toString(), v == true))
+          ? rawPermissoes.map<String, bool>(
+              (k, v) => MapEntry(k.toString(), v == true),
+            )
           : <String, bool>{};
 
       // Monta lista de perfis para armazenar localmente (grupo familiar)
-      final perfisLocais = _todosUsuarios.map((u) => {
-        'id': u['usuarioId'],
-        'nome': u['nome'] ?? '',
-        'academiaId': u['academiaId'],
-        'colecao': u['_colecao'] ?? 'usuarios',
-      }).toList();
+      final perfisLocais =
+          (account['profile_refs'] as List<dynamic>? ?? const [])
+              .map((profile) => Map<String, dynamic>.from(profile as Map))
+              .toList();
 
       await AuthStorage.save(
         uid,
@@ -219,26 +259,46 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       );
 
       if (!mounted) return;
-      setState(() { _etapa = _Etapa.sucesso; _loading = false; });
+      setState(() {
+        _etapa = _Etapa.sucesso;
+        _loading = false;
+      });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       String msg;
       switch (e.code) {
         case 'email-already-in-use':
-          msg = 'Já existe uma conta com esse e-mail. Use "Esqueci minha senha" para recuperar o acesso.';
+          msg =
+              'Já existe uma conta com esse e-mail. Use "Esqueci minha senha" para recuperar o acesso.';
         case 'weak-password':
           msg = 'Senha muito fraca. Use pelo menos 6 caracteres.';
         case 'wrong-password':
         case 'invalid-credential':
-          msg = 'Senha incorreta para essa conta existente. Use "Esqueci minha senha".';
+          msg =
+              'Senha incorreta para essa conta existente. Use "Esqueci minha senha".';
         case 'network-request-failed':
           msg = 'Sem conexão com a internet.';
         default:
           msg = 'Erro ao criar conta (${e.code}). Tente novamente.';
       }
-      setState(() { _erro = msg; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() { _erro = 'Erro inesperado: $e'; _loading = false; });
+      setState(() {
+        _erro = msg;
+        _loading = false;
+      });
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        setState(() {
+          _erro = _mensagemFunctions(e);
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _erro = 'Não foi possível criar sua conta. Tente novamente.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -277,13 +337,18 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
           onPressed: () {
             if (_etapa == _Etapa.criaSenha) {
               setState(() {
-                _etapa = _todosUsuarios.length > 1 ? _Etapa.escolherPerfil : _Etapa.busca;
+                _etapa = _todosUsuarios.length > 1
+                    ? _Etapa.escolherPerfil
+                    : _Etapa.busca;
                 _erro = null;
               });
             } else if (_etapa == _Etapa.escolherPerfil) {
-              setState(() { _etapa = _Etapa.busca; _erro = null; });
+              setState(() {
+                _etapa = _Etapa.busca;
+                _erro = null;
+              });
             } else {
-              context.go('/login');
+              _voltarLogin();
             }
           },
         ),
@@ -309,16 +374,28 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        Text('Configurar acesso',
-            style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text(
+          'Configurar acesso',
+          style: TextStyle(
+            color: kText1,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'Informe o e-mail ou telefone cadastrado pelo seu administrador.',
           style: TextStyle(color: kText2, fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 32),
-        Text('E-mail ou Telefone',
-            style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          'E-mail ou Telefone',
+          style: TextStyle(
+            color: kText2,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _buscaCtrl,
@@ -330,30 +407,55 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
           decoration: InputDecoration(
             hintText: 'seu@email.com  ou  (11) 99999-0000',
             hintStyle: TextStyle(color: kText2),
-            prefixIcon: Icon(Icons.person_search_outlined, color: kText2, size: 20),
+            prefixIcon: Icon(
+              Icons.person_search_outlined,
+              color: kText2,
+              size: 20,
+            ),
             filled: true,
             fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kPrimary),
+            ),
           ),
         ),
-        if (_erro != null) ...[
-          const SizedBox(height: 16),
-          _erroWidget(_erro!),
-        ],
+        if (_erro != null) ...[const SizedBox(height: 16), _erroWidget(_erro!)],
         const SizedBox(height: 28),
         FilledButton(
           onPressed: _loading ? null : _buscar,
           style: FilledButton.styleFrom(
             backgroundColor: kPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _loading
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Verificar cadastro', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  'Verificar cadastro',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
         ),
       ],
     );
@@ -369,27 +471,41 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: kPrimary.withOpacity(0.10),
+            color: kPrimary.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kPrimary.withOpacity(0.3)),
+            border: Border.all(color: kPrimary.withValues(alpha: 0.3)),
           ),
-          child: Row(children: [
-            Icon(Icons.group_rounded, color: kPrimary, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Encontramos ${_todosUsuarios.length} perfis com esse contato.\nQual é o seu?',
-                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w600, fontSize: 14),
+          child: Row(
+            children: [
+              Icon(Icons.group_rounded, color: kPrimary, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Encontramos ${_todosUsuarios.length} perfis com esse contato.\nQual é o seu?',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
-        Text('Selecione seu perfil',
-            style: TextStyle(color: kText1, fontSize: 20, fontWeight: FontWeight.w800)),
+        Text(
+          'Selecione seu perfil',
+          style: TextStyle(
+            color: kText1,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 6),
-        Text('Se houver mais de um, escolha o seu nome.',
-            style: TextStyle(color: kText2, fontSize: 13)),
+        Text(
+          'Se houver mais de um, escolha o seu nome.',
+          style: TextStyle(color: kText2, fontSize: 13),
+        ),
         const SizedBox(height: 20),
         for (final u in _todosUsuarios) ...[
           _perfilTile(u),
@@ -402,12 +518,21 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
   Widget _perfilTile(Map<String, dynamic> u) {
     final nome = u['nome'] as String? ?? '';
     final perfil = u['perfil_nome'] as String? ?? 'Aluno';
-    final initials = nome.trim().split(RegExp(r'\s+')).take(2)
-        .map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final initials = nome
+        .trim()
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .join()
+        .toUpperCase();
 
     return GestureDetector(
       onTap: () {
-        setState(() { _usuarioSelecionado = u; _etapa = _Etapa.criaSenha; _erro = null; });
+        setState(() {
+          _usuarioSelecionado = u;
+          _etapa = _Etapa.criaSenha;
+          _erro = null;
+        });
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -416,20 +541,40 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: kBorder),
         ),
-        child: Row(children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: kPrimary,
-            child: Text(initials.isEmpty ? '?' : initials,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(nome, style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700)),
-            Text(perfil, style: TextStyle(color: kText2, fontSize: 12)),
-          ])),
-          Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 16),
-        ]),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: kPrimary,
+              child: Text(
+                initials.isEmpty ? '?' : initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nome,
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(perfil, style: TextStyle(color: kText2, fontSize: 12)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 16),
+          ],
+        ),
       ),
     );
   }
@@ -454,22 +599,41 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
               Icon(Icons.check_circle_outline, color: kSuccess, size: 22),
               const SizedBox(width: 10),
               Expanded(
-                child: Text('Cadastro encontrado! Olá, $nome',
-                    style: TextStyle(color: kSuccess, fontWeight: FontWeight.w600, fontSize: 14)),
+                child: Text(
+                  'Cadastro encontrado! Olá, $nome',
+                  style: TextStyle(
+                    color: kSuccess,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-        Text('Crie sua senha',
-            style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text(
+          'Crie sua senha',
+          style: TextStyle(
+            color: kText1,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'Defina a senha que você usará para acessar o aplicativo.',
           style: TextStyle(color: kText2, fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 28),
-        Text('Nova senha', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          'Nova senha',
+          style: TextStyle(
+            color: kText2,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _senhaCtrl,
@@ -480,19 +644,44 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
             hintStyle: TextStyle(color: kText2),
             prefixIcon: Icon(Icons.lock_outline, color: kText2, size: 20),
             suffixIcon: IconButton(
-              icon: Icon(_senhaVisivel ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: kText2, size: 20),
+              icon: Icon(
+                _senhaVisivel
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: kText2,
+                size: 20,
+              ),
               onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
             ),
             filled: true,
             fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kPrimary),
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        Text('Confirmar senha', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          'Confirmar senha',
+          style: TextStyle(
+            color: kText2,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _confirmCtrl,
@@ -504,32 +693,60 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
             hintStyle: TextStyle(color: kText2),
             prefixIcon: Icon(Icons.lock_outline, color: kText2, size: 20),
             suffixIcon: IconButton(
-              icon: Icon(_confirmVisivel ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: kText2, size: 20),
-              onPressed: () => setState(() => _confirmVisivel = !_confirmVisivel),
+              icon: Icon(
+                _confirmVisivel
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: kText2,
+                size: 20,
+              ),
+              onPressed: () =>
+                  setState(() => _confirmVisivel = !_confirmVisivel),
             ),
             filled: true,
             fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kPrimary),
+            ),
           ),
         ),
-        if (_erro != null) ...[
-          const SizedBox(height: 16),
-          _erroWidget(_erro!),
-        ],
+        if (_erro != null) ...[const SizedBox(height: 16), _erroWidget(_erro!)],
         const SizedBox(height: 28),
         FilledButton(
           onPressed: _loading ? null : _criarConta,
           style: FilledButton.styleFrom(
             backgroundColor: kPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _loading
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Criar senha e entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  'Criar senha e entrar',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
         ),
       ],
     );
@@ -546,14 +763,23 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
         Center(
           child: Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: kSuccess.withValues(alpha: 0.12), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: kSuccess.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
             child: Icon(Icons.check_circle_outline, color: kSuccess, size: 52),
           ),
         ),
         const SizedBox(height: 28),
-        Text('Tudo certo, $nome!',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text(
+          'Tudo certo, $nome!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: kText1,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 12),
         Text(
           'Sua senha foi criada com sucesso. Agora você já pode acessar o app.',
@@ -566,9 +792,14 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
           style: FilledButton.styleFrom(
             backgroundColor: kPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: const Text('Entrar agora', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          child: const Text(
+            'Entrar agora',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );

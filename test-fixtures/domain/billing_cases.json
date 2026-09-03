@@ -1,0 +1,42 @@
+[
+  {
+    "name": "pendente antes do vencimento",
+    "dueDate": "2026-09-10",
+    "today": "2026-09-01",
+    "paid": false,
+    "disregarded": false,
+    "expected": "pending"
+  },
+  {
+    "name": "pendente no dia do vencimento",
+    "dueDate": "2026-09-10",
+    "today": "2026-09-10",
+    "paid": false,
+    "disregarded": false,
+    "expected": "pending"
+  },
+  {
+    "name": "atrasada depois do vencimento",
+    "dueDate": "2026-09-10",
+    "today": "2026-09-11",
+    "paid": false,
+    "disregarded": false,
+    "expected": "overdue"
+  },
+  {
+    "name": "paga antecipadamente",
+    "dueDate": "2026-10-10",
+    "today": "2026-09-05",
+    "paid": true,
+    "disregarded": false,
+    "expected": "paid"
+  },
+  {
+    "name": "desconsiderada nao entra em atraso",
+    "dueDate": "2026-08-10",
+    "today": "2026-09-05",
+    "paid": false,
+    "disregarded": true,
+    "expected": "disregarded"
+  }
+]

@@ -6,6 +6,10 @@ import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/permissoes.dart';
+import '../../core/phone_normalizer.dart';
+import '../../core/senha_temporaria_modal.dart';
+
+final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
 
 class AdminEquipeScreen extends StatefulWidget {
   const AdminEquipeScreen({super.key});
@@ -89,6 +93,14 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
   }
 
   Future<void> _editarFuncionario(Map<String, dynamic> f) async {
+    final callerUser = await AuthStorage.getUser();
+    final podeRedefinirSenha =
+        callerUser != null &&
+        (callerUser.perfil == 'Admin' ||
+            callerUser.temPermissao('acesso_redefinir_senha'));
+    final funcTemAcessoAtivo =
+        (f['firebaseUid'] as String?)?.isNotEmpty == true;
+
     final nomeCtrl = TextEditingController(text: f['nome'] as String? ?? '');
     final cargoCtrl = TextEditingController(text: f['cargo'] as String? ?? '');
     final emailCtrl = TextEditingController(text: f['email'] as String? ?? '');
@@ -162,6 +174,9 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
                     ),
+                    validator: (v) => (v != null && v.trim().isNotEmpty && !_emailRegex.hasMatch(v.trim()))
+                        ? 'E-mail inválido'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   // Telefone
@@ -176,7 +191,37 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
                     ),
+                    validator: (v) {
+                      final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                      if (digits.isNotEmpty && digits.length < 10 && PhoneNormalizer.digits(v) == null) {
+                        return 'Telefone inválido';
+                      }
+                      return null;
+                    },
                   ),
+                  if (funcTemAcessoAtivo) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: kWarning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: kWarning, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Este membro já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use "Redefinir senha" se for necessário.',
+                              style: TextStyle(color: kText2, fontSize: 11.5, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   // Cargo
                   TextFormField(
@@ -221,6 +266,32 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                       ]),
                     ),
                   ),
+                  if (podeRedefinirSenha && funcTemAcessoAtivo) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final academiaId = callerUser.academiaId;
+                        if (academiaId == null) return;
+                        await confirmarRedefinicaoSenha(
+                          ctx,
+                          academiaId: academiaId,
+                          colecao: 'funcionarios',
+                          usuarioId: f['id'] as String,
+                          nome: f['nome'] as String? ?? 'este membro',
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kWarning,
+                        side: BorderSide(color: kWarning.withValues(alpha: 0.4)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.vpn_key_rounded, size: 18),
+                      label: const Text('Redefinir senha'),
+                    ),
+                  ],
                   // Permissões (somente professor / secretaria)
                   if (perfil != 'Admin') ...[
                     const SizedBox(height: 20),
@@ -247,7 +318,8 @@ class _AdminEquipeScreenState extends State<AdminEquipeScreen> {
                         final cargoVal = cargoCtrl.text.trim();
                         final emailVal = emailCtrl.text.trim();
                         final telVal = telCtrl.text.trim();
-                        final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
+                        final telDigits = PhoneNormalizer.digits(telVal) ??
+                            telVal.replaceAll(RegExp(r'\D'), '');
                         FocusScope.of(ctx).unfocus();
                         Navigator.of(ctx).pop();
                         try {

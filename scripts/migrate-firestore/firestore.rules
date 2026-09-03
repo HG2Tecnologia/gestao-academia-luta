@@ -11,38 +11,51 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Sessão anônima temporária usada apenas no fluxo de Primeiro Acesso
-    function isAnonymous() {
-      return isAuth() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    function pertenceAcademia(academiaId) {
+      return isAuth() && (
+        userInfo().get('academiaId', '') == academiaId ||
+        userInfo().get('academy_ids', []).hasAny([academiaId])
+      );
     }
 
-    function pertenceAcademia(academiaId) {
-      return isAuth() && userInfo().academiaId == academiaId;
+    function possuiPerfilNaAcademia(academiaId, perfis) {
+      return pertenceAcademia(academiaId) && (
+        (userInfo().get('academiaId', '') == academiaId &&
+         perfis.hasAny([userInfo().get('perfil', '')])) ||
+        userInfo().get('roles_by_academy', {}).get(academiaId, []).hasAny(perfis)
+      );
     }
 
     function isAdminOuSecretaria(academiaId) {
-      return pertenceAcademia(academiaId) &&
-             userInfo().perfil in ['Admin', 'Secretaria'];
+      return possuiPerfilNaAcademia(academiaId, ['Admin', 'Secretaria']);
     }
 
     function isProfessor(academiaId) {
-      return pertenceAcademia(academiaId) && userInfo().perfil == 'Professor';
+      return possuiPerfilNaAcademia(academiaId, ['Professor']);
+    }
+
+    function isSelfRegisteredAcademyAccount(uid) {
+      return request.auth.uid == uid &&
+        request.resource.data.get('schemaVersion', 0) == 2 &&
+        request.resource.data.get('uid', '') == uid &&
+        request.resource.data.get('status', '') == 'active' &&
+        request.resource.data.get('perfil', '') == 'Admin' &&
+        request.resource.data.get('academy_ids', []).size() == 1 &&
+        request.resource.data.get('profile_keys', []).size() == 1 &&
+        request.resource.data.get('roles_by_academy', {})
+          .get(request.resource.data.get('academiaId', ''), []).hasOnly(['Admin']) &&
+        getAfter(/databases/$(database)/documents/academias/$(request.resource.data.get('academiaId', ''))/usuarios/$(request.resource.data.get('usuarioId', '')))
+          .data.get('firebase_uid', '') == uid;
     }
 
     // Lookup Firebase UID → academia
     match /usuariosFirebase/{uid} {
       allow read: if isAuth() && request.auth.uid == uid;
-      // Criação permitida apenas pelo próprio usuário (registro e primeiro acesso).
-      // O doc pode já existir se uma tentativa anterior falhou parcialmente.
-      allow create: if isAuth() && request.auth.uid == uid;
-      // Atualização: o próprio usuário, OU um Admin/Secretaria da MESMA academia
-      // do dono do doc (necessário para manter `perfil` sincronizado quando o
-      // admin promove/edita um funcionário para Admin/Secretaria em
-      // `funcionarios/{id}` — sem isso a troca de perfil nunca surte efeito).
-      allow update: if isAuth() && (
-        request.auth.uid == uid ||
-        isAdminOuSecretaria(resource.data.academiaId)
-      );
+      // Primeiro Acesso e sincronização são feitos por Cloud Functions. A
+      // única criação client-side aceita é o Admin da própria academia que
+      // está sendo criada no mesmo batch.
+      allow create: if isAuth() && isSelfRegisteredAcademyAccount(uid);
+      allow update: if false;
       allow delete: if false;
     }
 
@@ -54,40 +67,34 @@ service cloud.firestore {
 
     // Dados da academia — qualquer membro pode ler; escrita restrita por role
     match /academias/{academiaId} {
-      // isAnonymous: permite listar academias durante Primeiro Acesso
-      allow read: if pertenceAcademia(academiaId) || isAnonymous();
+      allow read: if pertenceAcademia(academiaId);
       allow update: if isAdminOuSecretaria(academiaId);
       allow delete: if false;
-      // Criação permitida durante registro (usuário autenticado ainda sem academia)
-      allow create: if isAuth();
+      allow create: if isAuth() &&
+        request.resource.data.created_by_uid == request.auth.uid;
     }
 
     // Permite criar o primeiro usuário Admin durante o registro da academia
     match /academias/{academiaId}/usuarios/{usuarioId} {
       allow create: if isAuth() &&
         request.resource.data.firebase_uid == request.auth.uid &&
-        request.resource.data.perfil == 0;
-      // isAnonymous: permite busca por telefone/email durante Primeiro Acesso
-      allow read: if pertenceAcademia(academiaId) || isAnonymous();
-      // Admin/secretaria podem atualizar tudo; usuário pode vincular UID (primeiro acesso) e atualizar foto
+        request.resource.data.perfil == 0 &&
+        getAfter(/databases/$(database)/documents/academias/$(academiaId))
+          .data.created_by_uid == request.auth.uid;
+      allow read: if pertenceAcademia(academiaId);
+      // O próprio aluno só altera campos não privilegiados depois que a
+      // Function já confirmou seu vínculo.
       allow update: if isAdminOuSecretaria(academiaId) ||
         (isAuth() &&
-         resource.data.get('firebaseUid', '') in ['', request.auth.uid] &&
-         request.resource.data.firebaseUid == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa', 'fotoBase64', 'atualizado_em', 'faixaPrincipalModalidadeId']));
+         resource.data.get('firebaseUid', resource.data.get('firebase_uid', '')) == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fotoBase64', 'atualizado_em', 'faixaPrincipalModalidadeId']));
       allow delete: if isAdminOuSecretaria(academiaId);
     }
 
-    // Funcionários: anônimos podem ler para Primeiro Acesso (busca por telefone/email)
     match /academias/{academiaId}/funcionarios/{doc} {
-      allow read: if pertenceAcademia(academiaId) || isAnonymous();
+      allow read: if pertenceAcademia(academiaId);
       allow create, delete: if isAdminOuSecretaria(academiaId);
-      // Admin/secretaria podem atualizar tudo; funcionário pode apenas vincular seu UID (primeiro acesso)
-      allow update: if isAdminOuSecretaria(academiaId) ||
-        (isAuth() &&
-         resource.data.get('firebaseUid', '') in ['', request.auth.uid] &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firebaseUid', 'conta_ativa']) &&
-         request.resource.data.firebaseUid == request.auth.uid);
+      allow update: if isAdminOuSecretaria(academiaId);
     }
 
     // Presencas: qualquer membro pode criar (self-checkin) e ler
@@ -132,10 +139,29 @@ service cloud.firestore {
       allow update, delete: if isAdminOuSecretaria(academiaId);
     }
 
+    // Turmas: exclusão é sempre lógica (soft delete) via Cloud Function
+    // `arquivarTurma`, nunca hard delete pelo cliente — preserva presenças,
+    // graduações e horários históricos ligados ao turma_id.
+    match /academias/{academiaId}/turmas/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow create, update: if isAdminOuSecretaria(academiaId);
+      allow delete: if false;
+    }
+
+    // Trilha de auditoria de ações administrativas sensíveis (redefinição de
+    // senha etc.). Só Cloud Functions escrevem, com o Admin SDK — que
+    // ignora estas regras. Cliente nunca escreve; leitura restrita a
+    // Admin/Secretaria da própria academia.
+    match /academias/{academiaId}/auditoria/{doc} {
+      allow read: if isAdminOuSecretaria(academiaId);
+      allow write: if false;
+    }
+
     // Resto: admin/secretaria gerencia tudo; membros leem
     match /academias/{academiaId}/{colecao}/{doc} {
       allow read: if pertenceAcademia(academiaId);
-      allow write: if isAdminOuSecretaria(academiaId) || isProfessor(academiaId);
+      allow write: if !(colecao in ['usuarios', 'funcionarios']) &&
+        (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
     }
 
     // Timer público — leitura aberta (TV sem login); escrita apenas pelo dono

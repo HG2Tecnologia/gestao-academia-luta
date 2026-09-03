@@ -11,7 +11,10 @@ class _PhoneMaskFormatter extends TextInputFormatter {
   static final _onlyDigits = RegExp(r'\D');
 
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue old,
+    TextEditingValue next,
+  ) {
     final raw = next.text.replaceAll(_onlyDigits, '');
     final digits = raw.length > 11 ? raw.substring(0, 11) : raw;
     final buf = StringBuffer();
@@ -23,7 +26,10 @@ class _PhoneMaskFormatter extends TextInputFormatter {
       buf.write(digits[i]);
     }
     final formatted = buf.toString();
-    return next.copyWith(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+    return next.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 }
 
@@ -77,7 +83,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
   Future<void> _cadastrar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _erro = null; });
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
 
     final email = _emailCtrl.text.trim();
     final senha = _senhaCtrl.text;
@@ -105,21 +114,28 @@ class _CadastroScreenState extends State<CadastroScreen> {
         'nome': nomeAcademia,
         'email': email,
         'subdominio': subdominio,
-        if (_telefoneCtrl.text.trim().isNotEmpty) 'telefone': _telefoneCtrl.text.trim(),
+        if (_telefoneCtrl.text.trim().isNotEmpty)
+          'telefone': _telefoneCtrl.text.trim(),
         'ativo': true,
         'plano_tipo': 0,
         'noticias_ativas': false,
+        'created_by_uid': uid,
         'criado_em': FieldValue.serverTimestamp(),
       });
 
       // 3. Criar usuário Admin na subcoleção
-      final usuarioRef = db.collection('academias').doc(academiaId).collection('usuarios').doc();
+      final usuarioRef = db
+          .collection('academias')
+          .doc(academiaId)
+          .collection('usuarios')
+          .doc();
       final usuarioId = usuarioRef.id;
 
       batch.set(usuarioRef, {
         'id': usuarioId,
         'academia_id': academiaId,
         'firebase_uid': uid,
+        'firebaseUid': uid,
         'nome': nome,
         'email': email,
         'perfil': 0, // Admin
@@ -128,17 +144,40 @@ class _CadastroScreenState extends State<CadastroScreen> {
         'xp_total': 0,
         'xp_mensal': 0,
         'nivel': 0,
-        if (_telefoneCtrl.text.trim().isNotEmpty) 'telefone': _telefoneCtrl.text.trim(),
+        if (_telefoneCtrl.text.trim().isNotEmpty)
+          'telefone': _telefoneCtrl.text.trim(),
         'criado_em': FieldValue.serverTimestamp(),
       });
 
       // 4. Documento de lookup Firebase UID → academia
-      batch.set(db.collection('usuariosFirebase').doc(uid), {
+      final profileKey = '$academiaId|usuarios|$usuarioId';
+      final profileRef = {
+        'key': profileKey,
         'academiaId': academiaId,
         'usuarioId': usuarioId,
+        'colecao': 'usuarios',
+        'perfil_nome': 'Admin',
+        'nome': nome,
+      };
+      batch.set(db.collection('usuariosFirebase').doc(uid), {
+        'schemaVersion': 2,
+        'uid': uid,
+        'status': 'active',
+        'primary_profile_key': profileKey,
+        'profile_keys': [profileKey],
+        'profile_refs': [profileRef],
+        'academy_ids': [academiaId],
+        'roles_by_academy': {
+          academiaId: ['Admin'],
+        },
+        'email_canonical': email.toLowerCase(),
+        'academiaId': academiaId,
+        'usuarioId': usuarioId,
+        'colecao': 'usuarios',
         'perfil': 'Admin',
         'nome': nome,
         'email': email,
+        'perfis': [profileRef],
       });
       await batch.commit();
 
@@ -162,7 +201,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
       String msg;
       switch (e.code) {
         case 'email-already-in-use':
-          msg = 'Este e-mail já está cadastrado. Use "Esqueci minha senha" para recuperar o acesso.';
+          msg =
+              'Este e-mail já está cadastrado. Use "Esqueci minha senha" para recuperar o acesso.';
         case 'weak-password':
           msg = 'A senha é muito fraca. Use ao menos 6 caracteres.';
         case 'invalid-email':
@@ -172,12 +212,16 @@ class _CadastroScreenState extends State<CadastroScreen> {
       }
       // Se a conta Firebase foi criada mas o Firestore falhou, exclui a conta Auth
       if (cred != null) {
-        try { await cred.user!.delete(); } catch (_) {}
+        try {
+          await cred.user!.delete();
+        } catch (_) {}
       }
       setState(() => _erro = msg);
     } catch (e) {
       if (cred != null) {
-        try { await cred.user!.delete(); } catch (_) {}
+        try {
+          await cred.user!.delete();
+        } catch (_) {}
       }
       setState(() => _erro = 'Erro inesperado. Tente novamente.');
     } finally {
@@ -198,20 +242,32 @@ class _CadastroScreenState extends State<CadastroScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 12),
-                Row(children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: Icon(Icons.arrow_back, color: kText1),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Criar conta', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
-                ]),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => context.pop(),
+                      icon: Icon(Icons.arrow_back, color: kText1),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Criar uma academia',
+                      style: TextStyle(
+                        color: kText1,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 Padding(
                   padding: const EdgeInsets.only(left: 40),
-                  child: Text('Configure sua academia em minutos', style: TextStyle(color: kText2, fontSize: 13)),
+                  child: Text(
+                    'Configure sua academia em minutos',
+                    style: TextStyle(color: kText2, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(height: 28),
 
@@ -221,7 +277,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   controller: _nomeCtrl,
                   hint: 'Seu nome completo',
                   icon: Icons.person_outline_rounded,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                 ),
                 const SizedBox(height: 10),
                 _field(
@@ -231,7 +288,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   keyboard: TextInputType.emailAddress,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                    if (!RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(v.trim())) return 'E-mail inválido';
+                    if (!RegExp(
+                      r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$',
+                    ).hasMatch(v.trim()))
+                      return 'E-mail inválido';
                     return null;
                   },
                 ),
@@ -251,7 +311,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   controller: _senhaCtrl,
                   hint: 'Crie uma senha',
                   obscure: _obscureSenha,
-                  onToggle: () => setState(() => _obscureSenha = !_obscureSenha),
+                  onToggle: () =>
+                      setState(() => _obscureSenha = !_obscureSenha),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Obrigatório';
                     if (v.length < 6) return 'Mínimo 6 caracteres';
@@ -263,7 +324,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   controller: _confirmarCtrl,
                   hint: 'Confirme a senha',
                   obscure: _obscureConfirmar,
-                  onToggle: () => setState(() => _obscureConfirmar = !_obscureConfirmar),
+                  onToggle: () =>
+                      setState(() => _obscureConfirmar = !_obscureConfirmar),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Obrigatório';
                     if (v != _senhaCtrl.text) return 'As senhas não coincidem';
@@ -278,7 +340,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   controller: _nomeAcademiaCtrl,
                   hint: 'Nome da academia',
                   icon: Icons.sports_martial_arts_rounded,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                   onChanged: (v) {
                     final sub = _gerarSubdominio(v);
                     _subdominioCtrl.text = sub;
@@ -313,7 +376,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
                       color: kDanger.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+                    child: Text(
+                      _erro!,
+                      style: TextStyle(color: kDanger, fontSize: 13),
+                    ),
                   ),
                 ],
 
@@ -323,17 +389,35 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: kPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: _loading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Criar minha academia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Criar minha academia',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: TextButton(
                     onPressed: () => context.pop(),
-                    child: Text('Já tenho conta · Entrar', style: TextStyle(color: kText2, fontSize: 13)),
+                    child: Text(
+                      'Já tenho conta · Entrar',
+                      style: TextStyle(color: kText2, fontSize: 13),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -347,7 +431,12 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
   Widget _label(String text) => Text(
     text,
-    style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+    style: TextStyle(
+      color: kText2,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+    ),
   );
 
   Widget _field({
@@ -358,28 +447,42 @@ class _CadastroScreenState extends State<CadastroScreen> {
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
-  }) =>
-      TextFormField(
-        controller: controller,
-        keyboardType: keyboard,
-        inputFormatters: inputFormatters,
-        validator: validator,
-        onChanged: onChanged,
-        style: TextStyle(color: kText1, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: kText2),
-          prefixIcon: Icon(icon, color: kText2, size: 20),
-          filled: true,
-          fillColor: kSurface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-        ),
-      );
+  }) => TextFormField(
+    controller: controller,
+    keyboardType: keyboard,
+    inputFormatters: inputFormatters,
+    validator: validator,
+    onChanged: onChanged,
+    style: TextStyle(color: kText1, fontSize: 15),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: kText2),
+      prefixIcon: Icon(icon, color: kText2, size: 20),
+      filled: true,
+      fillColor: kSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kPrimary),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kDanger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kDanger),
+      ),
+    ),
+  );
 
   Widget _fieldSenha({
     required TextEditingController controller,
@@ -387,28 +490,46 @@ class _CadastroScreenState extends State<CadastroScreen> {
     required bool obscure,
     required VoidCallback onToggle,
     String? Function(String?)? validator,
-  }) =>
-      TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        validator: validator,
-        style: TextStyle(color: kText1, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: kText2),
-          prefixIcon: Icon(Icons.lock_outline_rounded, color: kText2, size: 20),
-          suffixIcon: IconButton(
-            onPressed: onToggle,
-            icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: kText2, size: 20),
-          ),
-          filled: true,
-          fillColor: kSurface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
+  }) => TextFormField(
+    controller: controller,
+    obscureText: obscure,
+    validator: validator,
+    style: TextStyle(color: kText1, fontSize: 15),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: kText2),
+      prefixIcon: Icon(Icons.lock_outline_rounded, color: kText2, size: 20),
+      suffixIcon: IconButton(
+        onPressed: onToggle,
+        icon: Icon(
+          obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          color: kText2,
+          size: 20,
         ),
-      );
+      ),
+      filled: true,
+      fillColor: kSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kPrimary),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kDanger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: kDanger),
+      ),
+    ),
+  );
 }

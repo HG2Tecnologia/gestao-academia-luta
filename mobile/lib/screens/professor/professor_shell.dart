@@ -243,7 +243,7 @@ class _ProfessorShellState extends State<ProfessorShell>
                           .catchError((_) {})
                           .whenComplete(() {
                             AuthStorage.clear().then((_) {
-                              if (context.mounted) context.go('/login');
+                              if (context.mounted) context.go('/boas-vindas');
                             });
                           });
                     },

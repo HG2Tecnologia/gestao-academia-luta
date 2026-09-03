@@ -7,6 +7,7 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 
@@ -84,6 +85,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
       if (_academiaId!.isEmpty) return;
+
+      // Garantia server-side: nunca gera mensalidade só no cliente. Falha
+      // de rede/permite aqui não trava a tela — só mostra o que já existe.
+      final periodo =
+          '$_ano-${_mes.toString().padLeft(2, '0')}';
+      try {
+        await FinanceService.ensureChargesForPeriod(
+          academiaId: _academiaId!,
+          period: periodo,
+        );
+      } catch (_) {}
 
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
@@ -675,22 +687,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     List<Map<String, dynamic>> turmasList = [];
     List<Map<String, dynamic>> todosAlunos = [];
     List<Map<String, dynamic>> todosPagamentos = [];
-    Map<String, Map<String, dynamic>> planosMap = {};
 
     try {
       final results = await Future.wait([
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getAlunos(_academiaId!, ativosOnly: true),
         firestoreService.getPagamentos(_academiaId!),
-        firestoreService.getPlanos(_academiaId!),
       ]);
       turmasList = List<Map<String, dynamic>>.from(results[0] as List);
       todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
       todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
-      planosMap = {
-        for (final p in (results[3] as List).cast<Map<String, dynamic>>())
-          if ((p['id'] as String? ?? '').isNotEmpty) p['id'] as String: p,
-      };
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1257,33 +1263,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                   setModal(() => stepLoading = true);
                                   try {
                                     if (isGerar) {
-                                      for (final a in previewAlunos) {
-                                        final id = a['id']?.toString() ?? '';
-                                        if (id.isEmpty) continue;
-                                        final planoId =
-                                            (a['plano_id'] ?? a['planoId'])
-                                                ?.toString() ??
-                                            '';
-                                        final plano = planosMap[planoId];
-                                        final valor =
-                                            (plano?['valor_mensal'] as num?)
-                                                ?.toDouble() ??
-                                            0.0;
-                                        final dia =
-                                            a['dia_vencimento'] as int? ?? 10;
-                                        final dataStr =
-                                            '$_ano-${_mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}';
-                                        await firestoreService
-                                            .addPagamento(_academiaId!, {
-                                              'aluno_id': id,
-                                              'nome_aluno':
-                                                  a['nome']?.toString() ?? '',
-                                              'tipo': 'Mensalidade',
-                                              'valor': valor,
-                                              'data_vencimento': dataStr,
-                                              'status': 0,
-                                            });
-                                      }
+                                      // Ferramenta manual/excepcional: usa o
+                                      // mesmo caminho idempotente e
+                                      // server-side da garantia automática —
+                                      // nunca duplica nem sobrescreve
+                                      // cobrança já existente na competência.
+                                      final periodo =
+                                          '$_ano-${_mes.toString().padLeft(2, '0')}';
+                                      await FinanceService.ensureChargesForPeriod(
+                                        academiaId: _academiaId!,
+                                        period: periodo,
+                                      );
                                       _load();
                                     }
                                     successAlunos = previewAlunos;
@@ -2056,10 +2046,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             ],
                           ),
                           IconButton(
-                            onPressed: isAtual ? null : () => _navMes(1),
+                            // Financeiro automático gera a competência atual
+                            // + a próxima (Fase 7) — não faz sentido travar
+                            // a navegação exatamente no mês atual.
+                            onPressed: () => _navMes(1),
                             icon: Icon(
                               Icons.chevron_right,
-                              color: isAtual ? kBorder : kText1,
+                              color: kText1,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),

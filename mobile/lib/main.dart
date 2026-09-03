@@ -9,10 +9,12 @@ import 'core/constants.dart';
 import 'core/push_service.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'screens/auth/entrada_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/primeiro_acesso_screen.dart';
 import 'screens/auth/esqueci_senha_screen.dart';
 import 'screens/auth/cadastro_screen.dart';
+import 'screens/auth/troca_senha_obrigatoria_screen.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/admin/dashboard_screen.dart';
 import 'screens/admin/alunos_screen.dart';
@@ -60,6 +62,12 @@ import 'screens/aluno/aluno_parq_screen.dart';
 
 final routerKey = GlobalKey<NavigatorState>();
 
+/// Extrai o `contexto` ('aluno'/'academia') de um `state.extra` do
+/// GoRouter, usado para manter a tela de login contextualizada ao ir e
+/// voltar entre Primeiro acesso / Esqueci minha senha.
+String? _contextoFrom(Object? extra) =>
+    extra is Map ? extra['contexto'] as String? : null;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -77,15 +85,28 @@ final _router = GoRouter(
       path: '/alterar-senha',
       builder: (_, __) => const AlterarSenhaScreen(),
     ),
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(
+      path: '/boas-vindas',
+      builder: (_, __) => const EntradaScreen(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (_, state) => LoginScreen(contexto: _contextoFrom(state.extra)),
+    ),
     GoRoute(
       path: '/primeiro-acesso',
-      builder: (_, __) => const PrimeiroAcessoScreen(),
+      builder: (_, state) =>
+          PrimeiroAcessoScreen(contexto: _contextoFrom(state.extra)),
     ),
     GoRoute(path: '/cadastrar', builder: (_, __) => const CadastroScreen()),
     GoRoute(
+      path: '/troca-senha-obrigatoria',
+      builder: (_, __) => const TrocaSenhaObrigatoriaScreen(),
+    ),
+    GoRoute(
       path: '/esqueci-senha',
-      builder: (_, __) => const EsqueciSenhaScreen(),
+      builder: (_, state) =>
+          EsqueciSenhaScreen(contexto: _contextoFrom(state.extra)),
     ),
     GoRoute(path: '/scan-qr', builder: (_, __) => const QrScanScreen()),
     GoRoute(path: '/noticias', builder: (_, __) => const NoticiasScreen()),

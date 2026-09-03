@@ -211,9 +211,12 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
     Authorization = [new HangfireAuthorizationFilter()]
 });
 
-// Rodar migrations automaticamente no startup
-using (var scope = app.Services.CreateScope())
+// Rodar migrations automaticamente no startup. Nos testes de integração o
+// WebApplicationFactory substitui o provider depois da montagem do host e a
+// massa sintética é criada pelo próprio ApiFactory.
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }

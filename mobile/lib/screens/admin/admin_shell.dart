@@ -202,7 +202,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                         await FirebaseAuth.instance.signOut();
                       } catch (_) {}
                       await AuthStorage.clear();
-                      if (context.mounted) context.go('/login');
+                      if (context.mounted) context.go('/boas-vindas');
                     },
                   ),
                 ],

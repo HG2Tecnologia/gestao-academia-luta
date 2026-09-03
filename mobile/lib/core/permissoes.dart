@@ -21,6 +21,7 @@ const kPermissoesDefault = {
     'acao_dar_presenca': true,
     'acao_graduar': true,
     'acesso_turmas_todas': false,
+    'acesso_redefinir_senha': false,
   },
 };
 
@@ -34,6 +35,7 @@ const kPermissoesInfo = <String, (String, String)>{
   'acao_dar_presenca':('Registrar Presença',     'Marcar alunos como presentes'),
   'acao_graduar':    ('Graduar Alunos',          'Promover alunos para nova faixa'),
   'acesso_turmas_todas': ('Ver todas as turmas', 'Além das próprias, ver e acompanhar todas as turmas da academia (como um admin)'),
+  'acesso_redefinir_senha': ('Redefinir senha de outros', 'Gerar uma senha temporária para alunos ou equipe que perderam o acesso'),
 };
 
 Map<String, bool> permissoesParaPerfil(String perfil) {

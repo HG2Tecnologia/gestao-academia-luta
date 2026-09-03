@@ -4,7 +4,9 @@
   "description": "Migra dados do Neon PostgreSQL para Firebase Firestore",
   "main": "migrate.js",
   "scripts": {
-    "migrate": "node migrate.js"
+    "migrate": "node migrate.js",
+    "backfill:accounts": "node backfill-auth-accounts-v2.js",
+    "backfill:accounts:apply": "node backfill-auth-accounts-v2.js --apply"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

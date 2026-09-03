@@ -118,7 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Verifica estado de autenticação do Firebase
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) {
-      if (mounted) context.go('/login');
+      if (mounted) context.go('/boas-vindas');
       return;
     }
 
@@ -155,6 +155,7 @@ class _SplashScreenState extends State<SplashScreen>
               academiaId: userData['academiaId'] as String?,
               permissoes: permissoes,
               perfis: perfisLista,
+              mustChangePassword: userData['must_change_password'] == true,
             ),
           );
           user = await AuthStorage.getUser();
@@ -163,6 +164,12 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     if (!mounted) return;
+    // Uma redefinição administrativa de senha bloqueia a navegação normal
+    // até a pessoa trocar pela senha definitiva dela.
+    if (user?.mustChangePassword == true) {
+      context.go('/troca-senha-obrigatoria');
+      return;
+    }
     if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
       await PlanService.instance.load();
       if (mounted && PlanService.instance.showAds) {
@@ -182,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
       case 'Aluno':
         context.go('/aluno/perfil');
       default:
-        context.go('/login');
+        context.go('/boas-vindas');
     }
   }
 

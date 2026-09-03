@@ -47,7 +47,7 @@ class _ProfGraduacaoScreenState extends State<ProfGraduacaoScreen> {
       _academiaId = user.academiaId;
       _profId = user.id;
       final list = await firestoreService.getTurmas(user.academiaId!, professorId: user.id);
-      if (mounted) setState(() => _turmas = list);
+      if (mounted) setState(() => _turmas = list.where((t) => t['deleted_at'] == null).toList());
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }

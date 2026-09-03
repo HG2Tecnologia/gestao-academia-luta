@@ -1,6 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using AcademiaFight.Domain.Entities;
+using AcademiaFight.Domain.Enums;
+using AcademiaFight.Infrastructure.Data;
 using AcademiaFight.Tests.Setup;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace AcademiaFight.Tests.Auth;
@@ -69,6 +74,70 @@ public class AuthTests
         });
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Caracterizacao_DuasIrmasMesmoTelefone_LoginValidaApenasUmDosPerfis()
+    {
+        var telefone = $"(21) 9{Random.Shared.Next(1000, 9999)}-{Random.Shared.Next(1000, 9999)}";
+        const string senhaA = "SenhaIrmaA123";
+        const string senhaB = "SenhaIrmaB456";
+
+        var irmaA = new Usuario
+        {
+            AcademiaId = ApiFactory.AcademiaId,
+            Nome = "Irmã A Fixture",
+            Telefone = telefone,
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword(senhaA, workFactor: 4),
+            Perfil = PerfilUsuario.Aluno,
+            Ativo = true,
+        };
+        var irmaB = new Usuario
+        {
+            AcademiaId = ApiFactory.AcademiaId,
+            Nome = "Irmã B Fixture",
+            Telefone = telefone,
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword(senhaB, workFactor: 4),
+            Perfil = PerfilUsuario.Aluno,
+            Ativo = true,
+        };
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Usuarios.AddRange(irmaA, irmaB);
+            await db.SaveChangesAsync();
+        }
+
+        try
+        {
+            var responseA = await _anonClient.PostAsJsonAsync("/api/auth/login", new
+            {
+                emailOuTelefone = telefone,
+                senha = senhaA,
+            });
+            var responseB = await _anonClient.PostAsJsonAsync("/api/auth/login", new
+            {
+                emailOuTelefone = telefone,
+                senha = senhaB,
+            });
+
+            var statuses = new[] { responseA.StatusCode, responseB.StatusCode };
+            Assert.Single(statuses, status => status == HttpStatusCode.OK);
+            Assert.Single(statuses, status => status == HttpStatusCode.Unauthorized);
+        }
+        finally
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var fixtures = await db.Usuarios
+                .IgnoreQueryFilters()
+                .Where(usuario => usuario.Telefone == telefone
+                    && (usuario.Nome == "Irmã A Fixture" || usuario.Nome == "Irmã B Fixture"))
+                .ToListAsync();
+            db.Usuarios.RemoveRange(fixtures);
+            await db.SaveChangesAsync();
+        }
     }
 
     // ── Alterar Senha ──────────────────────────────────────────────────────

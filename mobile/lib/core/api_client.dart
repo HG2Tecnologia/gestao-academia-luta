@@ -28,7 +28,7 @@ void setupDio() {
           if (refreshToken == null) {
             await AuthStorage.clear();
             final ctx = routerKey.currentContext;
-            if (ctx != null) ctx.go('/login');
+            if (ctx != null) ctx.go('/boas-vindas');
             return;
           }
 
@@ -57,7 +57,7 @@ void setupDio() {
 
           await AuthStorage.clear();
           final ctx = routerKey.currentContext;
-          if (ctx != null) ctx.go('/login');
+          if (ctx != null) ctx.go('/boas-vindas');
           return;
         }
         handler.next(error);

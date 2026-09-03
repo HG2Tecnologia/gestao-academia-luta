@@ -76,17 +76,28 @@ class FirestoreService {
       } catch (_) {}
     }
 
+    // Schema v2: os vínculos foram validados e persistidos server-side.
+    var perfis = <Map<String, dynamic>>[];
+    final schemaVersion = data['schemaVersion'] as int? ?? 1;
+    final rawProfileRefs = data['profile_refs'];
+    if (schemaVersion >= 2 && rawProfileRefs is List) {
+      perfis = rawProfileRefs
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+
+    // Compatibilidade com contas v1 durante a janela de rollout. Contas v2
+    // nunca inferem autorização no cliente a partir de telefone/e-mail.
     // Recalcula o multi-perfil dinamicamente a cada login/sessão em vez de
     // confiar só no array `perfis` congelado na ativação da conta — assim um
     // vínculo criado DEPOIS (ex: Professor que passou a ser também Aluno em
     // outra modalidade) aparece no seletor sem precisar reativar a conta.
-    var perfis = <Map<String, dynamic>>[];
     var buscaDinamicaConcluida = false;
     final chavesBusca = <String>{
       if (telefoneBusca != null && telefoneBusca.isNotEmpty) telefoneBusca,
       if (emailBusca != null && emailBusca.isNotEmpty) emailBusca,
     };
-    if (chavesBusca.isNotEmpty && academiaId != null) {
+    if (schemaVersion < 2 && chavesBusca.isNotEmpty && academiaId != null) {
       try {
         final encontradosPorId = <String, Map<String, dynamic>>{};
         for (final chave in chavesBusca) {
@@ -95,8 +106,7 @@ class FirestoreService {
             chave,
           );
           for (final encontrado in encontrados) {
-            final id =
-                '${encontrado['_colecao']}:${encontrado['usuarioId']}';
+            final id = '${encontrado['_colecao']}:${encontrado['usuarioId']}';
             encontradosPorId[id] = encontrado;
           }
         }
@@ -116,7 +126,7 @@ class FirestoreService {
         }
       } catch (_) {}
     }
-    if (perfis.isEmpty && !buscaDinamicaConcluida) {
+    if (schemaVersion < 2 && perfis.isEmpty && !buscaDinamicaConcluida) {
       final rawPerfis = data['perfis'];
       if (rawPerfis is List) {
         perfis = rawPerfis
@@ -280,76 +290,6 @@ class FirestoreService {
     return null;
   }
 
-  /// Vincula um Firebase UID ao usuário do Firestore e cria entrada em usuariosFirebase.
-  /// [dadosUsuario] deve conter '_colecao' ('funcionarios' ou 'usuarios') e 'perfil_nome'.
-  /// [outrosPerfis] são os demais perfis com o mesmo e-mail (grupo familiar de alunos).
-  Future<void> ativarContaUsuario({
-    required String firebaseUid,
-    required String academiaId,
-    required String usuarioId,
-    required Map<String, dynamic> dadosUsuario,
-    List<Map<String, dynamic>>? outrosPerfis,
-  }) async {
-    final colecao = dadosUsuario['_colecao'] as String? ?? 'usuarios';
-    final perfilNome = dadosUsuario['perfil_nome'] as String? ?? 'Aluno';
-
-    // Monta lista de todos os perfis (grupo familiar e/ou multi-perfil, ex:
-    // Professor que também é Aluno em outra modalidade). `perfil_nome` é
-    // essencial aqui: é o que permite trocar de perfil no login e navegar/
-    // aplicar permissões corretas para o perfil escolhido, não o original.
-    final todosPerfis = [
-      {
-        'usuarioId': usuarioId,
-        'nome': dadosUsuario['nome'] ?? '',
-        'colecao': colecao,
-        'academiaId': academiaId,
-        'perfil_nome': perfilNome,
-      },
-      if (outrosPerfis != null)
-        for (final p in outrosPerfis)
-          {
-            'usuarioId': p['usuarioId'] ?? p['id'],
-            'nome': p['nome'] ?? '',
-            'colecao': p['_colecao'] ?? 'usuarios',
-            'academiaId': p['academiaId'] ?? academiaId,
-            'perfil_nome': p['perfil_nome'] ?? 'Aluno',
-          },
-    ];
-
-    // Cria lookup e vínculos juntos, sem janela de autorização parcial.
-    final batch = _db.batch();
-    batch.set(_db.collection('usuariosFirebase').doc(firebaseUid), {
-      'academiaId': academiaId,
-      'usuarioId': usuarioId,
-      'colecao': colecao,
-      'perfil': perfilNome,
-      'nome': dadosUsuario['nome'] ?? '',
-      'email': dadosUsuario['email'] ?? '',
-      if (todosPerfis.length > 1) 'perfis': todosPerfis,
-    });
-
-    batch.update(_doc(academiaId, colecao, usuarioId), {
-      'firebaseUid': firebaseUid,
-      'conta_ativa': true,
-    });
-
-    // Vincula também os demais perfis do grupo familiar
-    if (outrosPerfis != null) {
-      for (final p in outrosPerfis) {
-        final pCol = p['_colecao'] as String? ?? 'usuarios';
-        final pAcad = p['academiaId'] as String? ?? academiaId;
-        final pId = (p['usuarioId'] ?? p['id']) as String?;
-        if (pId != null) {
-          batch.update(_doc(pAcad, pCol, pId), {
-            'firebaseUid': firebaseUid,
-            'conta_ativa': true,
-          });
-        }
-      }
-    }
-    await batch.commit();
-  }
-
   // ─── ACADEMIA ──────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>?> getAcademia(String academiaId) async {
@@ -462,10 +402,11 @@ class FirestoreService {
       normalizado['telefone'] = telefone;
       normalizado['telefone_digits'] = telefone.replaceAll(RegExp(r'\D'), '');
     }
-    await _doc(academiaId, 'usuarios', id).update({
-      ...normalizado,
-      'atualizado_em': FieldValue.serverTimestamp(),
-    });
+    await _doc(
+      academiaId,
+      'usuarios',
+      id,
+    ).update({...normalizado, 'atualizado_em': FieldValue.serverTimestamp()});
   }
 
   Future<List<Map<String, dynamic>>> getAniversariantes(
@@ -529,43 +470,8 @@ class FirestoreService {
   ) async {
     final ref = _doc(academiaId, 'funcionarios', id);
     await ref.update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
-
-    // O campo que realmente autoriza (Security Rules) e roteia o login é
-    // `usuariosFirebase/{uid}.perfil`, não `funcionarios/{id}.perfil`. Sem
-    // sincronizar aqui, trocar o perfil de um funcionário para Admin/Secretaria
-    // não tem efeito nenhum — nem depois de deslogar e logar de novo.
-    final novoPerfil = data['perfil'] as String?;
-    if (novoPerfil == null) return;
-    try {
-      final snap = await ref.get();
-      final firebaseUid =
-          (snap.data() as Map<String, dynamic>?)?['firebaseUid'] as String?;
-      if (firebaseUid == null || firebaseUid.isEmpty) return;
-
-      final ufRef = _db.collection('usuariosFirebase').doc(firebaseUid);
-      final ufSnap = await ufRef.get();
-      if (!ufSnap.exists) return;
-      final ufData = ufSnap.data() as Map<String, dynamic>;
-      final updates = <String, dynamic>{};
-
-      if (ufData['usuarioId'] == id && ufData['colecao'] == 'funcionarios') {
-        updates['perfil'] = novoPerfil;
-      }
-      final perfis = ufData['perfis'];
-      if (perfis is List) {
-        updates['perfis'] = perfis.map((p) {
-          final m = Map<String, dynamic>.from(p as Map);
-          if (m['usuarioId'] == id && m['colecao'] == 'funcionarios') {
-            m['perfil_nome'] = novoPerfil;
-          }
-          return m;
-        }).toList();
-      }
-      if (updates.isNotEmpty) await ufRef.update(updates);
-    } catch (_) {
-      // Se a sincronização falhar, o funcionário pode precisar relogar depois
-      // de corrigido; não deve impedir o salvamento do cadastro em si.
-    }
+    // A conta v2 é recalculada pela refreshAccessAccount no próximo login ou
+    // abertura do app. O cliente nunca altera papéis de autorização no lookup.
   }
 
   Future<void> deleteFuncionario(String academiaId, String id) =>
@@ -741,8 +647,10 @@ class FirestoreService {
     id,
   ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
-  Future<void> deleteTurma(String academiaId, String id) =>
-      _doc(academiaId, 'turmas', id).delete();
+  // Exclusão de turma é sempre lógica (soft delete) via Cloud Function
+  // `arquivarTurma` — ver GraduacaoService/TurmaService equivalente em
+  // `turma_service.dart`. Hard delete client-side foi removido de propósito
+  // (as regras do Firestore também bloqueiam `delete` nesta coleção).
 
   // ─── HORÁRIOS ──────────────────────────────────────────────────────────────
 
