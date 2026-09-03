@@ -7,6 +7,7 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 
@@ -28,14 +29,34 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
   String _busca = '';
   final TextEditingController _buscaCtrl = TextEditingController();
-  String _tabFiltro = 'todos'; // todos | pendente | atrasado | pago | desconsiderado
+  String _tabFiltro =
+      'todos'; // todos | pendente | atrasado | pago | desconsiderado
 
   bool _taxaAtrasoAtiva = false;
   int _taxaAtrasoTipo = 0;
   double _taxaAtrasoValor = 0.0;
 
-  static const _meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto', 4: 'Desconsiderado'};
+  static const _meses = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ];
+  static const _statusMap = {
+    0: 'Pendente',
+    1: 'Pago',
+    2: 'Atrasado',
+    3: 'Previsto',
+    4: 'Desconsiderado',
+  };
 
   @override
   void initState() {
@@ -65,6 +86,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       _academiaId = user?.academiaId ?? '';
       if (_academiaId!.isEmpty) return;
 
+      // Garantia server-side: nunca gera mensalidade só no cliente. Falha
+      // de rede/permite aqui não trava a tela — só mostra o que já existe.
+      final periodo =
+          '$_ano-${_mes.toString().padLeft(2, '0')}';
+      try {
+        await FinanceService.ensureChargesForPeriod(
+          academiaId: _academiaId!,
+          period: periodo,
+        );
+      } catch (_) {}
+
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
@@ -75,7 +107,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
       _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
-      _taxaAtrasoValor = (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+      _taxaAtrasoValor =
+          (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
 
       final now = DateTime.now();
       final hoje = DateTime(now.year, now.month, now.day);
@@ -98,20 +131,27 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       for (final p in todos) {
         final statusRaw = p['status'];
-        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusInt = statusRaw is int
+            ? statusRaw
+            : int.tryParse(statusRaw.toString()) ?? 0;
         final statusStr = _statusMap[statusInt] ?? 'Pendente';
         if (statusStr == 'Desconsiderado') continue;
         final valorPago = (p['valor_pago'] as num?)?.toDouble();
         final valor = valorPago ?? (p['valor'] as num? ?? 0).toDouble();
         final venc = p['data_vencimento'] as String? ?? '';
         DateTime? vencDt;
-        try { vencDt = DateTime.parse(venc); } catch (_) {}
+        try {
+          vencDt = DateTime.parse(venc);
+        } catch (_) {}
 
         if (statusStr == 'Pago') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) recebido += valor;
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+            recebido += valor;
         } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) pendente += valor;
-          if (vencDt != null && DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+            pendente += valor;
+          if (vencDt != null &&
+              DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
             atrasado += valor;
             final alunoId = p['aluno_id']?.toString() ?? '';
             if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
@@ -122,25 +162,33 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       // Convert status for display; compute effective status (Atrasado if pending+overdue)
       final cobrancasComStatus = doMes.map((p) {
         final statusRaw = p['status'];
-        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusInt = statusRaw is int
+            ? statusRaw
+            : int.tryParse(statusRaw.toString()) ?? 0;
         String statusStr = _statusMap[statusInt] ?? 'Pendente';
         final venc = p['data_vencimento'] as String? ?? '';
         DateTime? vencDt;
-        try { vencDt = DateTime.parse(venc); } catch (_) {}
+        try {
+          vencDt = DateTime.parse(venc);
+        } catch (_) {}
         // Override Pendente → Atrasado if past due date
         if ((statusStr == 'Pendente' || statusStr == 'Previsto') &&
             vencDt != null &&
             DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
           statusStr = 'Atrasado';
         }
-        final rawNome = (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '').toString();
+        final rawNome =
+            (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
+                .toString();
         final rawTipo = p['tipo']?.toString() ?? '';
         return {
           ...p,
           'status': statusStr,
           'nomeAluno': rawNome == 'null' ? '' : rawNome,
           'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
-          'tipo': (rawTipo.isEmpty || rawTipo == 'null') ? 'Mensalidade' : rawTipo,
+          'tipo': (rawTipo.isEmpty || rawTipo == 'null')
+              ? 'Mensalidade'
+              : rawTipo,
         };
       }).toList();
 
@@ -155,7 +203,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
         });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -167,11 +216,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (busca.isNotEmpty && !nome.contains(busca)) return false;
       final status = c['status'] as String? ?? '';
       switch (_tabFiltro) {
-        case 'pendente': return status == 'Pendente';
-        case 'atrasado': return status == 'Atrasado';
-        case 'pago': return status == 'Pago';
-        case 'desconsiderado': return status == 'Desconsiderado';
-        default: return status != 'Desconsiderado'; // "todos" oculta desconsiderados por padrão
+        case 'pendente':
+          return status == 'Pendente';
+        case 'atrasado':
+          return status == 'Atrasado';
+        case 'pago':
+          return status == 'Pago';
+        case 'desconsiderado':
+          return status == 'Desconsiderado';
+        default:
+          return status !=
+              'Desconsiderado'; // "todos" oculta desconsiderados por padrão
       }
     }).toList();
   }
@@ -179,8 +234,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   void _navMes(int delta) {
     setState(() {
       _mes += delta;
-      if (_mes > 12) { _mes = 1; _ano++; }
-      if (_mes < 1) { _mes = 12; _ano--; }
+      if (_mes > 12) {
+        _mes = 1;
+        _ano++;
+      }
+      if (_mes < 1) {
+        _mes = 12;
+        _ano--;
+      }
     });
     _load();
   }
@@ -217,47 +278,112 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            20,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 32,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-              Row(children: [
-                Icon(Icons.add_circle_outline_rounded, color: kPrimary, size: 22),
-                const SizedBox(width: 10),
-                Text('Nova cobrança', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-              ]),
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: kBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: kPrimary,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Nova cobrança',
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
-              Text('Aluno', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                'Aluno',
+                style: TextStyle(
+                  color: kText2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: kBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: kBorder),
+                ),
                 child: DropdownButton<String>(
                   value: alunoId,
                   isExpanded: true,
                   dropdownColor: kSurface,
                   underline: const SizedBox(),
-                  hint: Text('Selecione o aluno', style: TextStyle(color: kText2, fontSize: 13)),
+                  hint: Text(
+                    'Selecione o aluno',
+                    style: TextStyle(color: kText2, fontSize: 13),
+                  ),
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
-                  items: alunos.map((a) => DropdownMenuItem<String>(
-                    value: a['id']?.toString(),
-                    child: Text(a['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 13)),
-                  )).toList(),
+                  items: alunos
+                      .map(
+                        (a) => DropdownMenuItem<String>(
+                          value: a['id']?.toString(),
+                          child: Text(
+                            a['nome']?.toString() ?? '',
+                            style: TextStyle(color: kText1, fontSize: 13),
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => setModal(() => alunoId = v),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Tipo', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                'Tipo',
+                style: TextStyle(
+                  color: kText2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: kBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: kBorder),
+                ),
                 child: DropdownButton<int>(
                   value: tipo,
                   isExpanded: true,
@@ -266,70 +392,129 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
                   items: const [
                     DropdownMenuItem(value: 1, child: Text('Mensalidade')),
-                    DropdownMenuItem(value: 2, child: Text('Taxa de Matrícula')),
+                    DropdownMenuItem(
+                      value: 2,
+                      child: Text('Taxa de Matrícula'),
+                    ),
                   ],
                   onChanged: (v) => setModal(() => tipo = v ?? 1),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Valor (R\$)', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                'Valor (R\$)',
+                style: TextStyle(
+                  color: kText2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: valorCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: TextStyle(color: kText1, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: '0,00',
                   hintStyle: TextStyle(color: kText2),
                   filled: true,
                   fillColor: kBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: kPrimary),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
-              Text('Vencimento', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                'Vencimento',
+                style: TextStyle(
+                  color: kText2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () async {
                   final picked = await showDatePicker(
                     context: ctx,
                     initialDate: vencimento,
-                    firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                    firstDate: DateTime.now().subtract(
+                      const Duration(days: 30),
+                    ),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                     locale: const Locale('pt', 'BR'),
                     builder: (c, child) => Theme(
-                      data: Theme.of(c).copyWith(colorScheme: ColorScheme.dark(primary: kPrimary, surface: kSurface, onSurface: kText1)),
+                      data: Theme.of(c).copyWith(
+                        colorScheme: ColorScheme.dark(
+                          primary: kPrimary,
+                          surface: kSurface,
+                          onSurface: kText1,
+                        ),
+                      ),
                       child: child!,
                     ),
                   );
                   if (picked != null) setModal(() => vencimento = picked);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
-                  child: Row(children: [
-                    Icon(Icons.calendar_today_rounded, color: kText2, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${vencimento.day.toString().padLeft(2,'0')}/${vencimento.month.toString().padLeft(2,'0')}/${vencimento.year}',
-                      style: TextStyle(color: kText1, fontSize: 14),
-                    ),
-                  ]),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        color: kText2,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${vencimento.day.toString().padLeft(2, '0')}/${vencimento.month.toString().padLeft(2, '0')}/${vencimento.year}',
+                        style: TextStyle(color: kText1, fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: alunoId == null ? null : () => Navigator.of(ctx).pop(true),
+                onPressed: alunoId == null
+                    ? null
+                    : () => Navigator.of(ctx).pop(true),
                 style: FilledButton.styleFrom(
                   backgroundColor: kPrimary,
                   minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   disabledBackgroundColor: kPrimary.withOpacity(0.3),
                 ),
-                child: const Text('Gerar cobrança', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                child: const Text(
+                  'Gerar cobrança',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
@@ -338,7 +523,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   foregroundColor: kText2,
                   side: BorderSide(color: kBorder),
                   minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Cancelar'),
               ),
@@ -352,16 +539,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final valorStr = valorCtrl.text.trim().replaceAll(',', '.');
     final valor = double.tryParse(valorStr) ?? 0;
     if (valor <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Informe um valor válido.'),
-        backgroundColor: kDanger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Informe um valor válido.'),
+          backgroundColor: kDanger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
-    final dataStr = '${vencimento.year}-${vencimento.month.toString().padLeft(2,'0')}-${vencimento.day.toString().padLeft(2,'0')}';
+    final dataStr =
+        '${vencimento.year}-${vencimento.month.toString().padLeft(2, '0')}-${vencimento.day.toString().padLeft(2, '0')}';
     // Find aluno name
-    final alunoSel = alunos.firstWhere((a) => a['id']?.toString() == alunoId, orElse: () => {});
+    final alunoSel = alunos.firstWhere(
+      (a) => a['id']?.toString() == alunoId,
+      orElse: () => {},
+    );
     final nomeAluno = alunoSel['nome']?.toString() ?? '';
     final tipoStr = tipo == 1 ? 'Mensalidade' : 'Taxa de Matrícula';
     try {
@@ -379,55 +572,102 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         showModalBottomSheet(
           context: context,
           backgroundColor: kSurface,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           builder: (c) => Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(top: 12, bottom: 16),
-                  decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
-              Container(width: 52, height: 52,
-                  decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), shape: BoxShape.circle),
-                  child: Icon(Icons.check_circle_rounded, color: kSuccess, size: 28)),
-              const SizedBox(height: 12),
-              Text('Cobrança criada!', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text('$nomeAluno · $tipoStr · ${_fmtVal(valor)}',
-                  style: TextStyle(color: kText2, fontSize: 13), textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              if (tel.replaceAll(RegExp(r'\D'), '').length >= 10) ...[
-                FilledButton.icon(
-                  onPressed: () { Navigator.of(c).pop(); _abrirWhatsApp(tel, nomeAluno); },
-                  icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 18),
-                  label: const Text('Cobrar via WhatsApp', style: TextStyle(fontWeight: FontWeight.w700)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 12, bottom: 16),
+                    decoration: BoxDecoration(
+                      color: kBorder,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-              ],
-              OutlinedButton(
-                onPressed: () => Navigator.of(c).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kText2,
-                  side: BorderSide(color: kBorder),
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: kSuccess.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    color: kSuccess,
+                    size: 28,
+                  ),
                 ),
-                child: const Text('Fechar'),
-              ),
-            ]),
+                const SizedBox(height: 12),
+                Text(
+                  'Cobrança criada!',
+                  style: TextStyle(
+                    color: kText1,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$nomeAluno · $tipoStr · ${_fmtVal(valor)}',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                if (tel.replaceAll(RegExp(r'\D'), '').length >= 10) ...[
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(c).pop();
+                      _abrirWhatsApp(tel, nomeAluno);
+                    },
+                    icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 18),
+                    label: const Text(
+                      'Cobrar via WhatsApp',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                OutlinedButton(
+                  onPressed: () => Navigator.of(c).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kText2,
+                    side: BorderSide(color: kBorder),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Fechar'),
+                ),
+              ],
+            ),
           ),
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Erro ao criar cobrança.'),
-        backgroundColor: kDanger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao criar cobrança.'),
+            backgroundColor: kDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
@@ -447,28 +687,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     List<Map<String, dynamic>> turmasList = [];
     List<Map<String, dynamic>> todosAlunos = [];
     List<Map<String, dynamic>> todosPagamentos = [];
-    Map<String, Map<String, dynamic>> planosMap = {};
 
     try {
       final results = await Future.wait([
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getAlunos(_academiaId!, ativosOnly: true),
         firestoreService.getPagamentos(_academiaId!),
-        firestoreService.getPlanos(_academiaId!),
       ]);
       turmasList = List<Map<String, dynamic>>.from(results[0] as List);
       todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
       todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
-      planosMap = {
-        for (final p in (results[3] as List).cast<Map<String, dynamic>>())
-          if ((p['id'] as String? ?? '').isNotEmpty) p['id'] as String: p,
-      };
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Erro ao carregar dados.'),
-        backgroundColor: kDanger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao carregar dados.'),
+            backgroundColor: kDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       return;
     }
     if (!mounted) return;
@@ -478,7 +715,12 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         .where((id) => id.isNotEmpty)
         .toSet();
 
-    const statusPriority = {'Atrasado': 3, 'Pendente': 2, 'Previsto': 1, 'Pago': 0};
+    const statusPriority = {
+      'Atrasado': 3,
+      'Pendente': 2,
+      'Previsto': 1,
+      'Pago': 0,
+    };
     final statusMap = <String, String>{};
     final vencMap = <String, DateTime>{};
     final now = DateTime.now();
@@ -487,18 +729,24 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final alunoId = p['aluno_id']?.toString() ?? '';
       if (alunoId.isEmpty) continue;
       final statusRaw = p['status'];
-      final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+      final statusInt = statusRaw is int
+          ? statusRaw
+          : int.tryParse(statusRaw.toString()) ?? 0;
       final statusStr = _statusMap[statusInt] ?? 'Pendente';
       DateTime? vencDt;
-      try { vencDt = DateTime.parse(p['data_vencimento']?.toString() ?? ''); } catch (_) {}
+      try {
+        vencDt = DateTime.parse(p['data_vencimento']?.toString() ?? '');
+      } catch (_) {}
 
       final prev = statusMap[alunoId];
-      if (prev == null || (statusPriority[statusStr] ?? 0) > (statusPriority[prev] ?? 0)) {
+      if (prev == null ||
+          (statusPriority[statusStr] ?? 0) > (statusPriority[prev] ?? 0)) {
         statusMap[alunoId] = statusStr;
       }
       if (vencDt != null) {
         final existing = vencMap[alunoId];
-        if (existing == null || vencDt.isBefore(existing)) vencMap[alunoId] = vencDt;
+        if (existing == null || vencDt.isBefore(existing))
+          vencMap[alunoId] = vencDt;
       }
     }
 
@@ -513,9 +761,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     List<Map<String, dynamic>> applyFilter(List<Map<String, dynamic>> base) {
       switch (filtro) {
         case 'gerar':
-          return base.where((a) => !alunosComCobrancaMes.contains(a['id']?.toString() ?? '')).toList();
+          return base
+              .where(
+                (a) =>
+                    !alunosComCobrancaMes.contains(a['id']?.toString() ?? ''),
+              )
+              .toList();
         case 'atrasados':
-          return base.where((a) => statusMap[a['id']?.toString() ?? ''] == 'Atrasado').toList();
+          return base
+              .where((a) => statusMap[a['id']?.toString() ?? ''] == 'Atrasado')
+              .toList();
         case 'pendentes':
           return base.where((a) {
             final s = statusMap[a['id']?.toString() ?? ''];
@@ -534,151 +789,337 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     }
 
     final filtroOpcoes = [
-      {'key': 'gerar', 'label': 'Sem cobrança este mês', 'icon': Icons.add_circle_outline_rounded},
+      {
+        'key': 'gerar',
+        'label': 'Sem cobrança este mês',
+        'icon': Icons.add_circle_outline_rounded,
+      },
       {'key': 'atrasados', 'label': 'Atrasados', 'icon': Icons.warning_rounded},
-      {'key': 'pendentes', 'label': 'Pendentes', 'icon': Icons.schedule_rounded},
-      {'key': 'proximo', 'label': 'Venc. em até 7 dias', 'icon': Icons.event_rounded},
+      {
+        'key': 'pendentes',
+        'label': 'Pendentes',
+        'icon': Icons.schedule_rounded,
+      },
+      {
+        'key': 'proximo',
+        'label': 'Venc. em até 7 dias',
+        'icon': Icons.event_rounded,
+      },
     ];
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) {
           final isGerar = filtro == 'gerar';
 
-          final dragHandle = Center(child: Container(
-            width: 36, height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)),
-          ));
+          final dragHandle = Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: kBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
 
           // ── Step 0: escolher modo ─────────────────────
           if (step == 0) {
             return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                dragHandle,
-                Row(children: [
-                  Icon(Icons.receipt_long_rounded, color: kPrimary, size: 22),
-                  const SizedBox(width: 10),
-                  Text('Gerar cobranças', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-                ]),
-                const SizedBox(height: 6),
-                Text('Escolha quem deve ser cobrado:', style: TextStyle(color: kText2, fontSize: 13)),
-                const SizedBox(height: 16),
-                _modeCard(
-                  icon: Icons.group_rounded, title: 'Por turma',
-                  subtitle: 'Cobrar alunos de uma turma específica',
-                  onTap: () => setModal(() { mode = 'turma'; step = 1; }),
-                ),
-                const SizedBox(height: 10),
-                _modeCard(
-                  icon: Icons.groups_rounded, title: 'Todos os ativos',
-                  subtitle: 'Cobrar todos os alunos ativos da academia',
-                  onTap: () => setModal(() { mode = 'todos'; step = 1; }),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder),
-                      minimumSize: const Size.fromHeight(44), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Cancelar'),
-                ),
-              ]),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                0,
+                24,
+                MediaQuery.of(ctx).viewInsets.bottom + 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  dragHandle,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        color: kPrimary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Gerar cobranças',
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Escolha quem deve ser cobrado:',
+                    style: TextStyle(color: kText2, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  _modeCard(
+                    icon: Icons.group_rounded,
+                    title: 'Por turma',
+                    subtitle: 'Cobrar alunos de uma turma específica',
+                    onTap: () => setModal(() {
+                      mode = 'turma';
+                      step = 1;
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  _modeCard(
+                    icon: Icons.groups_rounded,
+                    title: 'Todos os ativos',
+                    subtitle: 'Cobrar todos os alunos ativos da academia',
+                    onTap: () => setModal(() {
+                      mode = 'todos';
+                      step = 1;
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kText2,
+                      side: BorderSide(color: kBorder),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Cancelar'),
+                  ),
+                ],
+              ),
             );
           }
 
           // ── Step 1: turma + filtro ───────────────────
           if (step == 1) {
             return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                dragHandle,
-                Row(children: [
-                  GestureDetector(onTap: () => setModal(() => step = 0), child: Icon(Icons.arrow_back_rounded, color: kText1, size: 20)),
-                  const SizedBox(width: 10),
-                  Text(mode == 'turma' ? 'Por turma' : 'Todos os ativos',
-                      style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-                ]),
-                const SizedBox(height: 16),
-                if (mode == 'turma') ...[
-                  Text('Turma', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                    decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
-                    child: DropdownButton<String>(
-                      value: turmaId, isExpanded: true, dropdownColor: kSurface, underline: const SizedBox(),
-                      hint: Text('Selecione a turma', style: TextStyle(color: kText2, fontSize: 13)),
-                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
-                      items: turmasList.map((t) => DropdownMenuItem<String>(
-                        value: t['id']?.toString(),
-                        child: Text(t['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 13)),
-                      )).toList(),
-                      onChanged: (v) => setModal(() => turmaId = v),
-                    ),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                0,
+                24,
+                MediaQuery.of(ctx).viewInsets.bottom + 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  dragHandle,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => setModal(() => step = 0),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: kText1,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        mode == 'turma' ? 'Por turma' : 'Todos os ativos',
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                ],
-                Text('Filtrar por situação', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Wrap(spacing: 8, runSpacing: 8, children: filtroOpcoes.map((f) {
-                  final sel = filtro == f['key'];
-                  return GestureDetector(
-                    onTap: () => setModal(() => filtro = f['key'] as String),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: sel ? kPrimary : kBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: sel ? kPrimary : kBorder),
+                  if (mode == 'turma') ...[
+                    Text(
+                      'Turma',
+                      style: TextStyle(
+                        color: kText2,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(f['icon'] as IconData, size: 13, color: sel ? Colors.white : kText2),
-                        const SizedBox(width: 5),
-                        Text(f['label'] as String, style: TextStyle(
-                            color: sel ? Colors.white : kText2, fontSize: 12,
-                            fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
-                      ]),
                     ),
-                  );
-                }).toList()),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: (mode == 'turma' && turmaId == null) || stepLoading ? null : () async {
-                    setModal(() => stepLoading = true);
-                    List<Map<String, dynamic>> base = todosAlunos;
-                    if (mode == 'turma' && turmaId != null) {
-                      try {
-                        final matriculas = await firestoreService.getMatriculas(_academiaId!, turmaId: turmaId!, ativasOnly: true);
-                        final ids = matriculas.map((m) => m['aluno_id']?.toString() ?? '').where((id) => id.isNotEmpty).toSet();
-                        base = todosAlunos.where((a) => ids.contains(a['id']?.toString() ?? '')).toList();
-                      } catch (_) { base = []; }
-                    }
-                    final prev = applyFilter(base);
-                    setModal(() { previewAlunos = prev; stepLoading = false; step = 2; });
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kPrimary,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    disabledBackgroundColor: kPrimary.withOpacity(0.3),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: DropdownButton<String>(
+                        value: turmaId,
+                        isExpanded: true,
+                        dropdownColor: kSurface,
+                        underline: const SizedBox(),
+                        hint: Text(
+                          'Selecione a turma',
+                          style: TextStyle(color: kText2, fontSize: 13),
+                        ),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: kText2,
+                        ),
+                        items: turmasList
+                            .map(
+                              (t) => DropdownMenuItem<String>(
+                                value: t['id']?.toString(),
+                                child: Text(
+                                  t['nome']?.toString() ?? '',
+                                  style: TextStyle(color: kText1, fontSize: 13),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setModal(() => turmaId = v),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  Text(
+                    'Filtrar por situação',
+                    style: TextStyle(
+                      color: kText2,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  child: stepLoading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Ver alunos afetados', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => setModal(() => step = 0),
-                  style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder),
-                      minimumSize: const Size.fromHeight(44), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Voltar'),
-                ),
-              ]),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: filtroOpcoes.map((f) {
+                      final sel = filtro == f['key'];
+                      return GestureDetector(
+                        onTap: () =>
+                            setModal(() => filtro = f['key'] as String),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: sel ? kPrimary : kBg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: sel ? kPrimary : kBorder),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                f['icon'] as IconData,
+                                size: 13,
+                                color: sel ? Colors.white : kText2,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                f['label'] as String,
+                                style: TextStyle(
+                                  color: sel ? Colors.white : kText2,
+                                  fontSize: 12,
+                                  fontWeight: sel
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed:
+                        (mode == 'turma' && turmaId == null) || stepLoading
+                        ? null
+                        : () async {
+                            setModal(() => stepLoading = true);
+                            List<Map<String, dynamic>> base = todosAlunos;
+                            if (mode == 'turma' && turmaId != null) {
+                              try {
+                                final matriculas = await firestoreService
+                                    .getMatriculas(
+                                      _academiaId!,
+                                      turmaId: turmaId!,
+                                      ativasOnly: true,
+                                    );
+                                final ids = matriculas
+                                    .map((m) => m['aluno_id']?.toString() ?? '')
+                                    .where((id) => id.isNotEmpty)
+                                    .toSet();
+                                base = todosAlunos
+                                    .where(
+                                      (a) => ids.contains(
+                                        a['id']?.toString() ?? '',
+                                      ),
+                                    )
+                                    .toList();
+                              } catch (_) {
+                                base = [];
+                              }
+                            }
+                            final prev = applyFilter(base);
+                            setModal(() {
+                              previewAlunos = prev;
+                              stepLoading = false;
+                              step = 2;
+                            });
+                          },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kPrimary,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      disabledBackgroundColor: kPrimary.withOpacity(0.3),
+                    ),
+                    child: stepLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Ver alunos afetados',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => setModal(() => step = 0),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kText2,
+                      side: BorderSide(color: kBorder),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Voltar'),
+                  ),
+                ],
+              ),
             );
           }
 
@@ -688,189 +1129,364 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             final actionLabel = isGerar
                 ? 'Gerar $count cobrança${count != 1 ? 's' : ''}'
                 : 'Cobrar via WhatsApp ($count)';
-            return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              dragHandle,
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(children: [
-                  GestureDetector(onTap: () => setModal(() => step = 1), child: Icon(Icons.arrow_back_rounded, color: kText1, size: 20)),
-                  const SizedBox(width: 10),
-                  Text('$count aluno${count != 1 ? 's' : ''} afetado${count != 1 ? 's' : ''}',
-                      style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-                ]),
-              ),
-              const SizedBox(height: 12),
-              if (previewAlunos.isEmpty)
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                dragHandle,
                 Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(children: [
-                    Icon(Icons.check_circle_rounded, color: kSuccess, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Nenhum aluno corresponde a este filtro.',
-                        style: TextStyle(color: kText2, fontSize: 14), textAlign: TextAlign.center),
-                  ]),
-                )
-              else
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: previewAlunos.length,
-                    itemBuilder: (_, i) {
-                      final a = previewAlunos[i];
-                      final nome = a['nome']?.toString() ?? '';
-                      final tel = a['telefone']?.toString() ?? '';
-                      final s = statusMap[a['id']?.toString() ?? ''];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(children: [
-                          CircleAvatar(radius: 14, backgroundColor: kPrimary.withOpacity(0.15),
-                            child: Text(nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                                style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
-                          const SizedBox(width: 10),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                            if (s != null && !isGerar)
-                              Text(s, style: TextStyle(color: _statusCor(s), fontSize: 11)),
-                          ])),
-                          if (!isGerar && tel.replaceAll(RegExp(r'\D'), '').length >= 10)
-                            const FaIcon(FontAwesomeIcons.whatsapp, color: Color(0xFF25D366), size: 16),
-                        ]),
-                      );
-                    },
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => setModal(() => step = 1),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: kText1,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '$count aluno${count != 1 ? 's' : ''} afetado${count != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-                child: Column(children: [
-                  if (previewAlunos.isNotEmpty)
-                    FilledButton(
-                      onPressed: stepLoading ? null : () async {
-                        setModal(() => stepLoading = true);
-                        try {
-                          if (isGerar) {
-                            for (final a in previewAlunos) {
-                              final id = a['id']?.toString() ?? '';
-                              if (id.isEmpty) continue;
-                              final planoId = (a['plano_id'] ?? a['planoId'])?.toString() ?? '';
-                              final plano = planosMap[planoId];
-                              final valor = (plano?['valor_mensal'] as num?)?.toDouble() ?? 0.0;
-                              final dia = a['dia_vencimento'] as int? ?? 10;
-                              final dataStr = '$_ano-${_mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}';
-                              await firestoreService.addPagamento(_academiaId!, {
-                                'aluno_id': id,
-                                'nome_aluno': a['nome']?.toString() ?? '',
-                                'tipo': 'Mensalidade',
-                                'valor': valor,
-                                'data_vencimento': dataStr,
-                                'status': 0,
-                              });
-                            }
-                            _load();
-                          }
-                          successAlunos = previewAlunos;
-                          setModal(() { stepLoading = false; step = 3; });
-                        } catch (_) {
-                          setModal(() => stepLoading = false);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text('Erro ao processar cobranças.'),
-                            backgroundColor: kDanger,
-                            behavior: SnackBarBehavior.floating,
-                          ));
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: isGerar ? kPrimary : const Color(0xFF25D366),
-                        minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: stepLoading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 12),
+                if (previewAlunos.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: kSuccess,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nenhum aluno corresponde a este filtro.',
+                          style: TextStyle(color: kText2, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => setModal(() { step = 1; stepLoading = false; }),
-                    style: OutlinedButton.styleFrom(foregroundColor: kText2, side: BorderSide(color: kBorder),
-                        minimumSize: const Size.fromHeight(44), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: const Text('Voltar'),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.35,
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount: previewAlunos.length,
+                      itemBuilder: (_, i) {
+                        final a = previewAlunos[i];
+                        final nome = a['nome']?.toString() ?? '';
+                        final tel = a['telefone']?.toString() ?? '';
+                        final s = statusMap[a['id']?.toString() ?? ''];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: kPrimary.withOpacity(0.15),
+                                child: Text(
+                                  nome.isNotEmpty ? nome[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nome,
+                                      style: TextStyle(
+                                        color: kText1,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (s != null && !isGerar)
+                                      Text(
+                                        s,
+                                        style: TextStyle(
+                                          color: _statusCor(s),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (!isGerar &&
+                                  tel.replaceAll(RegExp(r'\D'), '').length >=
+                                      10)
+                                const FaIcon(
+                                  FontAwesomeIcons.whatsapp,
+                                  color: Color(0xFF25D366),
+                                  size: 16,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ]),
-              ),
-            ]);
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    12,
+                    24,
+                    MediaQuery.of(ctx).viewInsets.bottom + 32,
+                  ),
+                  child: Column(
+                    children: [
+                      if (previewAlunos.isNotEmpty)
+                        FilledButton(
+                          onPressed: stepLoading
+                              ? null
+                              : () async {
+                                  setModal(() => stepLoading = true);
+                                  try {
+                                    if (isGerar) {
+                                      // Ferramenta manual/excepcional: usa o
+                                      // mesmo caminho idempotente e
+                                      // server-side da garantia automática —
+                                      // nunca duplica nem sobrescreve
+                                      // cobrança já existente na competência.
+                                      final periodo =
+                                          '$_ano-${_mes.toString().padLeft(2, '0')}';
+                                      await FinanceService.ensureChargesForPeriod(
+                                        academiaId: _academiaId!,
+                                        period: periodo,
+                                      );
+                                      _load();
+                                    }
+                                    successAlunos = previewAlunos;
+                                    setModal(() {
+                                      stepLoading = false;
+                                      step = 3;
+                                    });
+                                  } catch (_) {
+                                    setModal(() => stepLoading = false);
+                                    if (mounted)
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: const Text(
+                                            'Erro ao processar cobranças.',
+                                          ),
+                                          backgroundColor: kDanger,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                  }
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: isGerar
+                                ? kPrimary
+                                : const Color(0xFF25D366),
+                            minimumSize: const Size.fromHeight(50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: stepLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  actionLabel,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        onPressed: () => setModal(() {
+                          step = 1;
+                          stepLoading = false;
+                        }),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: kText2,
+                          side: BorderSide(color: kBorder),
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Voltar'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
           }
 
           // ── Step 3: sucesso + WhatsApp ───────────────
           return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              dragHandle,
-              Center(child: Column(children: [
-                Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(
-                    color: (isGerar ? kSuccess : const Color(0xFF25D366)).withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: isGerar
-                      ? Icon(Icons.check_circle_rounded, color: kSuccess, size: 32)
-                      : const FaIcon(FontAwesomeIcons.whatsapp, color: Color(0xFF25D366), size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isGerar
-                      ? '${successAlunos.length} cobrança${successAlunos.length != 1 ? 's' : ''} gerada${successAlunos.length != 1 ? 's' : ''}!'
-                      : 'Pronto para cobrar via WhatsApp!',
-                  style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Toque em cada aluno para abrir o WhatsApp com uma mensagem pronta.',
-                  style: TextStyle(color: kText2, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ])),
-              const SizedBox(height: 16),
-              ...successAlunos.map((a) {
-                final nome = a['nome']?.toString() ?? '';
-                final tel = a['telefone']?.toString() ?? '';
-                final hasTel = tel.replaceAll(RegExp(r'\D'), '').length >= 10;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
-                    onTap: hasTel ? () => _abrirWhatsApp(tel, nome) : null,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: hasTel ? const Color(0xFF25D366).withOpacity(0.08) : kBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: hasTel ? const Color(0xFF25D366).withOpacity(0.3) : kBorder),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              0,
+              24,
+              MediaQuery.of(ctx).viewInsets.bottom + 32,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                dragHandle,
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: (isGerar ? kSuccess : const Color(0xFF25D366))
+                              .withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: isGerar
+                            ? Icon(
+                                Icons.check_circle_rounded,
+                                color: kSuccess,
+                                size: 32,
+                              )
+                            : const FaIcon(
+                                FontAwesomeIcons.whatsapp,
+                                color: Color(0xFF25D366),
+                                size: 32,
+                              ),
                       ),
-                      child: Row(children: [
-                        CircleAvatar(radius: 14, backgroundColor: kPrimary.withOpacity(0.15),
-                          child: Text(nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                              style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
-                        if (hasTel)
-                          Icon(Icons.chat_rounded, color: const Color(0xFF25D366), size: 20)
-                        else
-                          Text('Sem telefone', style: TextStyle(color: kText2, fontSize: 11)),
-                      ]),
+                      const SizedBox(height: 12),
+                      Text(
+                        isGerar
+                            ? '${successAlunos.length} cobrança${successAlunos.length != 1 ? 's' : ''} gerada${successAlunos.length != 1 ? 's' : ''}!'
+                            : 'Pronto para cobrar via WhatsApp!',
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Toque em cada aluno para abrir o WhatsApp com uma mensagem pronta.',
+                        style: TextStyle(color: kText2, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...successAlunos.map((a) {
+                  final nome = a['nome']?.toString() ?? '';
+                  final tel = a['telefone']?.toString() ?? '';
+                  final hasTel = tel.replaceAll(RegExp(r'\D'), '').length >= 10;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: GestureDetector(
+                      onTap: hasTel ? () => _abrirWhatsApp(tel, nome) : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: hasTel
+                              ? const Color(0xFF25D366).withOpacity(0.08)
+                              : kBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: hasTel
+                                ? const Color(0xFF25D366).withOpacity(0.3)
+                                : kBorder,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: kPrimary.withOpacity(0.15),
+                              child: Text(
+                                nome.isNotEmpty ? nome[0].toUpperCase() : '?',
+                                style: TextStyle(
+                                  color: kPrimary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                nome,
+                                style: TextStyle(
+                                  color: kText1,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (hasTel)
+                              Icon(
+                                Icons.chat_rounded,
+                                color: const Color(0xFF25D366),
+                                size: 20,
+                              )
+                            else
+                              Text(
+                                'Sem telefone',
+                                style: TextStyle(color: kText2, fontSize: 11),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kPrimary,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                );
-              }),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                style: FilledButton.styleFrom(backgroundColor: kPrimary,
-                    minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('Fechar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              ),
-            ]),
+                  child: const Text(
+                    'Fechar',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -884,40 +1500,95 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setM) {
-          double desconto = double.tryParse(descontoCtrl.text.replaceAll(',', '.')) ?? 0.0;
+          double desconto =
+              double.tryParse(descontoCtrl.text.replaceAll(',', '.')) ?? 0.0;
           final valorPago = (valorBase - desconto).clamp(0.0, double.infinity);
           return Padding(
-            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              20,
+              24,
+              MediaQuery.of(ctx).viewInsets.bottom + 32,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
-                Text('Marcar como pago', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: kBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  'Marcar como pago',
+                  style: TextStyle(
+                    color: kText1,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text('${c['nomeAluno']} · ${c['tipo']}', style: TextStyle(color: kText2, fontSize: 13)),
+                Text(
+                  '${c['nomeAluno']} · ${c['tipo']}',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                ),
                 const SizedBox(height: 12),
-                Row(children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Valor base', style: TextStyle(color: kText2, fontSize: 11)),
-                    Text(_fmtVal(valorBase), style: TextStyle(color: kText1, fontSize: 18, fontWeight: FontWeight.w800)),
-                  ]),
-                  if (desconto > 0) ...[
-                    const SizedBox(width: 24),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('A receber', style: TextStyle(color: kText2, fontSize: 11)),
-                      Text(_fmtVal(valorPago), style: TextStyle(color: kSuccess, fontSize: 18, fontWeight: FontWeight.w800)),
-                    ]),
+                Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Valor base',
+                          style: TextStyle(color: kText2, fontSize: 11),
+                        ),
+                        Text(
+                          _fmtVal(valorBase),
+                          style: TextStyle(
+                            color: kText1,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (desconto > 0) ...[
+                      const SizedBox(width: 24),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'A receber',
+                            style: TextStyle(color: kText2, fontSize: 11),
+                          ),
+                          Text(
+                            _fmtVal(valorPago),
+                            style: TextStyle(
+                              color: kSuccess,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ]),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: descontoCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: TextStyle(color: kText1),
                   onChanged: (_) => setM(() {}),
                   decoration: InputDecoration(
@@ -927,21 +1598,40 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     prefixStyle: TextStyle(color: kText2),
                     filled: true,
                     fillColor: kBg,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: kBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: kBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: kPrimary),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop({'desconto': desconto, 'valorPago': valorPago}),
+                  onPressed: () => Navigator.of(
+                    ctx,
+                  ).pop({'desconto': desconto, 'valorPago': valorPago}),
                   style: FilledButton.styleFrom(
                     backgroundColor: kSuccess,
                     minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Confirmar pagamento', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  child: const Text(
+                    'Confirmar pagamento',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
@@ -950,7 +1640,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     foregroundColor: kText2,
                     side: BorderSide(color: kBorder),
                     minimumSize: const Size.fromHeight(44),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Cancelar'),
                 ),
@@ -964,7 +1656,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (result == null || !mounted || _academiaId == null) return;
     try {
       final now = DateTime.now();
-      final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final dataStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final desconto = (result['desconto'] as double? ?? 0.0);
       final valorPago = (result['valorPago'] as double? ?? valorBase);
       await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
@@ -974,41 +1667,61 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         if (desconto > 0) 'valor_pago': valorPago,
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${c['nomeAluno']} marcado como pago!'),
-          backgroundColor: kSuccess,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${c['nomeAluno']} marcado como pago!'),
+            backgroundColor: kSuccess,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         _load();
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Erro ao atualizar pagamento.'),
-        backgroundColor: kDanger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao atualizar pagamento.'),
+            backgroundColor: kDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
   Future<void> _estornar(Map<String, dynamic> c) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Estornar pagamento?', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
-        content: Text(
-          'Isso vai marcar o pagamento de ${c['nomeAluno']} como pendente novamente.',
-          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Estornar', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(
+              'Estornar pagamento?',
+              style: TextStyle(
+                color: kText1,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Text(
+              'Isso vai marcar o pagamento de ${c['nomeAluno']} como pendente novamente.',
+              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancelar', style: TextStyle(color: kText2)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Estornar',
+                  style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
       await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
@@ -1018,47 +1731,75 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         'valor_pago': null,
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Pagamento estornado.'),
-          backgroundColor: kWarning,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Pagamento estornado.'),
+            backgroundColor: kWarning,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         _load();
       }
     } catch (_) {}
   }
 
   Future<void> _desconsiderar(Map<String, dynamic> c) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Desconsiderar cobrança?', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
-        content: Text(
-          'A cobrança de ${c['nomeAluno']} não será mais cobrada e sai dos totais do financeiro. Você pode restaurá-la depois.',
-          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Cancelar', style: TextStyle(color: kText2))),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Desconsiderar', style: TextStyle(color: kWarning, fontWeight: FontWeight.w700)),
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(
+              'Desconsiderar cobrança?',
+              style: TextStyle(
+                color: kText1,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Text(
+              'A cobrança de ${c['nomeAluno']} não será mais cobrada e sai dos totais do financeiro. Você pode restaurá-la depois.',
+              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancelar', style: TextStyle(color: kText2)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Desconsiderar',
+                  style: TextStyle(
+                    color: kWarning,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {'status': 4});
-      if (mounted) { _load(); }
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+        'status': 4,
+      });
+      if (mounted) {
+        _load();
+      }
     } catch (_) {}
   }
 
   Future<void> _restaurar(Map<String, dynamic> c) async {
     if (!mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {'status': 0});
-      if (mounted) { _load(); }
+      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+        'status': 0,
+      });
+      if (mounted) {
+        _load();
+      }
     } catch (_) {}
   }
 
@@ -1068,13 +1809,29 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: Text('Excluir cobrança', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
-        content: Text('Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.', style: TextStyle(color: kText2, fontSize: 14)),
+        title: Text(
+          'Excluir cobrança',
+          style: TextStyle(
+            color: kText1,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          'Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.',
+          style: TextStyle(color: kText2, fontSize: 14),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: TextStyle(color: kText2)),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Excluir', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Excluir',
+              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -1082,7 +1839,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (ok != true || !mounted || _academiaId == null) return;
     try {
       await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
-      if (mounted) { _load(); }
+      if (mounted) {
+        _load();
+      }
     } catch (_) {}
   }
 
@@ -1104,31 +1863,51 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-                  if (_loading)
-                    const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text('Financeiro', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
-                              const Spacer(),
-                              GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
+              if (_loading)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Financeiro',
+                              style: TextStyle(
+                                color: kText1,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: openAppDrawer,
+                              child: Icon(
+                                Icons.menu_rounded,
+                                color: kText1,
+                                size: 26,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
                             children: [
                               GestureDetector(
-                                onTap: () => context.push('/admin/financeiro/relatorio'),
+                                onTap: () =>
+                                    context.push('/admin/financeiro/relatorio'),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: kSurface,
                                     borderRadius: BorderRadius.circular(10),
@@ -1137,9 +1916,55 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.bar_chart_rounded, color: kText2, size: 14),
+                                      Icon(
+                                        Icons.bar_chart_rounded,
+                                        color: kText2,
+                                        size: 14,
+                                      ),
                                       const SizedBox(width: 5),
-                                      Text('Relatório', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+                                      Text(
+                                        'Relatório',
+                                        style: TextStyle(
+                                          color: kText2,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () =>
+                                    context.push('/admin/financeiro/contas'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: kSurface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: kBorder),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.receipt_rounded,
+                                        color: kText2,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Contas',
+                                        style: TextStyle(
+                                          color: kText2,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1147,330 +1972,552 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               const SizedBox(width: 8),
                               TextButton.icon(
                                 onPressed: _abrirModalCobrancas,
-                                icon: Icon(Icons.receipt_long_rounded, size: 16, color: kPrimary),
-                                label: Text('Gerar cobranças',
-                                    style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+                                icon: Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 16,
+                                  color: kPrimary,
+                                ),
+                                label: Text(
+                                  'Gerar cobranças',
+                                  style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                                 style: TextButton.styleFrom(
                                   backgroundColor: kPrimary.withOpacity(0.10),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kSurface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: () => _navMes(-1),
+                            icon: Icon(Icons.chevron_left, color: kText1),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                '${_meses[_mes - 1]} $_ano',
+                                style: TextStyle(
+                                  color: kText1,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (isAtual)
+                                Text(
+                                  'Mês atual',
+                                  style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          IconButton(
+                            // Financeiro automático gera a competência atual
+                            // + a próxima (Fase 7) — não faz sentido travar
+                            // a navegação exatamente no mês atual.
+                            onPressed: () => _navMes(1),
+                            icon: Icon(
+                              Icons.chevron_right,
+                              color: kText1,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: kSurface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: kBorder),
+                ),
+                if (r != null)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    sliver: SliverGrid.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.6,
+                      children: [
+                        _met(
+                          'Recebido',
+                          _fmtInt((r['totalRecebidoMes'] as num?) ?? 0),
+                          kSuccess,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                              onPressed: () => _navMes(-1),
-                              icon: Icon(Icons.chevron_left, color: kText1),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  '${_meses[_mes - 1]} $_ano',
-                                  style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w800),
+                        _met(
+                          'Pendente',
+                          _fmtInt((r['totalPendenteMes'] as num?) ?? 0),
+                          kWarning,
+                        ),
+                        _met(
+                          'Atrasado',
+                          _fmtInt((r['totalAtrasado'] as num?) ?? 0),
+                          kDanger,
+                        ),
+                        _met(
+                          'Inadimplentes',
+                          '${r['alunosInadimplentes'] ?? 0}',
+                          kDanger,
+                        ),
+                      ],
+                    ),
+                  ),
+                // ── Busca ──────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: TextField(
+                      controller: _buscaCtrl,
+                      style: TextStyle(color: kText1, fontSize: 14),
+                      onChanged: (v) => setState(() => _busca = v),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar aluno...',
+                        hintStyle: TextStyle(color: kText2, fontSize: 14),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: kText2,
+                          size: 20,
+                        ),
+                        suffixIcon: _busca.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: kText2,
+                                  size: 18,
                                 ),
-                                if (isAtual)
-                                  Text('Mês atual', style: TextStyle(color: kPrimary, fontSize: 11)),
-                              ],
-                            ),
-                            IconButton(
-                              onPressed: isAtual ? null : () => _navMes(1),
-                              icon: Icon(Icons.chevron_right, color: isAtual ? kBorder : kText1),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
+                                onPressed: () {
+                                  _buscaCtrl.clear();
+                                  setState(() => _busca = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: kSurface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: kBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: kBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: kPrimary),
                         ),
                       ),
                     ),
                   ),
-                  if (r != null)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      sliver: SliverGrid.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 1.6,
+                ),
+                // ── Tabs de status ──────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
                         children: [
-                          _met('Recebido', _fmtInt((r['totalRecebidoMes'] as num?) ?? 0), kSuccess),
-                          _met('Pendente', _fmtInt((r['totalPendenteMes'] as num?) ?? 0), kWarning),
-                          _met('Atrasado', _fmtInt((r['totalAtrasado'] as num?) ?? 0), kDanger),
-                          _met('Inadimplentes', '${r['alunosInadimplentes'] ?? 0}', kDanger),
+                          for (final tab in [
+                            ('todos', 'Todos'),
+                            ('pendente', 'Pendentes'),
+                            ('atrasado', 'Atrasados'),
+                            ('pago', 'Pagos'),
+                            ('desconsiderado', 'Desconsiderados'),
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _tabFiltro = tab.$1),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _tabFiltro == tab.$1
+                                        ? kPrimary
+                                        : kSurface,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: _tabFiltro == tab.$1
+                                          ? kPrimary
+                                          : kBorder,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tab.$2,
+                                    style: TextStyle(
+                                      color: _tabFiltro == tab.$1
+                                          ? Colors.white
+                                          : kText2,
+                                      fontSize: 12,
+                                      fontWeight: _tabFiltro == tab.$1
+                                          ? FontWeight.w700
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                  // ── Busca ──────────────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: TextField(
-                        controller: _buscaCtrl,
-                        style: TextStyle(color: kText1, fontSize: 14),
-                        onChanged: (v) => setState(() => _busca = v),
-                        decoration: InputDecoration(
-                          hintText: 'Buscar aluno...',
-                          hintStyle: TextStyle(color: kText2, fontSize: 14),
-                          prefixIcon: Icon(Icons.search_rounded, color: kText2, size: 20),
-                          suffixIcon: _busca.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(Icons.close_rounded, color: kText2, size: 18),
-                                  onPressed: () {
-                                    _buscaCtrl.clear();
-                                    setState(() => _busca = '');
-                                  },
-                                )
-                              : null,
-                          filled: true,
-                          fillColor: kSurface,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-                        ),
-                      ),
-                    ),
                   ),
-                  // ── Tabs de status ──────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (final tab in [
-                              ('todos', 'Todos'),
-                              ('pendente', 'Pendentes'),
-                              ('atrasado', 'Atrasados'),
-                              ('pago', 'Pagos'),
-                              ('desconsiderado', 'Desconsiderados'),
-                            ])
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _tabFiltro = tab.$1),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                    decoration: BoxDecoration(
-                                      color: _tabFiltro == tab.$1 ? kPrimary : kSurface,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: _tabFiltro == tab.$1 ? kPrimary : kBorder),
-                                    ),
-                                    child: Text(
-                                      tab.$2,
-                                      style: TextStyle(
-                                        color: _tabFiltro == tab.$1 ? Colors.white : kText2,
-                                        fontSize: 12,
-                                        fontWeight: _tabFiltro == tab.$1 ? FontWeight.w700 : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                      child: Builder(builder: (_) {
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                    child: Builder(
+                      builder: (_) {
                         final lista = _cobrancasFiltradas;
                         return Text(
-                          lista.isEmpty ? 'Nenhuma cobrança.' : 'Cobranças · ${lista.length}',
-                          style: TextStyle(color: kText2, fontSize: 13, fontWeight: FontWeight.w700),
+                          lista.isEmpty
+                              ? 'Nenhuma cobrança.'
+                              : 'Cobranças · ${lista.length}',
+                          style: TextStyle(
+                            color: kText2,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         );
-                      }),
+                      },
                     ),
                   ),
-                  // ── Lista de cobranças ──────────────────────────────────
-                  Builder(builder: (_) {
+                ),
+                // ── Lista de cobranças ──────────────────────────────────
+                Builder(
+                  builder: (_) {
                     final lista = _cobrancasFiltradas;
                     return SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, i) {
-                          final c = lista[i];
-                          final status = c['status'] as String?;
-                          final isDesconsiderado = status == 'Desconsiderado';
-                          String? dataStr;
-                          final rawVenc = c['dataVencimento'] ?? c['data_vencimento'];
-                          if (rawVenc != null) {
-                            try {
-                              final dt = DateTime.parse(rawVenc.toString());
-                              dataStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-                            } catch (_) {}
-                          }
-                          final isPago = status == 'Pago';
-                          final valorBase = (c['valor'] as num? ?? 0).toDouble();
-                          final desconto = (c['desconto'] as num?)?.toDouble() ?? 0.0;
-                          final valorPago = (c['valor_pago'] as num?)?.toDouble();
-                          // Taxa de atraso (só exibe se pendente/atrasado e taxa ativa)
-                          final isOverdue = status == 'Atrasado';
-                          double taxaValor = 0.0;
-                          if (_taxaAtrasoAtiva && isOverdue) {
-                            taxaValor = _taxaAtrasoTipo == 0
-                                ? valorBase * _taxaAtrasoValor / 100
-                                : _taxaAtrasoValor;
-                          }
+                      delegate: SliverChildBuilderDelegate((_, i) {
+                        final c = lista[i];
+                        final status = c['status'] as String?;
+                        final isDesconsiderado = status == 'Desconsiderado';
+                        String? dataStr;
+                        final rawVenc =
+                            c['dataVencimento'] ?? c['data_vencimento'];
+                        if (rawVenc != null) {
+                          try {
+                            final dt = DateTime.parse(rawVenc.toString());
+                            dataStr =
+                                '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+                          } catch (_) {}
+                        }
+                        final isPago = status == 'Pago';
+                        final valorBase = (c['valor'] as num? ?? 0).toDouble();
+                        final desconto =
+                            (c['desconto'] as num?)?.toDouble() ?? 0.0;
+                        final valorPago = (c['valor_pago'] as num?)?.toDouble();
+                        // Taxa de atraso (só exibe se pendente/atrasado e taxa ativa)
+                        final isOverdue = status == 'Atrasado';
+                        double taxaValor = 0.0;
+                        if (_taxaAtrasoAtiva && isOverdue) {
+                          taxaValor = _taxaAtrasoTipo == 0
+                              ? valorBase * _taxaAtrasoValor / 100
+                              : _taxaAtrasoValor;
+                        }
 
-                          return Opacity(
-                            opacity: isDesconsiderado ? 0.5 : 1.0,
-                            child: Container(
-                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                              decoration: BoxDecoration(
-                                color: kSurface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isDesconsiderado ? kBorder : (!isPago ? _statusCor(status).withOpacity(0.3) : kBorder),
-                                ),
+                        return Opacity(
+                          opacity: isDesconsiderado ? 0.5 : 1.0,
+                          child: Container(
+                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDesconsiderado
+                                    ? kBorder
+                                    : (!isPago
+                                          ? _statusCor(status).withOpacity(0.3)
+                                          : kBorder),
                               ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(c['nomeAluno'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-                                              Text(
-                                                [c['tipo'], if (dataStr != null) 'Venc. $dataStr'].join(' · '),
-                                                style: TextStyle(color: kText2, fontSize: 12),
-                                              ),
-                                              // Breakdown (taxa + desconto)
-                                              if (taxaValor > 0 || desconto > 0) ...[
-                                                const SizedBox(height: 6),
-                                                if (taxaValor > 0)
-                                                  Text('+ Taxa de atraso: ${_fmtVal(taxaValor)}',
-                                                      style: TextStyle(color: kDanger, fontSize: 11)),
-                                                if (desconto > 0)
-                                                  Text('- Desconto: ${_fmtVal(desconto)}',
-                                                      style: TextStyle(color: kSuccess, fontSize: 11)),
-                                                if (valorPago != null)
-                                                  Text('Recebido: ${_fmtVal(valorPago)}',
-                                                      style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w700)),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
+                            ),
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              _fmtVal(valorBase),
+                                              c['nomeAluno'] ?? '',
                                               style: TextStyle(
                                                 color: kText1,
                                                 fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                decoration: desconto > 0 ? TextDecoration.lineThrough : null,
-                                                decorationColor: kText2,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                            Text(status ?? '', style: TextStyle(color: _statusCor(status), fontSize: 12, fontWeight: FontWeight.w600)),
+                                            Text(
+                                              [
+                                                c['tipo'],
+                                                if (dataStr != null)
+                                                  'Venc. $dataStr',
+                                              ].join(' · '),
+                                              style: TextStyle(
+                                                color: kText2,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            // Breakdown (taxa + desconto)
+                                            if (taxaValor > 0 ||
+                                                desconto > 0) ...[
+                                              const SizedBox(height: 6),
+                                              if (taxaValor > 0)
+                                                Text(
+                                                  '+ Taxa de atraso: ${_fmtVal(taxaValor)}',
+                                                  style: TextStyle(
+                                                    color: kDanger,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              if (desconto > 0)
+                                                Text(
+                                                  '- Desconto: ${_fmtVal(desconto)}',
+                                                  style: TextStyle(
+                                                    color: kSuccess,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              if (valorPago != null)
+                                                Text(
+                                                  'Recebido: ${_fmtVal(valorPago)}',
+                                                  style: TextStyle(
+                                                    color: kSuccess,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                            ],
                                           ],
                                         ),
-                                        // Menu "..."
-                                        PopupMenuButton<String>(
-                                          icon: Icon(Icons.more_vert_rounded, color: kText2, size: 18),
-                                          color: kSurface,
-                                          padding: EdgeInsets.zero,
-                                          itemBuilder: (_) => [
-                                            if (isPago)
-                                              PopupMenuItem(value: 'estornar', child: Row(children: [
-                                                Icon(Icons.undo_rounded, size: 16, color: kDanger),
-                                                const SizedBox(width: 8),
-                                                Text('Estornar pagamento', style: TextStyle(color: kText1, fontSize: 13)),
-                                              ])),
-                                            if (!isPago && !isDesconsiderado)
-                                              PopupMenuItem(value: 'desconsiderar', child: Row(children: [
-                                                Icon(Icons.block_rounded, size: 16, color: kWarning),
-                                                const SizedBox(width: 8),
-                                                Text('Desconsiderar', style: TextStyle(color: kText1, fontSize: 13)),
-                                              ])),
-                                            if (isDesconsiderado)
-                                              PopupMenuItem(value: 'restaurar', child: Row(children: [
-                                                Icon(Icons.restore_rounded, size: 16, color: kSuccess),
-                                                const SizedBox(width: 8),
-                                                Text('Restaurar cobrança', style: TextStyle(color: kText1, fontSize: 13)),
-                                              ])),
-                                            PopupMenuItem(value: 'excluir', child: Row(children: [
-                                              Icon(Icons.delete_outline_rounded, size: 16, color: kDanger),
-                                              const SizedBox(width: 8),
-                                              Text('Excluir cobrança', style: TextStyle(color: kDanger, fontSize: 13)),
-                                            ])),
-                                          ],
-                                          onSelected: (v) {
-                                            if (v == 'estornar') _estornar(c);
-                                            if (v == 'desconsiderar') _desconsiderar(c);
-                                            if (v == 'restaurar') _restaurar(c);
-                                            if (v == 'excluir') _excluirCobranca(c);
-                                          },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            _fmtVal(valorBase),
+                                            style: TextStyle(
+                                              color: kText1,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              decoration: desconto > 0
+                                                  ? TextDecoration.lineThrough
+                                                  : null,
+                                              decorationColor: kText2,
+                                            ),
+                                          ),
+                                          Text(
+                                            status ?? '',
+                                            style: TextStyle(
+                                              color: _statusCor(status),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Menu "..."
+                                      PopupMenuButton<String>(
+                                        icon: Icon(
+                                          Icons.more_vert_rounded,
+                                          color: kText2,
+                                          size: 18,
                                         ),
-                                      ],
+                                        color: kSurface,
+                                        padding: EdgeInsets.zero,
+                                        itemBuilder: (_) => [
+                                          if (isPago)
+                                            PopupMenuItem(
+                                              value: 'estornar',
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.undo_rounded,
+                                                    size: 16,
+                                                    color: kDanger,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Estornar pagamento',
+                                                    style: TextStyle(
+                                                      color: kText1,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          if (!isPago && !isDesconsiderado)
+                                            PopupMenuItem(
+                                              value: 'desconsiderar',
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.block_rounded,
+                                                    size: 16,
+                                                    color: kWarning,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Desconsiderar',
+                                                    style: TextStyle(
+                                                      color: kText1,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          if (isDesconsiderado)
+                                            PopupMenuItem(
+                                              value: 'restaurar',
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.restore_rounded,
+                                                    size: 16,
+                                                    color: kSuccess,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Restaurar cobrança',
+                                                    style: TextStyle(
+                                                      color: kText1,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          PopupMenuItem(
+                                            value: 'excluir',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.delete_outline_rounded,
+                                                  size: 16,
+                                                  color: kDanger,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Excluir cobrança',
+                                                  style: TextStyle(
+                                                    color: kDanger,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        onSelected: (v) {
+                                          if (v == 'estornar') _estornar(c);
+                                          if (v == 'desconsiderar')
+                                            _desconsiderar(c);
+                                          if (v == 'restaurar') _restaurar(c);
+                                          if (v == 'excluir')
+                                            _excluirCobranca(c);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!isPago && !isDesconsiderado)
+                                  InkWell(
+                                    onTap: () => _marcarPago(c),
+                                    borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12),
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: kSuccess.withOpacity(0.08),
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(12),
+                                          bottomRight: Radius.circular(12),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle_outline_rounded,
+                                            color: kSuccess,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Marcar como pago',
+                                            style: TextStyle(
+                                              color: kSuccess,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  if (!isPago && !isDesconsiderado)
-                                    InkWell(
-                                      onTap: () => _marcarPago(c),
-                                      borderRadius: const BorderRadius.only(
-                                        bottomLeft: Radius.circular(12),
-                                        bottomRight: Radius.circular(12),
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: kSuccess.withOpacity(0.08),
-                                          borderRadius: const BorderRadius.only(
-                                            bottomLeft: Radius.circular(12),
-                                            bottomRight: Radius.circular(12),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.check_circle_outline_rounded, color: kSuccess, size: 16),
-                                            const SizedBox(width: 6),
-                                            Text('Marcar como pago', style: TextStyle(color: kSuccess, fontSize: 13, fontWeight: FontWeight.w700)),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
+                              ],
                             ),
-                          );
-                        },
-                        childCount: lista.length,
-                      ),
+                          ),
+                        );
+                      }, childCount: lista.length),
                     );
-                  }),
-                  const SliverToBoxAdapter(child: AdBannerWidget()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                  ], // end else
+                  },
+                ),
+                const SliverToBoxAdapter(child: AdBannerWidget()),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              ], // end else
             ],
           ),
         ),
@@ -1478,43 +2525,81 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
   }
 
-  Widget _modeCard({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
+  Widget _modeCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
-        child: Row(children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: kPrimary, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-            Text(subtitle, style: TextStyle(color: kText2, fontSize: 12)),
-          ])),
-          Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 14),
-        ]),
+        decoration: BoxDecoration(
+          color: kBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: kPrimary, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(subtitle, style: TextStyle(color: kText2, fontSize: 12)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 14),
+          ],
+        ),
       ),
     );
   }
 
   Widget _met(String label, String value, Color color) => Container(
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
+    decoration: BoxDecoration(
+      color: kSurface,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: kBorder),
+    ),
+    padding: const EdgeInsets.all(12),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: kText2, fontSize: 11), textAlign: TextAlign.center),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: kText2, fontSize: 11),
+          textAlign: TextAlign.center,
         ),
-      );
+      ],
+    ),
+  );
 }

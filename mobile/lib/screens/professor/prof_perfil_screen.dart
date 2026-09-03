@@ -83,7 +83,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
 
   Future<void> _sair() async {
     await AuthStorage.clear();
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/boas-vindas');
   }
 
   Future<void> _excluirConta(BuildContext context) async {
@@ -102,7 +102,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
     if (confirma != true || !mounted) return;
     // Clear local storage and go to login (no server deletion call in Firestore flow)
     await AuthStorage.clear();
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/boas-vindas');
   }
 
   @override

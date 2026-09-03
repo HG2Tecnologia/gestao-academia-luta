@@ -1,11 +1,35 @@
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
+const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const axios = require('axios');
 
 admin.initializeApp();
 const db = admin.firestore();
+const messaging = admin.messaging();
 
+// ── Funções de identidade / acesso ───────────────────────────────────────────
+const accountFunctions = require('./account-functions');
+exports.discoverAccessProfiles = accountFunctions.discoverAccessProfiles;
+exports.activateAccessAccount = accountFunctions.activateAccessAccount;
+exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
+
+const adminFunctions = require('./admin-functions');
+exports.adminResetPassword = adminFunctions.adminResetPassword;
+exports.completeMandatoryPasswordChange = adminFunctions.completeMandatoryPasswordChange;
+
+const graduacaoFunctions = require('./graduacao-functions');
+exports.editarGraduacao = graduacaoFunctions.editarGraduacao;
+
+const turmaFunctions = require('./turma-functions');
+exports.arquivarTurma = turmaFunctions.arquivarTurma;
+
+const financeFunctions = require('./finance-functions');
+exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
+exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
+
+// ── Secrets Asaas ────────────────────────────────────────────────────────────
 const ASAAS_API_KEY = defineSecret('ASAAS_API_KEY');
 const ASAAS_WEBHOOK_TOKEN = defineSecret('ASAAS_WEBHOOK_TOKEN');
 
@@ -16,14 +40,13 @@ function asaasHttp(apiKey, walletId = null) {
   const headers = {
     'access_token': apiKey,
     'Content-Type': 'application/json',
-    'User-Agent': 'AcademiaFight/1.0',
+    'User-Agent': 'SenseiManager/1.0',
   };
   if (walletId) headers['wallet'] = walletId;
   return axios.create({ baseURL: ASAAS_BASE, headers, timeout: 20000 });
 }
 
 // ── criarSubcontaAcademia ────────────────────────────────────────────────────
-// Cria (ou retorna existente) uma subconta Asaas para a academia.
 exports.criarSubcontaAcademia = onCall(
   { secrets: [ASAAS_API_KEY], region: 'us-central1' },
   async (req) => {
@@ -76,7 +99,6 @@ exports.criarSubcontaAcademia = onCall(
 );
 
 // ── verificarStatusAsaas ─────────────────────────────────────────────────────
-// Verifica se o KYC da subconta foi aprovado.
 exports.verificarStatusAsaas = onCall(
   { secrets: [ASAAS_API_KEY], region: 'us-central1' },
   async (req) => {
@@ -93,7 +115,6 @@ exports.verificarStatusAsaas = onCall(
 
     try {
       const r = await client.get(`/accounts/${subcontaId}`);
-      // No sandbox, accountNumber indica que a conta foi aprovada
       const ativo = !!r.data.accountNumber;
       const status = ativo ? 'ATIVO' : 'PENDENTE';
       await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status });
@@ -105,7 +126,6 @@ exports.verificarStatusAsaas = onCall(
 );
 
 // ── criarCobrancaPix ─────────────────────────────────────────────────────────
-// Cria uma cobrança PIX para um pagamento e retorna o QR code.
 exports.criarCobrancaPix = onCall(
   { secrets: [ASAAS_API_KEY], region: 'us-central1' },
   async (req) => {
@@ -132,7 +152,6 @@ exports.criarCobrancaPix = onCall(
 
     const client = asaasHttp(ASAAS_API_KEY.value(), subcontaId);
 
-    // Idempotência: reutiliza cobrança existente se ainda estiver pendente
     if (pag.asaasChargeId && pag.asaasStatus === 'PENDING') {
       try {
         const qrR = await client.get(`/payments/${pag.asaasChargeId}/pixQrCode`);
@@ -142,7 +161,6 @@ exports.criarCobrancaPix = onCall(
       } catch { /* QR expirado, cria nova cobrança */ }
     }
 
-    // Cria ou reutiliza o cliente no Asaas
     let customerId;
     const cpf = (alunoCpf || '').replace(/\D/g, '');
     if (cpf.length >= 11) {
@@ -158,12 +176,9 @@ exports.criarCobrancaPix = onCall(
       customerId = cr.data.id;
     }
 
-    // Vencimento = amanhã (mínimo exigido pelo Asaas)
     const due = new Date();
     due.setDate(due.getDate() + 1);
     const dueDate = due.toISOString().split('T')[0];
-
-    // externalReference = "academiaId:pagamentoId" para o webhook saber onde atualizar
     const extRef = `${academiaId}:${pagamentoId}`;
 
     let charge;
@@ -195,8 +210,6 @@ exports.criarCobrancaPix = onCall(
 );
 
 // ── webhookAsaas ─────────────────────────────────────────────────────────────
-// Endpoint HTTP chamado pelo Asaas quando o status de um pagamento muda.
-// URL: https://us-central1-sensei-manager-d64c0.cloudfunctions.net/webhookAsaas
 exports.webhookAsaas = onRequest(
   { secrets: [ASAAS_WEBHOOK_TOKEN], region: 'us-central1' },
   async (req, res) => {
@@ -231,3 +244,100 @@ exports.webhookAsaas = onRequest(
     res.status(200).send('OK');
   }
 );
+
+// ── checarVencimentosContasAcademia ──────────────────────────────────────────
+const DIAS_ANTECEDENCIA = 3;
+
+function hojeISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+async function processarVencimentosContasAcademia() {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const limite = new Date(hoje);
+  limite.setDate(limite.getDate() + DIAS_ANTECEDENCIA);
+  const hojeStr = hojeISO();
+
+  const academiasSnap = await db.collection('academias').get();
+  let totalAlertas = 0;
+
+  for (const academiaDoc of academiasSnap.docs) {
+    const academiaId = academiaDoc.id;
+
+    const contasSnap = await db
+      .collection('academias').doc(academiaId)
+      .collection('contas_academia')
+      .where('status', '==', 'pendente')
+      .get();
+
+    const contasParaAlertar = contasSnap.docs.filter((doc) => {
+      const c = doc.data();
+      if (c.alerta_enviado_em === hojeStr) return false;
+      if (!c.data_vencimento) return false;
+      const venc = new Date(`${c.data_vencimento}T00:00:00`);
+      return venc <= limite;
+    });
+
+    if (contasParaAlertar.length === 0) continue;
+
+    const funcionariosSnap = await db
+      .collection('academias').doc(academiaId)
+      .collection('funcionarios')
+      .where('perfil', 'in', ['Admin', 'Secretaria'])
+      .get();
+
+    const tokens = [];
+    funcionariosSnap.forEach((f) => {
+      const dataFunc = f.data();
+      if (Array.isArray(dataFunc.fcm_tokens)) tokens.push(...dataFunc.fcm_tokens);
+    });
+
+    for (const contaDoc of contasParaAlertar) {
+      const conta = contaDoc.data();
+      const venc = new Date(`${conta.data_vencimento}T00:00:00`);
+      const vencida = venc < hoje;
+      const titulo = vencida ? 'Conta da academia vencida' : 'Conta da academia vencendo';
+      const mensagem = `${conta.descricao || 'Conta'} (${conta.categoria || 'Outros'}) - vencimento ${conta.data_vencimento}`;
+
+      await db.collection('academias').doc(academiaId).collection('notificacoes').add({
+        titulo,
+        mensagem,
+        tipo: vencida ? 'alerta' : 'info',
+        lida: false,
+        chave_dedup: `conta-academia-${contaDoc.id}-${hojeStr}`,
+        criado_em: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await contaDoc.ref.update({ alerta_enviado_em: hojeStr });
+      totalAlertas++;
+
+      if (tokens.length > 0) {
+        try {
+          await messaging.sendEachForMulticast({
+            tokens,
+            notification: { title: titulo, body: mensagem },
+            data: { tipo: 'conta_academia', contaId: contaDoc.id },
+          });
+        } catch (err) {
+          logger.error(`Erro ao enviar push para academia ${academiaId}`, err);
+        }
+      }
+    }
+  }
+
+  logger.info(`Vencimentos de contas da academia processados: ${totalAlertas} alerta(s) gerado(s).`);
+  return totalAlertas;
+}
+
+exports.checarVencimentosContasAcademia = onSchedule(
+  { schedule: '0 8 * * *', timeZone: 'America/Sao_Paulo' },
+  async () => {
+    await processarVencimentosContasAcademia();
+  },
+);
+
+exports.testarVencimentosContasAcademia = onRequest(async (req, res) => {
+  const total = await processarVencimentosContasAcademia();
+  res.status(200).json({ alertasGerados: total });
+});

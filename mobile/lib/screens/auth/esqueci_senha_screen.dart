@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
 
 class EsqueciSenhaScreen extends StatefulWidget {
-  const EsqueciSenhaScreen({super.key});
+  /// 'aluno' ou 'academia'; propagado de volta ao login ao concluir/voltar.
+  final String? contexto;
+
+  const EsqueciSenhaScreen({super.key, this.contexto});
 
   @override
   State<EsqueciSenhaScreen> createState() => _EsqueciSenhaScreenState();
@@ -17,6 +20,15 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
   String? _erro;
 
   static final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+
+  void _voltarLogin() {
+    final contexto = widget.contexto;
+    if (contexto != null) {
+      context.go('/login', extra: {'contexto': contexto});
+    } else {
+      context.go('/boas-vindas');
+    }
+  }
 
   Future<void> _enviar() async {
     final email = _emailCtrl.text.trim().toLowerCase();
@@ -66,7 +78,7 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.go('/login'),
+          onPressed: _voltarLogin,
         ),
       ),
       body: SafeArea(
@@ -166,7 +178,7 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ),
         const SizedBox(height: 40),
         FilledButton(
-          onPressed: () => context.go('/login'),
+          onPressed: _voltarLogin,
           style: FilledButton.styleFrom(
             backgroundColor: kPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),

@@ -42,34 +42,170 @@ class FirestoreService {
   Future<Map<String, dynamic>?> getUserByFirebaseUid(String uid) async {
     final doc = await _db.collection('usuariosFirebase').doc(uid).get();
     if (!doc.exists) return null;
-    final data = doc.data() as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
 
-    // Carrega permissoes do doc do funcionario (se for professor/secretaria)
     final colecao = data['colecao'] as String? ?? 'usuarios';
     final usuarioId = data['usuarioId'] as String?;
     final academiaId = data['academiaId'] as String?;
-    final perfil = data['perfil'] as String? ?? '';
+    var perfil = data['perfil'] as String? ?? '';
     Map<String, bool> permissoes = permissoesParaPerfil(perfil);
+    String? telefoneBusca;
+    var emailBusca = data['email'] as String?;
 
-    if (usuarioId != null && academiaId != null && colecao == 'funcionarios') {
+    if (usuarioId != null && academiaId != null) {
       try {
-        final funcDoc = await _doc(academiaId, 'funcionarios', usuarioId).get();
-        if (funcDoc.exists) {
-          final rawPerm = (funcDoc.data() as Map<String, dynamic>?)?['permissoes'];
-          if (rawPerm is Map) {
-            permissoes = rawPerm.map((k, v) => MapEntry(k.toString(), v == true));
+        final ownDoc = await _doc(academiaId, colecao, usuarioId).get();
+        final ownData = ownDoc.data() as Map<String, dynamic>?;
+        if (ownData != null) {
+          // Sempre reflete o perfil ATUAL do funcionário/aluno, não o
+          // congelado neste doc (que só é atualizado na ativação da conta).
+          final perfilAtual = ownData['perfil'] as String?;
+          if (perfilAtual != null && perfilAtual.isNotEmpty)
+            perfil = perfilAtual;
+          telefoneBusca = ownData['telefone'] as String?;
+          if (emailBusca == null || emailBusca.isEmpty) {
+            emailBusca = ownData['email'] as String?;
+          }
+          if (colecao == 'funcionarios') {
+            final rawPerm = ownData['permissoes'];
+            permissoes = rawPerm is Map
+                ? rawPerm.map((k, v) => MapEntry(k.toString(), v == true))
+                : permissoesParaPerfil(perfil);
           }
         }
       } catch (_) {}
     }
 
+    // Schema v2: os vínculos foram validados e persistidos server-side.
+    var perfis = <Map<String, dynamic>>[];
+    final schemaVersion = data['schemaVersion'] as int? ?? 1;
+    final rawProfileRefs = data['profile_refs'];
+    if (schemaVersion >= 2 && rawProfileRefs is List) {
+      perfis = rawProfileRefs
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+
+    // Compatibilidade com contas v1 durante a janela de rollout. Contas v2
+    // nunca inferem autorização no cliente a partir de telefone/e-mail.
+    // Recalcula o multi-perfil dinamicamente a cada login/sessão em vez de
+    // confiar só no array `perfis` congelado na ativação da conta — assim um
+    // vínculo criado DEPOIS (ex: Professor que passou a ser também Aluno em
+    // outra modalidade) aparece no seletor sem precisar reativar a conta.
+    var buscaDinamicaConcluida = false;
+    final chavesBusca = <String>{
+      if (telefoneBusca != null && telefoneBusca.isNotEmpty) telefoneBusca,
+      if (emailBusca != null && emailBusca.isNotEmpty) emailBusca,
+    };
+    if (schemaVersion < 2 && chavesBusca.isNotEmpty && academiaId != null) {
+      try {
+        final encontradosPorId = <String, Map<String, dynamic>>{};
+        for (final chave in chavesBusca) {
+          final encontrados = await buscarPerfisMesmaAcademia(
+            academiaId,
+            chave,
+          );
+          for (final encontrado in encontrados) {
+            final id = '${encontrado['_colecao']}:${encontrado['usuarioId']}';
+            encontradosPorId[id] = encontrado;
+          }
+        }
+        buscaDinamicaConcluida = true;
+        if (encontradosPorId.length > 1) {
+          perfis = encontradosPorId.values
+              .map(
+                (e) => {
+                  'usuarioId': e['usuarioId'],
+                  'nome': e['nome'] ?? '',
+                  'colecao': e['_colecao'] ?? 'usuarios',
+                  'academiaId': e['academiaId'],
+                  'perfil_nome': e['perfil_nome'] ?? 'Aluno',
+                },
+              )
+              .toList();
+        }
+      } catch (_) {}
+    }
+    if (schemaVersion < 2 && perfis.isEmpty && !buscaDinamicaConcluida) {
+      final rawPerfis = data['perfis'];
+      if (rawPerfis is List) {
+        perfis = rawPerfis
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+    }
+
+    data['perfil'] = perfil;
+    data['perfis'] = perfis;
     return {...data, 'permissoes': permissoes};
+  }
+
+  /// Busca vínculos (Professor/Secretaria/Admin em `funcionarios` e Aluno em
+  /// `usuarios`) por e-mail ou telefone, mas restrito a UMA academia — ao
+  /// contrário de [buscarUsuariosPorEmailOuTelefone], que varre todas as
+  /// academias e só funciona em sessão anônima (Primeiro Acesso). Esta versão
+  /// é segura para ser chamada por qualquer usuário autenticado normal, pois
+  /// as Firestore Rules já permitem leitura de `funcionarios`/`usuarios`
+  /// dentro da própria academia (`pertenceAcademia`).
+  Future<List<Map<String, dynamic>>> buscarPerfisMesmaAcademia(
+    String academiaId,
+    String telefoneOuEmail,
+  ) async {
+    final isEmail = telefoneOuEmail.contains('@');
+    final digits = telefoneOuEmail.replaceAll(RegExp(r'\D'), '');
+    final results = <Map<String, dynamic>>[];
+    if (!isEmail && digits.isEmpty) return results;
+
+    Future<void> buscarEm(String colecao, {required bool isAluno}) async {
+      final col = _col(academiaId, colecao);
+      final docs = <String, QueryDocumentSnapshot>{};
+
+      Future<void> adicionarQuery(String campo, String valor) async {
+        if (valor.isEmpty) return;
+        final snap = await col.where(campo, isEqualTo: valor).get();
+        for (final doc in snap.docs) {
+          docs[doc.id] = doc;
+        }
+      }
+
+      if (isEmail) {
+        await adicionarQuery('email', telefoneOuEmail.toLowerCase().trim());
+        if (telefoneOuEmail.trim() != telefoneOuEmail.toLowerCase().trim()) {
+          await adicionarQuery('email', telefoneOuEmail.trim());
+        }
+      } else {
+        await adicionarQuery('telefone_digits', digits);
+        // Compatibilidade com cadastros antigos editados antes da criação de
+        // telefone_digits. A edição atual passa a manter ambos sincronizados.
+        await adicionarQuery('telefone', telefoneOuEmail.trim());
+      }
+
+      for (final d in docs.values) {
+        final item = _convertDoc(d);
+        if (isAluno && (item['perfil'] as int?) != 3) continue;
+        results.add({
+          ...item,
+          'academiaId': academiaId,
+          'usuarioId': item['id'],
+          'perfil_nome': isAluno
+              ? 'Aluno'
+              : (item['perfil'] as String? ?? 'Professor'),
+          '_colecao': colecao,
+        });
+      }
+    }
+
+    await buscarEm('funcionarios', isAluno: false);
+    await buscarEm('usuarios', isAluno: true);
+    return results;
   }
 
   /// Busca todos os usuários que correspondem ao e-mail ou telefone em todas as academias.
   /// Procura tanto em `funcionarios` (professor/secretaria/admin) quanto em `usuarios` (alunos).
   /// Cada resultado inclui `_colecao` ('funcionarios' ou 'usuarios') e `perfil_nome`.
-  Future<List<Map<String, dynamic>>> buscarUsuariosPorEmailOuTelefone(String valor) async {
+  Future<List<Map<String, dynamic>>> buscarUsuariosPorEmailOuTelefone(
+    String valor,
+  ) async {
     final valorLower = valor.toLowerCase().trim();
     final isEmail = valor.contains('@');
     final digits = valor.replaceAll(RegExp(r'\D'), '');
@@ -136,11 +272,12 @@ class FirestoreService {
     return results;
   }
 
-  /// Verifica se já existe um aluno com o mesmo e-mail ou telefone na academia.
+  /// Verifica se já existe um aluno com o mesmo e-mail na academia.
+  /// Telefone NÃO é considerado duplicidade: é comum um mesmo responsável
+  /// (contato/telefone) ter mais de um filho matriculado.
   Future<Map<String, dynamic>?> verificarDuplicadoAluno(
     String academiaId, {
     String? email,
-    String? telefoneDigits,
   }) async {
     if (email != null && email.isNotEmpty) {
       final snap = await _col(academiaId, 'usuarios')
@@ -150,72 +287,7 @@ class FirestoreService {
           .get();
       if (snap.docs.isNotEmpty) return _convertDoc(snap.docs.first);
     }
-    if (telefoneDigits != null && telefoneDigits.isNotEmpty) {
-      final snap = await _col(academiaId, 'usuarios')
-          .where('telefone_digits', isEqualTo: telefoneDigits)
-          .where('perfil', isEqualTo: 3)
-          .limit(1)
-          .get();
-      if (snap.docs.isNotEmpty) return _convertDoc(snap.docs.first);
-    }
     return null;
-  }
-
-  /// Vincula um Firebase UID ao usuário do Firestore e cria entrada em usuariosFirebase.
-  /// [dadosUsuario] deve conter '_colecao' ('funcionarios' ou 'usuarios') e 'perfil_nome'.
-  /// [outrosPerfis] são os demais perfis com o mesmo e-mail (grupo familiar de alunos).
-  Future<void> ativarContaUsuario({
-    required String firebaseUid,
-    required String academiaId,
-    required String usuarioId,
-    required Map<String, dynamic> dadosUsuario,
-    List<Map<String, dynamic>>? outrosPerfis,
-  }) async {
-    final colecao = dadosUsuario['_colecao'] as String? ?? 'usuarios';
-    final perfilNome = dadosUsuario['perfil_nome'] as String? ?? 'Aluno';
-
-    // Monta lista de todos os perfis (para grupo familiar)
-    final todosPerfis = [
-      {'usuarioId': usuarioId, 'nome': dadosUsuario['nome'] ?? '', 'colecao': colecao, 'academiaId': academiaId},
-      if (outrosPerfis != null)
-        for (final p in outrosPerfis)
-          {
-            'usuarioId': p['usuarioId'] ?? p['id'],
-            'nome': p['nome'] ?? '',
-            'colecao': p['_colecao'] ?? 'usuarios',
-            'academiaId': p['academiaId'] ?? academiaId,
-          },
-    ];
-
-    // Cria lookup e vínculos juntos, sem janela de autorização parcial.
-    final batch = _db.batch();
-    batch.set(_db.collection('usuariosFirebase').doc(firebaseUid), {
-      'academiaId': academiaId,
-      'usuarioId': usuarioId,
-      'colecao': colecao,
-      'perfil': perfilNome,
-      'nome': dadosUsuario['nome'] ?? '',
-      'email': dadosUsuario['email'] ?? '',
-      if (todosPerfis.length > 1) 'perfis': todosPerfis,
-    });
-
-    batch.update(_doc(academiaId, colecao, usuarioId), {
-      'firebaseUid': firebaseUid,
-      'conta_ativa': true,
-    });
-
-    // Vincula também os demais perfis do grupo familiar
-    if (outrosPerfis != null) {
-      for (final p in outrosPerfis) {
-        final pCol = p['_colecao'] as String? ?? 'usuarios';
-        final pAcad = p['academiaId'] as String? ?? academiaId;
-        final pId = (p['usuarioId'] ?? p['id']) as String?;
-        if (pId != null) {
-          batch.update(_doc(pAcad, pCol, pId), {'firebaseUid': firebaseUid, 'conta_ativa': true});
-        }
-      }
-    }
-    await batch.commit();
   }
 
   // ─── ACADEMIA ──────────────────────────────────────────────────────────────
@@ -237,18 +309,27 @@ class FirestoreService {
     return _convertDoc(doc);
   }
 
-  Future<void> updateUsuario(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'usuarios', id).update(data);
+  Future<void> updateUsuario(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'usuarios', id).update(data);
 
   // ─── ALUNOS ────────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getAlunos(String academiaId,
-      {bool ativosOnly = false}) async {
+  Future<List<Map<String, dynamic>>> getAlunos(
+    String academiaId, {
+    bool ativosOnly = false,
+  }) async {
     Query q = _col(academiaId, 'usuarios').where('perfil', isEqualTo: 3);
     if (ativosOnly) q = q.where('ativo', isEqualTo: true);
     final snap = await q.get();
     final result = snap.docs.map(_convertDoc).toList();
-    result.sort((a, b) => (a['nome'] as String? ?? '').toLowerCase().compareTo((b['nome'] as String? ?? '').toLowerCase()));
+    result.sort(
+      (a, b) => (a['nome'] as String? ?? '').toLowerCase().compareTo(
+        (b['nome'] as String? ?? '').toLowerCase(),
+      ),
+    );
     return result;
   }
 
@@ -271,8 +352,8 @@ class FirestoreService {
     });
 
     // Auto-gera cobrança do mês corrente se plano e dia de vencimento foram informados
-    final planoId = data['planoId'] as String?;
-    final diaVenc = data['diaVencimento'] as int?;
+    final planoId = data['plano_id'] as String?;
+    final diaVenc = data['dia_vencimento'] as int?;
     if (planoId != null && diaVenc != null) {
       try {
         final planoDoc = await _doc(academiaId, 'planos', planoId).get();
@@ -306,16 +387,37 @@ class FirestoreService {
     return alunoId;
   }
 
-  Future<void> updateAluno(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'usuarios', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateAluno(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final normalizado = <String, dynamic>{...data};
+    if (data.containsKey('email')) {
+      final email = data['email']?.toString().trim() ?? '';
+      normalizado['email'] = email.isEmpty ? null : email.toLowerCase();
+    }
+    if (data.containsKey('telefone')) {
+      final telefone = data['telefone']?.toString().trim() ?? '';
+      normalizado['telefone'] = telefone;
+      normalizado['telefone_digits'] = telefone.replaceAll(RegExp(r'\D'), '');
+    }
+    await _doc(
+      academiaId,
+      'usuarios',
+      id,
+    ).update({...normalizado, 'atualizado_em': FieldValue.serverTimestamp()});
+  }
 
-  Future<List<Map<String, dynamic>>> getAniversariantes(String academiaId) async {
+  Future<List<Map<String, dynamic>>> getAniversariantes(
+    String academiaId,
+  ) async {
     final mes = DateTime.now().month;
     // Firestore não suporta filtro por mês diretamente; filtra no cliente
-    final snap = await _col(academiaId, 'usuarios')
-        .where('perfil', isEqualTo: 3)
-        .where('ativo', isEqualTo: true)
-        .get();
+    final snap = await _col(
+      academiaId,
+      'usuarios',
+    ).where('perfil', isEqualTo: 3).where('ativo', isEqualTo: true).get();
     return snap.docs.map(_convertDoc).where((u) {
       final dn = u['data_nascimento'];
       if (dn == null) return false;
@@ -330,17 +432,26 @@ class FirestoreService {
   // ─── FUNCIONÁRIOS ──────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getFuncionarios(String academiaId) async {
-    final snap = await _col(academiaId, 'funcionarios').orderBy('criado_em').get();
+    final snap = await _col(
+      academiaId,
+      'funcionarios',
+    ).orderBy('criado_em').get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<Map<String, dynamic>?> getFuncionario(String academiaId, String id) async {
+  Future<Map<String, dynamic>?> getFuncionario(
+    String academiaId,
+    String id,
+  ) async {
     final doc = await _doc(academiaId, 'funcionarios', id).get();
     if (!doc.exists) return null;
     return _convertDoc(doc);
   }
 
-  Future<String> addFuncionario(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addFuncionario(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'funcionarios').doc();
     final perfil = data['perfil'] as String? ?? 'Professor';
     await ref.set({
@@ -352,8 +463,16 @@ class FirestoreService {
     return ref.id;
   }
 
-  Future<void> updateFuncionario(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'funcionarios', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateFuncionario(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final ref = _doc(academiaId, 'funcionarios', id);
+    await ref.update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+    // A conta v2 é recalculada pela refreshAccessAccount no próximo login ou
+    // abertura do app. O cliente nunca altera papéis de autorização no lookup.
+  }
 
   Future<void> deleteFuncionario(String academiaId, String id) =>
       _doc(academiaId, 'funcionarios', id).delete();
@@ -401,9 +520,17 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addModalidade(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addModalidade(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'modalidades').doc();
-    await ref.set({...data, 'id': ref.id, 'ativo': true, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'ativo': true,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
@@ -418,19 +545,25 @@ class FirestoreService {
 
   // ─── FAIXAS ────────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getFaixas(String academiaId,
-      {String? modalidadeId}) async {
+  Future<List<Map<String, dynamic>>> getFaixas(
+    String academiaId, {
+    String? modalidadeId,
+  }) async {
     Query q;
     if (modalidadeId != null) {
-      q = _col(academiaId, 'faixas')
-          .where('modalidadeId', isEqualTo: modalidadeId);
+      q = _col(
+        academiaId,
+        'faixas',
+      ).where('modalidadeId', isEqualTo: modalidadeId);
     } else {
       q = _col(academiaId, 'faixas');
     }
     final snap = await q.get();
     final result = snap.docs.map(_convertDoc).toList();
     result.sort((a, b) {
-      final modCmp = (a['modalidadeId'] as String? ?? '').compareTo(b['modalidadeId'] as String? ?? '');
+      final modCmp = (a['modalidadeId'] as String? ?? '').compareTo(
+        b['modalidadeId'] as String? ?? '',
+      );
       if (modCmp != 0) return modCmp;
       return (a['ordem'] as int? ?? 0).compareTo(b['ordem'] as int? ?? 0);
     });
@@ -439,20 +572,34 @@ class FirestoreService {
 
   Future<String> addFaixa(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'faixas').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateFaixa(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'faixas', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateFaixa(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'faixas',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deleteFaixa(String academiaId, String id) =>
       _doc(academiaId, 'faixas', id).delete();
 
   // ─── TURMAS ────────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getTurmas(String academiaId,
-      {String? professorId, bool ativasOnly = false}) async {
+  Future<List<Map<String, dynamic>>> getTurmas(
+    String academiaId, {
+    String? professorId,
+    bool ativasOnly = false,
+  }) async {
     // Quando filtra por professorId, não usa orderBy para evitar índice composto.
     // Ordenação é feita client-side.
     Query q = _col(academiaId, 'turmas');
@@ -465,7 +612,10 @@ class FirestoreService {
     final snap = await q.get();
     final list = snap.docs.map(_convertDoc).toList();
     if (professorId != null) {
-      list.sort((a, b) => (a['nome'] as String? ?? '').compareTo(b['nome'] as String? ?? ''));
+      list.sort(
+        (a, b) =>
+            (a['nome'] as String? ?? '').compareTo(b['nome'] as String? ?? ''),
+      );
     }
     return list;
   }
@@ -478,20 +628,36 @@ class FirestoreService {
 
   Future<String> addTurma(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'turmas').doc();
-    await ref.set({...data, 'id': ref.id, 'ativo': true, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'ativo': true,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateTurma(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'turmas', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateTurma(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'turmas',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
-  Future<void> deleteTurma(String academiaId, String id) =>
-      _doc(academiaId, 'turmas', id).delete();
+  // Exclusão de turma é sempre lógica (soft delete) via Cloud Function
+  // `arquivarTurma` — ver GraduacaoService/TurmaService equivalente em
+  // `turma_service.dart`. Hard delete client-side foi removido de propósito
+  // (as regras do Firestore também bloqueiam `delete` nesta coleção).
 
   // ─── HORÁRIOS ──────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getHorarios(String academiaId,
-      {String? turmaId}) async {
+  Future<List<Map<String, dynamic>>> getHorarios(
+    String academiaId, {
+    String? turmaId,
+  }) async {
     Query q = _col(academiaId, 'horarios');
     if (turmaId != null) q = q.where('turma_id', isEqualTo: turmaId);
     final snap = await q.get();
@@ -500,7 +666,9 @@ class FirestoreService {
 
   /// Horários de um aluno: busca matrículas ativas e depois horários de cada turma.
   Future<List<Map<String, dynamic>>> getMeusHorarios(
-      String academiaId, String alunoId) async {
+    String academiaId,
+    String alunoId,
+  ) async {
     final matrSnap = await _col(academiaId, 'matriculas')
         .where('aluno_id', isEqualTo: alunoId)
         .where('ativo', isEqualTo: true)
@@ -516,30 +684,49 @@ class FirestoreService {
     // Firestore whereIn suporta até 30 valores
     for (var i = 0; i < turmaIds.length; i += 30) {
       final chunk = turmaIds.sublist(i, (i + 30).clamp(0, turmaIds.length));
-      final snap = await _col(academiaId, 'horarios')
-          .where('turma_id', whereIn: chunk)
-          .get();
+      final snap = await _col(
+        academiaId,
+        'horarios',
+      ).where('turma_id', whereIn: chunk).get();
       horarios.addAll(snap.docs.map(_convertDoc));
     }
     return horarios;
   }
 
-  Future<String> addHorario(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addHorario(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'horarios').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateHorario(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'horarios', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateHorario(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'horarios',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deleteHorario(String academiaId, String id) =>
       _doc(academiaId, 'horarios', id).delete();
 
   // ─── MATRÍCULAS ────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getMatriculas(String academiaId,
-      {String? alunoId, String? turmaId, bool ativasOnly = false}) async {
+  Future<List<Map<String, dynamic>>> getMatriculas(
+    String academiaId, {
+    String? alunoId,
+    String? turmaId,
+    bool ativasOnly = false,
+  }) async {
     Query q = _col(academiaId, 'matriculas');
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     if (turmaId != null) q = q.where('turma_id', isEqualTo: turmaId);
@@ -548,9 +735,17 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addMatricula(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addMatricula(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'matriculas').doc();
-    await ref.set({...data, 'id': ref.id, 'ativo': true, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'ativo': true,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
@@ -559,20 +754,27 @@ class FirestoreService {
 
   // ─── PRESENÇAS ─────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getPresencas(String academiaId,
-      {String? alunoId, String? horarioId, String? turmaId, String? dataStr}) async {
+  Future<List<Map<String, dynamic>>> getPresencas(
+    String academiaId, {
+    String? alunoId,
+    String? horarioId,
+    String? turmaId,
+    String? dataStr,
+  }) async {
     if (turmaId != null) {
       // Query directly by turma_id (manual check-ins from admin screen)
-      final byTurmaSnap = await _col(academiaId, 'presencas')
-          .where('turma_id', isEqualTo: turmaId)
-          .get();
+      final byTurmaSnap = await _col(
+        academiaId,
+        'presencas',
+      ).where('turma_id', isEqualTo: turmaId).get();
       final results = byTurmaSnap.docs.map(_convertDoc).toList();
       final seenIds = results.map((p) => p['id']?.toString() ?? '').toSet();
 
       // Also query via horario_id (QR code check-ins linked to a horario)
-      final horariosSnap = await _col(academiaId, 'horarios')
-          .where('turma_id', isEqualTo: turmaId)
-          .get();
+      final horariosSnap = await _col(
+        academiaId,
+        'horarios',
+      ).where('turma_id', isEqualTo: turmaId).get();
       final ids = horariosSnap.docs.map((d) => d.id).toList();
       for (var i = 0; i < ids.length; i += 30) {
         final chunk = ids.sublist(i, (i + 30).clamp(0, ids.length));
@@ -591,7 +793,10 @@ class FirestoreService {
       }
       return results;
     }
-    Query q = _col(academiaId, 'presencas').orderBy('criado_em', descending: true);
+    Query q = _col(
+      academiaId,
+      'presencas',
+    ).orderBy('criado_em', descending: true);
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     if (horarioId != null) q = q.where('horario_id', isEqualTo: horarioId);
     if (dataStr != null) q = q.where('data', isEqualTo: dataStr);
@@ -599,22 +804,34 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addPresenca(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addPresenca(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final alunoId = data['aluno_id']?.toString() ?? '';
     if (alunoId.isEmpty) {
-      throw const CheckinBloqueadoException('Não foi possível identificar o aluno.');
+      throw const CheckinBloqueadoException(
+        'Não foi possível identificar o aluno.',
+      );
     }
     final bloqueio = await motivoBloqueioCheckin(academiaId, alunoId);
     if (bloqueio != null) throw CheckinBloqueadoException(bloqueio);
 
     final ref = _col(academiaId, 'presencas').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
   /// Retorna null quando o aluno pode fazer check-in.
   /// Respeita a configuração da academia (bloqueio_checkin_ativo + bloqueio_checkin_carencia_dias).
-  Future<String?> motivoBloqueioCheckin(String academiaId, String alunoId) async {
+  Future<String?> motivoBloqueioCheckin(
+    String academiaId,
+    String alunoId,
+  ) async {
     final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
     if (!alunoDoc.exists) return 'Aluno não encontrado.';
     final aluno = alunoDoc.data() as Map<String, dynamic>? ?? {};
@@ -626,20 +843,28 @@ class FirestoreService {
     final academia = academiaDoc.data() as Map<String, dynamic>? ?? {};
     if (academia['bloqueio_checkin_ativo'] != true) return null;
 
-    final carenciaDias = (academia['bloqueio_checkin_carencia_dias'] as num?)?.toInt() ?? 0;
+    final carenciaDias =
+        (academia['bloqueio_checkin_carencia_dias'] as num?)?.toInt() ?? 0;
     final agora = DateTime.now();
-    final limiteBloquio = DateTime(agora.year, agora.month, agora.day)
-        .subtract(Duration(days: carenciaDias));
+    final limiteBloquio = DateTime(
+      agora.year,
+      agora.month,
+      agora.day,
+    ).subtract(Duration(days: carenciaDias));
 
-    final snap = await _col(academiaId, 'pagamentos')
-        .where('aluno_id', isEqualTo: alunoId)
-        .get();
+    final snap = await _col(
+      academiaId,
+      'pagamentos',
+    ).where('aluno_id', isEqualTo: alunoId).get();
     for (final doc in snap.docs) {
       final pagamento = doc.data() as Map<String, dynamic>? ?? {};
       final rawStatus = pagamento['status'];
-      final status = rawStatus is num ? rawStatus.toInt() : int.tryParse(rawStatus?.toString() ?? '');
+      final status = rawStatus is num
+          ? rawStatus.toInt()
+          : int.tryParse(rawStatus?.toString() ?? '');
       if (status == 1) continue;
-      final rawVencimento = pagamento['data_vencimento'] ?? pagamento['dataVencimento'];
+      final rawVencimento =
+          pagamento['data_vencimento'] ?? pagamento['dataVencimento'];
       DateTime? vencimento;
       if (rawVencimento is Timestamp) {
         vencimento = rawVencimento.toDate();
@@ -647,9 +872,14 @@ class FirestoreService {
         vencimento = DateTime.tryParse(rawVencimento.toString());
       }
       if (vencimento == null) continue;
-      final dataVenc = DateTime(vencimento.year, vencimento.month, vencimento.day);
+      final dataVenc = DateTime(
+        vencimento.year,
+        vencimento.month,
+        vencimento.day,
+      );
       if (dataVenc.isBefore(limiteBloquio)) {
-        final diasAtraso = limiteBloquio.difference(dataVenc).inDays + carenciaDias;
+        final diasAtraso =
+            limiteBloquio.difference(dataVenc).inDays + carenciaDias;
         return 'Check-in bloqueado: mensalidade vencida há $diasAtraso dias. Procure a secretaria.';
       }
     }
@@ -657,7 +887,11 @@ class FirestoreService {
   }
 
   /// Retorna os aluno_ids que já têm presença registrada para turmaId+data.
-  Future<Set<String>> getAlunosComPresenca(String academiaId, String turmaId, String dataStr) async {
+  Future<Set<String>> getAlunosComPresenca(
+    String academiaId,
+    String turmaId,
+    String dataStr,
+  ) async {
     final snap = await _col(academiaId, 'presencas')
         .where('turma_id', isEqualTo: turmaId)
         .where('data', isEqualTo: dataStr)
@@ -669,7 +903,10 @@ class FirestoreService {
   }
 
   Future<Map<String, String>> getPresencasPorAluno(
-      String academiaId, String turmaId, String dataStr) async {
+    String academiaId,
+    String turmaId,
+    String dataStr,
+  ) async {
     final snap = await _col(academiaId, 'presencas')
         .where('turma_id', isEqualTo: turmaId)
         .where('data', isEqualTo: dataStr)
@@ -689,9 +926,15 @@ class FirestoreService {
 
   // ─── GRADUAÇÕES ────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getGraduacoes(String academiaId,
-      {String? alunoId, bool detalhadas = false}) async {
-    Query q = _col(academiaId, 'graduacoes').orderBy('data_exame', descending: true);
+  Future<List<Map<String, dynamic>>> getGraduacoes(
+    String academiaId, {
+    String? alunoId,
+    bool detalhadas = false,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'graduacoes',
+    ).orderBy('data_exame', descending: true);
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     final snap = await q.get();
     final graduacoes = snap.docs.map(_convertDoc).toList();
@@ -703,20 +946,32 @@ class FirestoreService {
     return graduacoes.map((g) {
       final faixa = faixaMap[g['faixa_id']?.toString() ?? ''] ?? const {};
       final modalidadeId =
-          (g['modalidade_id'] ?? faixa['modalidadeId'] ?? faixa['modalidade_id'])?.toString() ?? '';
+          (g['modalidade_id'] ??
+                  faixa['modalidadeId'] ??
+                  faixa['modalidade_id'])
+              ?.toString() ??
+          '';
       final modalidade = modalidadeMap[modalidadeId] ?? const {};
       return <String, dynamic>{
         ...g,
         'dataExame': g['data_exame'] ?? g['dataExame'] ?? '',
         'faixaId': g['faixa_id'] ?? g['faixaId'] ?? '',
         'modalidadeId': modalidadeId,
-        'nomeModalidade': modalidade['nome'] ?? faixa['modalidade_nome'] ?? 'Modalidade',
+        'nomeModalidade':
+            modalidade['nome'] ?? faixa['modalidade_nome'] ?? 'Modalidade',
         'nomeFaixa': faixa['nome'] ?? g['nomeFaixa'] ?? '',
         'corFaixa': faixa['cor'] ?? g['corFaixa'] ?? '#FFFFFF',
         'corBarraFaixa': faixa['cor_barra'] ?? g['corBarraFaixa'] ?? '#000000',
-        'faixaTemGraus': faixa['tem_graus'] == true || g['faixaTemGraus'] == true,
-        'faixaMaxGraus': (faixa['max_graus'] as num?)?.toInt() ??
-            (g['faixaMaxGraus'] as num?)?.toInt() ?? 0,
+        'faixaOrdem':
+            (faixa['ordem'] as num?)?.toInt() ??
+            (g['faixaOrdem'] as num?)?.toInt() ??
+            0,
+        'faixaTemGraus':
+            faixa['tem_graus'] == true || g['faixaTemGraus'] == true,
+        'faixaMaxGraus':
+            (faixa['max_graus'] as num?)?.toInt() ??
+            (g['faixaMaxGraus'] as num?)?.toInt() ??
+            0,
       };
     }).toList();
   }
@@ -724,17 +979,25 @@ class FirestoreService {
   Future<void> deleteGraduacao(String academiaId, String graduacaoId) =>
       _doc(academiaId, 'graduacoes', graduacaoId).delete();
 
-  Future<String> addGraduacao(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addGraduacao(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'graduacoes').doc();
     final faixaId = data['faixa_id']?.toString() ?? '';
-    final faixa = faixaId.isEmpty ? null : await _doc(academiaId, 'faixas', faixaId).get();
+    final faixa = faixaId.isEmpty
+        ? null
+        : await _doc(academiaId, 'faixas', faixaId).get();
     final faixaData = faixa?.data() as Map<String, dynamic>?;
     final modalidadeId =
-        (data['modalidade_id'] ?? faixaData?['modalidadeId'] ?? faixaData?['modalidade_id'])
+        (data['modalidade_id'] ??
+                faixaData?['modalidadeId'] ??
+                faixaData?['modalidade_id'])
             ?.toString();
     await ref.set({
       ...data,
-      if (modalidadeId != null && modalidadeId.isNotEmpty) 'modalidade_id': modalidadeId,
+      if (modalidadeId != null && modalidadeId.isNotEmpty)
+        'modalidade_id': modalidadeId,
       'id': ref.id,
       'criado_em': FieldValue.serverTimestamp(),
     });
@@ -742,16 +1005,23 @@ class FirestoreService {
   }
 
   /// Alunos aptos a graduar: não têm graduação nos últimos 90 dias (simplificado).
-  Future<List<Map<String, dynamic>>> getAptosGraduacao(String academiaId) async {
+  Future<List<Map<String, dynamic>>> getAptosGraduacao(
+    String academiaId,
+  ) async {
     final alunos = await getAlunos(academiaId, ativosOnly: true);
     return alunos; // lógica simplificada — UI pode refinar
   }
 
   // ─── FINANCEIRO ────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getPagamentos(String academiaId,
-      {String? alunoId}) async {
-    Query q = _col(academiaId, 'pagamentos').orderBy('data_vencimento', descending: true);
+  Future<List<Map<String, dynamic>>> getPagamentos(
+    String academiaId, {
+    String? alunoId,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'pagamentos',
+    ).orderBy('data_vencimento', descending: true);
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     final snap = await q.get();
     return snap.docs.map(_convertDoc).toList();
@@ -759,7 +1029,12 @@ class FirestoreService {
 
   /// Gera pagamento do mês corrente para o aluno se não existir ainda.
   Future<void> gerarPagamentoMesSeNecessario(
-      String academiaId, String alunoId, String alunoNome, String planoId, int diaVenc) async {
+    String academiaId,
+    String alunoId,
+    String alunoNome,
+    String planoId,
+    int diaVenc,
+  ) async {
     final now = DateTime.now();
     final mesRef =
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
@@ -791,14 +1066,28 @@ class FirestoreService {
     });
   }
 
-  Future<String> addPagamento(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addPagamento(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'pagamentos').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updatePagamento(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'pagamentos', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updatePagamento(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'pagamentos',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deletePagamento(String academiaId, String id) =>
       _doc(academiaId, 'pagamentos', id).delete();
@@ -829,7 +1118,10 @@ class FirestoreService {
   // ─── PLANOS ────────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPlanos(String academiaId) async {
-    final snap = await _col(academiaId, 'planos').where('ativo', isEqualTo: true).get();
+    final snap = await _col(
+      academiaId,
+      'planos',
+    ).where('ativo', isEqualTo: true).get();
     return snap.docs.map(_convertDoc).toList();
   }
 
@@ -841,34 +1133,68 @@ class FirestoreService {
 
   Future<String> addPlano(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'planos').doc();
-    await ref.set({...data, 'id': ref.id, 'ativo': true, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'ativo': true,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updatePlano(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'planos', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updatePlano(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'planos',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
-  Future<void> deletePlano(String academiaId, String id) =>
-      _doc(academiaId, 'planos', id).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> deletePlano(String academiaId, String id) => _doc(
+    academiaId,
+    'planos',
+    id,
+  ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
 
   // ─── NOTÍCIAS ──────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getNoticias(String academiaId,
-      {bool publicadasOnly = true}) async {
-    Query q = _col(academiaId, 'noticias').orderBy('criado_em', descending: true);
+  Future<List<Map<String, dynamic>>> getNoticias(
+    String academiaId, {
+    bool publicadasOnly = true,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'noticias',
+    ).orderBy('criado_em', descending: true);
     if (publicadasOnly) q = q.where('publicada', isEqualTo: true);
     final snap = await q.get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addNoticia(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addNoticia(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'noticias').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateNoticia(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'noticias', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> updateNoticia(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'noticias',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deleteNoticia(String academiaId, String id) =>
       _doc(academiaId, 'noticias', id).delete();
@@ -876,26 +1202,99 @@ class FirestoreService {
   // ─── NOTIFICAÇÕES ──────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getNotificacoes(String academiaId) async {
-    final snap = await _col(academiaId, 'notificacoes')
-        .orderBy('criado_em', descending: true)
-        .limit(50)
-        .get();
+    final snap = await _col(
+      academiaId,
+      'notificacoes',
+    ).orderBy('criado_em', descending: true).limit(50).get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addNotificacao(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addNotificacao(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'notificacoes').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
   Future<void> marcarNotificacaoLida(String academiaId, String id) =>
       _doc(academiaId, 'notificacoes', id).update({'lida': true});
 
+  // ─── CONTAS DA ACADEMIA (luz, água, aluguel etc.) ─────────────────────────
+
+  Future<List<Map<String, dynamic>>> getContasAcademia(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'contas_academia',
+    ).orderBy('data_vencimento', descending: false).get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
+  Future<String> addContaAcademia(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
+    final ref = _col(academiaId, 'contas_academia').doc();
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'status': data['status'] ?? 'pendente',
+      'criado_em': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  Future<void> updateContaAcademia(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'contas_academia',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+
+  Future<void> deleteContaAcademia(String academiaId, String id) =>
+      _doc(academiaId, 'contas_academia', id).delete();
+
+  // ─── PUSH NOTIFICATIONS (FCM) ──────────────────────────────────────────────
+
+  /// Salva o token FCM do dispositivo no documento do usuário/funcionário logado,
+  /// para que a Cloud Function de vencimentos consiga notificar esse celular.
+  Future<void> salvarFcmToken({
+    required String academiaId,
+    required String usuarioId,
+    required String colecao,
+    required String token,
+  }) async {
+    await _doc(academiaId, colecao, usuarioId).update({
+      'fcm_tokens': FieldValue.arrayUnion([token]),
+    });
+  }
+
+  Future<void> removerFcmToken({
+    required String academiaId,
+    required String usuarioId,
+    required String colecao,
+    required String token,
+  }) async {
+    await _doc(academiaId, colecao, usuarioId).update({
+      'fcm_tokens': FieldValue.arrayRemove([token]),
+    });
+  }
+
   Future<void> marcarTodasNotificacoesLidas(String academiaId) async {
-    final snap = await _col(academiaId, 'notificacoes')
-        .where('lida', isEqualTo: false)
-        .get();
+    final snap = await _col(
+      academiaId,
+      'notificacoes',
+    ).where('lida', isEqualTo: false).get();
     final batch = _db.batch();
     for (final doc in snap.docs) {
       batch.update(doc.reference, {'lida': true});
@@ -905,8 +1304,10 @@ class FirestoreService {
 
   // ─── RANKING ───────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getLeaderboard(String academiaId,
-      {int limit = 50}) async {
+  Future<List<Map<String, dynamic>>> getLeaderboard(
+    String academiaId, {
+    int limit = 50,
+  }) async {
     final snap = await _col(academiaId, 'usuarios')
         .where('perfil', isEqualTo: 3)
         .where('ativo', isEqualTo: true)
@@ -916,29 +1317,47 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<Map<String, dynamic>?> getPerfilRanking(String academiaId, String userId) =>
-      getUsuario(academiaId, userId);
+  Future<Map<String, dynamic>?> getPerfilRanking(
+    String academiaId,
+    String userId,
+  ) => getUsuario(academiaId, userId);
 
-  Future<List<Map<String, dynamic>>> getRankingsCustom(String academiaId) async {
-    final snap =
-        await _col(academiaId, 'rankings_custom').orderBy('criado_em', descending: true).get();
+  Future<List<Map<String, dynamic>>> getRankingsCustom(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'rankings_custom',
+    ).orderBy('criado_em', descending: true).get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addRankingCustom(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addRankingCustom(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'rankings_custom').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateRankingCustom(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'rankings_custom', id).update(data);
+  Future<void> updateRankingCustom(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'rankings_custom', id).update(data);
 
   Future<void> deleteRankingCustom(String academiaId, String id) =>
       _doc(academiaId, 'rankings_custom', id).delete();
 
   Future<List<Map<String, dynamic>>> getLancamentosPonto(
-      String academiaId, String rankingId) async {
+    String academiaId,
+    String rankingId,
+  ) async {
     final snap = await _col(academiaId, 'lancamentos_ponto')
         .where('ranking_custom_id', isEqualTo: rankingId)
         .orderBy('data', descending: true)
@@ -946,9 +1365,16 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addLancamentoPonto(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addLancamentoPonto(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'lancamentos_ponto').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
@@ -956,10 +1382,13 @@ class FirestoreService {
       _doc(academiaId, 'lancamentos_ponto', id).delete();
 
   Future<List<Map<String, dynamic>>> getConquistasAluno(
-      String academiaId, String userId) async {
-    final snap = await _col(academiaId, 'conquistas_aluno')
-        .where('aluno_id', isEqualTo: userId)
-        .get();
+    String academiaId,
+    String userId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'conquistas_aluno',
+    ).where('aluno_id', isEqualTo: userId).get();
     return snap.docs.map(_convertDoc).toList();
   }
 
@@ -977,7 +1406,10 @@ class FirestoreService {
 
   // ─── ATESTADOS MÉDICOS ─────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>?> getAtestadoAluno(String academiaId, String alunoId) async {
+  Future<Map<String, dynamic>?> getAtestadoAluno(
+    String academiaId,
+    String alunoId,
+  ) async {
     final snap = await _col(academiaId, 'atestados')
         .where('aluno_id', isEqualTo: alunoId)
         .orderBy('data_upload', descending: true)
@@ -987,7 +1419,10 @@ class FirestoreService {
     return _convertDoc(snap.docs.first);
   }
 
-  Future<String> addAtestado(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addAtestado(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'atestados').doc();
     await ref.set({
       ...data,
@@ -999,16 +1434,26 @@ class FirestoreService {
     return ref.id;
   }
 
-  Future<void> avaliarAtestado(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'atestados', id).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> avaliarAtestado(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'atestados',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   // ─── PAR-Q ─────────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>?> getParQ(String academiaId, String alunoId) async {
-    final snap = await _col(academiaId, 'par_qs')
-        .where('aluno_id', isEqualTo: alunoId)
-        .limit(1)
-        .get();
+  Future<Map<String, dynamic>?> getParQ(
+    String academiaId,
+    String alunoId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'par_qs',
+    ).where('aluno_id', isEqualTo: alunoId).limit(1).get();
     if (snap.docs.isEmpty) return null;
     return _convertDoc(snap.docs.first);
   }
@@ -1026,108 +1471,180 @@ class FirestoreService {
 
   // ─── CONTRATOS ─────────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getContratos(String academiaId,
-      {String? alunoId}) async {
-    Query q = _col(academiaId, 'contratos').orderBy('criado_em', descending: true);
+  Future<List<Map<String, dynamic>>> getContratos(
+    String academiaId, {
+    String? alunoId,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'contratos',
+    ).orderBy('criado_em', descending: true);
     if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
     final snap = await q.get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<Map<String, dynamic>?> getContrato(String academiaId, String id) async {
+  Future<Map<String, dynamic>?> getContrato(
+    String academiaId,
+    String id,
+  ) async {
     final doc = await _doc(academiaId, 'contratos', id).get();
     if (!doc.exists) return null;
     return _convertDoc(doc);
   }
 
-  Future<void> assinarContrato(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'contratos', id).update({
-        ...data,
-        'status': 1, // Assinado
-        'data_assinatura': FieldValue.serverTimestamp(),
-      });
+  Future<void> assinarContrato(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'contratos', id).update({
+    ...data,
+    'status': 1, // Assinado
+    'data_assinatura': FieldValue.serverTimestamp(),
+  });
 
-  Future<List<Map<String, dynamic>>> getModelosContrato(String academiaId) async {
+  Future<List<Map<String, dynamic>>> getModelosContrato(
+    String academiaId,
+  ) async {
     final snap = await _col(academiaId, 'modelos_contrato').get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addModeloContrato(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addModeloContrato(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'modelos_contrato').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateModeloContrato(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'modelos_contrato', id).update(data);
+  Future<void> updateModeloContrato(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'modelos_contrato', id).update(data);
 
   Future<void> deleteModeloContrato(String academiaId, String id) =>
       _doc(academiaId, 'modelos_contrato', id).delete();
 
   // ─── GRUPOS FAMILIARES ─────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getGruposFamiliares(String academiaId) async {
-    final snap = await _col(academiaId, 'grupos_familiares').orderBy('nome').get();
+  Future<List<Map<String, dynamic>>> getGruposFamiliares(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'grupos_familiares',
+    ).orderBy('nome').get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<String> addGrupoFamiliar(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addGrupoFamiliar(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'grupos_familiares').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updateGrupoFamiliar(String academiaId, String id, Map<String, dynamic> data) =>
-      _doc(academiaId, 'grupos_familiares', id).update(data);
+  Future<void> updateGrupoFamiliar(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'grupos_familiares', id).update(data);
 
   Future<void> deleteGrupoFamiliar(String academiaId, String id) =>
       _doc(academiaId, 'grupos_familiares', id).delete();
 
   /// Retorna todos os alunos cujo grupo_familiar_id == grupoId (fonte de verdade).
   Future<List<Map<String, dynamic>>> getMembrosGrupo(
-      String academiaId, String grupoId) async {
+    String academiaId,
+    String grupoId,
+  ) async {
     final snap = await _col(academiaId, 'usuarios')
         .where('grupo_familiar_id', isEqualTo: grupoId)
         .where('perfil', isEqualTo: 3)
         .get();
-    return snap.docs.map(_convertDoc).toList()
-      ..sort((a, b) => (a['nome'] as String? ?? '').compareTo(b['nome'] as String? ?? ''));
+    return snap.docs.map(_convertDoc).toList()..sort(
+      (a, b) =>
+          (a['nome'] as String? ?? '').compareTo(b['nome'] as String? ?? ''),
+    );
   }
 
   Future<void> adicionarMembroGrupo(
-      String academiaId, String grupoId, String alunoId) async {
+    String academiaId,
+    String grupoId,
+    String alunoId,
+  ) async {
     final alunoSnap = await _doc(academiaId, 'usuarios', alunoId).get();
-    final nome = (alunoSnap.data() as Map<String, dynamic>?)?['nome'] as String? ?? '';
+    final nome =
+        (alunoSnap.data() as Map<String, dynamic>?)?['nome'] as String? ?? '';
     await Future.wait([
-      _doc(academiaId, 'usuarios', alunoId).update({'grupo_familiar_id': grupoId}),
+      _doc(
+        academiaId,
+        'usuarios',
+        alunoId,
+      ).update({'grupo_familiar_id': grupoId}),
       _doc(academiaId, 'grupos_familiares', grupoId).update({
-        'membros': FieldValue.arrayUnion([{'id': alunoId, 'nome': nome}]),
+        'membros': FieldValue.arrayUnion([
+          {'id': alunoId, 'nome': nome},
+        ]),
       }),
     ]);
   }
 
   Future<void> removerMembroGrupo(
-      String academiaId, String grupoId, String membroId) async {
-    final grupoSnap = await _doc(academiaId, 'grupos_familiares', grupoId).get();
-    final membros = (grupoSnap.data() as Map<String, dynamic>?)?['membros'] as List? ?? [];
+    String academiaId,
+    String grupoId,
+    String membroId,
+  ) async {
+    final grupoSnap = await _doc(
+      academiaId,
+      'grupos_familiares',
+      grupoId,
+    ).get();
+    final membros =
+        (grupoSnap.data() as Map<String, dynamic>?)?['membros'] as List? ?? [];
     final membro = membros.cast<Object?>().firstWhere(
       (m) => m is Map && m['id']?.toString() == membroId,
       orElse: () => null,
     );
     final futures = <Future>[
-      _doc(academiaId, 'usuarios', membroId).update({'grupo_familiar_id': FieldValue.delete()}),
+      _doc(
+        academiaId,
+        'usuarios',
+        membroId,
+      ).update({'grupo_familiar_id': FieldValue.delete()}),
     ];
     if (membro != null) {
-      futures.add(_doc(academiaId, 'grupos_familiares', grupoId).update({
-        'membros': FieldValue.arrayRemove([membro]),
-      }));
+      futures.add(
+        _doc(academiaId, 'grupos_familiares', grupoId).update({
+          'membros': FieldValue.arrayRemove([membro]),
+        }),
+      );
     }
     await Future.wait(futures);
   }
 
   Future<void> definirResponsavelGrupo(
-      String academiaId, String grupoId, String alunoId) =>
-      _doc(academiaId, 'grupos_familiares', grupoId).update({'responsavel_id': alunoId});
+    String academiaId,
+    String grupoId,
+    String alunoId,
+  ) => _doc(
+    academiaId,
+    'grupos_familiares',
+    grupoId,
+  ).update({'responsavel_id': alunoId});
 
   // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 
@@ -1136,19 +1653,20 @@ class FirestoreService {
     final now = DateTime.now();
     final mesStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
-    final alunosSnap = await _col(academiaId, 'usuarios')
-        .where('perfil', isEqualTo: 3)
-        .where('ativo', isEqualTo: true)
-        .get();
+    final alunosSnap = await _col(
+      academiaId,
+      'usuarios',
+    ).where('perfil', isEqualTo: 3).where('ativo', isEqualTo: true).get();
     final totalAlunos = alunosSnap.docs.length;
 
     final pgSnap = await _col(academiaId, 'pagamentos')
         .where('status', isEqualTo: 1) // Pago
         .get();
 
-    final presSnap = await _col(academiaId, 'presencas')
-        .where('data', isGreaterThanOrEqualTo: '$mesStr-01')
-        .get();
+    final presSnap = await _col(
+      academiaId,
+      'presencas',
+    ).where('data', isGreaterThanOrEqualTo: '$mesStr-01').get();
 
     return {
       'total_alunos': totalAlunos,
@@ -1160,10 +1678,15 @@ class FirestoreService {
   // ─── PESQUISA DE SATISFAÇÃO ───────────────────────────────────────────────
 
   Future<bool> jaRespondeuPesquisaMes(
-      String academiaId, String alunoId, String mes, {String? templateId}) async {
-    Query q = _col(academiaId, 'respostas_pesquisa')
-        .where('aluno_id', isEqualTo: alunoId)
-        .where('mes', isEqualTo: mes);
+    String academiaId,
+    String alunoId,
+    String mes, {
+    String? templateId,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'respostas_pesquisa',
+    ).where('aluno_id', isEqualTo: alunoId).where('mes', isEqualTo: mes);
     if (templateId != null) {
       q = q.where('template_id', isEqualTo: templateId);
     }
@@ -1172,16 +1695,27 @@ class FirestoreService {
   }
 
   Future<String> addRespostaPesquisa(
-      String academiaId, Map<String, dynamic> data) async {
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'respostas_pesquisa').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
   Future<List<Map<String, dynamic>>> getRespostasPesquisa(
-      String academiaId, {String? mes, String? templateId}) async {
-    Query q = _col(academiaId, 'respostas_pesquisa')
-        .orderBy('criado_em', descending: true);
+    String academiaId, {
+    String? mes,
+    String? templateId,
+  }) async {
+    Query q = _col(
+      academiaId,
+      'respostas_pesquisa',
+    ).orderBy('criado_em', descending: true);
     if (mes != null) q = q.where('mes', isEqualTo: mes);
     if (templateId != null) q = q.where('template_id', isEqualTo: templateId);
     final snap = await q.get();
@@ -1190,29 +1724,45 @@ class FirestoreService {
 
   // ─── TEMPLATES DE PESQUISA ────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getPesquisaTemplates(String academiaId) async {
-    final snap = await _col(academiaId, 'pesquisa_templates')
-        .orderBy('criado_em', descending: true)
-        .get();
+  Future<List<Map<String, dynamic>>> getPesquisaTemplates(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'pesquisa_templates',
+    ).orderBy('criado_em', descending: true).get();
     return snap.docs.map(_convertDoc).toList();
   }
 
-  Future<Map<String, dynamic>?> getPesquisaTemplateAtivo(String academiaId) async {
-    final snap = await _col(academiaId, 'pesquisa_templates')
-        .where('ativa', isEqualTo: true)
-        .limit(1)
-        .get();
+  Future<Map<String, dynamic>?> getPesquisaTemplateAtivo(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'pesquisa_templates',
+    ).where('ativa', isEqualTo: true).limit(1).get();
     if (snap.docs.isEmpty) return null;
     return _convertDoc(snap.docs.first);
   }
 
-  Future<String> addPesquisaTemplate(String academiaId, Map<String, dynamic> data) async {
+  Future<String> addPesquisaTemplate(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
     final ref = _col(academiaId, 'pesquisa_templates').doc();
-    await ref.set({...data, 'id': ref.id, 'criado_em': FieldValue.serverTimestamp()});
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
     return ref.id;
   }
 
-  Future<void> updatePesquisaTemplate(String academiaId, String id, Map<String, dynamic> data) async {
+  Future<void> updatePesquisaTemplate(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     await _doc(academiaId, 'pesquisa_templates', id).update(data);
   }
 
@@ -1222,9 +1772,10 @@ class FirestoreService {
 
   Future<void> ativarPesquisaTemplate(String academiaId, String id) async {
     // Desativa todos antes de ativar o escolhido
-    final snap = await _col(academiaId, 'pesquisa_templates')
-        .where('ativa', isEqualTo: true)
-        .get();
+    final snap = await _col(
+      academiaId,
+      'pesquisa_templates',
+    ).where('ativa', isEqualTo: true).get();
     final batch = _db.batch();
     for (final doc in snap.docs) {
       batch.update(doc.reference, {'ativa': false});

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "celular nacional sem mascara",
+    "input": "21999999999",
+    "expected": "+5521999999999"
+  },
+  {
+    "name": "celular nacional com mascara",
+    "input": "(21) 99999-9999",
+    "expected": "+5521999999999"
+  },
+  {
+    "name": "celular com codigo do pais e sinal de mais",
+    "input": "+55 21 99999-9999",
+    "expected": "+5521999999999"
+  },
+  {
+    "name": "celular com codigo do pais sem sinal de mais",
+    "input": "55 21 99999-9999",
+    "expected": "+5521999999999"
+  },
+  {
+    "name": "celular com prefixo internacional 00",
+    "input": "0055 21 99999-9999",
+    "expected": "+5521999999999"
+  },
+  {
+    "name": "telefone fixo brasileiro",
+    "input": "(11) 3333-4444",
+    "expected": "+551133334444"
+  },
+  {
+    "name": "numero internacional explicito",
+    "input": "+1 415 555 2671",
+    "expected": "+14155552671"
+  },
+  {
+    "name": "valor vazio",
+    "input": "",
+    "expected": null
+  },
+  {
+    "name": "numero incompleto",
+    "input": "219999",
+    "expected": null
+  }
+]

@@ -30,6 +30,12 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\test-fixtures\domain\phone_normalization_cases.json"
+             Link="Fixtures\phone_normalization_cases.json"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\test-fixtures\domain\billing_cases.json"
+             Link="Fixtures\billing_cases.json"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

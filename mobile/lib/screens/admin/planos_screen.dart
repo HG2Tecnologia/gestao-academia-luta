@@ -145,9 +145,12 @@ class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
       ),
     );
 
-    nomeCtrl.dispose();
-    valorCtrl.dispose();
-    descCtrl.dispose();
+    // NÃO faz dispose aqui: `await showModalBottomSheet` resolve assim que o
+    // modal é fechado (pop), mas o widget continua montado e desenhando
+    // frames durante a animação de saída (~250ms). Destruir os controllers
+    // nesse meio tempo derruba o app ("TextEditingController usado após
+    // dispose"). Controllers locais sem listeners pendentes não vazam de
+    // forma relevante ao deixar de ser destruídos.
   }
 
   Future<void> _confirmarExclusao(Map<String, dynamic> plano) async {

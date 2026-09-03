@@ -1,0 +1,46 @@
+{
+  "description": "Fixture sintética do formato legado: duas alunas compartilham o telefone da responsável.",
+  "academyId": "academy-fixture",
+  "profiles": [
+    {
+      "path": "academias/academy-fixture/usuarios/student-a",
+      "data": {
+        "nome": "Maria Fixture",
+        "perfil": 3,
+        "ativo": true,
+        "telefone": "(21) 99999-9999",
+        "telefone_digits": "21999999999",
+        "firebaseUid": "auth-account-fixture"
+      }
+    },
+    {
+      "path": "academias/academy-fixture/usuarios/student-b",
+      "data": {
+        "nome": "Joana Fixture",
+        "perfil": 3,
+        "ativo": true,
+        "telefone": "+55 21 99999-9999",
+        "firebaseUid": "auth-account-fixture"
+      }
+    }
+  ],
+  "legacyAccount": {
+    "path": "usuariosFirebase/auth-account-fixture",
+    "data": {
+      "academiaId": "academy-fixture",
+      "usuarioId": "student-a",
+      "perfil": "Aluno",
+      "nome": "Maria Fixture"
+    }
+  },
+  "expectedAccount": {
+    "uid": "auth-account-fixture",
+    "schemaVersion": 2,
+    "phone_canonical": "+5521999999999",
+    "profile_keys": [
+      "academy-fixture|usuarios|student-a",
+      "academy-fixture|usuarios|student-b"
+    ],
+    "profile_refs": 2
+  }
+}

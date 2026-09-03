@@ -6,6 +6,8 @@ import '../core/constants.dart';
 import '../core/firestore_service.dart';
 import '../core/paywall_modal.dart';
 import '../core/plan_service.dart';
+import '../core/profile_session_service.dart';
+import '../core/push_service.dart';
 import '../core/version_check_service.dart';
 
 const _letters = ['S', 'E', 'N', 'S', 'E', 'I'];
@@ -116,12 +118,20 @@ class _SplashScreenState extends State<SplashScreen>
     // Verifica estado de autenticação do Firebase
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) {
-      if (mounted) context.go('/login');
+      if (mounted) context.go('/boas-vindas');
       return;
     }
 
-    // Tenta carregar dados locais; se não tiver, busca no Firestore
+    // Atualiza os vínculos mesmo quando já existe uma sessão local. Assim,
+    // novos irmãos/perfis aparecem sem refazer o Primeiro Acesso.
     var user = await AuthStorage.getUser();
+    try {
+      user = await ProfileSessionService.refresh() ?? user;
+    } catch (_) {
+      // Mantém a sessão local para funcionamento offline.
+    }
+
+    // Fallback para instalações antigas sem sessão local completa.
     if (user == null) {
       try {
         final userData = await firestoreService.getUserByFirebaseUid(firebaseUser.uid);
@@ -145,6 +155,7 @@ class _SplashScreenState extends State<SplashScreen>
               academiaId: userData['academiaId'] as String?,
               permissoes: permissoes,
               perfis: perfisLista,
+              mustChangePassword: userData['must_change_password'] == true,
             ),
           );
           user = await AuthStorage.getUser();
@@ -153,6 +164,12 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     if (!mounted) return;
+    // Uma redefinição administrativa de senha bloqueia a navegação normal
+    // até a pessoa trocar pela senha definitiva dela.
+    if (user?.mustChangePassword == true) {
+      context.go('/troca-senha-obrigatoria');
+      return;
+    }
     if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
       await PlanService.instance.load();
       if (mounted && PlanService.instance.showAds) {
@@ -160,16 +177,19 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
     if (!mounted) return;
+    if (user?.perfil == 'Admin' || user?.perfil == 'Secretaria') {
+      PushService.init();
+    }
     switch (user?.perfil) {
       case 'Admin':
       case 'Secretaria':
         context.go('/admin/dashboard');
       case 'Professor':
-        context.go('/professor/turmas');
+        context.go('/professor/dashboard');
       case 'Aluno':
         context.go('/aluno/perfil');
       default:
-        context.go('/login');
+        context.go('/boas-vindas');
     }
   }
 

@@ -7,6 +7,7 @@ import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -34,7 +35,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    perfilTrocadoNotifier.addListener(_load);
     _load();
+  }
+
+  @override
+  void dispose() {
+    perfilTrocadoNotifier.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {

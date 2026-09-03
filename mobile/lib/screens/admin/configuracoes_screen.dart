@@ -737,7 +737,7 @@ class _BotaoSairState extends State<_BotaoSair> {
     } catch (_) {}
     await AuthStorage.clear();
     if (!mounted) return;
-    context.go('/login');
+    context.go('/boas-vindas');
   }
 
   @override
@@ -795,7 +795,7 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
       await FirebaseAuth.instance.currentUser?.delete();
       await AuthStorage.clear();
       if (!mounted) return;
-      context.go('/login');
+      context.go('/boas-vindas');
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -37,7 +37,7 @@ class _ProfPresencaScreenState extends State<ProfPresencaScreen> {
       if (user == null) return;
       _academiaId = user.academiaId;
       final list = await firestoreService.getTurmas(user.academiaId!, professorId: user.id);
-      if (mounted) setState(() => _turmas = list);
+      if (mounted) setState(() => _turmas = list.where((t) => t['deleted_at'] == null).toList());
     } catch (_) {} finally {
       if (mounted) setState(() => _loading = false);
     }

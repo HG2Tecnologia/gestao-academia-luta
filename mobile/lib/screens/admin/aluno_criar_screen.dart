@@ -9,7 +9,10 @@ import '../../core/widgets.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue old,
+    TextEditingValue next,
+  ) {
     final digits = next.text.replaceAll(RegExp(r'\D'), '');
     final d = digits.length > 11 ? digits.substring(0, 11) : digits;
     final buf = StringBuffer();
@@ -21,7 +24,10 @@ class _PhoneMaskFormatter extends TextInputFormatter {
       buf.write(d[i]);
     }
     final text = buf.toString();
-    return next.copyWith(text: text, selection: TextSelection.collapsed(offset: text.length));
+    return next.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
   }
 }
 
@@ -54,7 +60,8 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     final hoje = DateTime.now();
     var idade = hoje.year - _dataNascimento!.year;
     if (hoje.month < _dataNascimento!.month ||
-        (hoje.month == _dataNascimento!.month && hoje.day < _dataNascimento!.day)) {
+        (hoje.month == _dataNascimento!.month &&
+            hoje.day < _dataNascimento!.day)) {
       idade--;
     }
     return idade < 18;
@@ -101,7 +108,10 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _salvando = true; _erro = null; });
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
     try {
       final user = await AuthStorage.getUser();
       final academiaId = user!.academiaId!;
@@ -109,24 +119,49 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       final telVal = _telefone.text.trim();
       final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
 
-      // Verificar duplicados por e-mail ou telefone
+      // Verificar duplicado por e-mail (telefone pode repetir entre irmãos)
       final duplicado = await firestoreService.verificarDuplicadoAluno(
         academiaId,
         email: emailVal.isNotEmpty ? emailVal : null,
-        telefoneDigits: telDigits.isNotEmpty ? telDigits : null,
       );
 
       if (duplicado != null && mounted) {
         setState(() => _salvando = false);
         final confirmar = await _confirmarDuplicado(duplicado);
         if (!confirmar) return;
-        setState(() { _salvando = true; _erro = null; });
+        setState(() {
+          _salvando = true;
+          _erro = null;
+        });
+      }
+
+      // Se o telefone já pertence a um Professor/Secretaria/Admin, avisa que
+      // isso vai vincular os dois perfis na mesma pessoa (ex: professor que
+      // também treina como aluno em outra modalidade).
+      if (telDigits.isNotEmpty) {
+        final vinculos = await firestoreService.buscarPerfisMesmaAcademia(
+          academiaId,
+          telDigits,
+        );
+        final funcionarios = vinculos
+            .where((v) => v['_colecao'] == 'funcionarios')
+            .toList();
+        final funcionario = funcionarios.isNotEmpty ? funcionarios.first : null;
+        if (funcionario != null && mounted) {
+          setState(() => _salvando = false);
+          final confirmar = await _confirmarVinculo(funcionario);
+          if (!confirmar) return;
+          setState(() {
+            _salvando = true;
+            _erro = null;
+          });
+        }
       }
 
       final nascIso = _dataNascimento != null
           ? '${_dataNascimento!.year.toString().padLeft(4, '0')}-'
-            '${_dataNascimento!.month.toString().padLeft(2, '0')}-'
-            '${_dataNascimento!.day.toString().padLeft(2, '0')}'
+                '${_dataNascimento!.month.toString().padLeft(2, '0')}-'
+                '${_dataNascimento!.day.toString().padLeft(2, '0')}'
           : null;
       await firestoreService.addAluno(academiaId, {
         'nome': _nome.text.trim(),
@@ -134,11 +169,15 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         'telefone': telVal,
         if (telDigits.isNotEmpty) 'telefone_digits': telDigits,
         if (nascIso != null) 'data_nascimento': nascIso,
-        if (_cpf.text.trim().isNotEmpty) 'cpf': _cpf.text.trim().replaceAll(RegExp(r'\D'), ''),
-        if (_emergenciaNome.text.trim().isNotEmpty) 'contato_emergencia_nome': _emergenciaNome.text.trim(),
-        if (_emergenciaTel.text.trim().isNotEmpty) 'contato_emergencia_telefone': _emergenciaTel.text.trim(),
-        if (_planoId != null) 'planoId': _planoId,
-        if (_diaVenc.text.trim().isNotEmpty) 'diaVencimento': int.tryParse(_diaVenc.text.trim()),
+        if (_cpf.text.trim().isNotEmpty)
+          'cpf': _cpf.text.trim().replaceAll(RegExp(r'\D'), ''),
+        if (_emergenciaNome.text.trim().isNotEmpty)
+          'contato_emergencia_nome': _emergenciaNome.text.trim(),
+        if (_emergenciaTel.text.trim().isNotEmpty)
+          'contato_emergencia_telefone': _emergenciaTel.text.trim(),
+        if (_planoId != null) 'plano_id': _planoId,
+        if (_diaVenc.text.trim().isNotEmpty)
+          'dia_vencimento': int.tryParse(_diaVenc.text.trim()),
         if (!_acessoAppAtivo) 'acesso_app_bloqueado': true,
       });
       if (mounted) context.pop();
@@ -161,45 +200,148 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   Future<bool> _confirmarDuplicado(Map<String, dynamic> existente) async {
     final nomeExist = existente['nome'] as String? ?? 'aluno existente';
     return await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Contato já cadastrado', style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('O e-mail ou telefone informado já pertence a:', style: TextStyle(color: kText2, fontSize: 13)),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10)),
-              child: Row(children: [
-                Icon(Icons.person_rounded, color: kPrimary, size: 20),
-                const SizedBox(width: 8),
-                Text(nomeExist, style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-              ]),
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(
+              'E-mail já cadastrado',
+              style: TextStyle(
+                color: kText1,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Deseja cadastrar mesmo assim?\n'
-              'Ao fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).',
-              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'O e-mail informado já pertence a:',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: kBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_rounded, color: kPrimary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        nomeExist,
+                        style: TextStyle(
+                          color: kText1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Deseja cadastrar mesmo assim?\n'
+                  'Ao fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).',
+                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancelar', style: TextStyle(color: kText2)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Cadastrar mesmo assim',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Cadastrar mesmo assim', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+        ) ??
+        false;
+  }
+
+  Future<bool> _confirmarVinculo(Map<String, dynamic> funcionario) async {
+    final nome = funcionario['nome'] as String? ?? 'um membro da equipe';
+    final perfilNome = funcionario['perfil_nome'] as String? ?? 'Professor';
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(
+              'Vincular perfis?',
+              style: TextStyle(
+                color: kText1,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Esse telefone já pertence a:',
+                  style: TextStyle(color: kText2, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: kBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.badge_rounded, color: kPrimary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$nome ($perfilNome)',
+                          style: TextStyle(
+                            color: kText1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Deseja vincular esse cadastro de Aluno ao mesmo contato? '
+                  'A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.',
+                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text('Cancelar', style: TextStyle(color: kText2)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Vincular também',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   @override
@@ -219,8 +361,8 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     final nascFormatted = _dataNascimento == null
         ? null
         : '${_dataNascimento!.day.toString().padLeft(2, '0')}/'
-          '${_dataNascimento!.month.toString().padLeft(2, '0')}/'
-          '${_dataNascimento!.year}';
+              '${_dataNascimento!.month.toString().padLeft(2, '0')}/'
+              '${_dataNascimento!.year}';
 
     return Scaffold(
       backgroundColor: kBg,
@@ -228,7 +370,10 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         backgroundColor: kSurface,
         foregroundColor: kText1,
         elevation: 0,
-        title: Text('Novo Aluno', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Novo Aluno',
+          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -238,8 +383,18 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             _section('Dados pessoais'),
             _field(_nome, 'Nome completo *', required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
-            _field(_telefone, 'Telefone', keyboard: TextInputType.phone, formatters: [_PhoneMaskFormatter()]),
-            _field(_cpf, 'CPF (opcional)', keyboard: TextInputType.number, formatters: [CpfInputFormatter()]),
+            _field(
+              _telefone,
+              'Telefone',
+              keyboard: TextInputType.phone,
+              formatters: [_PhoneMaskFormatter()],
+            ),
+            _field(
+              _cpf,
+              'CPF (opcional)',
+              keyboard: TextInputType.number,
+              formatters: [CpfInputFormatter()],
+            ),
 
             // Date picker field
             Padding(
@@ -257,28 +412,44 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: kBorder),
                     ),
-                    child: Row(children: [
-                      Icon(Icons.calendar_today_rounded, color: kText2, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          nascFormatted ?? 'Data de nascimento',
-                          style: TextStyle(
-                            color: nascFormatted != null ? kText1 : kText2,
-                            fontSize: 14,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          color: kText2,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            nascFormatted ?? 'Data de nascimento',
+                            style: TextStyle(
+                              color: nascFormatted != null ? kText1 : kText2,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
-                      if (_menorDeIdade)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: kWarning.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
+                        if (_menorDeIdade)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: kWarning.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Menor de idade',
+                              style: TextStyle(
+                                color: kWarning,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          child: Text('Menor de idade', style: TextStyle(color: kWarning, fontSize: 10, fontWeight: FontWeight.w700)),
-                        ),
-                    ]),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -288,7 +459,9 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             _sectionWithBadge('Responsável / Emergência', 'opcional'),
             _field(
               _emergenciaNome,
-              _menorDeIdade ? 'Nome do responsável' : 'Nome do contato de emergência',
+              _menorDeIdade
+                  ? 'Nome do responsável'
+                  : 'Nome do contato de emergência',
             ),
             _field(
               _emergenciaTel,
@@ -310,14 +483,28 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                   child: DropdownButton<String?>(
                     value: _planoId,
                     dropdownColor: kSurface,
-                    hint: Text('Selecionar plano (opcional)', style: TextStyle(color: kText2, fontSize: 14)),
+                    hint: Text(
+                      'Selecionar plano (opcional)',
+                      style: TextStyle(color: kText2, fontSize: 14),
+                    ),
                     isExpanded: true,
                     items: [
-                      DropdownMenuItem<String?>(value: null, child: Text('Sem plano', style: TextStyle(color: kText2))),
-                      ..._planos.map((p) => DropdownMenuItem<String?>(
-                            value: p['id'] as String?,
-                            child: Text(p['nome'] ?? '', style: TextStyle(color: kText1)),
-                          )),
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'Sem plano',
+                          style: TextStyle(color: kText2),
+                        ),
+                      ),
+                      ..._planos.map(
+                        (p) => DropdownMenuItem<String?>(
+                          value: p['id'] as String?,
+                          child: Text(
+                            p['nome'] ?? '',
+                            style: TextStyle(color: kText1),
+                          ),
+                        ),
+                      ),
                     ],
                     onChanged: (v) => setState(() => _planoId = v),
                   ),
@@ -325,7 +512,11 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               ),
               const SizedBox(height: 10),
             ],
-            _field(_diaVenc, 'Dia de vencimento (1-31)', keyboard: TextInputType.number),
+            _field(
+              _diaVenc,
+              'Dia de vencimento (1-31)',
+              keyboard: TextInputType.number,
+            ),
             const SizedBox(height: 24),
             _section('Acesso ao App'),
             Container(
@@ -333,47 +524,66 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               decoration: BoxDecoration(
                 color: kSurface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _acessoAppAtivo ? kBorder : kDanger.withOpacity(0.5)),
-              ),
-              child: Row(children: [
-                Icon(
-                  _acessoAppAtivo ? Icons.lock_open_rounded : Icons.lock_rounded,
-                  color: _acessoAppAtivo ? kSuccess : kDanger,
-                  size: 20,
+                border: Border.all(
+                  color: _acessoAppAtivo ? kBorder : kDanger.withOpacity(0.5),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    _acessoAppAtivo ? 'Acesso ao app liberado' : 'Acesso ao app bloqueado',
-                    style: TextStyle(
-                      color: _acessoAppAtivo ? kSuccess : kDanger,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _acessoAppAtivo
+                        ? Icons.lock_open_rounded
+                        : Icons.lock_rounded,
+                    color: _acessoAppAtivo ? kSuccess : kDanger,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _acessoAppAtivo
+                              ? 'Acesso ao app liberado'
+                              : 'Acesso ao app bloqueado',
+                          style: TextStyle(
+                            color: _acessoAppAtivo ? kSuccess : kDanger,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          _acessoAppAtivo
+                              ? 'Aluno poderá fazer login normalmente'
+                              : 'Aluno não conseguirá entrar no app',
+                          style: TextStyle(color: kText2, fontSize: 11),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    _acessoAppAtivo
-                        ? 'Aluno poderá fazer login normalmente'
-                        : 'Aluno não conseguirá entrar no app',
-                    style: TextStyle(color: kText2, fontSize: 11),
+                  Switch(
+                    value: _acessoAppAtivo,
+                    activeColor: kSuccess,
+                    inactiveThumbColor: kDanger,
+                    inactiveTrackColor: kDanger.withOpacity(0.3),
+                    onChanged: (v) => setState(() => _acessoAppAtivo = v),
                   ),
-                ])),
-                Switch(
-                  value: _acessoAppAtivo,
-                  activeColor: kSuccess,
-                  inactiveThumbColor: kDanger,
-                  inactiveTrackColor: kDanger.withOpacity(0.3),
-                  onChanged: (v) => setState(() => _acessoAppAtivo = v),
-                ),
-              ]),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             if (_erro != null)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: kDanger.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+                decoration: BoxDecoration(
+                  color: kDanger.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _erro!,
+                  style: TextStyle(color: kDanger, fontSize: 13),
+                ),
               ),
             SizedBox(
               height: 50,
@@ -382,11 +592,26 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _salvando
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Cadastrar aluno', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Cadastrar aluno',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -396,25 +621,47 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   }
 
   Widget _section(String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: kText2,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
 
-  Widget _sectionWithBadge(String label, String badge, {bool obrigatorio = false}) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(children: [
-          Text(label, style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-          const SizedBox(width: 8),
-          Text(
-            badge,
-            style: TextStyle(
-              color: obrigatorio ? kWarning : kText2,
-              fontSize: 11,
-              fontWeight: obrigatorio ? FontWeight.w600 : FontWeight.normal,
-            ),
+  Widget _sectionWithBadge(
+    String label,
+    String badge, {
+    bool obrigatorio = false,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: kText2,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
           ),
-        ]),
-      );
+        ),
+        const SizedBox(width: 8),
+        Text(
+          badge,
+          style: TextStyle(
+            color: obrigatorio ? kWarning : kText2,
+            fontSize: 11,
+            fontWeight: obrigatorio ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _field(
     TextEditingController ctrl,
@@ -422,26 +669,42 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     bool required = false,
     TextInputType? keyboard,
     List<TextInputFormatter>? formatters,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextFormField(
-          controller: ctrl,
-          keyboardType: keyboard,
-          inputFormatters: formatters,
-          style: TextStyle(color: kText1),
-          validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null : null,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: kText2, fontSize: 14),
-            filled: true,
-            fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-          ),
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: TextFormField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      inputFormatters: formatters,
+      style: TextStyle(color: kText1),
+      validator: required
+          ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null
+          : null,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: kText2, fontSize: 14),
+        filled: true,
+        fillColor: kSurface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
-      );
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kPrimary),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: kDanger),
+        ),
+      ),
+    ),
+  );
 }

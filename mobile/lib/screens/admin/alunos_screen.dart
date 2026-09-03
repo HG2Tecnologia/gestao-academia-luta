@@ -6,6 +6,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/graduacao_order.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunosScreen extends StatefulWidget {
@@ -57,51 +58,19 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
 
       final results = await Future.wait([
         firestoreService.getAlunos(academiaId),
-        firestoreService.getGraduacoes(academiaId),
-        firestoreService.getFaixas(academiaId),
+        firestoreService.getGraduacoes(academiaId, detalhadas: true),
       ]);
 
       final alunos = results[0] as List<Map<String, dynamic>>;
       final graduacoes = results[1] as List<Map<String, dynamic>>;
-      final faixas = results[2] as List<Map<String, dynamic>>;
-
-      final faixaMap = <String, Map<String, dynamic>>{
-        for (final f in faixas) f['id'].toString(): f,
-      };
-
-      // Para cada aluno, pega a graduação aprovada mais recente
-      final melhorGraduacaoPorAluno = <String, Map<String, dynamic>>{};
-      for (final g in graduacoes) {
-        if (g['aprovado'] != true) continue;
-        final alunoId = g['aluno_id']?.toString() ?? '';
-        if (alunoId.isEmpty) continue;
-        final faixaId = g['faixa_id']?.toString() ?? '';
-        final f = faixaMap[faixaId];
-        if (f == null) continue;
-        final ordem = (f['ordem'] as num?)?.toInt() ?? 0;
-        final grau = (g['grau'] as num?)?.toInt() ?? 0;
-        final existente = melhorGraduacaoPorAluno[alunoId];
-        final existOrdem = (existente?['_ordem'] as int?) ?? -1;
-        final existGrau = (existente?['grau'] as int?) ?? -1;
-        if (existente == null || ordem > existOrdem || (ordem == existOrdem && grau > existGrau)) {
-          melhorGraduacaoPorAluno[alunoId] = {
-            'faixaAtualNome': f['nome'],
-            'faixaAtualCor': f['cor'],
-            'faixaAtualTemGraus': f['tem_graus'] == true,
-            'faixaAtualMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 0,
-            'grauAtual': grau,
-            '_ordem': ordem,
-          };
-        }
-      }
+      final faixasAtuaisPorAluno = montarFaixasAtuaisPorAluno(graduacoes);
 
       final todos = alunos.map((a) {
         final id = a['id']?.toString() ?? '';
-        final grad = melhorGraduacaoPorAluno[id];
-        if (grad == null) return a;
-        if (a['faixaAtualCor'] != null) return a;
-        final enrichFields = Map<String, dynamic>.from(grad)..remove('_ordem');
-        return <String, dynamic>{...a, ...enrichFields};
+        return <String, dynamic>{
+          ...a,
+          'faixasAtuais': faixasAtuaisPorAluno[id] ?? const {},
+        };
       }).toList();
 
       if (mounted) {
@@ -214,13 +183,13 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                       || (statusAtestado == 1 && atestadoValidade != null && atestadoValidade.isBefore(DateTime.now().add(const Duration(days: 7))));
                                   final primary = _primaryFaixa(a);
                                   final faixasCount = (a['faixasAtuais'] as Map?)?.length ?? 0;
-                                  final faixaCor = primary?['faixaCor'] as String? ?? a['faixaAtualCor'] as String?;
-                                  final faixaCorBarra = primary?['faixaCorBarra'] as String? ?? a['faixaAtualCorBarra'] as String?;
-                                  final grauAtual = ((primary != null ? primary['grau'] : a['grauAtual']) as num?)?.toInt() ?? 0;
-                                  final maxGrausRaw = ((primary != null ? primary['faixaMaxGraus'] : a['faixaAtualMaxGraus']) as num?)?.toInt() ?? 4;
+                                  final faixaCor = primary?['faixaCor'] as String?;
+                                  final faixaCorBarra = primary?['faixaCorBarra'] as String?;
+                                  final grauAtual = (primary?['grau'] as num?)?.toInt() ?? 0;
+                                  final maxGrausRaw = (primary?['faixaMaxGraus'] as num?)?.toInt() ?? 4;
                                   final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grauAtual > 0 ? grauAtual : 4);
-                                  final temGraus = (primary != null ? primary['faixaTemGraus'] == true : a['faixaAtualTemGraus'] == true) || grauAtual > 0;
-                                  final faixaNome = primary?['faixaNome'] as String? ?? a['faixaAtualNome'] as String?;
+                                  final temGraus = primary?['faixaTemGraus'] == true || grauAtual > 0;
+                                  final faixaNome = primary?['faixaNome'] as String?;
                                   final foto = a['fotoBase64'] as String? ?? a['foto_base64'] as String?;
                                   final initials = (a['nome'] as String? ?? '').trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
                                   Color parseCor(String? hex) {
@@ -289,6 +258,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                                         grauAtual > 0
                                                             ? '$faixaNome · $grauAtual° Grau'
                                                             : faixaNome,
+                                                      if (faixaNome == null) 'Sem graduação',
                                                       (a['turmas'] as List?)?.isNotEmpty == true ? (a['turmas'] as List).first.toString() : null,
                                                     ].where((s) => s != null && s != '').join(' · '),
                                                     style: TextStyle(color: kText2, fontSize: 12),

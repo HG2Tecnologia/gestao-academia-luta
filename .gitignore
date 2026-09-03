@@ -16,6 +16,9 @@ frontend-web/dist/
 # Env
 .env
 .env.local
+scripts/migrate-firestore/auth-account-v2-report.json
+firebase-debug.log
+firestore-debug.log
 
 # macOS
 .DS_Store

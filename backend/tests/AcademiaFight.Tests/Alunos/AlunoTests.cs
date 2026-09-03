@@ -97,7 +97,9 @@ public class AlunoTests
             telefone  = "(11) 98765-4321",
         });
 
-        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+        Assert.True(
+            res.StatusCode == HttpStatusCode.Created,
+            $"Esperado 201, recebido {(int)res.StatusCode}: {await res.Content.ReadAsStringAsync()}");
     }
 
     [Fact]

@@ -10,6 +10,9 @@ class StoredUser {
   final Map<String, bool> permissoes;
   // Lista de perfis para grupo familiar (alunos com mesmo e-mail/telefone)
   final List<Map<String, dynamic>> perfis;
+  // true quando um Admin/Secretaria redefiniu a senha desta conta — a
+  // navegação fica bloqueada até a pessoa trocar por uma senha definitiva.
+  final bool mustChangePassword;
 
   const StoredUser({
     required this.id,
@@ -19,6 +22,7 @@ class StoredUser {
     this.academiaId,
     this.permissoes = const {},
     this.perfis = const [],
+    this.mustChangePassword = false,
   });
 
   factory StoredUser.fromJson(Map<String, dynamic> j) => StoredUser(
@@ -32,6 +36,7 @@ class StoredUser {
         perfis: (j['perfis'] as List<dynamic>? ?? [])
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList(),
+        mustChangePassword: j['mustChangePassword'] == true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +47,7 @@ class StoredUser {
         'academiaId': academiaId,
         'permissoes': permissoes,
         'perfis': perfis,
+        'mustChangePassword': mustChangePassword,
       };
 
   bool temPermissao(String chave) {
