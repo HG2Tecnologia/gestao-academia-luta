@@ -4,16 +4,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 import 'aluno_atestado_screen.dart';
 import 'aluno_qrcode_sheet.dart';
+import 'widgets/pesei.dart';
 
 // Roda em isolate separado via compute() para não travar a UI
 List<int>? _comprimirFoto(Uint8List bytes) {
@@ -36,9 +38,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Map<String, dynamic>? _aluno;
   Map<String, dynamic>? _atestado;
   Map<String, dynamic>? _parq;
-  List<Map<String, dynamic>> _noticias = [];
-  List<Map<String, dynamic>> _presencasRecentes = [];
   List<Map<String, dynamic>> _pagamentos = [];
+  List<Map<String, dynamic>> _perfis = [];
   bool _loading = true;
   bool _uploadingFoto = false;
   bool _pesquisaAtiva = false;
@@ -51,7 +52,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   void initState() {
     super.initState();
     alunoTabNotifier.addListener(_onTabChanged);
-    alunoDrawerActionNotifier.addListener(_onDrawerAction);
     perfilTrocadoNotifier.addListener(_load);
     _load();
   }
@@ -59,21 +59,13 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   @override
   void dispose() {
     alunoTabNotifier.removeListener(_onTabChanged);
-    alunoDrawerActionNotifier.removeListener(_onDrawerAction);
     perfilTrocadoNotifier.removeListener(_load);
     super.dispose();
   }
 
   void _onTabChanged() {
-    if (alunoTabNotifier.value == 0) _load();
-  }
-
-  void _onDrawerAction() {
-    final action = alunoDrawerActionNotifier.value;
-    if (action.isEmpty) return;
-    alunoDrawerActionNotifier.value = '';
-    if (action == 'editarPerfil') _editarPerfil();
-    if (action == 'qr') _mostrarQrCode();
+    // Perfil é a aba de índice 4 na NavigationBar do aluno.
+    if (alunoTabNotifier.value == 4) _load();
   }
 
   Future<void> _escolherFoto() async {
@@ -137,12 +129,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         _atestado = atestadoDados;
         _parq = parqDados;
         _pagamentos = pagamentosDados;
+        _perfis = user.perfis;
       });
-
-      try {
-        final lista = await firestoreService.getNoticias(academiaId);
-        if (mounted) setState(() => _noticias = lista.take(5).toList());
-      } catch (_) {}
 
       // Carrega config da pesquisa + verifica se já respondeu este mês
       try {
@@ -210,7 +198,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
           if (mounted) setState(() {
             _aluno = {...?_aluno, 'turmasDetalhes': turmasDetalhes};
-            _presencasRecentes = presencas.take(7).toList();
           });
         } catch (_) {}
       }
@@ -612,149 +599,76 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     return 'Atestado vencendo em breve';
   }
 
-  void _abrirModalPesei(BuildContext ctx) {
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: const Color(0xFF121212),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      isScrollControlled: true,
-      builder: (modalCtx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 10),
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 24),
-          // Header com logo
-          Row(children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset('assets/logo_pesei.png', width: 64, height: 64, fit: BoxFit.cover),
-            ),
-            const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('PESEI', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-              const Text('Seu parceiro de saúde e bem-estar', style: TextStyle(color: Colors.white60, fontSize: 13)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFF2E7D32), borderRadius: BorderRadius.circular(20)),
-                child: const Text('Gratuito · iOS & Android', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-              ),
-            ])),
-          ]),
-          const SizedBox(height: 24),
-          // Features
-          _peseiFeature(Icons.monitor_weight_rounded, 'Controle de Peso', 'Acompanhe ganhos e perdas com gráficos e histórico'),
-          const SizedBox(height: 12),
-          _peseiFeature(Icons.water_drop_rounded, 'Hidratação Diária', 'Meta de consumo de água personalizada com alertas'),
-          const SizedBox(height: 12),
-          _peseiFeature(Icons.medication_rounded, 'Medicamentos', 'Lembretes para não esquecer seus remédios e suplementos'),
-          const SizedBox(height: 12),
-          _peseiFeature(Icons.insights_rounded, 'Evolução Visual', 'Gráficos de progresso para manter o foco nos seus objetivos'),
-          const SizedBox(height: 28),
-          // Botão download
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () async {
-                Navigator.of(modalCtx).pop();
-                final peseiUrl = defaultTargetPlatform == TargetPlatform.iOS
-                    ? 'https://apps.apple.com/br/app/pesei/id6760273528'
-                    : 'https://play.google.com/store/apps/details?id=br.com.hg2tecnologia.pesei';
-                final uri = Uri.parse(peseiUrl);
-                if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
-              icon: const Icon(Icons.download_rounded, size: 20),
-              label: const Text('Baixar gratuitamente', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
-                foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(52),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
+  Future<void> _sair() async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Sair da conta?',
+            style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text('Você precisará entrar novamente para acessar o app.',
+            style: TextStyle(color: kText2)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar', style: TextStyle(color: kText2)),
           ),
-        ]),
-      ),
-    );
-  }
-
-  Widget _peseiFeature(IconData icon, String title, String subtitle) {
-    return Row(children: [
-      Container(
-        width: 42, height: 42,
-        decoration: BoxDecoration(color: const Color(0xFF2E7D32).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: const Color(0xFF4CAF50), size: 20),
-      ),
-      const SizedBox(width: 14),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-        Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-      ])),
-    ]);
-  }
-
-  Widget _buildSemanaWidget() {
-    final hoje = DateTime.now();
-    final dias = List.generate(7, (i) => hoje.subtract(Duration(days: 6 - i)));
-    final fmt = (DateTime d) => '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
-    final diasPresenca = _presencasRecentes.map((p) => (p['data']?.toString() ?? '').substring(0, 10)).toSet();
-    const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-    final total = diasPresenca.length;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Text('FREQUÊNCIA — 7 DIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-            const Spacer(),
-            Text('$total ${total == 1 ? 'presença' : 'presenças'}', style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
-          ]),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final dia = dias[i];
-              final presente = diasPresenca.contains(fmt(dia));
-              final ehHoje = i == 6;
-              final nomeIdx = (dia.weekday - 1) % 7;
-              return Column(children: [
-                Text(nomes[nomeIdx], style: TextStyle(
-                  color: ehHoje ? kText1 : kText2,
-                  fontSize: 10, fontWeight: FontWeight.w600,
-                )),
-                const SizedBox(height: 6),
-                Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: presente ? kPrimary : (ehHoje ? kPrimary.withOpacity(0.08) : kBg),
-                    border: Border.all(
-                      color: presente ? kPrimary : (ehHoje ? kPrimary.withOpacity(0.3) : kBorder),
-                      width: ehHoje ? 1.5 : 1,
-                    ),
-                  ),
-                  child: presente
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-                      : Center(child: Text('${dia.day}', style: TextStyle(
-                          color: ehHoje ? kPrimary : kText2,
-                          fontSize: 11, fontWeight: ehHoje ? FontWeight.w800 : FontWeight.w500,
-                        ))),
-                ),
-              ]);
-            }),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Sair',
+                style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
+    if (confirma != true || !mounted) return;
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+    await AuthStorage.clear();
+    if (mounted) context.go('/boas-vindas');
+  }
+
+  Future<void> _excluirConta() async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text('Excluir conta?',
+            style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.',
+          style: TextStyle(color: kText2),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar', style: TextStyle(color: kText2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Excluir',
+                style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirma != true || !mounted) return;
+    try {
+      await FirebaseAuth.instance.currentUser?.delete();
+      await AuthStorage.clear();
+      if (mounted) context.go('/boas-vindas');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao excluir conta. Tente novamente.'),
+            backgroundColor: kDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -839,18 +753,28 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                                 ]),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            GestureDetector(
-                              onTap: openAppDrawer,
-                              child: Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(20),
+                            if (_perfis.length > 1) ...[
+                              const SizedBox(width: 10),
+                              GestureDetector(
+                                onTap: () async {
+                                  await mostrarTrocarPerfil(context);
+                                  _load();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white.withOpacity(0.18)),
+                                  ),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    const Icon(Icons.switch_account_rounded, size: 14, color: Colors.white70),
+                                    const SizedBox(width: 6),
+                                    Text('Trocar perfil', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ]),
                                 ),
-                                child: const Icon(Icons.menu_rounded, color: Colors.white70, size: 20),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -965,9 +889,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
           ),
 
-          // ── Frequência semanal ──
-          SliverToBoxAdapter(child: _buildSemanaWidget()),
-
           // ── Mensalidade em atraso ──
           if (_temMensalidadeAtrasada)
             SliverToBoxAdapter(
@@ -1053,63 +974,6 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
-          // ── Graduações ──
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: GestureDetector(
-                onTap: () => context.push('/aluno/perfil/graduacoes'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                  decoration: BoxDecoration(
-                    color: kSurface, borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: beltColor.withOpacity(0.3)),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.military_tech_rounded, color: beltColor, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Histórico de Graduações', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
-                      Text('Ver todas as faixas e exames', style: TextStyle(color: kText2, fontSize: 11)),
-                    ])),
-                    Icon(Icons.chevron_right, color: kText2, size: 20),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-
-          // ── PAR-Q (só aparece se não preenchido) ──
-          if (!parqPreenchido)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: GestureDetector(
-                  onTap: () => context.push('/aluno/parq').then((_) => _load()),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: kSurface, borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kWarning.withOpacity(0.4)),
-                    ),
-                    child: Row(children: [
-                      Container(
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(color: kWarning.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                        child: Icon(Icons.assignment_rounded, color: kWarning, size: 18),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('PAR-Q pendente', style: TextStyle(color: kWarning, fontSize: 13, fontWeight: FontWeight.w700)),
-                        Text('Preencha o questionário de saúde', style: TextStyle(color: kText2, fontSize: 11)),
-                      ])),
-                      Icon(Icons.chevron_right, color: kWarning, size: 20),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-
           // ── Turmas ──
           SliverToBoxAdapter(
             child: Padding(
@@ -1165,129 +1029,58 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
-          // ── Notícias (carrossel horizontal) ──
-          if (_noticias.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
-                child: Row(children: [
-                  Expanded(child: Text('NOTÍCIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2))),
-                  GestureDetector(
-                    onTap: () => context.push('/noticias'),
-                    child: Text('Ver todas', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ),
-                ]),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 130,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _noticias.length,
-                  itemBuilder: (_, i) {
-                    final n = _noticias[i];
-                    final titulo = n['titulo'] as String? ?? '';
-                    final resumo = n['resumo'] as String? ?? '';
-                    final publicadaEm = n['criado_em'] as String? ?? n['publicadaEm'] as String?;
-                    String dataLabel = '';
-                    if (publicadaEm != null) {
-                      try {
-                        final dt = DateTime.parse(publicadaEm).toLocal();
-                        dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-                      } catch (_) {}
-                    }
-                    return GestureDetector(
-                      onTap: () => context.push('/noticias'),
-                      child: Container(
-                        width: 240,
-                        margin: EdgeInsets.only(right: i < _noticias.length - 1 ? 10 : 0),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kSurface, borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: kBorder),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [
-                              Container(
-                                width: 28, height: 28,
-                                decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-                                child: Icon(Icons.campaign_rounded, color: kPrimary, size: 15),
-                              ),
-                              const Spacer(),
-                              if (dataLabel.isNotEmpty)
-                                Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
-                            ]),
-                            const SizedBox(height: 8),
-                            Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            if (resumo.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-
           // ── PESEI ──
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: PeseiCard(),
+            ),
+          ),
+
+          // ── Conta ──
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-              child: GestureDetector(
-                onTap: () => _abrirModalPesei(context),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: const Color(0xFF2E7D32).withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+              child: Text('CONTA', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+                child: Column(children: [
+                  _AlunoActionTile(
+                    icon: Icons.edit_outlined,
+                    label: 'Editar dados',
+                    subtitle: 'Nome, contato e informações pessoais',
+                    onTap: _editarPerfil,
                   ),
-                  child: Row(children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset('assets/logo_pesei.png', width: 52, height: 52, fit: BoxFit.cover),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        const Text('PESEI', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text('GRÁTIS', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                        ),
-                      ]),
-                      const SizedBox(height: 3),
-                      Text('Controle de peso, água e saúde', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
-                    ])),
-                    Column(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text('Ver app', style: TextStyle(color: Color(0xFF2E7D32), fontSize: 12, fontWeight: FontWeight.w800)),
-                      ),
-                    ]),
-                  ]),
-                ),
+                  Divider(height: 1, color: kBorder),
+                  _AlunoActionTile(
+                    icon: Icons.lock_reset_rounded,
+                    label: 'Redefinir senha',
+                    subtitle: 'Trocar sua senha de acesso',
+                    onTap: () => context.push('/alterar-senha'),
+                  ),
+                  Divider(height: 1, color: kBorder),
+                  _AlunoActionTile(
+                    icon: Icons.assignment_turned_in_outlined,
+                    label: 'PAR-Q',
+                    subtitle: parqPreenchido
+                        ? 'Questionário de saúde respondido'
+                        : 'Questionário de saúde pendente',
+                    trailingColor: parqPreenchido ? kSuccess : kWarning,
+                    onTap: () => context.push('/aluno/parq').then((_) => _load()),
+                  ),
+                  Divider(height: 1, color: kBorder),
+                  _AlunoActionTile(
+                    icon: Icons.logout_rounded,
+                    label: 'Sair da conta',
+                    subtitle: 'Encerrar a sessão neste dispositivo',
+                    onTap: _sair,
+                  ),
+                ]),
               ),
             ),
           ),
@@ -1323,10 +1116,72 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
           ),
 
+          // ── Zona de perigo ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 28, 16, 10),
+              child: Text('EXCLUIR CONTA', style: TextStyle(color: kDanger.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: kDanger.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: kDanger.withOpacity(0.3)),
+                ),
+                child: _AlunoActionTile(
+                  icon: Icons.delete_forever_rounded,
+                  label: 'Excluir minha conta',
+                  subtitle: 'Remove seus dados permanentemente',
+                  danger: true,
+                  onTap: _excluirConta,
+                ),
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     ),
+    );
+  }
+}
+
+class _AlunoActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool danger;
+  final Color? trailingColor;
+
+  const _AlunoActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+    this.danger = false,
+    this.trailingColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = danger ? kDanger : kPrimary;
+    return ListTile(
+      leading: Icon(icon, color: cor, size: 22),
+      title: Text(label,
+          style: TextStyle(
+              color: danger ? kDanger : kText1,
+              fontSize: 14,
+              fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(color: kText2, fontSize: 12)),
+      trailing: Icon(Icons.chevron_right_rounded,
+          color: trailingColor ?? kText2, size: 18),
+      onTap: onTap,
     );
   }
 }

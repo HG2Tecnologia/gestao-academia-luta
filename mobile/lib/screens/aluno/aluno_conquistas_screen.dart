@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 
 class AlunoConquistasScreen extends StatefulWidget {
@@ -63,7 +62,6 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
     foregroundColor: kText1,
     elevation: 0,
     title: const Text('Conquistas', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-    actions: [IconButton(onPressed: openAppDrawer, icon: Icon(Icons.menu_rounded, color: kText1))],
   );
 
   @override

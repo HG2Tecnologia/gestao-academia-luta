@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 
 class AlunoGraduacoesScreen extends StatefulWidget {
@@ -23,7 +23,21 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
   @override
   void initState() {
     super.initState();
+    alunoTabNotifier.addListener(_onTab);
+    perfilTrocadoNotifier.addListener(_load);
     _load();
+  }
+
+  @override
+  void dispose() {
+    alunoTabNotifier.removeListener(_onTab);
+    perfilTrocadoNotifier.removeListener(_load);
+    super.dispose();
+  }
+
+  void _onTab() {
+    // Graduações é a aba de índice 2 na NavigationBar do aluno.
+    if (alunoTabNotifier.value == 2) _load();
   }
 
   Future<void> _load() async {
@@ -248,7 +262,6 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     foregroundColor: kText1,
     elevation: 0,
     title: const Text('Histórico de Graduações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-    actions: [IconButton(onPressed: openAppDrawer, icon: Icon(Icons.menu_rounded, color: kText1))],
   );
 
   @override

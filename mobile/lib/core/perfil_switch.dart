@@ -11,11 +11,19 @@ import 'tab_refresh.dart';
 /// irmãos com o mesmo contato, ou Professor que também é Aluno em outra
 /// modalidade) e troca a sessão ativa sem precisar deslogar.
 Future<void> mostrarTrocarPerfil(BuildContext context) async {
+  // Abre imediatamente com os perfis já em cache (SharedPreferences). O
+  // `refresh()` remoto (Firebase + Firestore) roda em segundo plano só para
+  // deixar a lista atualizada na próxima abertura — não bloqueia o modal.
   var user = await AuthStorage.getUser();
-  try {
-    user = await ProfileSessionService.refresh() ?? user;
-  } catch (_) {}
-  if (user == null || user.perfis.length < 2) return;
+  if (user == null || user.perfis.length < 2) {
+    // Cache diz que não há o que trocar: confirma no servidor antes de desistir.
+    try {
+      user = await ProfileSessionService.refresh() ?? user;
+    } catch (_) {}
+    if (user == null || user.perfis.length < 2) return;
+  } else {
+    ProfileSessionService.refresh().ignore();
+  }
   final sessionUser = user;
   if (!context.mounted) return;
 
@@ -249,7 +257,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
     case 'Professor':
       context.go('/professor/dashboard');
     case 'Aluno':
-      context.go('/aluno/perfil');
+      context.go('/aluno/inicio');
     default:
       context.go('/boas-vindas');
   }

@@ -44,6 +44,7 @@ import 'screens/professor/prof_graduacao_screen.dart';
 import 'screens/professor/prof_perfil_screen.dart';
 import 'screens/professor/prof_ranking_screen.dart';
 import 'screens/aluno/aluno_shell.dart';
+import 'screens/aluno/aluno_home_screen.dart';
 import 'screens/aluno/aluno_perfil_screen.dart';
 import 'screens/aluno/aluno_horarios_screen.dart';
 import 'screens/aluno/aluno_presencas_screen.dart';
@@ -328,21 +329,32 @@ final _router = GoRouter(
       ],
     ),
 
-    // Aluno
+    // Aluno — telas fora da casca (sem NavigationBar inferior)
+    GoRoute(
+      path: '/aluno/presencas',
+      builder: (_, __) => const AlunoPresencasScreen(),
+    ),
+    GoRoute(
+      path: '/aluno/ranking',
+      builder: (_, __) => const AlunoRankingScreen(),
+      routes: [
+        GoRoute(
+          path: 'conquistas',
+          builder: (_, __) => const AlunoConquistasScreen(),
+        ),
+      ],
+    ),
+
+    // Aluno — casca com NavigationBar (Início, Aulas, Graduações,
+    // Financeiro, Perfil). A ordem das branches define o índice das abas.
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => AlunoShell(shell: shell),
       branches: [
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/perfil',
-              builder: (_, __) => const AlunoPerfilScreen(),
-              routes: [
-                GoRoute(
-                  path: 'graduacoes',
-                  builder: (_, __) => const AlunoGraduacoesScreen(),
-                ),
-              ],
+              path: '/aluno/inicio',
+              builder: (_, __) => const AlunoHomeScreen(),
             ),
           ],
         ),
@@ -357,8 +369,8 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/presencas',
-              builder: (_, __) => const AlunoPresencasScreen(),
+              path: '/aluno/graduacoes',
+              builder: (_, __) => const AlunoGraduacoesScreen(),
             ),
           ],
         ),
@@ -373,14 +385,8 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/ranking',
-              builder: (_, __) => const AlunoRankingScreen(),
-              routes: [
-                GoRoute(
-                  path: 'conquistas',
-                  builder: (_, __) => const AlunoConquistasScreen(),
-                ),
-              ],
+              path: '/aluno/perfil',
+              builder: (_, __) => const AlunoPerfilScreen(),
             ),
           ],
         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
@@ -144,7 +143,7 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+                      GestureDetector(onTap: () => Navigator.of(context).maybePop(), child: Icon(Icons.arrow_back_rounded, color: kText1, size: 26)),
                       const SizedBox(width: 14),
                       Text('Presenças', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
                     ]),

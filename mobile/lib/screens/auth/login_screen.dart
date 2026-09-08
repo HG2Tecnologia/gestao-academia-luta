@@ -326,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'Professor':
           context.go('/professor/dashboard');
         case 'Aluno':
-          context.go('/aluno/perfil');
+          context.go('/aluno/inicio');
         default:
           context.go('/boas-vindas');
       }

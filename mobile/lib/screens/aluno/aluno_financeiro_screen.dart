@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
@@ -155,11 +154,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                child: Row(children: [
-                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                  const SizedBox(width: 14),
-                  Text('Financeiro', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
-                ]),
+                child: Text('Financeiro', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
               ),
             ),
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/widgets.dart';
 
@@ -291,7 +290,7 @@ class _AlunoRankingScreenState extends State<AlunoRankingScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 12, 0),
             child: Row(children: [
-              GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
+              GestureDetector(onTap: () => Navigator.of(context).maybePop(), child: Icon(Icons.arrow_back_rounded, color: kText1, size: 26)),
               const SizedBox(width: 14),
               Expanded(
                 child: Text('Rankings',
