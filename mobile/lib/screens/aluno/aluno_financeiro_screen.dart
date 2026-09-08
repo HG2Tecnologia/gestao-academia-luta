@@ -3,8 +3,12 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/payment_request_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
+import 'boleto_pagamento_sheet.dart';
+import 'cartao_pagamento_sheet.dart';
+import 'pagamento_metodo_sheet.dart';
 import 'pix_pagamento_sheet.dart';
 
 class AlunoFinanceiroScreen extends StatefulWidget {
@@ -27,6 +31,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   String? _academiaId;
   String? _alunoNome;
   String? _alunoEmail;
+  String? _alunoCpf;
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
   static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
@@ -68,14 +73,18 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
         firestoreService.getAsaasConfig(user.academiaId!).catchError((_) => null),
+        firestoreService.getAluno(user.academiaId!, user.id!).catchError((_) => null),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
       final asaasData = results[2] as Map<String, dynamic>?;
+      final alunoData = results[3] as Map<String, dynamic>?;
 
       _pixDisponivel = asaasData?['status'] == 'ATIVO';
       _alunoNome = user.nome;
       _alunoEmail = user.email;
+      _alunoCpf = (alunoData?['cpf'] as String? ?? '').replaceAll(RegExp(r'\D'), '');
+      if (_alunoCpf?.isEmpty ?? true) _alunoCpf = null;
       if (mounted) setState(() {
         _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
         _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
@@ -93,11 +102,48 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         };
       }).toList();
       if (mounted) setState(() => _cobrancas = converted);
+
+      // Se há cobranças com chargeId pendentes no Asaas, sincroniza status em background.
+      // Não depende de _pixDisponivel: o pagamento pode ter sido gerado antes de uma
+      // reconfiguração de conta que mudou o status para PENDENTE/AGUARDANDO.
+      final temPendentesAsaas = list.any((p) =>
+          (p['asaasChargeId'] as String?)?.isNotEmpty == true &&
+          (p['asaasStatus'] as String?) == 'PENDING');
+      if (temPendentesAsaas) {
+        _sincronizarStatusAsaas(user.academiaId!, user.id!);
+      }
     } catch (_) {
       if (mounted) setState(() => _erro = true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _sincronizarStatusAsaas(String academiaId, String alunoId) async {
+    try {
+      await PaymentRequestService.adminRequest(
+        academiaId: academiaId,
+        tipo: 'sincronizarPagamentos',
+        extra: {'alunoId': alunoId},
+      );
+    } catch (_) { /* sincronização é melhor-esforço — recarrega mesmo assim */ }
+    // Sempre recarrega do Firestore após a tentativa de sync, independente do resultado.
+    if (!mounted) return;
+    try {
+      final lista = await firestoreService.getPagamentos(academiaId, alunoId: alunoId);
+      final converted = lista.map((p) {
+        final statusRaw = p['status'];
+        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+        return <String, dynamic>{
+          ...p,
+          'status': statusStr,
+          'dataVencimento': _fmtDate(p['data_vencimento'] ?? p['dataVencimento']),
+          'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
+        };
+      }).toList();
+      if (mounted) setState(() => _cobrancas = converted);
+    } catch (_) {}
   }
 
   Color _statusCor(String? s) {
@@ -130,6 +176,64 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   String _fmtMoeda(num? v) {
     if (v == null) return 'R\$ 0,00';
     return 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  }
+
+  Future<void> _pagarCobranca(BuildContext context, Map<String, dynamic> c) async {
+    if (_alunoCpf == null || _alunoCpf!.length < 11) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Adicione seu CPF no seu perfil (ícone de menu) para poder pagar.'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 5),
+      ));
+      return;
+    }
+    final metodo = await PagamentoMetodoSheet.show(context);
+    if (metodo == null || !mounted) return;
+
+    final atrasado = c['status'] == 'Atrasado';
+    final valorBase = (c['valor'] as num?)?.toDouble() ?? 0.0;
+    final valor = atrasado && _taxaAtrasoAtiva ? _valorComTaxa(valorBase).toDouble() : valorBase;
+    final tipo = c['tipo']?.toString() ?? 'Mensalidade';
+    final pagId = c['id'].toString();
+    bool pago = false;
+
+    switch (metodo) {
+      case MetodoPagamento.pix:
+        pago = await PixPagamentoSheet.show(
+          context,
+          academiaId: _academiaId!,
+          pagamentoId: pagId,
+          valor: valor,
+          descricao: tipo,
+          alunoNome: _alunoNome ?? '',
+          alunoEmail: _alunoEmail,
+          alunoCpf: _alunoCpf,
+        );
+      case MetodoPagamento.boleto:
+        pago = await BoletoPagamentoSheet.show(
+          context,
+          academiaId: _academiaId!,
+          pagamentoId: pagId,
+          valor: valor,
+          descricao: tipo,
+          alunoNome: _alunoNome ?? '',
+          alunoEmail: _alunoEmail,
+          alunoCpf: _alunoCpf,
+        );
+      case MetodoPagamento.cartao:
+        pago = await CartaoPagamentoSheet.show(
+          context,
+          academiaId: _academiaId!,
+          pagamentoId: pagId,
+          valor: valor,
+          descricao: tipo,
+          alunoNome: _alunoNome ?? '',
+          alunoEmail: _alunoEmail,
+          alunoCpf: _alunoCpf,
+        );
+    }
+
+    if (pago && mounted) _load();
   }
 
   List<Map<String, dynamic>> get _filtrados {
@@ -367,31 +471,18 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                               ],
                             ),
                           ),
-                          // Botão PIX para cobranças pendentes/atrasadas
+                          // Botão de pagamento para cobranças pendentes/atrasadas
                           if (_pixDisponivel && (s == 'Pendente' || s == 'Atrasado'))
                             Container(
                               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                               child: SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final valor = (c['valor'] as num?)?.toDouble() ?? 0.0;
-                                    final tipo = c['tipo']?.toString() ?? 'Mensalidade';
-                                    final pago = await PixPagamentoSheet.show(
-                                      context,
-                                      academiaId: _academiaId!,
-                                      pagamentoId: c['id'].toString(),
-                                      valor: valor,
-                                      descricao: tipo,
-                                      alunoNome: _alunoNome ?? '',
-                                      alunoEmail: _alunoEmail,
-                                    );
-                                    if (pago) _load();
-                                  },
-                                  icon: const Icon(Icons.pix_rounded, size: 16),
-                                  label: const Text('Pagar via PIX', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                  onPressed: () => _pagarCobranca(context, c),
+                                  icon: const Icon(Icons.payment_rounded, size: 16),
+                                  label: const Text('Pagar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF32BCAD),
+                                    backgroundColor: kPrimary,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 10),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/payment_request_service.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
 
-class PixPagamentoSheet extends StatefulWidget {
+class BoletoPagamentoSheet extends StatefulWidget {
   final String academiaId;
   final String pagamentoId;
   final double valor;
@@ -15,7 +15,7 @@ class PixPagamentoSheet extends StatefulWidget {
   final String? alunoCpf;
   final String? alunoEmail;
 
-  const PixPagamentoSheet({
+  const BoletoPagamentoSheet({
     super.key,
     required this.academiaId,
     required this.pagamentoId,
@@ -40,7 +40,7 @@ class PixPagamentoSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => PixPagamentoSheet(
+      builder: (_) => BoletoPagamentoSheet(
         academiaId: academiaId,
         pagamentoId: pagamentoId,
         valor: valor,
@@ -54,18 +54,15 @@ class PixPagamentoSheet extends StatefulWidget {
   }
 
   @override
-  State<PixPagamentoSheet> createState() => _PixPagamentoSheetState();
+  State<BoletoPagamentoSheet> createState() => _BoletoPagamentoSheetState();
 }
 
-class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
-  // Estados: loading, qrcode, pago, erro
+class _BoletoPagamentoSheetState extends State<BoletoPagamentoSheet> {
   String _estado = 'loading';
   String? _erroMsg;
-  String? _pixPayload;
-  DateTime? _expiracao;
-  int _segundosRestantes = 1800; // 30 min
-
-  Timer? _timer;
+  String? _bankSlipUrl;
+  String? _identificationField;
+  String? _dueDate;
   StreamSubscription? _statusSub;
 
   @override
@@ -76,7 +73,6 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
 
   @override
   void dispose() {
-    _timer?.cancel();
     _statusSub?.cancel();
     super.dispose();
   }
@@ -92,54 +88,20 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
         alunoNome: widget.alunoNome,
         alunoCpf: widget.alunoCpf,
         alunoEmail: widget.alunoEmail,
-        billingType: 'PIX',
+        billingType: 'BOLETO',
       );
 
-      final payload = data['payload'] as String?;
-      if (payload == null || payload.isEmpty) {
-        setState(() { _estado = 'erro'; _erroMsg = 'QR Code não gerado. Tente novamente.'; });
-        return;
-      }
+      _bankSlipUrl = data['bankSlipUrl'] as String?;
+      _identificationField = data['identificationField'] as String?;
+      _dueDate = data['dueDate'] as String?;
 
-      _pixPayload = payload;
-
-      // Calcula tempo restante até expiração (30 min por padrão)
-      final expStr = data['expirationDate'] as String?;
-      if (expStr != null) {
-        try {
-          _expiracao = DateTime.parse(expStr);
-          _segundosRestantes = _expiracao!.difference(DateTime.now()).inSeconds;
-          if (_segundosRestantes < 0) _segundosRestantes = 0;
-        } catch (_) {
-          _segundosRestantes = 1800;
-        }
-      }
-
-      if (mounted) setState(() => _estado = 'qrcode');
-
-      _iniciarTimer();
+      if (mounted) setState(() => _estado = 'boleto');
       _ouvirStatus();
     } on PaymentRequestError catch (e) {
       if (mounted) setState(() { _estado = 'erro'; _erroMsg = e.message; });
     } catch (_) {
       if (mounted) setState(() { _estado = 'erro'; _erroMsg = 'Erro de conexão. Verifique sua internet.'; });
     }
-  }
-
-  void _iniciarTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        if (_segundosRestantes > 0) {
-          _segundosRestantes--;
-        } else {
-          _timer?.cancel();
-          _estado = 'erro';
-          _erroMsg = 'QR Code expirado. Gere um novo.';
-        }
-      });
-    });
   }
 
   void _ouvirStatus() {
@@ -151,7 +113,6 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
       final status = data?['status'];
       final statusInt = status is int ? status : int.tryParse(status?.toString() ?? '') ?? 0;
       if (statusInt == 1) {
-        _timer?.cancel();
         setState(() => _estado = 'pago');
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) Navigator.of(context).pop(true);
@@ -160,24 +121,35 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
     });
   }
 
-  String get _timerFormatado {
-    final min = (_segundosRestantes ~/ 60).toString().padLeft(2, '0');
-    final sec = (_segundosRestantes % 60).toString().padLeft(2, '0');
-    return '$min:$sec';
-  }
-
   String get _valorFormatado =>
       'R\$ ${widget.valor.toStringAsFixed(2).replaceAll('.', ',')}';
 
-  Future<void> _copiarPix() async {
-    if (_pixPayload == null) return;
-    await Clipboard.setData(ClipboardData(text: _pixPayload!));
+  String _fmtDueDate(String? d) {
+    if (d == null) return '';
+    try {
+      final parts = d.split('-');
+      if (parts.length == 3) return '${parts[2]}/${parts[1]}/${parts[0]}';
+    } catch (_) {}
+    return d;
+  }
+
+  Future<void> _copiarCodigo() async {
+    if (_identificationField == null) return;
+    await Clipboard.setData(ClipboardData(text: _identificationField!));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Chave PIX copiada!'),
+        content: Text('Linha digitável copiada!'),
         duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ));
+    }
+  }
+
+  Future<void> _abrirBoleto() async {
+    if (_bankSlipUrl == null) return;
+    final uri = Uri.parse(_bankSlipUrl!);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -188,9 +160,7 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
         color: kSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -201,7 +171,7 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
               Container(width: 40, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 20),
               if (_estado == 'loading') _buildLoading(),
-              if (_estado == 'qrcode') _buildQrCode(),
+              if (_estado == 'boleto') _buildBoleto(),
               if (_estado == 'pago') _buildPago(),
               if (_estado == 'erro') _buildErro(),
             ],
@@ -216,90 +186,100 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
         child: Column(children: [
           CircularProgressIndicator(color: kPrimary),
           const SizedBox(height: 16),
-          Text('Gerando QR Code PIX...', style: TextStyle(color: kText2, fontSize: 14)),
+          Text('Gerando boleto...', style: TextStyle(color: kText2, fontSize: 14)),
         ]),
       );
 
-  Widget _buildQrCode() {
-    final expirando = _segundosRestantes < 120;
+  Widget _buildBoleto() {
+    const boletoColor = Color(0xFF1976D2);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Pagar via PIX', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+        Row(children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: expirando ? kDanger.withOpacity(0.12) : kPrimary.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.timer_rounded, size: 14, color: expirando ? kDanger : kPrimary),
-              const SizedBox(width: 4),
-              Text(
-                _timerFormatado,
-                style: TextStyle(
-                  color: expirando ? kDanger : kPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
+            width: 40, height: 40,
+            decoration: BoxDecoration(color: boletoColor.withOpacity(0.12), shape: BoxShape.circle),
+            child: const Icon(Icons.receipt_long_rounded, color: boletoColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Pagar via Boleto', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+              if (_dueDate != null)
+                Text('Vencimento: ${_fmtDueDate(_dueDate)}', style: TextStyle(color: kText2, fontSize: 12)),
             ]),
           ),
         ]),
-        const SizedBox(height: 4),
-        Text(widget.descricao, style: TextStyle(color: kText2, fontSize: 13)),
         const SizedBox(height: 20),
-
-        // Valor
         Text(_valorFormatado, style: TextStyle(color: kText1, fontSize: 32, fontWeight: FontWeight.w900)),
         const SizedBox(height: 20),
 
-        // QR Code
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder),
-          ),
-          child: QrImageView(
-            data: _pixPayload!,
-            version: QrVersions.auto,
-            size: 200,
-            backgroundColor: Colors.white,
-            eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
-            dataModuleStyle: QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        Text(
-          'Abra o app do seu banco, escolha Pagar com PIX\ne escaneie o QR Code acima.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
-        ),
-        const SizedBox(height: 16),
-
-        // Copiar chave
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _copiarPix,
-            icon: Icon(Icons.copy_rounded, size: 16, color: kPrimary),
-            label: Text('Copiar Chave PIX', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: kPrimary),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        if (_identificationField != null) ...[
+          Text('LINHA DIGITÁVEL', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: kBorder),
+            ),
+            child: Text(
+              _identificationField!,
+              style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0.3),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'O pagamento é confirmado automaticamente assim que realizado.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kText2, fontSize: 11),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _copiarCodigo,
+              icon: const Icon(Icons.copy_rounded, size: 16, color: boletoColor),
+              label: const Text('Copiar Linha Digitável', style: TextStyle(color: boletoColor, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: boletoColor),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        if (_bankSlipUrl != null) ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _abrirBoleto,
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Visualizar / Imprimir Boleto', style: TextStyle(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: boletoColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: kWarning.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: kWarning.withOpacity(0.3)),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline_rounded, size: 16, color: kWarning),
+            const SizedBox(width: 8),
+            Expanded(child: Text(
+              'O boleto pode levar até 3 dias úteis para compensar. Você será notificado quando o pagamento for confirmado.',
+              style: TextStyle(color: kText2, fontSize: 12, height: 1.4),
+            )),
+          ]),
         ),
       ],
     );
@@ -318,7 +298,7 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
           const SizedBox(height: 8),
           Text(_valorFormatado, style: TextStyle(color: kSuccess, fontSize: 28, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          Text('Seu pagamento foi recebido com sucesso.', style: TextStyle(color: kText2, fontSize: 13)),
+          Text('Seu boleto foi compensado com sucesso.', style: TextStyle(color: kText2, fontSize: 13)),
         ]),
       );
 
@@ -331,7 +311,7 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
             child: Icon(Icons.error_outline_rounded, color: kDanger, size: 32),
           ),
           const SizedBox(height: 16),
-          Text('Não foi possível gerar o PIX', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('Não foi possível gerar o boleto', style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(_erroMsg ?? 'Erro desconhecido.', textAlign: TextAlign.center, style: TextStyle(color: kText2, fontSize: 13)),
           const SizedBox(height: 20),

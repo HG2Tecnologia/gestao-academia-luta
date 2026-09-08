@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 import 'package:url_launcher/url_launcher.dart';
@@ -489,7 +490,24 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   void _editarPerfil() {
     final nomeCtrl = TextEditingController(text: _aluno?['nome'] as String? ?? '');
     final telCtrl = TextEditingController(text: _aluno?['telefone'] as String? ?? '');
+    // Exibe CPF formatado se já existir
+    final cpfRaw = (_aluno?['cpf'] as String? ?? '').replaceAll(RegExp(r'\D'), '');
+    final cpfFormatado = cpfRaw.length == 11
+        ? '${cpfRaw.substring(0, 3)}.${cpfRaw.substring(3, 6)}.${cpfRaw.substring(6, 9)}-${cpfRaw.substring(9)}'
+        : cpfRaw;
+    final cpfCtrl = TextEditingController(text: cpfFormatado);
     bool salvando = false;
+
+    InputDecoration fieldDeco(String label, IconData icon) => InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: kText2, fontSize: 13),
+      prefixIcon: Icon(icon, color: kText2, size: 18),
+      filled: true, fillColor: kBg,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
 
     showModalBottomSheet(
       context: context,
@@ -514,32 +532,28 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ]),
               const SizedBox(height: 20),
               TextField(
-                controller: nomeCtrl, style: TextStyle(color: kText1),
-                decoration: InputDecoration(
-                  labelText: 'Nome completo', labelStyle: TextStyle(color: kText2, fontSize: 13),
-                  prefixIcon: Icon(Icons.badge_rounded, color: kText2, size: 18),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
+                controller: nomeCtrl,
+                style: TextStyle(color: kText1),
+                decoration: fieldDeco('Nome completo', Icons.badge_rounded),
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: telCtrl, style: TextStyle(color: kText1),
+                controller: telCtrl,
+                style: TextStyle(color: kText1),
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: 'Telefone', labelStyle: TextStyle(color: kText2, fontSize: 13),
-                  prefixIcon: Icon(Icons.phone_rounded, color: kText2, size: 18),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
+                decoration: fieldDeco('Telefone', Icons.phone_rounded),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              TextField(
+                controller: cpfCtrl,
+                style: TextStyle(color: kText1),
+                keyboardType: TextInputType.number,
+                inputFormatters: [CpfInputFormatter()],
+                decoration: fieldDeco('CPF (necessário para pagamentos)', Icons.fingerprint_rounded),
+              ),
+              const SizedBox(height: 6),
+              Text('Necessário para gerar PIX, Boleto e Cartão.', style: TextStyle(color: kText2, fontSize: 11)),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -548,9 +562,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                     try {
                       final user = await AuthStorage.getUser();
                       if (user == null) return;
+                      final cpfLimpo = cpfCtrl.text.replaceAll(RegExp(r'\D'), '');
                       await firestoreService.updateAluno(user.academiaId!, user.id, {
                         'nome': nomeCtrl.text.trim(),
                         'telefone': telCtrl.text.trim().isEmpty ? null : telCtrl.text.trim(),
+                        if (cpfLimpo.isNotEmpty) 'cpf': cpfLimpo,
                       });
                       if (!mounted) return;
                       Navigator.pop(ctx);

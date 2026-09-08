@@ -76,11 +76,15 @@ service cloud.firestore {
 
     // Permite criar o primeiro usuário Admin durante o registro da academia
     match /academias/{academiaId}/usuarios/{usuarioId} {
-      allow create: if isAuth() &&
-        request.resource.data.firebase_uid == request.auth.uid &&
-        request.resource.data.perfil == 0 &&
-        getAfter(/databases/$(database)/documents/academias/$(academiaId))
-          .data.created_by_uid == request.auth.uid;
+      allow create: if isAuth() && (
+        // Auto-registro do primeiro Admin da academia
+        (request.resource.data.firebase_uid == request.auth.uid &&
+         request.resource.data.perfil == 0 &&
+         getAfter(/databases/$(database)/documents/academias/$(academiaId))
+           .data.created_by_uid == request.auth.uid)
+        // Admin/secretaria cadastrando alunos ou equipe
+        || isAdminOuSecretaria(academiaId)
+      );
       allow read: if pertenceAcademia(academiaId);
       // O próprio aluno só altera campos não privilegiados depois que a
       // Function já confirmou seu vínculo.
@@ -155,6 +159,27 @@ service cloud.firestore {
     match /academias/{academiaId}/auditoria/{doc} {
       allow read: if isAdminOuSecretaria(academiaId);
       allow write: if false;
+    }
+
+    // Pedidos de cobrança: aluno cria o próprio; função (Admin SDK) atualiza
+    match /academias/{academiaId}/cobrancas_req/{reqId} {
+      allow create: if isAuth() &&
+        pertenceAcademia(academiaId) &&
+        request.resource.data.uid == request.auth.uid;
+      allow read: if isAuth() && resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Pedidos admin: admin/secretaria para qualquer operação;
+    // aluno pode criar apenas sincronizarPagamentos (consulta de status próprio)
+    match /academias/{academiaId}/admin_req/{reqId} {
+      allow create: if isAuth() &&
+        request.resource.data.uid == request.auth.uid &&
+        (isAdminOuSecretaria(academiaId) ||
+         (pertenceAcademia(academiaId) &&
+          request.resource.data.tipo == 'sincronizarPagamentos'));
+      allow read: if isAuth() && resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // Resto: admin/secretaria gerencia tudo; membros leem

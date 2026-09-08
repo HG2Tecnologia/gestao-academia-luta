@@ -121,8 +121,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.11.5"
-<<<<<<< HEAD
-=======
   code_assets:
     dependency: transitive
     description:
@@ -131,7 +129,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
->>>>>>> main
   collection:
     dependency: transitive
     description:

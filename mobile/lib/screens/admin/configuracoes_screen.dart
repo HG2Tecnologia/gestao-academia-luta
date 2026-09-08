@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
@@ -26,6 +28,14 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   final _emailCtrl = TextEditingController();
   final _telefoneCtrl = TextEditingController();
   final _cnpjCtrl = TextEditingController();
+  final _cepCtrl = TextEditingController();
+  final _logradouroCtrl = TextEditingController();
+  final _numeroCtrl = TextEditingController();
+  final _complementoCtrl = TextEditingController();
+  final _bairroCtrl = TextEditingController();
+  final _cidadeCtrl = TextEditingController();
+  final _estadoCtrl = TextEditingController();
+  bool _buscandoCep = false;
 
   bool _loading = true;
   bool _salvando = false;
@@ -52,6 +62,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     _emailCtrl.dispose();
     _telefoneCtrl.dispose();
     _cnpjCtrl.dispose();
+    _cepCtrl.dispose();
+    _logradouroCtrl.dispose();
+    _numeroCtrl.dispose();
+    _complementoCtrl.dispose();
+    _bairroCtrl.dispose();
+    _cidadeCtrl.dispose();
+    _estadoCtrl.dispose();
     _taxaAtrasoValorCtrl.dispose();
     super.dispose();
   }
@@ -67,6 +84,16 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _emailCtrl.text = dados['email'] as String? ?? '';
       _telefoneCtrl.text = dados['telefone'] as String? ?? '';
       _cnpjCtrl.text = dados['cnpj'] as String? ?? '';
+      final cepDigits = dados['cep'] as String? ?? '';
+      _cepCtrl.text = cepDigits.length == 8
+          ? '${cepDigits.substring(0, 5)}-${cepDigits.substring(5)}'
+          : cepDigits;
+      _logradouroCtrl.text = dados['logradouro'] as String? ?? '';
+      _numeroCtrl.text = dados['numero'] as String? ?? '';
+      _complementoCtrl.text = dados['complemento'] as String? ?? '';
+      _bairroCtrl.text = dados['bairro'] as String? ?? '';
+      _cidadeCtrl.text = dados['cidade'] as String? ?? '';
+      _estadoCtrl.text = dados['estado'] as String? ?? '';
       _subdominio = dados['subdominio'] as String? ?? '';
       _logoBase64 = dados['logoUrl'] as String?;
       _bloqueioCheckinAtivo = dados['bloqueio_checkin_ativo'] as bool? ?? false;
@@ -94,6 +121,43 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     setState(() => _logoBase64 = 'data:$mime;base64,${base64Encode(bytes)}');
   }
 
+  Future<void> _buscarCep(String cep) async {
+    final digits = cep.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 8) return;
+    setState(() => _buscandoCep = true);
+    try {
+      final dio = Dio();
+      final res = await dio.get('https://viacep.com.br/ws/$digits/json/');
+      final data = res.data as Map<String, dynamic>;
+      if (data['erro'] == true || data['erro'] == 'true') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('CEP não encontrado. Preencha o endereço manualmente.'),
+            backgroundColor: kWarning,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        return;
+      }
+      setState(() {
+        _logradouroCtrl.text = data['logradouro'] as String? ?? '';
+        _bairroCtrl.text = data['bairro'] as String? ?? '';
+        _cidadeCtrl.text = data['localidade'] as String? ?? '';
+        _estadoCtrl.text = data['uf'] as String? ?? '';
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Não foi possível buscar o CEP. Preencha manualmente.'),
+          backgroundColor: kWarning,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _buscandoCep = false);
+    }
+  }
+
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _salvando = true; });
@@ -105,6 +169,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
         'email': _emailCtrl.text.trim(),
         'telefone': _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
         'cnpj': _cnpjCtrl.text.trim().isEmpty ? null : _cnpjCtrl.text.trim(),
+        'cep': _cepCtrl.text.trim().isEmpty ? null : _cepCtrl.text.trim().replaceAll(RegExp(r'\D'), ''),
+        'logradouro': _logradouroCtrl.text.trim().isEmpty ? null : _logradouroCtrl.text.trim(),
+        'numero': _numeroCtrl.text.trim().isEmpty ? null : _numeroCtrl.text.trim(),
+        'complemento': _complementoCtrl.text.trim().isEmpty ? null : _complementoCtrl.text.trim(),
+        'bairro': _bairroCtrl.text.trim().isEmpty ? null : _bairroCtrl.text.trim(),
+        'cidade': _cidadeCtrl.text.trim().isEmpty ? null : _cidadeCtrl.text.trim(),
+        'estado': _estadoCtrl.text.trim().isEmpty ? null : _estadoCtrl.text.trim(),
         'logoUrl': _logoBase64,
         'bloqueio_checkin_ativo': _bloqueioCheckinAtivo,
         'bloqueio_checkin_carencia_dias': _carenciaDias,
@@ -274,6 +345,87 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 24),
+                        _SectionLabel('Endereço'),
+                        const SizedBox(height: 12),
+                        // CEP com busca automática
+                        TextFormField(
+                          controller: _cepCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [_CepInputFormatter()],
+                          style: TextStyle(color: kText1, fontSize: 15),
+                          onChanged: _buscarCep,
+                          decoration: InputDecoration(
+                            labelText: 'CEP',
+                            labelStyle: TextStyle(color: kText2, fontSize: 13),
+                            prefixIcon: Icon(Icons.location_on_rounded, color: kText2, size: 18),
+                            suffixIcon: _buscandoCep
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: kSurface,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            helperText: 'Digite o CEP para preencher o endereço automaticamente',
+                            helperStyle: TextStyle(color: kText2, fontSize: 11),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _Field(
+                          controller: _logradouroCtrl,
+                          label: 'Logradouro',
+                          icon: Icons.signpost_rounded,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          SizedBox(
+                            width: 100,
+                            child: _Field(
+                              controller: _numeroCtrl,
+                              label: 'Número',
+                              icon: Icons.tag_rounded,
+                              keyboardType: TextInputType.text,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _Field(
+                              controller: _complementoCtrl,
+                              label: 'Complemento',
+                              icon: Icons.apartment_rounded,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 12),
+                        _Field(
+                          controller: _bairroCtrl,
+                          label: 'Bairro',
+                          icon: Icons.holiday_village_rounded,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          Expanded(
+                            child: _Field(
+                              controller: _cidadeCtrl,
+                              label: 'Cidade',
+                              icon: Icons.location_city_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 90,
+                            child: _Field(
+                              controller: _estadoCtrl,
+                              label: 'UF',
+                              icon: Icons.map_rounded,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 24),
                         _SectionLabel('Alunos'),
                         const SizedBox(height: 12),
                         Container(
@@ -347,7 +499,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             icon: Icons.payments_rounded,
                             iconColor: kPrimary,
                             label: 'Pagamentos via App',
-                            subtitle: 'Permitir que alunos paguem via PIX pelo app',
+                            subtitle: 'Permitir que alunos paguem pelo app',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -935,6 +1087,21 @@ class _Field extends StatelessWidget {
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger, width: 1.5)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
+    );
+  }
+}
+
+class _CepInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+    final digits = next.text.replaceAll(RegExp(r'\D'), '');
+    final limited = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final result = limited.length > 5
+        ? '${limited.substring(0, 5)}-${limited.substring(5)}'
+        : limited;
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }
