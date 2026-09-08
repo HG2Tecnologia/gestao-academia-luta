@@ -47,6 +47,9 @@ abstract final class AppColors {
   static const Color warning = kWarning;
   static const Color danger = kDanger;
 
+  /// Azul semântico — informação / turmas.
+  static const Color info = Color(0xFF0EA5E9);
+
   /// Fallback neutro para graduações sem cor cadastrada — NUNCA usar a cor
   /// da marca aqui, senão faixa "sem cor" aparece dourada.
   static const Color graduationNeutral = Color(0xFF3A3A3A);

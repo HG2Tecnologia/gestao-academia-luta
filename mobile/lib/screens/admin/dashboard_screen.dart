@@ -8,7 +8,9 @@ import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/widgets.dart';
+import 'widgets/dashboard_widgets.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -272,8 +274,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
               SliverToBoxAdapter(child: _buildProximosGraduacao()),
-              if (_frequencia.isNotEmpty)
-                SliverToBoxAdapter(child: _buildFrequenciaChart()),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+                  child: WeeklyFrequencyChart(dados: _frequencia),
+                ),
+              ),
               if (_noticias.isNotEmpty)
                 SliverToBoxAdapter(child: _buildNoticias()),
               const SliverToBoxAdapter(child: AdBannerWidget()),
@@ -416,9 +423,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text(
                     primeiroNome.isEmpty ? 'Olá!' : 'Olá, $primeiroNome!',
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.1),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text('Visão geral da academia', style: TextStyle(color: kText2, fontSize: 12)),
+                  Text('Sua academia hoje', style: TextStyle(color: kText2, fontSize: 12)),
                 ]),
               ),
               // Menu
@@ -445,39 +454,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(children: [
-        // Linha principal — 2 cards grandes
         Row(children: [
-          Expanded(child: _MetricCard(
-            label: 'Alunos ativos',
-            value: alunos,
+          Expanded(child: DashMetricCard(
             icon: Icons.sports_martial_arts_rounded,
-            gradient: [const Color(0xFF6C3FFF), const Color(0xFF4F28C8)],
+            value: alunos,
+            label: 'Alunos ativos',
+            tone: DashTone.gold,
             onTap: () => context.go('/admin/alunos'),
           )),
           const SizedBox(width: 12),
-          Expanded(child: _MetricCard(
-            label: 'Turmas ativas',
-            value: turmas,
+          Expanded(child: DashMetricCard(
             icon: Icons.groups_rounded,
-            gradient: [const Color(0xFF0EA5E9), const Color(0xFF0369A1)],
+            value: turmas,
+            label: 'Turmas ativas',
+            tone: DashTone.info,
             onTap: () => context.go('/admin/turmas'),
           )),
         ]),
         const SizedBox(height: 12),
-        // Linha secundária — 2 cards compactos
         Row(children: [
-          Expanded(child: _MetricCardSmall(
-            label: 'Presenças hoje',
-            value: presencas,
+          Expanded(child: DashMetricCard(
             icon: Icons.check_circle_rounded,
-            color: kSuccess,
+            value: presencas,
+            label: 'Presenças hoje',
+            tone: DashTone.success,
           )),
           const SizedBox(width: 12),
-          Expanded(child: _MetricCardSmall(
-            label: 'Inadimplentes',
-            value: inadimplentes,
+          Expanded(child: DashMetricCard(
             icon: Icons.warning_amber_rounded,
-            color: kDanger,
+            value: inadimplentes,
+            label: 'Inadimplentes',
+            tone: DashTone.danger,
             onTap: () => context.go('/admin/financeiro'),
           )),
         ]),
@@ -488,36 +495,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── AÇÕES RÁPIDAS ────────────────────────────────────────────────────────────
 
   Widget _buildQuickActions() {
-    final actions = [
-      (label: 'Novo aluno', icon: Icons.person_add_rounded, color: kPrimary, onTap: () => context.push('/admin/alunos/novo')),
-      (label: 'Nova turma', icon: Icons.groups_rounded, color: const Color(0xFF0EA5E9), onTap: () => context.push('/admin/turmas')),
-      (label: 'Presenças', icon: Icons.qr_code_scanner_rounded, color: kSuccess, onTap: () async {
-        if (PlanService.instance.showAds) {
-          final ok = await mostrarPaywall(context);
-          if (ok) { PlanService.instance.refresh(); setState(() {}); }
-          return;
-        }
-        if (mounted) context.push('/scan-qr');
-      }),
-      (label: 'Financeiro', icon: Icons.account_balance_wallet_rounded, color: kWarning, onTap: () => context.go('/admin/financeiro')),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Ações rápidas', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: actions.map((a) => _QuickActionButton(
-            label: a.label,
-            icon: a.icon,
-            color: a.color,
-            onTap: a.onTap,
-          )).toList(),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const DashSectionHeader('Ações rápidas'),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DashQuickAction(
+              icon: Icons.person_add_rounded,
+              label: 'Novo aluno',
+              tone: DashTone.gold,
+              onTap: () => context.push('/admin/alunos/novo'),
+            ),
+            DashQuickAction(
+              icon: Icons.groups_rounded,
+              label: 'Nova turma',
+              tone: DashTone.info,
+              onTap: () => context.push('/admin/turmas'),
+            ),
+            DashQuickAction(
+              icon: Icons.qr_code_scanner_rounded,
+              label: 'Registrar presença',
+              tone: DashTone.success,
+              onTap: () async {
+                if (PlanService.instance.showAds) {
+                  final ok = await mostrarPaywall(context);
+                  if (ok) { PlanService.instance.refresh(); setState(() {}); }
+                  return;
+                }
+                if (mounted) context.push('/scan-qr');
+              },
+            ),
+            DashQuickAction(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'Financeiro',
+              tone: DashTone.warning,
+              onTap: () => context.go('/admin/financeiro'),
+            ),
+          ],
         ),
-      ]),
-    );
+      ),
+    ]);
   }
 
   // ─── ONBOARDING ───────────────────────────────────────────────────────────────
@@ -723,50 +742,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ALERTA DE EVASÃO ────────────────────────────────────────────────────────
 
   Widget _buildAlertaEvasao() {
-    final vermelhos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'red').length;
-    final amarelos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'yellow').length;
-    final borderColor = vermelhos > 0 ? kDanger : kWarning;
-    final iconColor = vermelhos > 0 ? kDanger : kWarning;
+    final temVermelho = _alertasEvasao.any((a) => a['nivelAlerta'] == 'red');
+    final tone = temVermelho ? DashTone.danger : DashTone.warning;
+    final total = _alertasEvasao.length;
+    final visiveis = _alertasEvasao.take(3).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor.withOpacity(0.4)),
-        ),
+      child: DashCard(
+        tone: tone,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.person_off_rounded, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Risco de evasão', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text(
-                [
-                  if (vermelhos > 0) '$vermelhos ausente${vermelhos > 1 ? 's' : ''} há 14+ dias',
-                  if (amarelos > 0) '$amarelos ausente${amarelos > 1 ? 's' : ''} há 7–13 dias',
-                ].join(' · '),
-                style: TextStyle(color: kText2, fontSize: 11),
-              ),
-            ])),
-            Container(
+          DashCardHeader(
+            icon: Icons.person_off_rounded,
+            title: 'Risco de evasão',
+            subtitle:
+                '$total ${total == 1 ? 'aluno' : 'alunos'} sem treinar há 7+ dias',
+            tone: tone,
+            trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: tone.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('${_alertasEvasao.length}', style: TextStyle(color: iconColor, fontSize: 13, fontWeight: FontWeight.w800)),
+              child: Text('$total',
+                  style: TextStyle(
+                      color: tone.color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800)),
             ),
-          ]),
+          ),
           const SizedBox(height: 12),
-          ..._alertasEvasao.take(8).map((a) {
+          ...visiveis.map((a) {
             final nome = a['nome']?.toString() ?? '';
             final alunoId = a['id']?.toString() ?? '';
             final dias = (a['diasSemPresenca'] as int?) ?? 0;
@@ -777,6 +783,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
             return GestureDetector(
               onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
+              behavior: HitTestBehavior.opaque,
               child: Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -787,15 +794,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 child: Row(children: [
                   CircleAvatar(
-                    radius: 16,
+                    radius: 15,
                     backgroundColor: cor.withOpacity(0.15),
                     child: Text(
                       initials.isEmpty ? '?' : initials,
-                      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w800),
+                      style: TextStyle(color: cor, fontSize: 10, fontWeight: FontWeight.w800),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
+                  Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
@@ -810,13 +817,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             );
           }),
-          if (_alertasEvasao.length > 8)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Center(
-                child: Text(
-                  '+ ${_alertasEvasao.length - 8} alunos',
-                  style: TextStyle(color: kText2, fontSize: 12),
+          if (total > visiveis.length)
+            GestureDetector(
+              onTap: () => context.go('/admin/alunos'),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Center(
+                  child: Text(
+                    'Ver todos os $total alunos',
+                    style: TextStyle(
+                        color: kPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ),
@@ -884,40 +896,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── PRÓXIMOS DE GRADUAR ──────────────────────────────────────────────────────
 
   Widget _buildProximosGraduacao() {
+    final totalGrad = _proximosGraduacao.length;
+    final visiveis = _proximosGraduacao.take(3).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kPrimary.withOpacity(0.3)),
-        ),
+      child: DashCard(
+        tone: DashTone.gold,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.military_tech_rounded, color: kPrimary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Próximos de graduar', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text('Alunos próximos do mínimo de aulas', style: TextStyle(color: kText2, fontSize: 11)),
-            ])),
-          ]),
+          const DashCardHeader(
+            icon: Icons.military_tech_rounded,
+            title: 'Próximos de graduar',
+            subtitle: 'Alunos próximos do mínimo de aulas',
+            tone: DashTone.gold,
+          ),
           const SizedBox(height: 12),
           if (_proximosGraduacao.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(children: [
-                Icon(Icons.check_circle_outline_rounded, color: kText2, size: 18),
-                const SizedBox(width: 8),
-                Text('Nenhum aluno próximo da graduação', style: TextStyle(color: kText2, fontSize: 13)),
-              ]),
-            )
-          else
-            ..._proximosGraduacao.take(8).map((a) {
+            Row(children: [
+              Text('0',
+                  style: TextStyle(
+                      color: kText1, fontSize: 30, fontWeight: FontWeight.w900, height: 1)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Nenhum aluno próximo da graduação',
+                    style: TextStyle(color: kText2, fontSize: 13)),
+              ),
+            ])
+          else ...[
+            ...visiveis.map((a) {
               final nome = a['nomeAluno']?.toString() ?? '';
               final modalidade = a['nomeModalidade']?.toString() ?? '';
               final total = (a['totalPresencas'] as num?)?.toInt() ?? 0;
@@ -960,294 +965,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               );
             }),
+            if (totalGrad > visiveis.length)
+              GestureDetector(
+                onTap: () => context.go('/admin/alunos'),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Center(
+                    child: Text('Ver todos os $totalGrad alunos',
+                        style: TextStyle(
+                            color: kPrimary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+          ],
         ]),
       ),
     );
   }
 
-  // ─── NOTÍCIAS (carrossel) ────────────────────────────────────────────────────
+  // ─── NOTÍCIAS ────────────────────────────────────────────────────────────────
 
   Widget _buildNoticias() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-        child: Row(children: [
-          Expanded(child: Text('NOTÍCIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2))),
-          GestureDetector(
+      DashSectionHeader(
+        'Últimas notícias',
+        trailingLabel: 'Ver todas',
+        onTrailingTap: () => context.push('/admin/noticias'),
+      ),
+      ..._noticias.take(2).map((n) {
+        final titulo = n['titulo'] as String? ?? '';
+        final resumo = n['resumo'] as String? ?? '';
+        final publicadaEm = n['publicadaEm'] as String? ?? n['publicada_em'] as String?;
+        String dataLabel = '';
+        if (publicadaEm != null) {
+          try {
+            final dt = DateTime.parse(publicadaEm).toLocal();
+            dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+          } catch (_) {}
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: GestureDetector(
             onTap: () => context.push('/admin/noticias'),
-            child: Text('Gerenciar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-          ),
-        ]),
-      ),
-      SizedBox(
-        height: 130,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _noticias.length,
-          itemBuilder: (_, i) {
-            final n = _noticias[i];
-            final titulo = n['titulo'] as String? ?? '';
-            final resumo = n['resumo'] as String? ?? '';
-            final publicadaEm = n['publicadaEm'] as String? ?? n['publicada_em'] as String?;
-            String dataLabel = '';
-            if (publicadaEm != null) {
-              try {
-                final dt = DateTime.parse(publicadaEm).toLocal();
-                dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-              } catch (_) {}
-            }
-            return GestureDetector(
-              onTap: () => context.push('/admin/noticias'),
-              child: Container(
-                width: 240,
-                margin: EdgeInsets.only(right: i < _noticias.length - 1 ? 10 : 0),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: kSurface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kBorder),
+            behavior: HitTestBehavior.opaque,
+            child: DashCard(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.campaign_rounded, color: kPrimary, size: 17),
                 ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.campaign_rounded, color: kPrimary, size: 15),
-                    ),
-                    const Spacer(),
-                    if (dataLabel.isNotEmpty)
-                      Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(titulo, style: TextStyle(color: kText1, fontSize: 13.5, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      if (dataLabel.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
+                      ],
+                    ]),
+                    if (resumo.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(resumo, style: TextStyle(color: kText2, fontSize: 11.5), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ],
                   ]),
-                  const SizedBox(height: 8),
-                  Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  if (resumo.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ]),
-              ),
-            );
-          },
-        ),
-      ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right_rounded, color: kText2, size: 16),
+              ]),
+            ),
+          ),
+        );
+      }),
     ]);
   }
 
-  // ─── GRÁFICO DE FREQUÊNCIA ────────────────────────────────────────────────────
-
-  Widget _buildFrequenciaChart() {
-    final maxVal = _frequencia.fold<int>(1, (m, e) {
-      final v = (e['total'] as num?)?.toInt() ?? 0;
-      return v > m ? v : m;
-    });
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder.withOpacity(0.5)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Frequência semanal', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text('Últimos 7 dias', style: TextStyle(color: kText2, fontSize: 11)),
-            ]),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: kSuccess.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: kSuccess.withOpacity(0.2)),
-              ),
-              child: Row(children: [
-                Icon(Icons.trending_up_rounded, color: kSuccess, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  '${_frequencia.fold(0, (s, e) => s + ((e['total'] as num?)?.toInt() ?? 0))} total',
-                  style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ]),
-            ),
-          ]),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: _frequencia.asMap().entries.map((entry) {
-                final item = entry.value;
-                final val = (item['total'] as num?)?.toInt() ?? 0;
-                final ratio = maxVal > 0 ? val / maxVal : 0.0;
-                final data = (item['data'] as String? ?? '').split('-');
-                final dia = data.length == 3 ? data[2] : '?';
-                final mes = data.length == 3 ? data[1] : '';
-                final isMax = val == maxVal && val > 0;
-
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (val > 0)
-                          Text(
-                            '$val',
-                            style: TextStyle(
-                              color: isMax ? kPrimary : kText2,
-                              fontSize: 10,
-                              fontWeight: isMax ? FontWeight.w700 : FontWeight.normal,
-                            ),
-                          ),
-                        const SizedBox(height: 3),
-                        Flexible(
-                          child: FractionallySizedBox(
-                            heightFactor: ratio.clamp(0.04, 1.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: isMax
-                                      ? [kPrimary, kPrimary.withOpacity(0.6)]
-                                      : [kPrimary.withOpacity(0.5), kPrimary.withOpacity(0.2)],
-                                ),
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text('$dia', style: TextStyle(color: kText1, fontSize: 10, fontWeight: FontWeight.w600)),
-                        Text(mes.isNotEmpty ? '/$mes' : '', style: TextStyle(color: kText2, fontSize: 8)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
 }
 
-// ─── Widgets auxiliares ───────────────────────────────────────────────────────
-
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final List<Color> gradient;
-  final VoidCallback? onTap;
-
-  const _MetricCard({required this.label, required this.value, required this.icon, required this.gradient, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradient,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
-          ],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: Colors.white.withOpacity(0.85), size: 24),
-          const SizedBox(height: 12),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1)),
-          const SizedBox(height: 4),
-          Row(children: [
-            Expanded(child: Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500))),
-            if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withOpacity(0.5), size: 11),
-          ]),
-        ]),
-      ),
-    );
-  }
-}
-
-class _MetricCardSmall extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _MetricCardSmall({required this.label, required this.value, required this.icon, required this.color, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25)),
-        ),
-        child: Row(children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
-            Text(label, style: TextStyle(color: kText2, fontSize: 10)),
-          ])),
-          if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 11),
-        ]),
-      ),
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickActionButton({required this.label, required this.icon, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.25)),
-          ),
-          child: Icon(icon, color: color, size: 26),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: TextStyle(color: kText2, fontSize: 10, fontWeight: FontWeight.w500)),
-      ]),
-    );
-  }
-}
 
 // ─── Onboarding model ─────────────────────────────────────────────────────────
 

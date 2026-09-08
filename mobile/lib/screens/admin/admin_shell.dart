@@ -76,13 +76,30 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     ),
   ];
 
-  void _navegar(int index) {
-    adminTabNotifier.value = index;
+  // Branches do StatefulShellRoute: 0 Dashboard · 1 Alunos · 2 Turmas ·
+  // 3 Equipe · 4 Financeiro · 5 Ranking.
+  static const _navBranches = [0, 1, 2, 4]; // Início · Alunos · Turmas · Financeiro
+
+  void _navegar(int branchIndex) {
+    adminTabNotifier.value = branchIndex;
     widget.shell.goBranch(
-      index,
-      initialLocation: index == widget.shell.currentIndex,
+      branchIndex,
+      initialLocation: branchIndex == widget.shell.currentIndex,
     );
-    Navigator.of(context).pop();
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
+
+  int get _navSelectedIndex {
+    final i = _navBranches.indexOf(widget.shell.currentIndex);
+    return i < 0 ? _navBranches.length : i; // Equipe/Ranking → "Mais"
+  }
+
+  void _onNavTap(int navIndex) {
+    if (navIndex < _navBranches.length) {
+      _navegar(_navBranches[navIndex]);
+    } else {
+      adminShellKey.currentState?.openEndDrawer();
+    }
   }
 
   Widget _buildDrawer() {
@@ -143,13 +160,6 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                  if (_perfis.length > 1)
-                    PerfilSwitchButton(
-                      onPressed: () async {
-                        await mostrarTrocarPerfil(context);
-                        _atualizarPerfis();
-                      },
-                    ),
                 ],
               ),
             ),
@@ -158,6 +168,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 children: [
+                  _DrawerSection('PRINCIPAL'),
                   for (int i = 0; i < _items.length; i++)
                     _DrawerItem(
                       icon: _items[i].icon,
@@ -166,6 +177,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                       onTap: () => _navegar(i),
                     ),
                   const Divider(height: 24),
+                  _DrawerSection('OUTROS'),
                   _DrawerItem(
                     icon: Icons.newspaper_rounded,
                     label: 'Notícias',
@@ -192,6 +204,18 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
               child: Column(
                 children: [
                   const Divider(height: 16),
+                  _DrawerSection('CONTA'),
+                  if (_perfis.length > 1)
+                    _DrawerItem(
+                      icon: Icons.switch_account_rounded,
+                      label: 'Trocar perfil',
+                      selected: false,
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        await mostrarTrocarPerfil(context);
+                        _atualizarPerfis();
+                      },
+                    ),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
                     label: 'Sair',
@@ -220,6 +244,60 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
       key: adminShellKey,
       body: widget.shell,
       endDrawer: _buildDrawer(),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: kSurface,
+        indicatorColor: kPrimary.withOpacity(0.18),
+        selectedIndex: _navSelectedIndex,
+        onDestinationSelected: _onNavTap,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.sports_martial_arts_outlined),
+            selectedIcon: Icon(Icons.sports_martial_arts),
+            label: 'Alunos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups_rounded),
+            label: 'Turmas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.credit_card_outlined),
+            selectedIcon: Icon(Icons.credit_card_rounded),
+            label: 'Financeiro',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.more_horiz_rounded),
+            selectedIcon: Icon(Icons.more_horiz_rounded),
+            label: 'Mais',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerSection extends StatelessWidget {
+  final String label;
+  const _DrawerSection(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: kText2,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
     );
   }
 }
