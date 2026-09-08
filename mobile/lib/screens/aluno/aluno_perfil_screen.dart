@@ -602,7 +602,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Future<void> _sair() async {
     final confirma = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: kSurface,
         title: Text('Sair da conta?',
             style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
@@ -610,11 +610,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             style: TextStyle(color: kText2)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: Text('Cancelar', style: TextStyle(color: kText2)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: Text('Sair',
                 style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
           ),
@@ -632,7 +632,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   Future<void> _excluirConta() async {
     final confirma = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: kSurface,
         title: Text('Excluir conta?',
             style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
@@ -642,11 +642,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: Text('Cancelar', style: TextStyle(color: kText2)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: Text('Excluir',
                 style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
           ),
