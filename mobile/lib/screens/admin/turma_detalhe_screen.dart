@@ -77,6 +77,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   Set<String> _presentesNaData = {};
   Map<String, String> _presencaIds = {}; // alunoId -> presencaId
   final Set<String> _marcando = {};
+  final _presCtrl = TextEditingController();
+  bool _marcandoTodos = false;
 
   Set<String> _aptosGraduar = {};
 
@@ -120,6 +122,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   void dispose() {
     _tabCtrl.dispose();
     _ctrl.dispose();
+    _presCtrl.dispose();
     super.dispose();
   }
 
@@ -989,10 +992,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   // ── ABA ALUNOS ────────────────────────────────────────
 
   Widget _abaAlunos() {
-    final t = _turma;
+    final capRaw = _turma?['capacidadeMaxima'] ?? _turma?['capacidade_maxima'];
+    final cap = (capRaw as num?)?.toInt() ?? 0;
+    final matriculados =
+        (_turma?['totalAlunos'] as num?)?.toInt() ?? _alunos.length;
     return Column(
       children: [
-        if (t != null) _buildHeader(t),
         if (!_reordenando)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1030,23 +1035,30 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               children: [
-                Text(
-                  'Alunos matriculados',
-                  style: TextStyle(
-                    color: kText2,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: 'Alunos matriculados',
+                        style: TextStyle(color: kText2),
+                      ),
+                      TextSpan(
+                        text: cap > 0
+                            ? ' — $matriculados/$cap'
+                            : ' — $matriculados',
+                        style: TextStyle(
+                          color: kPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  '${_filtrados.length}',
-                  style: TextStyle(
-                    color: kPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _mostrarQrTurma,
@@ -1056,7 +1068,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: kSuccess.withOpacity(0.12),
+                      color: kSuccess.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -1076,41 +1088,6 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     ),
                   ),
                 ),
-                if (!_pm) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _abrirMatricula,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kPrimary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person_add_rounded,
-                            color: kPrimary,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Matricular',
-                            style: TextStyle(
-                              color: kPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1165,9 +1142,26 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         Expanded(
           child: _filtrados.isEmpty
               ? Center(
-                  child: Text(
-                    'Nenhum aluno matriculado.',
-                    style: TextStyle(color: kText2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.sports_martial_arts_rounded,
+                          color: kText2,
+                          size: 42,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _ctrl.text.trim().isEmpty
+                              ? 'Nenhum aluno matriculado nesta turma.'
+                              : 'Nenhum aluno encontrado.',
+                          style: TextStyle(color: kText2, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : _reordenando
@@ -1186,6 +1180,31 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   ),
                 ),
         ),
+        if (!_pm && !_reordenando)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _abrirMatricula,
+                icon: const Icon(Icons.person_add_rounded, size: 18),
+                label: const Text('Adicionar aluno'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1195,9 +1214,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
-        color: kPrimary.withOpacity(0.10),
+        color: kPrimary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kPrimary.withOpacity(0.35)),
+        border: Border.all(color: kPrimary.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -1258,7 +1277,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           const SizedBox(width: 8),
           CircleAvatar(
             radius: 16,
-            backgroundColor: kPrimary.withOpacity(0.2),
+            backgroundColor: kPrimary.withValues(alpha: 0.2),
             backgroundImage: foto != null && foto.contains(',')
                 ? MemoryImage(base64Decode(foto.split(',').last))
                 : null,
@@ -1291,78 +1310,6 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
               color: kText2,
               fontSize: 12,
               fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(Map<String, dynamic> t) {
-    final ativa = t['ativo'] == true;
-    final modalidadeNome = t['modalidadeNome'] ?? t['nome_modalidade'] ?? '';
-    final professorNome = t['professorNome'] ?? t['nome_professor'] ?? '';
-    final cap = t['capacidadeMaxima'] ?? t['capacidade_maxima'] ?? 0;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if ((modalidadeNome as String).isNotEmpty)
-                      Text(
-                        modalidadeNome,
-                        style: TextStyle(color: kText2, fontSize: 12),
-                      ),
-                    if ((professorNome as String).isNotEmpty)
-                      Text(
-                        'Prof. $professorNome',
-                        style: TextStyle(
-                          color: kPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: ativa
-                      ? kSuccess.withOpacity(0.15)
-                      : kText2.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  ativa ? 'Ativa' : 'Inativa',
-                  style: TextStyle(
-                    color: ativa ? kSuccess : kText2,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${t['totalAlunos'] ?? _alunos.length} / $cap alunos',
-            style: TextStyle(
-              color: kText1,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -1421,15 +1368,19 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: apto ? kSuccess.withOpacity(0.05) : kSurface,
+          color: apto ? kSuccess.withValues(alpha: 0.05) : kSurface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: apto ? kSuccess.withOpacity(0.4) : kBorder),
+          border: Border.all(
+            color: apto ? kSuccess.withValues(alpha: 0.4) : kBorder,
+          ),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: (apto ? kSuccess : kPrimary).withOpacity(0.2),
+              backgroundColor: (apto ? kSuccess : kPrimary).withValues(
+                alpha: 0.2,
+              ),
               backgroundImage: foto != null && foto.contains(',')
                   ? MemoryImage(base64Decode(foto.split(',').last))
                   : null,
@@ -1478,7 +1429,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: kPrimary.withOpacity(0.15),
+                              color: kPrimary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
@@ -1528,29 +1479,35 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: kPrimary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '$count',
-                    style: TextStyle(
-                      color: kPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: kPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '$count',
+                      style: TextStyle(
+                        color: kPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'presenças',
-                    style: TextStyle(color: kText2, fontSize: 9),
-                  ),
-                ],
+                    Text(
+                      'presenças',
+                      style: TextStyle(color: kText2, fontSize: 9),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
           ],
         ),
       ),
@@ -1564,7 +1521,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       background: Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: kDanger.withOpacity(0.15),
+          color: kDanger.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.centerRight,
@@ -1581,7 +1538,86 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
 
   // ── ABA PRESENÇA ──────────────────────────────────────
 
+  List<Map<String, dynamic>> get _alunosPresFiltrados {
+    final q = _presCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _alunos;
+    return _alunos
+        .where(
+          (a) => (a['nomeAluno'] ?? a['nome_aluno'] ?? '')
+              .toString()
+              .toLowerCase()
+              .contains(q),
+        )
+        .toList();
+  }
+
+  Widget _miniStatPresenca({
+    required IconData icon,
+    required String valor,
+    required String label,
+    required Color cor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: cor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, color: cor, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  valor,
+                  style: TextStyle(
+                    color: kText1,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(color: kText2, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _abaPresenca() {
+    final total = _alunos.length;
+    final presentes = _presentesNaData.length;
+    final pct = total == 0 ? 0 : (presentes / total * 100).round();
+    final corFreq = pct >= 75
+        ? kSuccess
+        : (pct >= 50 ? kWarning : (presentes == 0 ? kText2 : kDanger));
+    final pendentes = _alunos
+        .map((a) => (a['alunoId'] ?? a['aluno_id'] ?? '').toString())
+        .where((id) => id.isNotEmpty && !_presentesNaData.contains(id))
+        .length;
+    final podeMarcarTodos =
+        !_pm && _podeDarPresenca && pendentes > 0 && !_loadingPresenca;
+
     return Column(
       children: [
         Padding(
@@ -1590,7 +1626,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             decoration: BoxDecoration(
               color: kSurface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kPrimary.withOpacity(0.4)),
+              border: Border.all(color: kPrimary.withValues(alpha: 0.4)),
             ),
             child: Row(
               children: [
@@ -1607,6 +1643,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 Expanded(
                   child: GestureDetector(
                     onTap: _pickDate,
+                    behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       child: Row(
@@ -1618,13 +1655,22 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                             size: 16,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            _dataLabel,
-                            style: TextStyle(
-                              color: kPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                          Flexible(
+                            child: Text(
+                              _dataLabel,
+                              style: TextStyle(
+                                color: kPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          Icon(
+                            Icons.expand_more_rounded,
+                            color: kPrimary,
+                            size: 18,
                           ),
                         ],
                       ),
@@ -1645,63 +1691,236 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Text(
-                'Marque quem compareceu',
-                style: TextStyle(
-                  color: kText2,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: _miniStatPresenca(
+                  icon: Icons.groups_rounded,
+                  valor: '$presentes / $total',
+                  label: 'Presentes hoje',
+                  cor: kPrimary,
                 ),
               ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: kSuccess.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${_presentesNaData.length} presente(s)',
-                  style: TextStyle(
-                    color: kSuccess,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _miniStatPresenca(
+                  icon: Icons.insights_rounded,
+                  valor: '$pct%',
+                  label: 'Frequência do dia',
+                  cor: corFreq,
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: TextField(
+                    controller: _presCtrl,
+                    onChanged: (_) => setState(() {}),
+                    style: TextStyle(color: kText1, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar aluno...',
+                      hintStyle: TextStyle(color: kText2),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: kText2,
+                        size: 20,
+                      ),
+                      isDense: true,
+                      filled: true,
+                      fillColor: kSurface,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: kBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: kBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: kPrimary),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (podeMarcarTodos) ...[
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _marcandoTodos ? null : _marcarTodos,
+                    icon: _marcandoTodos
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            Icons.done_all_rounded,
+                            size: 16,
+                            color: kPrimary,
+                          ),
+                    label: Text(
+                      'Marcar todos',
+                      style: TextStyle(
+                        color: kPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
         if (_loadingPresenca)
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(),
-          )
+          const Expanded(child: Center(child: CircularProgressIndicator()))
         else
           Expanded(
             child: _alunos.isEmpty
                 ? Center(
-                    child: Text(
-                      'Nenhum aluno matriculado.',
-                      style: TextStyle(color: kText2),
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Text(
+                        'Não há alunos matriculados para realizar a chamada.',
+                        style: TextStyle(color: kText2, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _alunos.length,
-                    itemBuilder: (_, i) => _buildPresencaCard(_alunos[i]),
+                : Builder(
+                    builder: (_) {
+                      final lista = _alunosPresFiltrados;
+                      if (lista.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'Nenhum aluno encontrado.',
+                            style: TextStyle(color: kText2),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: lista.length,
+                        itemBuilder: (_, i) => _buildPresencaCard(lista[i]),
+                      );
+                    },
                   ),
           ),
       ],
     );
+  }
+
+  Future<void> _marcarTodos() async {
+    if (_marcandoTodos || _academiaId == null) return;
+    final pendentes = _alunos
+        .map((a) => (a['alunoId'] ?? a['aluno_id'] ?? '').toString())
+        .where((id) => id.isNotEmpty && !_presentesNaData.contains(id))
+        .toList();
+    if (pendentes.isEmpty) return;
+
+    // Confirmação de "dia fora do horário" uma única vez (mesma regra do
+    // fluxo individual), não por aluno.
+    if (!_dataNoDiaDaTurma) {
+      final diaLabel = _diasNomes[_dartDiaToFirestore(_dataSel.weekday)];
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text(
+            'Dia fora do horário',
+            style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'Hoje não é o dia de treino cadastrado para essa turma. '
+            'Marcar presença de todos para $diaLabel?',
+            style: TextStyle(color: kText2),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('Cancelar', style: TextStyle(color: kText2)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                'Confirmar',
+                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    setState(() => _marcandoTodos = true);
+    var falhou = 0;
+    for (final alunoId in pendentes) {
+      if (!mounted) break;
+      if (_presentesNaData.contains(alunoId)) continue;
+      setState(() => _marcando.add(alunoId));
+      try {
+        final now = DateTime.now();
+        final horaStr =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
+        final pid = await firestoreService.addPresenca(_academiaId!, {
+          'aluno_id': alunoId,
+          'turma_id': widget.turmaId,
+          'data': _dataStr,
+          'data_presenca': _dataStr,
+          'hora_checkin': horaStr,
+          'metodo_checkin': 2,
+          'confirmado': true,
+        });
+        if (mounted) {
+          setState(() {
+            _presentesNaData.add(alunoId);
+            if (pid.isNotEmpty) _presencaIds[alunoId] = pid;
+            _presencaCount[alunoId] = (_presencaCount[alunoId] ?? 0) + 1;
+          });
+        }
+      } catch (_) {
+        falhou++;
+      } finally {
+        if (mounted) setState(() => _marcando.remove(alunoId));
+      }
+    }
+    if (mounted) {
+      setState(() => _marcandoTodos = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            falhou == 0
+                ? 'Presença registrada para todos.'
+                : 'Alguns não foram registrados ($falhou). Tente novamente.',
+          ),
+          backgroundColor: falhou == 0 ? kSuccess : kDanger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ── MATRÍCULA ─────────────────────────────────────────
@@ -1795,19 +2014,154 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
 
   static const _diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+  static const _diasExtenso = [
+    'Domingo',
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+  ];
+
+  int _diaIdxHorario(Map<String, dynamic> h) =>
+      (h['diaSemana'] ?? h['dia_semana'] as num?)?.toInt() ?? 0;
+
+  /// Ordena os horários pela sequência da semana (Seg → Dom).
+  List<Map<String, dynamic>> get _horariosOrdenados {
+    final l = [..._horarios];
+    l.sort((a, b) {
+      int key(Map<String, dynamic> h) => (_diaIdxHorario(h) + 6) % 7;
+      final c = key(a).compareTo(key(b));
+      if (c != 0) return c;
+      final ha = (a['horaInicio'] ?? a['hora_inicio'] ?? '').toString();
+      final hb = (b['horaInicio'] ?? b['hora_inicio'] ?? '').toString();
+      return ha.compareTo(hb);
+    });
+    return l;
+  }
+
+  String _duracaoHorario(String inicio, String fim) {
+    int mins(String s) {
+      final p = s.split(':');
+      if (p.length < 2) return -1;
+      final hh = int.tryParse(p[0]);
+      final mm = int.tryParse(p[1]);
+      if (hh == null || mm == null) return -1;
+      return hh * 60 + mm;
+    }
+
+    final a = mins(inicio);
+    final b = mins(fim);
+    if (a < 0 || b < 0 || b <= a) return '';
+    final d = b - a;
+    final h = d ~/ 60;
+    final m = d % 60;
+    if (h > 0 && m > 0) return '${h}h ${m}min';
+    if (h > 0) return '${h}h';
+    return '${m}min';
+  }
+
   Widget _abaHorarios() {
+    final ordenados = _horariosOrdenados;
+    final n = ordenados.length;
+    final ativa = _turma?['ativo'] == true;
+    final diasResumo = () {
+      final nomes = ordenados
+          .map((h) {
+            final d = _diaIdxHorario(h);
+            return (d >= 0 && d < 7) ? _diasExtenso[d] : '';
+          })
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList();
+      if (nomes.isEmpty) return '';
+      if (nomes.length == 1) return nomes.first;
+      return '${nomes.sublist(0, nomes.length - 1).join(', ')} e ${nomes.last}';
+    }();
+
     return Column(
       children: [
+        if (n > 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kBorder),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: kPrimary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.event_repeat_rounded,
+                    color: kPrimary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        n == 1 ? '1 horário semanal' : '$n horários semanais',
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (diasResumo.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          diasResumo,
+                          style: TextStyle(color: kText2, fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (ativa ? kSuccess : kText2).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    ativa ? 'Ativa' : 'Inativa',
+                    style: TextStyle(
+                      color: ativa ? kSuccess : kText2,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
               Text(
                 'Horários da turma',
                 style: TextStyle(
-                  color: kText2,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  color: kText1,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const Spacer(),
@@ -1820,7 +2174,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.12),
+                      color: kPrimary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -1844,34 +2198,46 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           ),
         ),
         Expanded(
-          child: _horarios.isEmpty
+          child: ordenados.isEmpty
               ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.schedule_rounded, color: kText2, size: 48),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Nenhum horário cadastrado',
-                        style: TextStyle(color: kText2, fontSize: 14),
-                      ),
-                      if (!_pm) ...[
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => _abrirHorarioForm(),
-                          child: Text(
-                            'Adicionar horário',
-                            style: TextStyle(color: kPrimary),
-                          ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.event_busy_rounded, color: kText2, size: 44),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nenhum horário cadastrado.',
+                          style: TextStyle(color: kText2, fontSize: 14),
+                          textAlign: TextAlign.center,
                         ),
+                        if (!_pm) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => _abrirHorarioForm(),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Adicionar primeiro horário'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: kPrimary,
+                              minimumSize: const Size(0, 46),
+                              side: BorderSide(
+                                color: kPrimary.withValues(alpha: 0.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _horarios.length,
-                  itemBuilder: (_, i) => _buildHorarioCard(_horarios[i]),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: ordenados.length,
+                  itemBuilder: (_, i) => _buildHorarioCard(ordenados[i]),
                 ),
         ),
       ],
@@ -1888,6 +2254,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         '--:--';
     final fim =
         (h['horaFim'] ?? h['hora_fim'])?.toString().substring(0, 5) ?? '--:--';
+    final duracao = _duracaoHorario(inicio, fim);
     final sala = h['sala'] as String?;
 
     return Container(
@@ -1904,7 +2271,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: kPrimary.withOpacity(0.12),
+              color: kPrimary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -1934,11 +2301,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (sala != null && sala.isNotEmpty)
-                  Text(
-                    'Sala: $sala',
-                    style: TextStyle(color: kText2, fontSize: 12),
-                  ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    if (duracao.isNotEmpty) duracao,
+                    if (sala != null && sala.isNotEmpty) 'Sala $sala',
+                  ].join(' · '),
+                  style: TextStyle(color: kText2, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -1951,7 +2321,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.10),
+                      color: kPrimary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
@@ -1963,7 +2333,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: kDanger.withOpacity(0.10),
+                      color: kDanger.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -2002,9 +2372,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: Text('Remover horário', style: TextStyle(color: kText1)),
+        title: Text('Excluir horário?', style: TextStyle(color: kText1)),
         content: Text(
-          'Deseja remover este horário da turma?',
+          'Este horário será removido da turma.',
           style: TextStyle(color: kText2),
         ),
         actions: [
@@ -2015,7 +2385,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Remover',
+              'Excluir',
               style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
             ),
           ),
@@ -2059,10 +2429,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: presente ? kSuccess.withOpacity(0.05) : kSurface,
+        color: presente ? kSuccess.withValues(alpha: 0.05) : kSurface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: presente ? kSuccess.withOpacity(0.4) : kBorder,
+          color: presente ? kSuccess.withValues(alpha: 0.4) : kBorder,
         ),
       ),
       child: Row(
@@ -2070,8 +2440,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           CircleAvatar(
             radius: 20,
             backgroundColor: presente
-                ? kSuccess.withOpacity(0.2)
-                : kPrimary.withOpacity(0.2),
+                ? kSuccess.withValues(alpha: 0.2)
+                : kPrimary.withValues(alpha: 0.2),
             backgroundImage: foto != null && foto.contains(',')
                 ? MemoryImage(base64Decode(foto.split(',').last))
                 : null,
@@ -2108,7 +2478,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: kSuccess.withOpacity(0.15),
+                  color: kSuccess.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -2323,7 +2693,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                   onPressed: _selecionadoId == null ? null : _matricular,
                   style: TextButton.styleFrom(
                     backgroundColor: _selecionadoId != null
-                        ? kPrimary.withOpacity(0.12)
+                        ? kPrimary.withValues(alpha: 0.12)
                         : Colors.transparent,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -2408,7 +2778,9 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: sel ? kPrimary.withOpacity(0.12) : kSurface,
+                        color: sel
+                            ? kPrimary.withValues(alpha: 0.12)
+                            : kSurface,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: sel ? kPrimary : kBorder),
                       ),
@@ -2635,7 +3007,7 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                 TextButton(
                   onPressed: _salvar,
                   style: TextButton.styleFrom(
-                    backgroundColor: kPrimary.withOpacity(0.12),
+                    backgroundColor: kPrimary.withValues(alpha: 0.12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
