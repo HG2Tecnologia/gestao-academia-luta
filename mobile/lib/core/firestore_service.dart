@@ -752,6 +752,29 @@ class FirestoreService {
   Future<void> deleteMatricula(String academiaId, String id) =>
       _doc(academiaId, 'matriculas', id).delete();
 
+  Future<void> updateMatricula(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) =>
+      _doc(academiaId, 'matriculas', id).update(data);
+
+  /// Persiste a ordem manual dos alunos de uma turma gravando o índice
+  /// `ordem` em cada matrícula, na sequência informada.
+  Future<void> salvarOrdemMatriculas(
+    String academiaId,
+    List<String> matriculaIdsOrdenados,
+  ) async {
+    final batch = _db.batch();
+    for (var i = 0; i < matriculaIdsOrdenados.length; i++) {
+      batch.update(
+        _doc(academiaId, 'matriculas', matriculaIdsOrdenados[i]),
+        {'ordem': i},
+      );
+    }
+    await batch.commit();
+  }
+
   // ─── PRESENÇAS ─────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPresencas(

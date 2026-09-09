@@ -686,9 +686,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         const DashSectionHeader('Ações rápidas'),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               DashQuickAction(
                 icon: Icons.person_add_rounded,
@@ -1006,7 +1006,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final temVermelho = _alertasEvasao.any((a) => a['nivelAlerta'] == 'red');
     final tone = temVermelho ? DashTone.danger : DashTone.warning;
     final total = _alertasEvasao.length;
-    final visiveis = _alertasEvasao.take(3).toList();
+    final visiveis = _alertasEvasao.take(5).toList();
+    final subtitulo = temVermelho
+        ? '$total ${total == 1 ? 'aluno' : 'alunos'} sem treinar há 7+ dias'
+        : '$total ${total == 1 ? 'aluno' : 'alunos'} com 7–13 dias de ausência';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -1018,8 +1021,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             DashCardHeader(
               icon: Icons.person_off_rounded,
               title: 'Risco de evasão',
-              subtitle:
-                  '$total ${total == 1 ? 'aluno' : 'alunos'} sem treinar há 7+ dias',
+              subtitle: subtitulo,
               tone: tone,
               trailing: Container(
                 padding: const EdgeInsets.symmetric(

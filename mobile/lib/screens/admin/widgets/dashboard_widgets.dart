@@ -158,7 +158,7 @@ class DashMetricCard extends StatelessWidget {
   }
 }
 
-/// Ação rápida: ícone grande + rótulo, área de toque confortável.
+/// Ação rápida: card quadrado com fundo tonal leve, ícone e rótulo dentro.
 class DashQuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -181,38 +181,43 @@ class DashQuickAction extends StatelessWidget {
         button: true,
         label: label,
         excludeSemantics: true,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: AppRadius.brSm,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: AppRadius.brSm,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Column(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: c.withValues(alpha: 0.12),
-                      borderRadius: AppRadius.brSm,
-                      border: Border.all(color: c.withValues(alpha: 0.25)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Material(
+            color: c.withValues(alpha: 0.10),
+            borderRadius: AppRadius.brMd,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: AppRadius.brMd,
+              child: Container(
+                height: 96,
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm,
+                  horizontal: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
+                  border: Border.all(color: c.withValues(alpha: 0.28)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: c, size: 26),
+                    const SizedBox(height: 8),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Icon(icon, color: c, size: 24),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
