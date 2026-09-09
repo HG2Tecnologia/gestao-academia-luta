@@ -526,9 +526,9 @@ class FirestoreService {
   ) async {
     final ref = _col(academiaId, 'modalidades').doc();
     await ref.set({
+      'ativo': true,
       ...data,
       'id': ref.id,
-      'ativo': true,
       'criado_em': FieldValue.serverTimestamp(),
     });
     return ref.id;
@@ -539,6 +539,16 @@ class FirestoreService {
     final atual = (doc.data() as Map?)?['ativo'] as bool? ?? true;
     await _doc(academiaId, 'modalidades', id).update({'ativo': !atual});
   }
+
+  Future<void> updateModalidade(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'modalidades',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deleteModalidade(String academiaId, String id) =>
       _doc(academiaId, 'modalidades', id).delete();
