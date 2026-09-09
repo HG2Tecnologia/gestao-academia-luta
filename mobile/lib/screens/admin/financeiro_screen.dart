@@ -88,8 +88,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Garantia server-side: nunca gera mensalidade só no cliente. Falha
       // de rede/permite aqui não trava a tela — só mostra o que já existe.
-      final periodo =
-          '$_ano-${_mes.toString().padLeft(2, '0')}';
+      final periodo = '$_ano-${_mes.toString().padLeft(2, '0')}';
       try {
         await FinanceService.ensureChargesForPeriod(
           academiaId: _academiaId!,
@@ -127,6 +126,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Compute resumo client-side (exclude desconsiderado)
       double recebido = 0, pendente = 0, atrasado = 0;
+      int recebidoQtd = 0, pendenteQtd = 0, atrasadoQtd = 0;
       final Set<String> inadimplentesSet = {};
 
       for (final p in todos) {
@@ -145,14 +145,19 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         } catch (_) {}
 
         if (statusStr == 'Pago') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
             recebido += valor;
+            recebidoQtd++;
+          }
         } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
             pendente += valor;
+            pendenteQtd++;
+          }
           if (vencDt != null &&
               DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
             atrasado += valor;
+            atrasadoQtd++;
             final alunoId = p['aluno_id']?.toString() ?? '';
             if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
           }
@@ -199,6 +204,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             'totalPendenteMes': pendente,
             'totalAtrasado': atrasado,
             'alunosInadimplentes': inadimplentesSet.length,
+            'qtdRecebido': recebidoQtd,
+            'qtdPendente': pendenteQtd,
+            'qtdAtrasado': atrasadoQtd,
           };
           _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
         });
@@ -2050,10 +2058,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             // + a próxima (Fase 7) — não faz sentido travar
                             // a navegação exatamente no mês atual.
                             onPressed: () => _navMes(1),
-                            icon: Icon(
-                              Icons.chevron_right,
-                              color: kText1,
-                            ),
+                            icon: Icon(Icons.chevron_right, color: kText1),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
@@ -2069,27 +2074,34 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 1.6,
+                      childAspectRatio: 1.55,
                       children: [
                         _met(
-                          'Recebido',
-                          _fmtInt((r['totalRecebidoMes'] as num?) ?? 0),
-                          kSuccess,
+                          label: 'Recebido',
+                          value: _fmtInt((r['totalRecebidoMes'] as num?) ?? 0),
+                          color: kSuccess,
+                          icon: Icons.attach_money_rounded,
+                          sub: _labelCobrancas((r['qtdRecebido'] as int?) ?? 0),
                         ),
                         _met(
-                          'Pendente',
-                          _fmtInt((r['totalPendenteMes'] as num?) ?? 0),
-                          kWarning,
+                          label: 'Pendente',
+                          value: _fmtInt((r['totalPendenteMes'] as num?) ?? 0),
+                          color: kWarning,
+                          icon: Icons.schedule_rounded,
+                          sub: _labelCobrancas((r['qtdPendente'] as int?) ?? 0),
                         ),
                         _met(
-                          'Atrasado',
-                          _fmtInt((r['totalAtrasado'] as num?) ?? 0),
-                          kDanger,
+                          label: 'Atrasado',
+                          value: _fmtInt((r['totalAtrasado'] as num?) ?? 0),
+                          color: kDanger,
+                          icon: Icons.warning_amber_rounded,
+                          sub: _labelCobrancas((r['qtdAtrasado'] as int?) ?? 0),
                         ),
                         _met(
-                          'Inadimplentes',
-                          '${r['alunosInadimplentes'] ?? 0}',
-                          kDanger,
+                          label: 'Inadimplentes',
+                          value: '${r['alunosInadimplentes'] ?? 0}',
+                          color: kText1,
+                          icon: Icons.groups_rounded,
                         ),
                       ],
                     ),
@@ -2575,7 +2587,15 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
   }
 
-  Widget _met(String label, String value, Color color) => Container(
+  String _labelCobrancas(int n) => n == 1 ? '1 cobrança' : '$n cobranças';
+
+  Widget _met({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+    String? sub,
+  }) => Container(
     decoration: BoxDecoration(
       color: kSurface,
       borderRadius: BorderRadius.circular(14),
@@ -2583,22 +2603,52 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     ),
     padding: const EdgeInsets.all(12),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(height: 8),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(color: kText2, fontSize: 11),
-          textAlign: TextAlign.center,
+          style: TextStyle(color: kText2, fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
+        if (sub != null) ...[
+          const SizedBox(height: 3),
+          Text(
+            sub,
+            style: TextStyle(
+              color: kText2,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     ),
   );
