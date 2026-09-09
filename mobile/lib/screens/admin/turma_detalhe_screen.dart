@@ -14,7 +14,17 @@ import 'turmas_screen.dart' show TurmaFormSheet;
 
 class AdminTurmaDetalheScreen extends StatefulWidget {
   final String turmaId;
-  const AdminTurmaDetalheScreen({super.key, required this.turmaId});
+
+  /// Quando `true`, a tela é aberta pelo app do professor: esconde os controles
+  /// de gestão da turma (editar/excluir turma, matricular/desmatricular, criar/
+  /// editar/excluir horário) e navega para os alunos pela rota `/professor/...`.
+  final bool professorMode;
+
+  const AdminTurmaDetalheScreen({
+    super.key,
+    required this.turmaId,
+    this.professorMode = false,
+  });
 
   @override
   State<AdminTurmaDetalheScreen> createState() =>
@@ -45,6 +55,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   String? _erro;
   String? _academiaId;
 
+  // Modo professor: permissões concedidas pela academia.
+  bool _podeDarPresenca = true;
+
+  bool get _pm => widget.professorMode;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +87,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
       if (_academiaId!.isEmpty) throw Exception('Academia não encontrada');
+
+      _podeDarPresenca =
+          !_pm || (user?.temPermissao('acao_dar_presenca') ?? false);
 
       final hoje = DateTime.now();
       final cutoff = hoje.subtract(const Duration(days: 180));
@@ -640,7 +658,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
         ),
         actions: [
-          if (t != null && _academiaId != null)
+          if (!_pm && t != null && _academiaId != null)
             IconButton(
               icon: Icon(Icons.edit_rounded, color: kText2, size: 20),
               tooltip: 'Editar turma',
@@ -655,7 +673,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 if (editou == true) _load();
               },
             ),
-          if (t != null && _academiaId != null)
+          if (!_pm && t != null && _academiaId != null)
             IconButton(
               icon: Icon(
                 Icons.delete_outline_rounded,
@@ -785,35 +803,41 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _abrirMatricula,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kPrimary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person_add_rounded, color: kPrimary, size: 16),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Matricular',
-                        style: TextStyle(
+              if (!_pm) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _abrirMatricula,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kPrimary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.person_add_rounded,
                           color: kPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          size: 16,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 5),
+                        Text(
+                          'Matricular',
+                          style: TextStyle(
+                            color: kPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -951,6 +975,153 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         ? maxGrausRaw
         : (grauAtual > 0 ? grauAtual : 4);
 
+    final card = GestureDetector(
+      onTap: alunoId.isNotEmpty
+          ? () => context.push(
+              _pm ? '/professor/alunos/$alunoId' : '/admin/alunos/$alunoId',
+            )
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: apto ? kSuccess.withOpacity(0.05) : kSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: apto ? kSuccess.withOpacity(0.4) : kBorder),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: (apto ? kSuccess : kPrimary).withOpacity(0.2),
+              backgroundImage: foto != null && foto.contains(',')
+                  ? MemoryImage(base64Decode(foto.split(',').last))
+                  : null,
+              child: foto == null || !foto.contains(',')
+                  ? Text(
+                      initials.isEmpty ? '?' : initials,
+                      style: TextStyle(
+                        color: apto ? kSuccess : kPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nome,
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      if (faixaCor != null) ...[
+                        BeltBadge(
+                          cor: _parseCor2(faixaCor),
+                          corBarra: _parseCor2('#000000'),
+                          temGraus: temGraus,
+                          grau: grauAtual,
+                          maxGraus: maxGraus,
+                          height: 12,
+                          minWidth: 28,
+                        ),
+                        if (faixasCount > 1) ...[
+                          const SizedBox(width: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: kPrimary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              '+${faixasCount - 1}',
+                              style: TextStyle(
+                                color: kPrimary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 5),
+                      ],
+                      if (faixaNome != null)
+                        Flexible(
+                          child: Text(
+                            grauAtual > 0
+                                ? '$faixaNome · $grauAtual° Grau'
+                                : faixaNome,
+                            style: TextStyle(
+                              color: apto ? kSuccess : kText2,
+                              fontSize: 11,
+                              fontWeight: apto
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )
+                      else if (apto)
+                        Text(
+                          'Apto para graduar',
+                          style: TextStyle(
+                            color: kSuccess,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      if (faixaNome == null && !apto)
+                        Text(
+                          'Sem graduação',
+                          style: TextStyle(color: kText2, fontSize: 11),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      color: kPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'presenças',
+                    style: TextStyle(color: kText2, fontSize: 9),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (_pm) return card;
+
     return Dismissible(
       key: Key(alunoId),
       direction: DismissDirection.endToStart,
@@ -968,153 +1139,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         await _desmatricularAluno(a);
         return false;
       },
-      child: GestureDetector(
-        onTap: alunoId.isNotEmpty
-            ? () => context.push('/admin/alunos/$alunoId')
-            : null,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: apto ? kSuccess.withOpacity(0.05) : kSurface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: apto ? kSuccess.withOpacity(0.4) : kBorder,
-            ),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: (apto ? kSuccess : kPrimary).withOpacity(0.2),
-                backgroundImage: foto != null && foto.contains(',')
-                    ? MemoryImage(base64Decode(foto.split(',').last))
-                    : null,
-                child: foto == null || !foto.contains(',')
-                    ? Text(
-                        initials.isEmpty ? '?' : initials,
-                        style: TextStyle(
-                          color: apto ? kSuccess : kPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nome,
-                      style: TextStyle(
-                        color: kText1,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        if (faixaCor != null) ...[
-                          BeltBadge(
-                            cor: _parseCor2(faixaCor),
-                            corBarra: _parseCor2('#000000'),
-                            temGraus: temGraus,
-                            grau: grauAtual,
-                            maxGraus: maxGraus,
-                            height: 12,
-                            minWidth: 28,
-                          ),
-                          if (faixasCount > 1) ...[
-                            const SizedBox(width: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: kPrimary.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                '+${faixasCount - 1}',
-                                style: TextStyle(
-                                  color: kPrimary,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(width: 5),
-                        ],
-                        if (faixaNome != null)
-                          Flexible(
-                            child: Text(
-                              grauAtual > 0
-                                  ? '$faixaNome · $grauAtual° Grau'
-                                  : faixaNome,
-                              style: TextStyle(
-                                color: apto ? kSuccess : kText2,
-                                fontSize: 11,
-                                fontWeight: apto
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          )
-                        else if (apto)
-                          Text(
-                            'Apto para graduar',
-                            style: TextStyle(
-                              color: kSuccess,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        if (faixaNome == null && !apto)
-                          Text(
-                            'Sem graduação',
-                            style: TextStyle(color: kText2, fontSize: 11),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: kPrimary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      '$count',
-                      style: TextStyle(
-                        color: kPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'presenças',
-                      style: TextStyle(color: kText2, fontSize: 9),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: card,
     );
   }
 
@@ -1350,34 +1375,35 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 ),
               ),
               const Spacer(),
-              GestureDetector(
-                onTap: () => _abrirHorarioForm(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kPrimary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_rounded, color: kPrimary, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Novo horário',
-                        style: TextStyle(
-                          color: kPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+              if (!_pm)
+                GestureDetector(
+                  onTap: () => _abrirHorarioForm(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kPrimary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded, color: kPrimary, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Novo horário',
+                          style: TextStyle(
+                            color: kPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -1393,14 +1419,16 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         'Nenhum horário cadastrado',
                         style: TextStyle(color: kText2, fontSize: 14),
                       ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => _abrirHorarioForm(),
-                        child: Text(
-                          'Adicionar horário',
-                          style: TextStyle(color: kPrimary),
+                      if (!_pm) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => _abrirHorarioForm(),
+                          child: Text(
+                            'Adicionar horário',
+                            style: TextStyle(color: kPrimary),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 )
@@ -1478,38 +1506,39 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: () => _abrirHorarioForm(horario: h),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: kPrimary.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _deletarHorario(h),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: kDanger.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.delete_outline_rounded,
-                    color: kDanger,
-                    size: 16,
+          if (!_pm)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => _abrirHorarioForm(horario: h),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: kPrimary.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _deletarHorario(h),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: kDanger.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: kDanger,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -1634,7 +1663,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           ),
           if (presente)
             GestureDetector(
-              onTap: carregando
+              onTap: (carregando || !_podeDarPresenca)
                   ? null
                   : () => _desmarcarPresenca(alunoId, nome),
               child: Container(
@@ -1680,7 +1709,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             SizedBox(
               height: 34,
               child: ElevatedButton(
-                onPressed: carregando ? null : () => _marcarPresenca(alunoId),
+                onPressed: (carregando || !_podeDarPresenca)
+                    ? null
+                    : () => _marcarPresenca(alunoId),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimary,
                   foregroundColor: Colors.white,

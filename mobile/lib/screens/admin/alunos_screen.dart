@@ -10,7 +10,11 @@ import '../../core/graduacao_order.dart';
 import '../../core/widgets.dart';
 
 class AdminAlunosScreen extends StatefulWidget {
-  const AdminAlunosScreen({super.key});
+  /// Quando `true`, a tela é aberta pelo app do professor: lista só os alunos
+  /// matriculados nas turmas dele (salvo `acesso_turmas_todas`), esconde o botão
+  /// de criar aluno e navega pela rota `/professor/alunos/...`.
+  final bool professorMode;
+  const AdminAlunosScreen({super.key, this.professorMode = false});
 
   @override
   State<AdminAlunosScreen> createState() => _AdminAlunosScreenState();
@@ -65,13 +69,30 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
       final graduacoes = results[1] as List<Map<String, dynamic>>;
       final faixasAtuaisPorAluno = montarFaixasAtuaisPorAluno(graduacoes);
 
-      final todos = alunos.map((a) {
+      var todos = alunos.map((a) {
         final id = a['id']?.toString() ?? '';
         return <String, dynamic>{
           ...a,
           'faixasAtuais': faixasAtuaisPorAluno[id] ?? const {},
         };
       }).toList();
+
+      // Modo professor: restringe aos alunos das turmas dele, salvo se a
+      // academia concedeu "ver todas as turmas".
+      if (widget.professorMode && !user.temPermissao('acesso_turmas_todas')) {
+        final turmasProf = await firestoreService.getTurmas(academiaId, professorId: user.id);
+        final turmaIds = turmasProf
+            .map((t) => t['id']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toSet();
+        final matriculas = await firestoreService.getMatriculas(academiaId, ativasOnly: true);
+        final permitidos = matriculas
+            .where((m) => turmaIds.contains(m['turma_id']?.toString() ?? ''))
+            .map((m) => m['aluno_id']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toSet();
+        todos = todos.where((a) => permitidos.contains(a['id']?.toString())).toList();
+      }
 
       if (mounted) {
         setState(() {
@@ -119,7 +140,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBg,
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: widget.professorMode ? null : FloatingActionButton(
         onPressed: () async {
           await context.push('/admin/alunos/novo');
           _load(_ctrl.text);
@@ -197,7 +218,9 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                   }
                                   return GestureDetector(
                                     onTap: () async {
-                                      await context.push('/admin/alunos/${a['id']}');
+                                      await context.push(widget.professorMode
+                                          ? '/professor/alunos/${a['id']}'
+                                          : '/admin/alunos/${a['id']}');
                                       _load(_ctrl.text);
                                     },
                                     child: Container(

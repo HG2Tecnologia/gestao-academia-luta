@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 
 class ProfDashboardScreen extends StatefulWidget {
@@ -16,20 +17,13 @@ class ProfDashboardScreen extends StatefulWidget {
 class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
   bool _loading = true;
   String? _nome;
+  String? _fotoBase64;
+  List<Map<String, dynamic>> _perfis = [];
   int _totalTurmas = 0;
   int _totalAlunos = 0;
   int _turmasComoAluno = 0;
   List<Map<String, dynamic>> _aulasHoje = [];
-
-  static const _diaNomes = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
-  ];
+  final Set<String> _perms = {};
 
   @override
   void initState() {
@@ -51,6 +45,17 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
       if (user == null || user.academiaId == null) return;
       final academiaId = user.academiaId!;
       _nome = user.nome;
+      _perfis = user.perfis;
+
+      _perms.clear();
+      for (final k in const [
+        'tela_turmas',
+        'tela_alunos',
+        'tela_horarios',
+        'tela_rankings',
+      ]) {
+        if (user.temPermissao(k)) _perms.add(k);
+      }
 
       final verTodas = user.temPermissao('acesso_turmas_todas');
       final alunoUsuarioId =
@@ -67,8 +72,13 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
         ),
         firestoreService.getMatriculas(academiaId, ativasOnly: true),
         firestoreService.getHorarios(academiaId),
+        firestoreService
+            .getFuncionario(academiaId, user.id)
+            .catchError((_) => null),
       ]);
       final turmas = (results[0] as List).cast<Map<String, dynamic>>();
+      final meuDoc = results[3] as Map<String, dynamic>?;
+      _fotoBase64 = meuDoc?['fotoBase64'] as String?;
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
       final horarios = (results[2] as List).cast<Map<String, dynamic>>();
 
@@ -114,10 +124,65 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
     }
   }
 
+  String get _primeiroNome => (_nome ?? '').trim().split(' ').first;
+
   String _hora(Map<String, dynamic> h, String field, String fallback) {
     final val = (h[field] ?? h[fallback] ?? '').toString();
     return val.length >= 5 ? val.substring(0, 5) : val;
   }
+
+  List<(IconData, String, String)> get _acessos => [
+    if (_perms.contains('tela_turmas'))
+      (Icons.groups_rounded, 'Turmas', '/professor/turmas'),
+    if (_perms.contains('tela_alunos'))
+      (Icons.sports_martial_arts, 'Alunos', '/professor/alunos'),
+    if (_perms.contains('tela_horarios'))
+      (Icons.schedule_rounded, 'Horários', '/professor/horarios'),
+    if (_perms.contains('tela_rankings'))
+      (Icons.emoji_events_rounded, 'Rankings', '/professor/rankings'),
+  ];
+
+  Widget _acessoCard(IconData icon, String label, String rota) => Material(
+    color: kSurface,
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: () => context.go(rota),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kBorder),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: kPrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: kPrimary, size: 20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: kText1,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -135,35 +200,38 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        GestureDetector(
-                          onTap: openAppDrawer,
-                          child: Icon(
-                            Icons.menu_rounded,
-                            color: kText1,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
+                        _Avatar(fotoBase64: _fotoBase64, nome: _nome ?? ''),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Dashboard',
+                                _primeiroNome.isEmpty
+                                    ? 'Olá!'
+                                    : 'Olá, $_primeiroNome!',
                                 style: TextStyle(
                                   color: kText1,
                                   fontSize: 22,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w900,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (_nome != null)
-                                Text(
-                                  _nome!,
-                                  style: TextStyle(color: kText2, fontSize: 13),
-                                ),
+                              Text(
+                                'Painel do professor',
+                                style: TextStyle(color: kText2, fontSize: 13),
+                              ),
                             ],
                           ),
                         ),
+                        if (_perfis.length > 1)
+                          PerfilSwitchButton(
+                            onPressed: () async {
+                              await mostrarTrocarPerfil(context);
+                              _load();
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -196,6 +264,31 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                         Icons.emoji_events_rounded,
                         kWarning,
                         wide: true,
+                      ),
+                    ],
+                    if (_acessos.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Acessos rápidos',
+                        style: TextStyle(
+                          color: kText2,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        crossAxisCount: 3,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1,
+                        children: [
+                          for (final a in _acessos)
+                            _acessoCard(a.$1, a.$2, a.$3),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -361,4 +454,39 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
             ],
           ),
   );
+}
+
+class _Avatar extends StatelessWidget {
+  final String? fotoBase64;
+  final String nome;
+  const _Avatar({this.fotoBase64, required this.nome});
+
+  @override
+  Widget build(BuildContext context) {
+    final iniciais = nome
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0])
+        .join()
+        .toUpperCase();
+    if (fotoBase64 != null && fotoBase64!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(fotoBase64!.split(',').last);
+        return CircleAvatar(radius: 22, backgroundImage: MemoryImage(bytes));
+      } catch (_) {}
+    }
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: kPrimary.withValues(alpha: 0.18),
+      child: Text(
+        iniciais.isEmpty ? '?' : iniciais,
+        style: TextStyle(
+          color: kPrimary,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
 }

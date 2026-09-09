@@ -6,6 +6,14 @@ const admin = require("firebase-admin");
 const crypto = require("crypto");
 const { FieldValue } = require("firebase-admin/firestore");
 const { generateTemporaryPassword } = require("./domain/temp-password");
+const { syntheticAuthEmails, profileKey } = require("./domain/account");
+const {
+  loginIdentifiers,
+  primaryLoginEmail,
+  identityForAuthEmail,
+  loginHint,
+} = require("./domain/access-provisioning");
+const { findProfiles, upsertAccount } = require("./account-functions");
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -14,6 +22,7 @@ const IDENTITY_FUNCTION_OPTIONS = {
 };
 
 const RESETTABLE_ROLES = new Set(["Admin", "Secretaria"]);
+const MOTIVOS = new Set(["redefinicao", "provisao_criacao", "provisao_edicao"]);
 
 /**
  * Verifica, a partir do schema v2 (fonte de verdade server-side, nunca do
@@ -51,6 +60,174 @@ async function loadCallerAuthority(callerUid, academiaId) {
   return { usuarioId: staffRef.usuarioId, nome: staffRef.nome, perfil: "Secretaria" };
 }
 
+/**
+ * Descobre TODAS as contas do Firebase Auth alcançáveis a partir dos
+ * identificadores (telefone/e-mail) do perfil alvo — inclusive as de outros
+ * cadastros que compartilham o mesmo telefone/e-mail. O objetivo é redefinir a
+ * senha em todas de uma vez: a pessoa pode logar por qualquer uma delas.
+ */
+async function collectRelatedUids(targetData) {
+  const { realEmail, phoneCanonical, authEmails } = loginIdentifiers(targetData);
+  const uids = new Set();
+
+  const docUid = targetData.firebaseUid || targetData.firebase_uid;
+  if (docUid) uids.add(docUid);
+
+  // 1. Contas Auth pelos e-mails de login (real + sintéticos do telefone).
+  for (const email of authEmails) {
+    try {
+      const user = await auth.getUserByEmail(email);
+      if (user) uids.add(user.uid);
+    } catch (error) {
+      if (error.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  // 2. Outros perfis (usuarios/funcionarios) que compartilham o mesmo
+  //    telefone/e-mail — cada um pode apontar para uma conta Auth diferente
+  //    (o cenário quebrado que queremos costurar). Reaproveita a busca já
+  //    testada do fluxo de identidade.
+  for (const identifier of [phoneCanonical, realEmail].filter(Boolean)) {
+    try {
+      const { profiles } = await findProfiles(identifier);
+      for (const profile of profiles) {
+        if (profile.firebaseUid) uids.add(profile.firebaseUid);
+      }
+    } catch (error) {
+      if (error.code !== "invalid-argument") throw error;
+    }
+  }
+
+  return { uids: [...uids], realEmail, phoneCanonical, authEmails };
+}
+
+/**
+ * Vincula o perfil `academias/{academiaId}/{colecao}/{usuarioId}` à conta Auth
+ * `uid` e garante o documento `usuariosFirebase/{uid}` (schema v2). Tenta o
+ * `upsertAccount` transacional (que costura o grupo familiar inteiro); se ele
+ * bater em conflito de identidade legado, faz o vínculo mínimo só deste perfil
+ * e registra um aviso.
+ */
+async function linkProfileToAccount({ uid, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical }) {
+  const identity = identityForAuthEmail(authUserEmail) || realEmail || phoneCanonical;
+  const preferredKey = profileKey({ academiaId, colecao, usuarioId });
+  if (identity) {
+    try {
+      await upsertAccount(uid, authUserEmail, identity, preferredKey);
+      return;
+    } catch (error) {
+      if (error.code !== "failed-precondition" && error.code !== "permission-denied") throw error;
+      logger.warn("upsertAccount não pôde costurar o grupo; vínculo mínimo aplicado", {
+        uid, academiaId, colecao, usuarioId, motivo: error.message,
+      });
+    }
+  }
+
+  // Vínculo mínimo: só este perfil.
+  const perfilNome = colecao === "funcionarios" ? "Professor" : "Aluno";
+  const ref = db.collection("academias").doc(academiaId).collection(colecao).doc(usuarioId);
+  await ref.set({
+    firebaseUid: uid,
+    conta_ativa: true,
+    auth_account_schema_version: 2,
+    atualizado_em: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  const accRef = db.collection("usuariosFirebase").doc(uid);
+  const existing = (await accRef.get()).data() || {};
+  const newRef = {
+    key: preferredKey, academiaId, colecao, usuarioId,
+    perfil_nome: perfilNome, nome: String(targetData.nome || ""),
+  };
+  const refs = (Array.isArray(existing.profile_refs) ? existing.profile_refs : [])
+    .filter((r) => r && r.key !== preferredKey);
+  refs.push(newRef);
+  await accRef.set({
+    schemaVersion: 2,
+    uid,
+    status: "active",
+    primary_profile_key: existing.primary_profile_key || preferredKey,
+    profile_keys: refs.map((r) => r.key),
+    profile_refs: refs,
+    academiaId: existing.academiaId || academiaId,
+    usuarioId: existing.usuarioId || usuarioId,
+    colecao: existing.colecao || colecao,
+    perfil: existing.perfil || perfilNome,
+    nome: existing.nome || newRef.nome,
+    ...(realEmail ? { email: realEmail, email_canonical: realEmail } : {}),
+    ...(phoneCanonical ? { phone_canonical: phoneCanonical } : {}),
+    criado_em: existing.criado_em || FieldValue.serverTimestamp(),
+    atualizado_em: FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
+/**
+ * Cria (ou reaproveita) a conta Auth do contato e aplica a senha temporária.
+ * Retorna o uid usado.
+ */
+async function provisionAccount({ academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical, temporaryPassword }) {
+  const loginEmail = primaryLoginEmail({ realEmail, phoneCanonical });
+  if (!loginEmail) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cadastre um telefone ou e-mail para o aluno antes de gerar o acesso ao app.",
+    );
+  }
+
+  // Reaproveita conta existente (irmão no mesmo número, corrida, recadastro).
+  const candidates = new Set([loginEmail, ...syntheticAuthEmails(phoneCanonical || ""), realEmail].filter(Boolean));
+  let uid = null;
+  for (const email of candidates) {
+    try {
+      const user = await auth.getUserByEmail(email);
+      if (user) { uid = user.uid; break; }
+    } catch (error) {
+      if (error.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  let authUserEmail = loginEmail;
+  if (uid) {
+    authUserEmail = (await auth.getUser(uid)).email || loginEmail;
+    await auth.updateUser(uid, { password: temporaryPassword });
+    await auth.revokeRefreshTokens(uid);
+  } else {
+    const created = await auth.createUser({
+      email: loginEmail,
+      password: temporaryPassword,
+      displayName: targetData.nome ? String(targetData.nome).slice(0, 60) : undefined,
+    });
+    uid = created.uid;
+  }
+
+  await linkProfileToAccount({
+    uid, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical,
+  });
+
+  return uid;
+}
+
+async function marcarTrocaObrigatoria(uid, authorityNome, callerUid) {
+  await db.collection("usuariosFirebase").doc(uid).set({
+    must_change_password: true,
+    must_change_password_at: FieldValue.serverTimestamp(),
+    must_change_password_by: { uid: callerUid, nome: authorityNome },
+  }, { merge: true });
+}
+
+/**
+ * Redefine (ou provisiona) a senha de acesso ao app de um aluno/funcionário.
+ *
+ * - Gera UMA senha temporária e aplica em TODAS as contas Auth do contato
+ *   (e-mail real + sintéticos de telefone + contas de outros cadastros com o
+ *   mesmo telefone/e-mail). Assim a pessoa entra por telefone OU e-mail.
+ * - Se o contato ainda não tem nenhuma conta, cria uma (ou vincula à conta de
+ *   um irmão que já exista) — é o fluxo usado quando a academia cadastra o
+ *   aluno ou adiciona um telefone/e-mail depois.
+ * - Marca `must_change_password` para forçar a troca no primeiro login.
+ *
+ * A senha só existe na resposta; nunca é persistida em texto claro.
+ */
 exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
   if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
     throw new HttpsError("unauthenticated", "É necessário autenticar antes de redefinir uma senha.");
@@ -59,6 +236,7 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
   const academiaId = String(request.data?.academiaId ?? "").trim();
   const colecao = request.data?.colecao === "funcionarios" ? "funcionarios" : "usuarios";
   const usuarioId = String(request.data?.usuarioId ?? "").trim();
+  const motivo = MOTIVOS.has(request.data?.motivo) ? request.data.motivo : "redefinicao";
   if (!academiaId || !usuarioId) {
     throw new HttpsError("invalid-argument", "Informe a academia e o perfil a redefinir.");
   }
@@ -79,37 +257,63 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
     throw new HttpsError("not-found", "Perfil não encontrado.");
   }
   const targetData = targetSnap.data();
-  const targetUid = targetData.firebaseUid || targetData.firebase_uid;
-  if (!targetUid) {
+
+  const { uids, realEmail, phoneCanonical, authEmails } = await collectRelatedUids(targetData);
+
+  if (uids.length === 1 && uids[0] === request.auth.uid) {
+    throw new HttpsError("failed-precondition", 'Use "Alterar senha" no seu próprio perfil.');
+  }
+  if (authEmails.length === 0 && uids.length === 0) {
     throw new HttpsError(
       "failed-precondition",
-      "Esta pessoa ainda não ativou o acesso ao app — não há senha para redefinir.",
+      "Cadastre um telefone ou e-mail para o aluno antes de gerar o acesso ao app.",
     );
-  }
-  if (targetUid === request.auth.uid) {
-    throw new HttpsError("failed-precondition", 'Use "Alterar senha" no seu próprio perfil.');
   }
 
   const temporaryPassword = generateTemporaryPassword((max) => crypto.randomInt(max));
+  const alvo = uids.filter((uid) => uid !== request.auth.uid);
+  const contasAtingidas = [];
 
-  // Atualiza a credencial e revoga qualquer sessão anterior — a pessoa
-  // precisa entrar de novo com a senha temporária.
-  await auth.updateUser(targetUid, { password: temporaryPassword });
-  await auth.revokeRefreshTokens(targetUid);
+  if (alvo.length === 0) {
+    // Ninguém ainda tem acesso — provisiona.
+    const uid = await provisionAccount({
+      academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical, temporaryPassword,
+    });
+    await marcarTrocaObrigatoria(uid, authority.nome, request.auth.uid);
+    contasAtingidas.push(uid);
+  } else {
+    for (const uid of alvo) {
+      await auth.updateUser(uid, { password: temporaryPassword });
+      await auth.revokeRefreshTokens(uid);
+      await marcarTrocaObrigatoria(uid, authority.nome, request.auth.uid);
+      contasAtingidas.push(uid);
+    }
+    // O perfil alvo não estava vinculado a nenhuma conta, mas achamos uma
+    // (irmão) — vincula para o login desse perfil funcionar.
+    const docUid = targetData.firebaseUid || targetData.firebase_uid;
+    if (!docUid) {
+      const uid = alvo[0];
+      const authUserEmail = (await auth.getUser(uid)).email || primaryLoginEmail({ realEmail, phoneCanonical });
+      await linkProfileToAccount({
+        uid, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical,
+      });
+    }
+  }
 
-  // Nunca persiste a senha em texto claro: só a flag e a data.
-  await db.collection("usuariosFirebase").doc(targetUid).set(
-    {
-      must_change_password: true,
-      must_change_password_at: FieldValue.serverTimestamp(),
-      must_change_password_by: { uid: request.auth.uid, nome: authority.nome },
-    },
-    { merge: true },
-  );
+  // A senha temporária fica visível para a academia na ficha do aluno até ele
+  // entrar pela primeira vez e definir a própria senha (quando
+  // `completeMandatoryPasswordChange` a apaga). É forçada a trocar no 1º login.
+  await targetRef.set({
+    acesso_senha_temporaria: temporaryPassword,
+    acesso_senha_temporaria_em: FieldValue.serverTimestamp(),
+    acesso_senha_temporaria_por: authority.nome,
+  }, { merge: true });
 
   await db.collection("academias").doc(academiaId).collection("auditoria").add({
     tipo: "redefinicao_senha",
+    motivo,
     alvo: { colecao, usuarioId, nome: targetData.nome || "" },
+    contas_atingidas: contasAtingidas.length,
     realizado_por: {
       uid: request.auth.uid,
       usuarioId: authority.usuarioId,
@@ -119,15 +323,18 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
     criado_em: FieldValue.serverTimestamp(),
   });
 
-  logger.info("Senha redefinida por administrador", {
-    academiaId,
-    colecao,
-    usuarioId,
+  logger.info("Senha de acesso redefinida/provisionada", {
+    academiaId, colecao, usuarioId, motivo,
+    contasAtingidas: contasAtingidas.length,
     realizadoPor: request.auth.uid,
   });
 
-  // A senha só existe nesta resposta, exibida uma única vez ao chamador.
-  return { temporaryPassword, nome: targetData.nome || "" };
+  return {
+    temporaryPassword,
+    nome: targetData.nome || "",
+    loginHint: loginHint({ realEmail, phoneCanonical }, targetData.telefone),
+    contas: contasAtingidas.length,
+  };
 });
 
 exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
@@ -135,7 +342,9 @@ exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, asyn
     throw new HttpsError("unauthenticated", "Sessão inválida.");
   }
 
-  await db.collection("usuariosFirebase").doc(request.auth.uid).set(
+  const accRef = db.collection("usuariosFirebase").doc(request.auth.uid);
+  const accSnap = await accRef.get();
+  await accRef.set(
     {
       must_change_password: false,
       must_change_password_completed_at: FieldValue.serverTimestamp(),
@@ -143,7 +352,28 @@ exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, asyn
     { merge: true },
   );
 
+  // Agora que a pessoa definiu a própria senha, some com a temporária das
+  // fichas dos perfis vinculados — a academia deixa de ver aquela senha.
+  const acc = accSnap.data() || {};
+  const refs = Array.isArray(acc.profile_refs) && acc.profile_refs.length > 0
+    ? acc.profile_refs
+    : (acc.academiaId && acc.usuarioId
+      ? [{ academiaId: acc.academiaId, colecao: acc.colecao || "usuarios", usuarioId: acc.usuarioId }]
+      : []);
+  await Promise.all(refs.map((ref) => {
+    const colecao = ref.colecao === "funcionarios" ? "funcionarios" : "usuarios";
+    return db
+      .collection("academias").doc(String(ref.academiaId))
+      .collection(colecao).doc(String(ref.usuarioId))
+      .set({
+        acesso_senha_temporaria: FieldValue.delete(),
+        acesso_senha_temporaria_em: FieldValue.delete(),
+        acesso_senha_temporaria_por: FieldValue.delete(),
+      }, { merge: true })
+      .catch(() => {});
+  }));
+
   return { ok: true };
 });
 
-exports._test = { loadCallerAuthority };
+exports._test = { loadCallerAuthority, collectRelatedUids, provisionAccount, linkProfileToAccount };

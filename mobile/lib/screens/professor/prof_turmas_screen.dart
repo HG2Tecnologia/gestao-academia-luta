@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/tab_refresh.dart';
-import 'prof_turma_detalhe_screen.dart';
 
 class ProfTurmasScreen extends StatefulWidget {
   const ProfTurmasScreen({super.key});
@@ -17,7 +17,6 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
   List<Map<String, dynamic>> _turmas = [];
   bool _loading = true;
   String? _erro;
-  String? _academiaId;
 
   @override
   void initState() {
@@ -37,7 +36,6 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null) return;
-      _academiaId = user.academiaId;
 
       // Com a permissão "acesso_turmas_todas" o professor/secretaria vê todas
       // as turmas da academia, não só as que ele é o professor titular.
@@ -142,15 +140,7 @@ class _ProfTurmasScreenState extends State<ProfTurmasScreen> {
                                   itemBuilder: (_, i) {
                                     final t = _turmas[i];
                                     return GestureDetector(
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ProfTurmaDetalheScreen(
-                                            turma: t,
-                                            academiaId: _academiaId!,
-                                          ),
-                                        ),
-                                      ),
+                                      onTap: () => context.push('/professor/turmas/${t['id']}'),
                                       child: Container(
                                         margin: const EdgeInsets.only(bottom: 10),
                                         padding: const EdgeInsets.all(16),

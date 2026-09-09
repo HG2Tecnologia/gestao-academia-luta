@@ -20,7 +20,20 @@ final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
 
 class AdminAlunoDetalheScreen extends StatefulWidget {
   final String alunoId;
-  const AdminAlunoDetalheScreen({super.key, required this.alunoId});
+
+  /// Quando `true`, a tela é aberta pelo app do professor: mostra só os cards
+  /// de Dados pessoais (leitura), Graduação, Histórico de Graduações, Acesso ao
+  /// App (só "Redefinir senha") e Responsável — cada ação ainda depende de
+  /// permissão concedida pela academia (`acao_graduar`,
+  /// `acao_editar_aluno_basico`, `acesso_redefinir_senha`). Também bloqueia o
+  /// acesso a alunos que não estão em nenhuma turma do professor.
+  final bool professorMode;
+
+  const AdminAlunoDetalheScreen({
+    super.key,
+    required this.alunoId,
+    this.professorMode = false,
+  });
 
   @override
   State<AdminAlunoDetalheScreen> createState() =>
@@ -45,6 +58,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   List<Map<String, dynamic>> _graduacoes = [];
   String? _histModFiltro; // null = todas as modalidades
 
+  // Modo professor
+  bool get _pm => widget.professorMode;
+  bool _podeEditarBasico = false;
+  bool _podeGraduar = true;
+  bool _acessoNegado = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +82,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       _academiaId = academiaId;
       _meId = user?.id;
       _callerUser = user;
+
+      _podeEditarBasico =
+          !_pm || (user?.temPermissao('acao_editar_aluno_basico') ?? false);
+      _podeGraduar = !_pm || (user?.temPermissao('acao_graduar') ?? false);
 
       final results = await Future.wait([
         firestoreService.getAluno(academiaId, widget.alunoId),
@@ -92,6 +115,29 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final faixas = (results[5] as List).cast<Map<String, dynamic>>();
       final matriculas = (results[6] as List).cast<Map<String, dynamic>>();
       final todasTurmas = (results[7] as List).cast<Map<String, dynamic>>();
+
+      // Modo professor: só pode abrir alunos das turmas dele (salvo
+      // "ver todas as turmas").
+      if (_pm && !(user?.temPermissao('acesso_turmas_todas') ?? false)) {
+        final minhasTurmas = todasTurmas
+            .where((t) => (t['professorId']?.toString() ?? '') == _meId)
+            .map((t) => t['id']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toSet();
+        final alunoTurmaIds = matriculas
+            .map((m) => m['turma_id']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toSet();
+        if (minhasTurmas.intersection(alunoTurmaIds).isEmpty) {
+          if (mounted) {
+            setState(() {
+              _acessoNegado = true;
+              _loading = false;
+            });
+          }
+          return;
+        }
+      }
 
       final faixaMap = <String, Map<String, dynamic>>{
         for (final f in faixas) f['id'].toString(): f,
@@ -1683,6 +1729,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Widget _buildAcessoAppCard(Map<String, dynamic> a) {
     final bloqueado = a['acesso_app_bloqueado'] == true;
     final temAcessoAtivo = (a['firebaseUid'] as String?)?.isNotEmpty == true;
+    final temContato =
+        (a['email'] as String?)?.trim().isNotEmpty == true ||
+        (a['telefone'] as String?)?.trim().isNotEmpty == true;
+    final senhaTemp = (a['acesso_senha_temporaria'] as String?)?.trim() ?? '';
+    final temSenhaTemp = senhaTemp.isNotEmpty;
     final podeRedefinirSenha =
         _callerUser != null &&
         (_callerUser!.perfil == 'Admin' ||
@@ -1718,17 +1769,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               ],
             ),
           ),
-          Switch(
-            value: !bloqueado,
-            activeColor: kSuccess,
-            inactiveThumbColor: kDanger,
-            inactiveTrackColor: kDanger.withOpacity(0.3),
-            onChanged: (_) => _toggleAcessoApp(),
-          ),
+          if (!_pm)
+            Switch(
+              value: !bloqueado,
+              activeColor: kSuccess,
+              inactiveThumbColor: kDanger,
+              inactiveTrackColor: kDanger.withOpacity(0.3),
+              onChanged: (_) => _toggleAcessoApp(),
+            ),
         ],
       ),
-      if (podeRedefinirSenha && temAcessoAtivo) ...[
+      if (podeRedefinirSenha && temSenhaTemp) ...[
         const SizedBox(height: 12),
+        SenhaTemporariaBox(
+          senha: senhaTemp,
+          nome: a['nome']?.toString() ?? 'este aluno',
+        ),
+      ],
+      if (podeRedefinirSenha && (temAcessoAtivo || temSenhaTemp)) ...[
+        SizedBox(height: temSenhaTemp ? 8 : 12),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -1742,6 +1801,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 usuarioId: a['id'] as String,
                 nome: a['nome']?.toString() ?? 'este aluno',
               );
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _load();
+                });
+              }
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: kWarning,
@@ -1753,6 +1817,50 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             ),
             icon: const Icon(Icons.vpn_key_rounded, size: 18),
             label: const Text('Redefinir senha'),
+          ),
+        ),
+      ] else if (!_pm &&
+          podeRedefinirSenha &&
+          !temAcessoAtivo &&
+          !bloqueado &&
+          temContato) ...[
+        const SizedBox(height: 12),
+        Text(
+          'Gere a senha temporária para o aluno entrar direto pelo telefone ou '
+          'e-mail cadastrado, sem "primeiro acesso".',
+          style: TextStyle(color: kText2, fontSize: 11.5, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final academiaId = _academiaId;
+              if (academiaId == null) return;
+              final ok = await provisionarAcessoApp(
+                context,
+                academiaId: academiaId,
+                colecao: 'usuarios',
+                usuarioId: a['id'] as String,
+                nome: a['nome']?.toString() ?? 'este aluno',
+                motivo: 'provisao_edicao',
+              );
+              if (ok && mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _load();
+                });
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kPrimary,
+              side: BorderSide(color: kPrimary.withValues(alpha: 0.4)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(Icons.vpn_key_rounded, size: 18),
+            label: const Text('Gerar acesso ao app'),
           ),
         ),
       ],
@@ -3425,12 +3533,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                 const Divider(height: 20),
                 _editSection('Dados pessoais'),
                 _editField(nomeCtrl, 'Nome completo *'),
-                _editField(
-                  emailCtrl,
-                  'E-mail',
-                  keyboard: TextInputType.emailAddress,
-                  errorText: erroEmailCampo,
-                ),
+                if (!_pm)
+                  _editField(
+                    emailCtrl,
+                    'E-mail',
+                    keyboard: TextInputType.emailAddress,
+                    errorText: erroEmailCampo,
+                  ),
                 _editField(
                   telefoneCtrl,
                   'Telefone',
@@ -3469,139 +3578,142 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     ),
                   ),
                 ],
-                _editField(
-                  cpfCtrl,
-                  'CPF (opcional)',
-                  keyboard: TextInputType.number,
-                  formatters: [CpfInputFormatter()],
-                ),
-                _editField(
-                  nascCtrl,
-                  'Data de nascimento (DD/MM/AAAA)',
-                  keyboard: TextInputType.number,
-                  formatters: [_DateMaskFormatter()],
-                ),
-                _editSection('Responsável / Emergência'),
-                _editField(emergNomeCtrl, 'Nome do contato'),
-                _editField(
-                  emergTelCtrl,
-                  'Telefone do contato',
-                  keyboard: TextInputType.phone,
-                  formatters: [_PhoneMaskFormatter()],
-                ),
-                _editSection('Plano financeiro'),
-                if (planos.isNotEmpty) ...[
-                  GestureDetector(
-                    onTap: () async {
-                      final sel = await showDialog<String>(
-                        context: ctx,
-                        builder: (dCtx) => SimpleDialog(
-                          backgroundColor: kSurface,
-                          title: Text(
-                            'Selecionar Plano',
-                            style: TextStyle(
-                              color: kText1,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
-                          ),
-                          children: [
-                            SimpleDialogOption(
-                              onPressed: () =>
-                                  Navigator.of(dCtx).pop('__none__'),
-                              child: Text(
-                                'Sem plano',
-                                style: TextStyle(color: kText2, fontSize: 14),
+                if (!_pm) ...[
+                  _editField(
+                    cpfCtrl,
+                    'CPF (opcional)',
+                    keyboard: TextInputType.number,
+                    formatters: [CpfInputFormatter()],
+                  ),
+                  _editField(
+                    nascCtrl,
+                    'Data de nascimento (DD/MM/AAAA)',
+                    keyboard: TextInputType.number,
+                    formatters: [_DateMaskFormatter()],
+                  ),
+                  _editSection('Responsável / Emergência'),
+                  _editField(emergNomeCtrl, 'Nome do contato'),
+                  _editField(
+                    emergTelCtrl,
+                    'Telefone do contato',
+                    keyboard: TextInputType.phone,
+                    formatters: [_PhoneMaskFormatter()],
+                  ),
+                  _editSection('Plano financeiro'),
+                  if (planos.isNotEmpty) ...[
+                    GestureDetector(
+                      onTap: () async {
+                        final sel = await showDialog<String>(
+                          context: ctx,
+                          builder: (dCtx) => SimpleDialog(
+                            backgroundColor: kSurface,
+                            title: Text(
+                              'Selecionar Plano',
+                              style: TextStyle(
+                                color: kText1,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
                               ),
                             ),
-                            const Divider(height: 1),
-                            ...planos.map(
-                              (p) => SimpleDialogOption(
-                                onPressed: () => Navigator.of(
-                                  dCtx,
-                                ).pop(p['id']?.toString() ?? '__none__'),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      p['nome']?.toString() ?? '',
-                                      style: TextStyle(
-                                        color: kText1,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (p['valor_mensal'] != null)
+                            children: [
+                              SimpleDialogOption(
+                                onPressed: () =>
+                                    Navigator.of(dCtx).pop('__none__'),
+                                child: Text(
+                                  'Sem plano',
+                                  style: TextStyle(color: kText2, fontSize: 14),
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              ...planos.map(
+                                (p) => SimpleDialogOption(
+                                  onPressed: () => Navigator.of(
+                                    dCtx,
+                                  ).pop(p['id']?.toString() ?? '__none__'),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
                                       Text(
-                                        'R\$ ${(p['valor_mensal'] as num).toDouble().toStringAsFixed(2).replaceAll('.', ',')} / mês',
+                                        p['nome']?.toString() ?? '',
                                         style: TextStyle(
-                                          color: kText2,
-                                          fontSize: 12,
+                                          color: kText1,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                  ],
+                                      if (p['valor_mensal'] != null)
+                                        Text(
+                                          'R\$ ${(p['valor_mensal'] as num).toDouble().toStringAsFixed(2).replaceAll('.', ',')} / mês',
+                                          style: TextStyle(
+                                            color: kText2,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (sel != null)
+                          setModal(
+                            () => planoIdSel = sel == '__none__' ? null : sel,
+                          );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: kBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: kBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                planoIdSel == null
+                                    ? 'Selecionar plano'
+                                    : planos
+                                              .where(
+                                                (p) =>
+                                                    p['id']?.toString() ==
+                                                    planoIdSel,
+                                              )
+                                              .map(
+                                                (p) =>
+                                                    p['nome']?.toString() ?? '',
+                                              )
+                                              .firstOrNull ??
+                                          'Selecionar plano',
+                                style: TextStyle(
+                                  color: planoIdSel == null ? kText2 : kText1,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
+                            Icon(
+                              Icons.expand_more_rounded,
+                              color: kText2,
+                              size: 20,
+                            ),
                           ],
                         ),
-                      );
-                      if (sel != null)
-                        setModal(
-                          () => planoIdSel = sel == '__none__' ? null : sel,
-                        );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kBg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              planoIdSel == null
-                                  ? 'Selecionar plano'
-                                  : planos
-                                            .where(
-                                              (p) =>
-                                                  p['id']?.toString() ==
-                                                  planoIdSel,
-                                            )
-                                            .map(
-                                              (p) =>
-                                                  p['nome']?.toString() ?? '',
-                                            )
-                                            .firstOrNull ??
-                                        'Selecionar plano',
-                              style: TextStyle(
-                                color: planoIdSel == null ? kText2 : kText1,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.expand_more_rounded,
-                            color: kText2,
-                            size: 20,
-                          ),
-                        ],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                  ],
+                  _editField(
+                    diaVencCtrl,
+                    'Dia de vencimento (1-31)',
+                    keyboard: TextInputType.number,
                   ),
-                  const SizedBox(height: 10),
                 ],
-                _editField(
-                  diaVencCtrl,
-                  'Dia de vencimento (1-31)',
-                  keyboard: TextInputType.number,
-                ),
                 if (erro != null) ...[
                   const SizedBox(height: 4),
                   Container(
@@ -3682,15 +3794,19 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                 RegExp(r'\D'),
                                 '',
                               );
-                              await firestoreService
-                                  .updateAluno(_academiaId!, widget.alunoId, {
-                                    'nome': nomeCtrl.text.trim(),
+                              await firestoreService.updateAluno(
+                                _academiaId!,
+                                widget.alunoId,
+                                {
+                                  'nome': nomeCtrl.text.trim(),
+                                  if (!_pm)
                                     'email': emailVal.isEmpty
                                         ? null
                                         : emailVal.toLowerCase(),
-                                    'telefone': telVal,
-                                    if (telDigitsCanonico != null)
-                                      'telefone_digits': telDigitsCanonico,
+                                  'telefone': telVal,
+                                  if (telDigitsCanonico != null)
+                                    'telefone_digits': telDigitsCanonico,
+                                  if (!_pm) ...{
                                     if (cpfDigits.isNotEmpty) 'cpf': cpfDigits,
                                     if (nascText.length == 10)
                                       'data_nascimento': _toIsoDate(nascText),
@@ -3706,13 +3822,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                       'dia_vencimento': int.tryParse(
                                         diaVencCtrl.text.trim(),
                                       ),
-                                    'ativo': a['ativo'] == true,
-                                  });
+                                  },
+                                  'ativo': a['ativo'] == true,
+                                },
+                              );
                               // Auto-gerar cobrança se plano foi definido pela primeira vez
                               final diaVencInt = int.tryParse(
                                 diaVencCtrl.text.trim(),
                               );
-                              if (planoIdSel != null &&
+                              if (!_pm &&
+                                  planoIdSel != null &&
                                   planoIdAntes == null &&
                                   diaVencInt != null) {
                                 try {
@@ -3729,6 +3848,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               if (ctx.mounted) {
                                 FocusScope.of(ctx).unfocus();
                                 Navigator.of(ctx).pop();
+                              }
+                              // Aluno ainda sem conta de acesso que passou a
+                              // ter telefone/e-mail: provisiona a senha
+                              // temporária agora (mesmo fluxo do cadastro).
+                              final ganhouContato =
+                                  emailVal.isNotEmpty ||
+                                  telDigitsCanonico != null;
+                              if (mounted &&
+                                  !alunoTemAcessoAtivo &&
+                                  ganhouContato &&
+                                  a['acesso_app_bloqueado'] != true) {
+                                await provisionarAcessoApp(
+                                  context,
+                                  academiaId: _academiaId!,
+                                  colecao: 'usuarios',
+                                  usuarioId: widget.alunoId,
+                                  nome: nomeCtrl.text.trim(),
+                                  motivo: 'provisao_edicao',
+                                );
                               }
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3816,26 +3954,52 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
         ),
         actions: [
-          if (a != null) ...[
-            IconButton(
-              onPressed: _editarAluno,
-              icon: Icon(Icons.edit_rounded, color: kPrimary, size: 20),
-              tooltip: 'Editar',
-            ),
-            TextButton(
-              onPressed: _toggleAtivo,
-              child: Text(
-                a['ativo'] == true ? 'Desativar' : 'Ativar',
-                style: TextStyle(
-                  color: a['ativo'] == true ? kDanger : kSuccess,
-                  fontWeight: FontWeight.w700,
+          if (a != null && !_acessoNegado) ...[
+            if (_podeEditarBasico)
+              IconButton(
+                onPressed: _editarAluno,
+                icon: Icon(Icons.edit_rounded, color: kPrimary, size: 20),
+                tooltip: 'Editar',
+              ),
+            if (!_pm)
+              TextButton(
+                onPressed: _toggleAtivo,
+                child: Text(
+                  a['ativo'] == true ? 'Desativar' : 'Ativar',
+                  style: TextStyle(
+                    color: a['ativo'] == true ? kDanger : kSuccess,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
           ],
         ],
       ),
-      body: _loading
+      body: _acessoNegado
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_outline_rounded, color: kText2, size: 48),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Você não tem acesso a este aluno.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kText2, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Só é possível abrir alunos das suas turmas.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kText2, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _loading
           ? Center(child: CircularProgressIndicator(color: kPrimary))
           : _erro != null
           ? Center(
@@ -3870,7 +4034,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _statusBadge(a['ativo'] == true),
-                        if (a['situacaoFinanceira'] != null)
+                        if (!_pm && a['situacaoFinanceira'] != null)
                           Text(
                             _formatFin(a['situacaoFinanceira'] as String?),
                             style: TextStyle(
@@ -3890,30 +4054,31 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     Row(
                       children: [
                         Expanded(child: _sectionTitle('Graduação')),
-                        TextButton.icon(
-                          onPressed: _abrirGraduar,
-                          icon: Icon(
-                            Icons.military_tech_rounded,
-                            size: 16,
-                            color: kPrimary,
-                          ),
-                          label: Text(
-                            'Graduar',
-                            style: TextStyle(
+                        if (_podeGraduar)
+                          TextButton.icon(
+                            onPressed: _abrirGraduar,
+                            icon: Icon(
+                              Icons.military_tech_rounded,
+                              size: 16,
                               color: kPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                            ),
+                            label: Text(
+                              'Graduar',
+                              style: TextStyle(
+                                color: kPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
                       ],
                     ),
                     if (_faixasPorModalidade.isEmpty)
@@ -3977,16 +4142,17 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           : null,
                     ),
                   ]),
-                  const SizedBox(height: 12),
-                  _buildPlanoCard(a),
+                  if (!_pm) ...[const SizedBox(height: 12), _buildPlanoCard(a)],
                   const SizedBox(height: 12),
                   _buildAcessoAppCard(a),
-                  const SizedBox(height: 12),
-                  _buildAtestadoCard(),
-                  const SizedBox(height: 12),
-                  _buildGrupoFamiliarCard(),
-                  const SizedBox(height: 12),
-                  _buildParQCard(),
+                  if (!_pm) ...[
+                    const SizedBox(height: 12),
+                    _buildAtestadoCard(),
+                    const SizedBox(height: 12),
+                    _buildGrupoFamiliarCard(),
+                    const SizedBox(height: 12),
+                    _buildParQCard(),
+                  ],
                   // Turmas com botão vincular
                   const SizedBox(height: 12),
                   // Histórico de graduações
@@ -4096,30 +4262,31 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     Row(
                       children: [
                         Expanded(child: _sectionTitle('Turmas')),
-                        TextButton.icon(
-                          onPressed: _abrirVincularTurma,
-                          icon: Icon(
-                            Icons.add_circle_outline_rounded,
-                            size: 16,
-                            color: kPrimary,
-                          ),
-                          label: Text(
-                            'Vincular',
-                            style: TextStyle(
+                        if (!_pm)
+                          TextButton.icon(
+                            onPressed: _abrirVincularTurma,
+                            icon: Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 16,
                               color: kPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                            ),
+                            label: Text(
+                              'Vincular',
+                              style: TextStyle(
+                                color: kPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
                       ],
                     ),
                     if ((a['turmas'] as List?)?.isEmpty != false)
@@ -4144,42 +4311,44 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ),
                       ),
                   ]),
-                  const SizedBox(height: 12),
-                  _buildCard([
-                    Row(
-                      children: [
-                        Expanded(child: _sectionTitle('Rankings')),
-                        TextButton.icon(
-                          onPressed: _abrirLancarPontos,
-                          icon: Icon(
-                            Icons.add_circle_outline_rounded,
-                            size: 16,
-                            color: kPrimary,
-                          ),
-                          label: Text(
-                            'Pontos',
-                            style: TextStyle(
+                  if (!_pm) ...[
+                    const SizedBox(height: 12),
+                    _buildCard([
+                      Row(
+                        children: [
+                          Expanded(child: _sectionTitle('Rankings')),
+                          TextButton.icon(
+                            onPressed: _abrirLancarPontos,
+                            icon: Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 16,
                               color: kPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                            ),
+                            label: Text(
+                              'Pontos',
+                              style: TextStyle(
+                                color: kPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Toque em "Pontos" para lançar pontos em um ranking personalizado.',
-                      style: TextStyle(color: kText2, fontSize: 12),
-                    ),
-                  ]),
+                        ],
+                      ),
+                      Text(
+                        'Toque em "Pontos" para lançar pontos em um ranking personalizado.',
+                        style: TextStyle(color: kText2, fontSize: 12),
+                      ),
+                    ]),
+                  ],
                   if (a['contatoEmergenciaNome'] != null) ...[
                     const SizedBox(height: 12),
                     _buildCard([
@@ -4580,20 +4749,28 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () => _editarGraduacao(g),
-                      child: Icon(Icons.edit_outlined, color: kText2, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () => _confirmarExcluirGraduacao(g),
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        color: kDanger.withValues(alpha: 0.6),
-                        size: 16,
+                    if (_podeGraduar) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _editarGraduacao(g),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          color: kText2,
+                          size: 16,
+                        ),
                       ),
-                    ),
+                    ],
+                    if (!_pm) ...[
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => _confirmarExcluirGraduacao(g),
+                        child: Icon(
+                          Icons.delete_outline_rounded,
+                          color: kDanger.withValues(alpha: 0.6),
+                          size: 16,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -5120,7 +5297,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         .toUpperCase();
     return Center(
       child: GestureDetector(
-        onTap: _escolherFotoAdmin,
+        onTap: _pm ? null : _escolherFotoAdmin,
         child: Stack(
           children: [
             foto != null && foto.startsWith('data:')
@@ -5143,23 +5320,24 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       ),
                     ),
                   ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: kPrimary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kBg, width: 2),
-                ),
-                child: const Icon(
-                  Icons.camera_alt_rounded,
-                  size: 10,
-                  color: Colors.white,
+            if (!_pm)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: kPrimary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kBg, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    size: 10,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

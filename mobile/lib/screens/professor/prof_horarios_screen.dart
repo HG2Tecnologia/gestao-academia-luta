@@ -18,9 +18,25 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
   bool _loading = true;
 
   // Day names by index (0=Domingo, 1=Segunda, ..., 6=Sábado)
-  static const _diaNomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  static const _diaNomes = [
+    'Domingo',
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+  ];
   // Display order (Mon-Sun)
-  static const _diasOrdem = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  static const _diasOrdem = [
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
+  ];
 
   @override
   void initState() {
@@ -35,16 +51,52 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
       final userId = user?.id ?? '';
       if (academiaId.isEmpty) return;
 
-      final list = await firestoreService.getHorarios(academiaId);
-      final horarios = list.cast<Map<String, dynamic>>();
+      // O horário não guarda o professor — o vínculo é pela turma. Carrega as
+      // turmas do professor (ou todas, se tiver "ver todas as turmas") e filtra
+      // os horários por elas, igual à aba Horários dentro da turma.
+      final verTodas = user?.temPermissao('acesso_turmas_todas') ?? false;
+      final results = await Future.wait([
+        firestoreService.getTurmas(
+          academiaId,
+          professorId: (verTodas || userId.isEmpty) ? null : userId,
+        ),
+        firestoreService.getHorarios(academiaId),
+      ]);
+      final turmas = (results[0] as List)
+          .cast<Map<String, dynamic>>()
+          .where((t) => t['deleted_at'] == null)
+          .toList();
+      final horarios = (results[1] as List).cast<Map<String, dynamic>>();
 
-      // Filter by professor_id
-      final meus = userId.isEmpty
-          ? horarios
-          : horarios.where((h) {
-              final profId = h['professor_id']?.toString() ?? h['professorId']?.toString() ?? '';
-              return profId == userId;
-            }).toList();
+      final turmaInfo = {
+        for (final t in turmas) (t['id']?.toString() ?? ''): t,
+      };
+
+      final meus = horarios
+          .where(
+            (h) => turmaInfo.containsKey(
+              h['turma_id']?.toString() ?? h['turmaId']?.toString() ?? '',
+            ),
+          )
+          .map((h) {
+            final t =
+                turmaInfo[h['turma_id']?.toString() ??
+                    h['turmaId']?.toString() ??
+                    ''] ??
+                const {};
+            return <String, dynamic>{
+              ...h,
+              'nome_turma':
+                  t['nome'] ?? h['nome_turma'] ?? h['nomeTurma'] ?? '',
+              'nome_modalidade':
+                  t['nomeModalidade'] ??
+                  t['modalidade_nome'] ??
+                  t['modalidadeNome'] ??
+                  h['nome_modalidade'] ??
+                  '',
+            };
+          })
+          .toList();
 
       // Group by day name
       final grouped = <String, List<Map<String, dynamic>>>{};
@@ -72,7 +124,8 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
       }
 
       if (mounted) setState(() => _grouped = grouped);
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -94,91 +147,159 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-              child: Row(children: [
-                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                const SizedBox(width: 14),
-                Text('Meus Horários', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
-              ]),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: openAppDrawer,
+                    child: Icon(Icons.menu_rounded, color: kText1, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    'Meus Horários',
+                    style: TextStyle(
+                      color: kText1,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: _loading
                   ? Center(child: CircularProgressIndicator(color: kPrimary))
                   : dias.isEmpty
-                      ? Center(child: Text('Nenhum horário encontrado.', style: TextStyle(color: kText2)))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          color: kPrimary,
-                          child: ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: dias.length,
-                            itemBuilder: (_, i) {
-                              final dia = dias[i];
-                              final horarios = _grouped[dia]!;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8, top: 4),
-                                    child: Text(dia, style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                  ? Center(
+                      child: Text(
+                        'Nenhum horário encontrado.',
+                        style: TextStyle(color: kText2),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      color: kPrimary,
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: dias.length,
+                        itemBuilder: (_, i) {
+                          final dia = dias[i];
+                          final horarios = _grouped[dia]!;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: 8,
+                                  top: 4,
+                                ),
+                                child: Text(
+                                  dia,
+                                  style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  ...horarios.map((h) {
-                                    final inicio = _fmt(h, 'hora_inicio', 'horaInicio');
-                                    final fim = _fmt(h, 'hora_fim', 'horaFim');
-                                    final horarioStr = '$inicio - $fim';
-                                    final turma = h['nome_turma']?.toString() ?? h['nomeTurma']?.toString() ?? '';
-                                    final modalidade = h['nome_modalidade']?.toString() ?? h['nomeModalidade']?.toString();
-                                    return GestureDetector(
-                                      onTap: () {
-                                        final uri = Uri(
-                                          path: '/professor/horarios/${h['id']}/presencas',
-                                          queryParameters: {'turma': turma, 'horario': horarioStr},
-                                        );
-                                        context.push(uri.toString());
+                                ),
+                              ),
+                              ...horarios.map((h) {
+                                final inicio = _fmt(
+                                  h,
+                                  'hora_inicio',
+                                  'horaInicio',
+                                );
+                                final fim = _fmt(h, 'hora_fim', 'horaFim');
+                                final horarioStr = '$inicio - $fim';
+                                final turma =
+                                    h['nome_turma']?.toString() ??
+                                    h['nomeTurma']?.toString() ??
+                                    '';
+                                final modalidade =
+                                    h['nome_modalidade']?.toString() ??
+                                    h['nomeModalidade']?.toString();
+                                return GestureDetector(
+                                  onTap: () {
+                                    final uri = Uri(
+                                      path:
+                                          '/professor/horarios/${h['id']}/presencas',
+                                      queryParameters: {
+                                        'turma': turma,
+                                        'horario': horarioStr,
                                       },
-                                      child: Container(
-                                        margin: const EdgeInsets.only(bottom: 8),
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: kSurface,
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: kBorder),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: kPrimary.withOpacity(0.15),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                horarioStr,
-                                                style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w700),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(turma, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-                                                  if (modalidade != null && modalidade.isNotEmpty)
-                                                    Text(modalidade, style: TextStyle(color: kText2, fontSize: 12)),
-                                                ],
-                                              ),
-                                            ),
-                                            Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
-                                          ],
-                                        ),
-                                      ),
                                     );
-                                  }),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
+                                    context.push(uri.toString());
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: kSurface,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: kBorder),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: kPrimary.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            horarioStr,
+                                            style: TextStyle(
+                                              color: kPrimary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                turma,
+                                                style: TextStyle(
+                                                  color: kText1,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              if (modalidade != null &&
+                                                  modalidade.isNotEmpty)
+                                                Text(
+                                                  modalidade,
+                                                  style: TextStyle(
+                                                    color: kText2,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: kText2,
+                                          size: 18,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),

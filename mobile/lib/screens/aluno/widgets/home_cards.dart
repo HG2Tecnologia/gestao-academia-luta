@@ -64,9 +64,7 @@ class StudentHeader extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             style: IconButton.styleFrom(
               backgroundColor: AppColors.surface,
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppRadius.brSm,
-              ),
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
               side: const BorderSide(color: AppColors.border),
             ),
             icon: const Icon(
@@ -173,8 +171,10 @@ class NextClassCard extends StatelessWidget {
             ),
           ),
           if (!vazio)
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
         ],
       ),
     );
@@ -187,10 +187,20 @@ class WeeklyAttendanceCard extends StatelessWidget {
   final Set<String> diasComPresenca; // 'yyyy-MM-dd'
   final VoidCallback? onTap;
 
+  /// Totais do ano, mostrados nos atalhos "Presenças" / "Faltas".
+  final int presencasAno;
+  final int faltasAno;
+
+  /// Abre a tela de Presenças já no filtro pedido ('presencas' | 'faltas').
+  final void Function(String filtro)? onAbrirDetalhe;
+
   const WeeklyAttendanceCard({
     super.key,
     required this.diasComPresenca,
+    this.presencasAno = 0,
+    this.faltasAno = 0,
     this.onTap,
+    this.onAbrirDetalhe,
   });
 
   static String _key(DateTime d) =>
@@ -237,7 +247,9 @@ class WeeklyAttendanceCard extends StatelessWidget {
                   Text(
                     nomes[i],
                     style: TextStyle(
-                      color: ehHoje ? AppColors.textPrimary : AppColors.textSecondary,
+                      color: ehHoje
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -251,32 +263,38 @@ class WeeklyAttendanceCard extends StatelessWidget {
                       color: presente
                           ? AppColors.primary
                           : (ehHoje
-                              ? AppColors.primary.withValues(alpha: 0.08)
-                              : AppColors.bg),
+                                ? AppColors.primary.withValues(alpha: 0.08)
+                                : AppColors.bg),
                       border: Border.all(
                         color: presente
                             ? AppColors.primary
                             : (ehHoje
-                                ? AppColors.primary.withValues(alpha: 0.4)
-                                : AppColors.border),
+                                  ? AppColors.primary.withValues(alpha: 0.4)
+                                  : AppColors.border),
                         width: ehHoje ? 1.5 : 1,
                       ),
                     ),
                     child: presente
-                        ? const Icon(Icons.check_rounded,
-                            color: Colors.black, size: 18)
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: Colors.black,
+                            size: 18,
+                          )
                         : Center(
                             child: Text(
                               '${d.day}',
                               style: TextStyle(
                                 color: futuro
-                                    ? AppColors.textSecondary.withValues(alpha: 0.5)
+                                    ? AppColors.textSecondary.withValues(
+                                        alpha: 0.5,
+                                      )
                                     : (ehHoje
-                                        ? AppColors.primary
-                                        : AppColors.textSecondary),
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary),
                                 fontSize: 11,
-                                fontWeight:
-                                    ehHoje ? FontWeight.w800 : FontWeight.w500,
+                                fontWeight: ehHoje
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
                               ),
                             ),
                           ),
@@ -285,7 +303,82 @@ class WeeklyAttendanceCard extends StatelessWidget {
               );
             }),
           ),
+          if (onAbrirDetalhe != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _AtalhoFrequencia(
+                    texto: presencasAno == 1
+                        ? '1 presença'
+                        : '$presencasAno presenças',
+                    cor: AppColors.success,
+                    onTap: () => onAbrirDetalhe!('presencas'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: _AtalhoFrequencia(
+                    texto: faltasAno == 1 ? '1 falta' : '$faltasAno faltas',
+                    cor: AppColors.danger,
+                    onTap: () => onAbrirDetalhe!('faltas'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _AtalhoFrequencia extends StatelessWidget {
+  final String texto;
+  final Color cor;
+  final VoidCallback onTap;
+
+  const _AtalhoFrequencia({
+    required this.texto,
+    required this.cor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: cor.withValues(alpha: 0.10),
+      borderRadius: AppRadius.brSm,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.brSm,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.brSm,
+            border: Border.all(color: cor.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  texto,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: cor, size: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -304,29 +397,29 @@ class FinancialStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (cor, icone, titulo, sub) = switch (status) {
       FinanceiroStatus.emDia => (
-          AppColors.success,
-          Icons.verified_rounded,
-          'Mensalidade em dia',
-          'Sem pendências no momento.',
-        ),
+        AppColors.success,
+        Icons.verified_rounded,
+        'Mensalidade em dia',
+        'Sem pendências no momento.',
+      ),
       FinanceiroStatus.pendente => (
-          AppColors.warning,
-          Icons.schedule_rounded,
-          'Mensalidade pendente',
-          'Há uma mensalidade que precisa de atenção.',
-        ),
+        AppColors.warning,
+        Icons.schedule_rounded,
+        'Mensalidade pendente',
+        'Há uma mensalidade que precisa de atenção.',
+      ),
       FinanceiroStatus.atrasado => (
-          AppColors.danger,
-          Icons.account_balance_wallet_rounded,
-          'Mensalidade em atraso',
-          'Há uma mensalidade que precisa de atenção.',
-        ),
+        AppColors.danger,
+        Icons.account_balance_wallet_rounded,
+        'Mensalidade em atraso',
+        'Há uma mensalidade que precisa de atenção.',
+      ),
       FinanceiroStatus.semCobrancas => (
-          AppColors.textSecondary,
-          Icons.receipt_long_rounded,
-          'Nenhuma cobrança',
-          'Nada em aberto por aqui.',
-        ),
+        AppColors.textSecondary,
+        Icons.receipt_long_rounded,
+        'Nenhuma cobrança',
+        'Nada em aberto por aqui.',
+      ),
     };
 
     return AlunoCard(
@@ -361,8 +454,10 @@ class FinancialStatusCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textSecondary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
+          ),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
 import '../../core/permissoes.dart';
+import '../../core/senha_temporaria_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
@@ -97,7 +98,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         }
       }
 
-      await firestoreService.addFuncionario(academiaId, {
+      final funcId = await firestoreService.addFuncionario(academiaId, {
         'nome': _nome.text.trim(),
         'email': emailVal.isEmpty ? null : emailVal,
         'telefone': telVal,
@@ -107,6 +108,20 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         // Admin tem tudo, não precisa salvar mapa
         'permissoes': _perfil == 'Admin' ? <String, bool>{} : _permissoes,
       });
+
+      // Tendo telefone ou e-mail, já gera a senha temporária para a academia
+      // repassar — o funcionário não precisa passar pelo "primeiro acesso".
+      // Falha aqui não desfaz o cadastro.
+      if (mounted && (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
+        await provisionarAcessoApp(
+          context,
+          academiaId: academiaId,
+          colecao: 'funcionarios',
+          usuarioId: funcId,
+          nome: _nome.text.trim(),
+          motivo: 'provisao_criacao',
+        );
+      }
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) setState(() => _erro = 'Erro ao cadastrar funcionário.');
@@ -229,6 +244,11 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
               keyboard: TextInputType.phone,
               required: true,
               phoneMask: true,
+            ),
+            _infoBox(
+              'Ao cadastrar, geramos uma senha temporária para você repassar. '
+              'A pessoa entra com o telefone ou e-mail + essa senha e o app pede '
+              'para criar a senha definitiva — sem "primeiro acesso".',
             ),
             const SizedBox(height: 16),
             _section('Cargo e perfil'),

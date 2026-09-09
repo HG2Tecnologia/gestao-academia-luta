@@ -78,7 +78,12 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
 
   // Branches do StatefulShellRoute: 0 Dashboard · 1 Alunos · 2 Turmas ·
   // 3 Equipe · 4 Financeiro · 5 Ranking.
-  static const _navBranches = [0, 1, 2, 4]; // Início · Alunos · Turmas · Financeiro
+  static const _navBranches = [
+    0,
+    1,
+    2,
+    4,
+  ]; // Início · Alunos · Turmas · Financeiro
 
   void _navegar(int branchIndex) {
     adminTabNotifier.value = branchIndex;
@@ -160,6 +165,14 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
+                  if (_perfis.length > 1)
+                    PerfilSwitchButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        await mostrarTrocarPerfil(context);
+                        _atualizarPerfis();
+                      },
+                    ),
                 ],
               ),
             ),
@@ -205,17 +218,6 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                 children: [
                   const Divider(height: 16),
                   _DrawerSection('CONTA'),
-                  if (_perfis.length > 1)
-                    _DrawerItem(
-                      icon: Icons.switch_account_rounded,
-                      label: 'Trocar perfil',
-                      selected: false,
-                      onTap: () async {
-                        Navigator.of(context).pop();
-                        await mostrarTrocarPerfil(context);
-                        _atualizarPerfis();
-                      },
-                    ),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
                     label: 'Sair',

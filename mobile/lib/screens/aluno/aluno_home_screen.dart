@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/firestore_service.dart';
+import '../../core/frequencia_treino.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
@@ -32,6 +33,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   String? _modalidadeSelecionada;
   ({String turma, String quando, String professor})? _proximaAula;
   Set<String> _presencaDias = {};
+  int _presencasAno = 0;
+  int _faltasAno = 0;
   FinanceiroStatus _financeiro = FinanceiroStatus.semCobrancas;
   List<Map<String, dynamic>> _noticias = [];
 
@@ -61,7 +64,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     try {
       final user = await AuthStorage.getUser();
       if (user == null || user.academiaId == null) {
-        if (mounted) setState(() { _erro = true; _loading = false; });
+        if (mounted)
+          setState(() {
+            _erro = true;
+            _loading = false;
+          });
         return;
       }
       final academiaId = user.academiaId!;
@@ -74,23 +81,31 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         firestoreService
             .getMeusHorarios(academiaId, user.id)
             .catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getTurmas(academiaId).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getMatriculas(academiaId, alunoId: user.id, ativasOnly: true)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getTurmas(academiaId)
+            .catchError((_) => <Map<String, dynamic>>[]),
         firestoreService
             .getPresencas(academiaId, alunoId: user.id)
             .catchError((_) => <Map<String, dynamic>>[]),
         firestoreService
             .getPagamentos(academiaId, alunoId: user.id)
             .catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getNoticias(academiaId).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getNoticias(academiaId)
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final aluno = results[0] as Map<String, dynamic>?;
       final graduacoes = (results[1] as List).cast<Map<String, dynamic>>();
       final horarios = (results[2] as List).cast<Map<String, dynamic>>();
-      final turmas = (results[3] as List).cast<Map<String, dynamic>>();
-      final presencas = (results[4] as List).cast<Map<String, dynamic>>();
-      final pagamentos = (results[5] as List).cast<Map<String, dynamic>>();
-      final noticias = (results[6] as List).cast<Map<String, dynamic>>();
+      final matriculas = (results[3] as List).cast<Map<String, dynamic>>();
+      final turmas = (results[4] as List).cast<Map<String, dynamic>>();
+      final presencas = (results[5] as List).cast<Map<String, dynamic>>();
+      final pagamentos = (results[6] as List).cast<Map<String, dynamic>>();
+      final noticias = (results[7] as List).cast<Map<String, dynamic>>();
 
       final faixasPorId =
           montarFaixasAtuaisPorAluno(graduacoes)[user.id] ?? const {};
@@ -102,7 +117,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         faixas[nome.isEmpty ? id : nome] = dados;
       });
       final turmaNome = {
-        for (final t in turmas) t['id'].toString(): (t['nome'] ?? '').toString()
+        for (final t in turmas)
+          t['id'].toString(): (t['nome'] ?? '').toString(),
       };
 
       if (!mounted) return;
@@ -113,16 +129,27 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         _modalidadeSelecionada = _faixasPorModalidade.keys.isEmpty
             ? null
             : (_faixasPorModalidade.containsKey(_modalidadeSelecionada)
-                ? _modalidadeSelecionada
-                : _faixasPorModalidade.keys.first);
+                  ? _modalidadeSelecionada
+                  : _faixasPorModalidade.keys.first);
         _proximaAula = _calcularProximaAula(horarios, turmaNome);
         _presencaDias = _diasComPresenca(presencas);
+        final freq = calcularFrequencia(
+          presencas: presencas,
+          matriculas: matriculas,
+          horarios: horarios,
+        );
+        _presencasAno = freq.totalPresencas;
+        _faltasAno = freq.totalFaltas;
         _financeiro = _statusFinanceiro(pagamentos);
         _noticias = noticias.take(2).toList();
         _loading = false;
       });
     } catch (_) {
-      if (mounted) setState(() { _erro = true; _loading = false; });
+      if (mounted)
+        setState(() {
+          _erro = true;
+          _loading = false;
+        });
     }
   }
 
@@ -144,7 +171,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       if (diaRaw is num) {
         dia = diaRaw.toInt();
       } else {
-        const nomes = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+        const nomes = [
+          'domingo',
+          'segunda',
+          'terça',
+          'quarta',
+          'quinta',
+          'sexta',
+          'sábado',
+        ];
         dia = nomes.indexOf((diaRaw ?? '').toString().toLowerCase());
       }
       if (dia < 0 || dia > 6) continue;
@@ -169,21 +204,25 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
 
     if (melhor == null || melhorDelta == null) return null;
 
-    String fmt(String? t) => (t != null && t.length >= 5) ? t.substring(0, 5) : (t ?? '');
-    final ini = fmt((melhor['hora_inicio'] ?? melhor['horaInicio'])?.toString());
+    String fmt(String? t) =>
+        (t != null && t.length >= 5) ? t.substring(0, 5) : (t ?? '');
+    final ini = fmt(
+      (melhor['hora_inicio'] ?? melhor['horaInicio'])?.toString(),
+    );
     final fim = fmt((melhor['hora_fim'] ?? melhor['horaFim'])?.toString());
     final diaLabel = melhorDelta == 0
         ? 'Hoje'
         : melhorDelta == 1
-            ? 'Amanhã'
-            : _diasCurtos[(hojeFs + melhorDelta) % 7];
+        ? 'Amanhã'
+        : _diasCurtos[(hojeFs + melhorDelta) % 7];
     final quando = fim.isEmpty ? '$diaLabel • $ini' : '$diaLabel • $ini — $fim';
     final turmaId = (melhor['turma_id'] ?? '').toString();
 
     return (
       turma: turmaNome[turmaId] ?? 'Aula',
       quando: quando,
-      professor: (melhor['nomeProfessor'] ?? melhor['nome_professor'] ?? '').toString(),
+      professor: (melhor['nomeProfessor'] ?? melhor['nome_professor'] ?? '')
+          .toString(),
     );
   }
 
@@ -228,14 +267,20 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.switch_account_rounded,
-                  size: 16, color: AppColors.primary),
+              Icon(
+                Icons.switch_account_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
               SizedBox(width: 5),
-              Text('Trocar',
-                  style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                'Trocar',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ),
@@ -248,17 +293,21 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: AppColors.bg,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
     if (_erro && _aluno == null) {
       return Scaffold(
         backgroundColor: AppColors.bg,
         body: SafeArea(
-          child: ErroConexao(onRetry: () {
-            setState(() => _loading = true);
-            _load();
-          }),
+          child: ErroConexao(
+            onRetry: () {
+              setState(() => _loading = true);
+              _load();
+            },
+          ),
         ),
       );
     }
@@ -337,8 +386,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              SectionHeader('Próxima aula',
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs)),
+              SectionHeader(
+                'Próxima aula',
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              ),
               NextClassCard(
                 turmaNome: _proximaAula?.turma,
                 quando: _proximaAula?.quando,
@@ -349,7 +400,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
 
               WeeklyAttendanceCard(
                 diasComPresenca: _presencaDias,
+                presencasAno: _presencasAno,
+                faltasAno: _faltasAno,
                 onTap: () => context.push('/aluno/presencas'),
+                onAbrirDetalhe: (filtro) =>
+                    context.push('/aluno/presencas?filtro=$filtro'),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -392,15 +447,15 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   }
 
   Widget _atalhoRow(Widget a, Widget b) => SizedBox(
-        height: 116,
-        child: Row(
-          children: [
-            Expanded(child: a),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: b),
-          ],
-        ),
-      );
+    height: 116,
+    child: Row(
+      children: [
+        Expanded(child: a),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: b),
+      ],
+    ),
+  );
 
   Widget _graduacaoCard(Map<String, dynamic>? graduacao) {
     if (graduacao == null) {
@@ -425,8 +480,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 children: [
                   Text('Graduação atual', style: AppText.sectionLabel),
                   SizedBox(height: 2),
-                  Text('Sua trajetória começa aqui.',
-                      style: AppText.bodyMuted),
+                  Text('Sua trajetória começa aqui.', style: AppText.bodyMuted),
                 ],
               ),
             ),
@@ -439,10 +493,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     return AlunoCard(
       onTap: () => context.go('/aluno/graduacoes'),
       gradient: LinearGradient(
-        colors: [
-          AppColors.surface,
-          AppColors.surface.withValues(alpha: 0.6),
-        ],
+        colors: [AppColors.surface, AppColors.surface.withValues(alpha: 0.6)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -477,16 +528,20 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(titulo,
-                style: AppText.cardTitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              titulo,
+              style: AppText.cardTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             if (resumo.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(resumo,
-                  style: AppText.caption,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
+              Text(
+                resumo,
+                style: AppText.caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ],
         ),

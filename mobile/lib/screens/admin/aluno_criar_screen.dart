@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
+import '../../core/senha_temporaria_modal.dart';
 import '../../core/widgets.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
@@ -163,7 +164,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                 '${_dataNascimento!.month.toString().padLeft(2, '0')}-'
                 '${_dataNascimento!.day.toString().padLeft(2, '0')}'
           : null;
-      await firestoreService.addAluno(academiaId, {
+      final alunoId = await firestoreService.addAluno(academiaId, {
         'nome': _nome.text.trim(),
         'email': emailVal.isEmpty ? null : emailVal,
         'telefone': telVal,
@@ -180,6 +181,23 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
           'dia_vencimento': int.tryParse(_diaVenc.text.trim()),
         if (!_acessoAppAtivo) 'acesso_app_bloqueado': true,
       });
+
+      // Com acesso liberado e havendo telefone ou e-mail, já gera a senha
+      // temporária para a academia repassar — o aluno não precisa passar pelo
+      // "primeiro acesso". Uma falha aqui não desfaz o cadastro: a academia
+      // usa "Gerar acesso" na ficha do aluno depois.
+      if (mounted &&
+          _acessoAppAtivo &&
+          (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
+        await provisionarAcessoApp(
+          context,
+          academiaId: academiaId,
+          colecao: 'usuarios',
+          usuarioId: alunoId,
+          nome: _nome.text.trim(),
+          motivo: 'provisao_criacao',
+        );
+      }
       if (mounted) context.pop();
     } catch (e) {
       if (!mounted) return;
@@ -519,6 +537,36 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             ),
             const SizedBox(height: 24),
             _section('Acesso ao App'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: kPrimary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kPrimary.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.vpn_key_rounded, color: kPrimary, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Ao cadastrar (com acesso liberado e telefone ou e-mail), '
+                      'geramos uma senha temporária para você repassar ao aluno. '
+                      'Ele entra digitando o telefone ou e-mail cadastrado + essa '
+                      'senha, e o app pede para criar a senha definitiva. Não é '
+                      'preciso usar "Primeiro acesso".',
+                      style: TextStyle(
+                        color: kText2,
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(

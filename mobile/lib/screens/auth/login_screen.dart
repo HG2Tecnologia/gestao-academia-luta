@@ -111,12 +111,59 @@ class _LoginScreenState extends State<LoginScreen> {
     return null;
   }
 
+  static const _authRetryCodes = {
+    'invalid-credential',
+    'user-not-found',
+    'wrong-password',
+  };
+
+  /// Um e-mail digitado pode ser só o CONTATO de um cadastro cuja conta do
+  /// Firebase Auth na verdade usa o e-mail sintético do telefone
+  /// (`<digitos>@sensei.app`). Descobre esses e-mails alternativos pelo
+  /// servidor para tentar o login por eles também.
+  Future<List<String>> _emailsAlternativosPara(String email) async {
+    try {
+      final descoberta = await firebaseIdentityService.discoverProfiles(email);
+      final alternativos = <String>{};
+      for (final perfil in descoberta.profiles) {
+        final lista = perfil['authEmails'];
+        if (lista is List) {
+          for (final item in lista) {
+            final valor = item?.toString().trim() ?? '';
+            if (valor.isNotEmpty && valor.toLowerCase() != email) {
+              alternativos.add(valor);
+            }
+          }
+        }
+      }
+      return alternativos.toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<UserCredential> _autenticar(String senha) async {
     if (_mode != _InputMode.telefone) {
-      return FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _idCtrl.text.trim().toLowerCase(),
-        password: senha,
-      );
+      final email = _idCtrl.text.trim().toLowerCase();
+      try {
+        return await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: senha,
+        );
+      } on FirebaseAuthException catch (error) {
+        if (!_authRetryCodes.contains(error.code)) rethrow;
+        for (final alternativo in await _emailsAlternativosPara(email)) {
+          try {
+            return await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: alternativo,
+              password: senha,
+            );
+          } on FirebaseAuthException catch (erroAlt) {
+            if (!_authRetryCodes.contains(erroAlt.code)) rethrow;
+          }
+        }
+        rethrow;
+      }
     }
 
     final rawDigits = _idCtrl.text.replaceAll(RegExp(r'\D'), '');

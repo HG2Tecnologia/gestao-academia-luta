@@ -20,9 +20,9 @@ class _ProfessorShellState extends State<ProfessorShell>
     with WidgetsBindingObserver {
   static const _allItems = [
     (
-      icon: Icons.bar_chart_rounded,
-      iconOff: Icons.bar_chart_outlined,
-      label: 'Dashboard',
+      icon: Icons.home_rounded,
+      iconOff: Icons.home_outlined,
+      label: 'Início',
       perm: '',
       idx: 0,
     ),
@@ -34,39 +34,32 @@ class _ProfessorShellState extends State<ProfessorShell>
       idx: 1,
     ),
     (
+      icon: Icons.sports_martial_arts,
+      iconOff: Icons.sports_martial_arts_outlined,
+      label: 'Alunos',
+      perm: 'tela_alunos',
+      idx: 2,
+    ),
+    (
       icon: Icons.schedule_rounded,
       iconOff: Icons.schedule_outlined,
       label: 'Horários',
       perm: 'tela_horarios',
-      idx: 2,
-    ),
-    (
-      icon: Icons.check_circle_rounded,
-      iconOff: Icons.check_circle_outline_rounded,
-      label: 'Presença',
-      perm: 'tela_presenca',
       idx: 3,
-    ),
-    (
-      icon: Icons.sports_martial_arts,
-      iconOff: Icons.sports_martial_arts_outlined,
-      label: 'Graduação',
-      perm: 'tela_graduacao',
-      idx: 4,
     ),
     (
       icon: Icons.emoji_events_rounded,
       iconOff: Icons.emoji_events_outlined,
       label: 'Rankings',
       perm: 'tela_rankings',
-      idx: 5,
+      idx: 4,
     ),
     (
       icon: Icons.person_rounded,
       iconOff: Icons.person_outline_rounded,
       label: 'Perfil',
       perm: '',
-      idx: 6,
+      idx: 5,
     ),
   ];
 
@@ -124,7 +117,43 @@ class _ProfessorShellState extends State<ProfessorShell>
       shellIdx,
       initialLocation: shellIdx == widget.shell.currentIndex,
     );
-    Navigator.of(context).pop();
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
+
+  // Branches: 0 Início · 1 Turmas · 2 Alunos · 3 Horários · 4 Rankings ·
+  // 5 Perfil. A barra inferior mostra o Início + até 3 telas permitidas;
+  // o resto fica no "Mais" (drawer).
+  List<int> get _navBranches {
+    const candidatas = [1, 2, 3, 4]; // ordem de prioridade
+    final perm = {for (final i in _allItems) i.idx: i.perm};
+    final extras = candidatas
+        .where((b) => _temPermissao(perm[b] ?? ''))
+        .take(3)
+        .toList();
+    return [0, ...extras];
+  }
+
+  int get _navSelectedIndex {
+    final i = _navBranches.indexOf(widget.shell.currentIndex);
+    return i < 0 ? _navBranches.length : i; // fora da barra → "Mais"
+  }
+
+  void _onNavTap(int navIndex) {
+    final branches = _navBranches;
+    if (navIndex < branches.length) {
+      _navegar(branches[navIndex]);
+    } else {
+      profShellKey.currentState?.openEndDrawer();
+    }
+  }
+
+  NavigationDestination _dest(int branch) {
+    final item = _allItems.firstWhere((i) => i.idx == branch);
+    return NavigationDestination(
+      icon: Icon(item.iconOff),
+      selectedIcon: Icon(item.icon),
+      label: item.label,
+    );
   }
 
   Widget _buildDrawer() {
@@ -259,10 +288,25 @@ class _ProfessorShellState extends State<ProfessorShell>
 
   @override
   Widget build(BuildContext context) {
+    final branches = _navBranches;
     return Scaffold(
       key: profShellKey,
       body: widget.shell,
       endDrawer: _buildDrawer(),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: kSurface,
+        indicatorColor: kPrimary.withValues(alpha: 0.18),
+        selectedIndex: _navSelectedIndex,
+        onDestinationSelected: _onNavTap,
+        destinations: [
+          for (final b in branches) _dest(b),
+          const NavigationDestination(
+            icon: Icon(Icons.more_horiz_rounded),
+            selectedIcon: Icon(Icons.more_horiz_rounded),
+            label: 'Mais',
+          ),
+        ],
+      ),
     );
   }
 }
