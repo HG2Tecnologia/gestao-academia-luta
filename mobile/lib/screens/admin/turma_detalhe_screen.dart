@@ -45,10 +45,15 @@ class AdminTurmaDetalheScreen extends StatefulWidget {
   /// editar/excluir horário) e navega para os alunos pela rota `/professor/...`.
   final bool professorMode;
 
+  /// Aba inicial: 0 Alunos · 1 Presença · 2 Horários. Usado pelo CTA
+  /// "Fazer chamada" da lista de turmas para abrir direto na chamada.
+  final int initialTab;
+
   const AdminTurmaDetalheScreen({
     super.key,
     required this.turmaId,
     this.professorMode = false,
+    this.initialTab = 0,
   });
 
   @override
@@ -97,12 +102,18 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 2),
+    );
     _tabCtrl.addListener(() {
       if (_tabCtrl.index == 1 && !_tabCtrl.indexIsChanging) _loadPresencaData();
     });
     _ctrl.addListener(_filtrar);
     _load();
+    // O listener do TabController não dispara para o índice inicial.
+    if (_tabCtrl.index == 1) _loadPresencaData();
   }
 
   @override
@@ -222,12 +233,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           _horarios = horariosList;
           _aptosGraduar = aptosSet;
           _temOrdemManual = temOrdemManual;
-          _podeReordenar = !_pm ||
+          _podeReordenar =
+              !_pm ||
               (user?.temPermissao('acesso_turmas_todas') ?? false) ||
               (turmaData['professorId']?.toString() == meuId);
           if (!_ordenacaoInicializada) {
-            _ordenacao =
-                temOrdemManual ? _OrdAlunos.manual : _OrdAlunos.nomeAsc;
+            _ordenacao = temOrdemManual
+                ? _OrdAlunos.manual
+                : _OrdAlunos.nomeAsc;
             _ordenacaoInicializada = true;
           }
           _reordenando = false;
@@ -414,9 +427,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final q = _ctrl.text.trim().toLowerCase();
     final base = q.isEmpty
         ? List<Map<String, dynamic>>.from(_alunos)
-        : _alunos
-            .where((a) => _nomeDe(a).toLowerCase().contains(q))
-            .toList();
+        : _alunos.where((a) => _nomeDe(a).toLowerCase().contains(q)).toList();
     _filtrados = _ordenar(base);
   }
 
@@ -464,11 +475,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       case _OrdAlunos.nomeDesc:
         l.sort((a, b) => _cmpNome(b, a));
       case _OrdAlunos.graduacaoDesc:
-        l.sort((a, b) =>
-            tie(_pesoGraduacao(b).compareTo(_pesoGraduacao(a)), a, b));
+        l.sort(
+          (a, b) => tie(_pesoGraduacao(b).compareTo(_pesoGraduacao(a)), a, b),
+        );
       case _OrdAlunos.graduacaoAsc:
-        l.sort((a, b) =>
-            tie(_pesoGraduacao(a).compareTo(_pesoGraduacao(b)), a, b));
+        l.sort(
+          (a, b) => tie(_pesoGraduacao(a).compareTo(_pesoGraduacao(b)), a, b),
+        );
       case _OrdAlunos.matriculaAntiga:
         l.sort((a, b) => tie(_matriculaEm(a).compareTo(_matriculaEm(b)), a, b));
       case _OrdAlunos.matriculaNova:
@@ -503,65 +516,65 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       builder: (_) => SafeArea(
         child: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 14),
-            Text(
-              'Ordenar alunos',
-              style: TextStyle(
-                color: kText1,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            for (final o in opcoes)
-              ListTile(
-                dense: true,
-                leading: Icon(
-                  _ordenacao == o
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: _ordenacao == o ? kPrimary : kText2,
-                  size: 20,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 14),
+              Text(
+                'Ordenar alunos',
+                style: TextStyle(
+                  color: kText1,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
-                title: Text(
-                  _labelsOrd[o]!,
-                  style: TextStyle(color: kText1, fontSize: 13.5),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _ordenacao = o;
-                    _recomputarFiltrados();
-                  });
-                },
               ),
-            if (_podeReordenar) ...[
-              const Divider(height: 1),
-              ListTile(
-                leading: Icon(Icons.swap_vert_rounded, color: kPrimary),
-                title: Text(
-                  'Reordenar arrastando',
-                  style: TextStyle(
-                    color: kPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
+              const SizedBox(height: 4),
+              for (final o in opcoes)
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    _ordenacao == o
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: _ordenacao == o ? kPrimary : kText2,
+                    size: 20,
                   ),
+                  title: Text(
+                    _labelsOrd[o]!,
+                    style: TextStyle(color: kText1, fontSize: 13.5),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _ordenacao = o;
+                      _recomputarFiltrados();
+                    });
+                  },
                 ),
-                subtitle: Text(
-                  'Segure e arraste os alunos para montar a ordem da turma',
-                  style: TextStyle(color: kText2, fontSize: 11),
+              if (_podeReordenar) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.swap_vert_rounded, color: kPrimary),
+                  title: Text(
+                    'Reordenar arrastando',
+                    style: TextStyle(
+                      color: kPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Segure e arraste os alunos para montar a ordem da turma',
+                    style: TextStyle(color: kText2, fontSize: 11),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _entrarReordenar();
+                  },
                 ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _entrarReordenar();
-                },
-              ),
+              ],
+              const SizedBox(height: 8),
             ],
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -608,9 +621,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         _ordenacao = _OrdAlunos.manual;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ordem da turma salva.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ordem da turma salva.')));
       }
     } catch (_) {
       if (mounted) {
@@ -982,113 +995,79 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         if (t != null) _buildHeader(t),
         if (!_reordenando)
           Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            controller: _ctrl,
-            style: TextStyle(color: kText1),
-            decoration: InputDecoration(
-              hintText: 'Buscar aluno...',
-              hintStyle: TextStyle(color: kText2),
-              prefixIcon: Icon(Icons.search, color: kText2),
-              filled: true,
-              fillColor: kSurface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPrimary),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              controller: _ctrl,
+              style: TextStyle(color: kText1),
+              decoration: InputDecoration(
+                hintText: 'Buscar aluno...',
+                hintStyle: TextStyle(color: kText2),
+                prefixIcon: Icon(Icons.search, color: kText2),
+                filled: true,
+                fillColor: kSurface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: kPrimary),
+                ),
               ),
             ),
           ),
-        ),
         if (_reordenando) _barraReordenar(),
         if (!_reordenando)
           Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Row(
-            children: [
-              Text(
-                'Alunos matriculados',
-                style: TextStyle(
-                  color: kText2,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${_filtrados.length}',
-                style: TextStyle(
-                  color: kPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _mostrarQrTurma,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kSuccess.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.qr_code_rounded, color: kSuccess, size: 16),
-                      const SizedBox(width: 5),
-                      Text(
-                        'QR',
-                        style: TextStyle(
-                          color: kSuccess,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  'Alunos matriculados',
+                  style: TextStyle(
+                    color: kText2,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              if (!_pm) ...[
+                const Spacer(),
+                Text(
+                  '${_filtrados.length}',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _abrirMatricula,
+                  onTap: _mostrarQrTurma,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.12),
+                      color: kSuccess.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.person_add_rounded,
-                          color: kPrimary,
-                          size: 16,
-                        ),
+                        Icon(Icons.qr_code_rounded, color: kSuccess, size: 16),
                         const SizedBox(width: 5),
                         Text(
-                          'Matricular',
+                          'QR',
                           style: TextStyle(
-                            color: kPrimary,
+                            color: kSuccess,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1097,10 +1076,44 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     ),
                   ),
                 ),
+                if (!_pm) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _abrirMatricula,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kPrimary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person_add_rounded,
+                            color: kPrimary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Matricular',
+                            style: TextStyle(
+                              color: kPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
         if (!_reordenando && _filtrados.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -1158,21 +1171,20 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   ),
                 )
               : _reordenando
-                  ? ReorderableListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: _filtrados.length,
-                      onReorder: _onReorder,
-                      itemBuilder: (_, i) =>
-                          _buildReorderTile(_filtrados[i], i),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filtrados.length,
-                        itemBuilder: (_, i) => _buildAlunoCard(_filtrados[i]),
-                      ),
-                    ),
+              ? ReorderableListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: _filtrados.length,
+                  onReorder: _onReorder,
+                  itemBuilder: (_, i) => _buildReorderTile(_filtrados[i], i),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _filtrados.length,
+                    itemBuilder: (_, i) => _buildAlunoCard(_filtrados[i]),
+                  ),
+                ),
         ),
       ],
     );

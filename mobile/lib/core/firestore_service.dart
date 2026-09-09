@@ -756,8 +756,7 @@ class FirestoreService {
     String academiaId,
     String id,
     Map<String, dynamic> data,
-  ) =>
-      _doc(academiaId, 'matriculas', id).update(data);
+  ) => _doc(academiaId, 'matriculas', id).update(data);
 
   /// Persiste a ordem manual dos alunos de uma turma gravando o índice
   /// `ordem` em cada matrícula, na sequência informada.
@@ -767,10 +766,9 @@ class FirestoreService {
   ) async {
     final batch = _db.batch();
     for (var i = 0; i < matriculaIdsOrdenados.length; i++) {
-      batch.update(
-        _doc(academiaId, 'matriculas', matriculaIdsOrdenados[i]),
-        {'ordem': i},
-      );
+      batch.update(_doc(academiaId, 'matriculas', matriculaIdsOrdenados[i]), {
+        'ordem': i,
+      });
     }
     await batch.commit();
   }

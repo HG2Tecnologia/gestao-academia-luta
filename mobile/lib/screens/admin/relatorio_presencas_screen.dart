@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -5,31 +7,42 @@ import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
 import '../../core/relatorio_presencas.dart';
+import 'widgets/dashboard_widgets.dart';
+
+enum _Periodo { d30, d60, d90, custom }
+
+enum _OrdRel { freqDesc, freqAsc, nomeAsc, nomeDesc }
+
+const _labelsOrdRel = <_OrdRel, String>{
+  _OrdRel.freqDesc: 'Maior frequência',
+  _OrdRel.freqAsc: 'Menor frequência',
+  _OrdRel.nomeAsc: 'Nome (A–Z)',
+  _OrdRel.nomeDesc: 'Nome (Z–A)',
+};
 
 class AdminRelatorioPresencasScreen extends StatefulWidget {
   const AdminRelatorioPresencasScreen({super.key});
 
   @override
-  State<AdminRelatorioPresencasScreen> createState() => _AdminRelatorioPresencasScreenState();
+  State<AdminRelatorioPresencasScreen> createState() =>
+      _AdminRelatorioPresencasScreenState();
 }
 
-class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasScreen> {
+class _AdminRelatorioPresencasScreenState
+    extends State<AdminRelatorioPresencasScreen> {
   List<Map<String, dynamic>> _turmas = [];
   String? _turmaId;
   Map<String, dynamic>? _relatorio;
+  Map<String, String?> _fotoPorAluno = {};
   bool _loadingTurmas = true;
   bool _loading = false;
   bool _erro = false;
   String? _academiaId;
 
+  _Periodo _periodo = _Periodo.d30;
+  _OrdRel _ordenacao = _OrdRel.freqDesc;
   DateTime _de = DateTime.now().subtract(const Duration(days: 30));
   DateTime _ate = DateTime.now();
-
-  static const _presets = [
-    ('Últimos 30 dias', 30),
-    ('Últimos 60 dias', 60),
-    ('Últimos 90 dias', 90),
-  ];
 
   @override
   void initState() {
@@ -41,9 +54,15 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
     try {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
-      if (_academiaId!.isEmpty) return;
+      if (_academiaId!.isEmpty) {
+        if (mounted) setState(() => _loadingTurmas = false);
+        return;
+      }
       final list = await firestoreService.getTurmas(_academiaId!);
-      final turmas = list.cast<Map<String, dynamic>>();
+      final turmas = list
+          .cast<Map<String, dynamic>>()
+          .where((t) => t['deleted_at'] == null)
+          .toList();
       if (!mounted) return;
       setState(() {
         _turmas = turmas;
@@ -52,13 +71,16 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
       });
       if (_turmaId != null) _loadRelatorio();
     } catch (_) {
-      if (mounted) setState(() { _loadingTurmas = false; });
+      if (mounted) setState(() => _loadingTurmas = false);
     }
   }
 
   Future<void> _loadRelatorio() async {
     if (_turmaId == null || _academiaId == null) return;
-    setState(() { _loading = true; _erro = false; });
+    setState(() {
+      _loading = true;
+      _erro = false;
+    });
     try {
       final results = await Future.wait([
         firestoreService.getPresencas(_academiaId!, turmaId: _turmaId!),
@@ -69,11 +91,12 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
       final alunos = (results[2] as List).cast<Map<String, dynamic>>();
 
-      // Filter by date range
+      // Filtro por intervalo de datas (mesma lógica de antes).
       final deStr = DateFormat('yyyy-MM-dd').format(_de);
       final ateStr = DateFormat('yyyy-MM-dd').format(_ate);
       final filtered = lista.where((p) {
-        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        final dataStr =
+            p['data'] as String? ?? p['data_presenca'] as String? ?? '';
         return dataStr.compareTo(deStr) >= 0 && dataStr.compareTo(ateStr) <= 0;
       }).toList();
 
@@ -83,14 +106,32 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
         alunos: alunos,
       );
 
-      if (mounted) setState(() { _relatorio = dados; _loading = false; });
+      final fotos = <String, String?>{
+        for (final a in alunos)
+          (a['id'] ?? '').toString():
+              a['fotoBase64'] as String? ?? a['foto_base64'] as String?,
+      };
+
+      if (mounted) {
+        setState(() {
+          _relatorio = dados;
+          _fotoPorAluno = fotos;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() { _erro = true; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _erro = true;
+          _loading = false;
+        });
+      }
     }
   }
 
-  void _aplicarPreset(int dias) {
+  void _aplicarPreset(_Periodo p, int dias) {
     setState(() {
+      _periodo = p;
       _ate = DateTime.now();
       _de = _ate.subtract(Duration(days: dias));
     });
@@ -115,234 +156,370 @@ class _AdminRelatorioPresencasScreenState extends State<AdminRelatorioPresencasS
       ),
     );
     if (range == null) return;
-    setState(() { _de = range.start; _ate = range.end; });
+    setState(() {
+      _periodo = _Periodo.custom;
+      _de = range.start;
+      _ate = range.end;
+    });
     _loadRelatorio();
   }
 
-  List<Map<String, dynamic>> get _alunos {
+  List<Map<String, dynamic>> get _alunosOrdenados {
     final raw = _relatorio?['alunos'];
-    if (raw == null) return [];
-    final list = (raw as List).cast<Map<String, dynamic>>();
-    list.sort((a, b) => ((b['percentual'] as num?) ?? 0).compareTo((a['percentual'] as num?) ?? 0));
+    if (raw == null) return const [];
+    final list = List<Map<String, dynamic>>.from(
+      (raw as List).cast<Map<String, dynamic>>(),
+    );
+    int nome(Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (a['nomeAluno']?.toString() ?? '').toLowerCase().compareTo(
+          (b['nomeAluno']?.toString() ?? '').toLowerCase(),
+        );
+    double pct(Map<String, dynamic> a) =>
+        (a['percentual'] as num? ?? 0).toDouble();
+    switch (_ordenacao) {
+      case _OrdRel.freqDesc:
+        list.sort((a, b) {
+          final c = pct(b).compareTo(pct(a));
+          return c != 0 ? c : nome(a, b);
+        });
+      case _OrdRel.freqAsc:
+        list.sort((a, b) {
+          final c = pct(a).compareTo(pct(b));
+          return c != 0 ? c : nome(a, b);
+        });
+      case _OrdRel.nomeAsc:
+        list.sort(nome);
+      case _OrdRel.nomeDesc:
+        list.sort((a, b) => nome(b, a));
+    }
     return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('dd/MM/yy');
-    final totalAulas = _relatorio?['totalAulas'] as int? ?? 0;
-    final media = (_relatorio?['mediaFrequencia'] as num? ?? 0).toDouble();
-
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: kBg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text('Relatório de Presenças', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Relatório de Presenças',
+          style: TextStyle(
+            color: kText1,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: _loadingTurmas
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: kPrimary))
           : _turmas.isEmpty
-              ? Center(child: Text('Nenhuma turma encontrada', style: TextStyle(color: kText2)))
-              : Column(
-                  children: [
-                    Container(
-                      color: kSurface,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: kBg,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: kPrimary.withOpacity(0.5)),
-                            ),
-                            child: DropdownButton<String>(
-                              value: _turmaId,
-                              isExpanded: true,
-                              dropdownColor: kSurface,
-                              underline: const SizedBox(),
-                              icon: Icon(Icons.keyboard_arrow_down_rounded, color: kPrimary),
-                              style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13),
-                              items: _turmas.map((t) {
-                                final id = t['id']?.toString();
-                                return DropdownMenuItem<String>(
-                                  value: id,
-                                  child: Text(t['nome']?.toString() ?? '', style: TextStyle(color: kText1, fontSize: 13)),
-                                );
-                              }).toList(),
-                              onChanged: (id) {
-                                setState(() => _turmaId = id);
-                                _loadRelatorio();
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              ..._presets.map((p) => _PresetChip(
-                                label: p.$1,
-                                onTap: () => _aplicarPreset(p.$2),
-                              )),
-                              GestureDetector(
-                                onTap: _selecionarPeriodo,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: kBg,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: kBorder),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.date_range_rounded, color: kText2, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text('${fmt.format(_de)} – ${fmt.format(_ate)}',
-                                          style: TextStyle(color: kText2, fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _loading
-                          ? const Center(child: CircularProgressIndicator())
-                          : _erro
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.error_outline_rounded, color: kDanger, size: 52),
-                                      const SizedBox(height: 14),
-                                      Text('Não foi possível carregar', style: TextStyle(color: kText2)),
-                                      const SizedBox(height: 18),
-                                      OutlinedButton.icon(
-                                        onPressed: _loadRelatorio,
-                                        icon: const Icon(Icons.refresh_rounded),
-                                        label: const Text('Tentar novamente'),
-                                        style: OutlinedButton.styleFrom(foregroundColor: kPrimary),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : _relatorio == null
-                                  ? const SizedBox()
-                                  : ListView(
-                                      padding: const EdgeInsets.all(16),
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(child: _StatCard(
-                                              label: 'Total de Aulas',
-                                              value: '$totalAulas',
-                                              icon: Icons.calendar_month_rounded,
-                                              color: kPrimary,
-                                            )),
-                                            const SizedBox(width: 12),
-                                            Expanded(child: _StatCard(
-                                              label: 'Média de Freq.',
-                                              value: '${media.toStringAsFixed(1)}%',
-                                              icon: Icons.bar_chart_rounded,
-                                              color: _corFreq(media),
-                                            )),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 20),
-                                        Text('Frequência por Aluno (${_alunos.length})',
-                                            style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w800)),
-                                        const SizedBox(height: 12),
-                                        if (_alunos.isEmpty)
-                                          Container(
-                                            padding: const EdgeInsets.all(20),
-                                            decoration: BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
-                                            child: Center(child: Text('Nenhuma presença registrada no período', style: TextStyle(color: kText2))),
-                                          )
-                                        else
-                                          ..._alunos.map((a) => _AlunoFreqCard(aluno: a, totalAulas: totalAulas)),
-                                      ],
-                                    ),
-                    ),
-                  ],
+          ? _EmptyMsg(
+              icon: Icons.groups_rounded,
+              texto: 'Nenhuma turma cadastrada.',
+            )
+          : Column(
+              children: [
+                _cabecalhoFiltros(),
+                Expanded(
+                  child: _loading
+                      ? Center(
+                          child: CircularProgressIndicator(color: kPrimary),
+                        )
+                      : _erro
+                      ? _EstadoErro(onRetry: _loadRelatorio)
+                      : _corpo(),
                 ),
+              ],
+            ),
     );
   }
 
-  Color _corFreq(double pct) {
-    if (pct >= 75) return kSuccess;
-    if (pct >= 50) return kWarning;
-    return kDanger;
-  }
-}
+  // ── Cabeçalho: seleção de turma + período ──────────────────────────────────
 
-class _PresetChip extends StatelessWidget {
-  const _PresetChip({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: kPrimary.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(label, style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
-  final String label, value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _cabecalhoFiltros() {
+    final fmt = DateFormat('dd/MM/yy');
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border(bottom: BorderSide(color: kBorder)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 26),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: TextStyle(color: kText1, fontWeight: FontWeight.w900, fontSize: 22)),
-            Text(label, style: TextStyle(color: kText2, fontSize: 11)),
-          ]),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: kSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _turmaId,
+                isExpanded: true,
+                dropdownColor: kSurface,
+                borderRadius: BorderRadius.circular(14),
+                icon: Icon(Icons.keyboard_arrow_down_rounded, color: kPrimary),
+                style: TextStyle(
+                  color: kText1,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+                items: _turmas.map((t) {
+                  return DropdownMenuItem<String>(
+                    value: t['id']?.toString(),
+                    child: Text(
+                      t['nome']?.toString() ?? '',
+                      style: TextStyle(color: kText1, fontSize: 15),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (id) {
+                  if (id == null) return;
+                  setState(() => _turmaId = id);
+                  _loadRelatorio();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Período',
+            style: TextStyle(
+              color: kText1,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _periodoChip(
+                  '30 dias',
+                  _Periodo.d30,
+                  () => _aplicarPreset(_Periodo.d30, 30),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _periodoChip(
+                  '60 dias',
+                  _Periodo.d60,
+                  () => _aplicarPreset(_Periodo.d60, 60),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _periodoChip(
+                  '90 dias',
+                  _Periodo.d90,
+                  () => _aplicarPreset(_Periodo.d90, 90),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _periodoChip(
+                  'Personalizado',
+                  _Periodo.custom,
+                  _selecionarPeriodo,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: _selecionarPeriodo,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today_rounded, color: kText2, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  '${fmt.format(_de)} — ${fmt.format(_ate)}',
+                  style: TextStyle(color: kText2, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _periodoChip(String label, _Periodo p, VoidCallback onTap) {
+    final sel = _periodo == p;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: sel ? kPrimary : kSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: sel ? kPrimary : kBorder),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: TextStyle(
+              color: sel ? Colors.black : kText2,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Corpo do relatório ────────────────────────────────────────────────────
+
+  Widget _corpo() {
+    final rel = _relatorio;
+    if (rel == null) return const SizedBox();
+    final totalAulas = rel['totalAulas'] as int? ?? 0;
+    final media = (rel['mediaFrequencia'] as num? ?? 0).toDouble();
+    final alunos = _alunosOrdenados;
+
+    return RefreshIndicator(
+      onRefresh: _loadRelatorio,
+      color: kPrimary,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.calendar_month_rounded,
+                  value: '$totalAulas',
+                  label: 'Total de Aulas',
+                  tone: DashTone.gold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.insights_rounded,
+                  value: totalAulas == 0 ? '—' : '${media.toStringAsFixed(1)}%',
+                  label: 'Frequência média',
+                  tone: _toneFreq(media),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Frequência dos alunos (${alunos.length})',
+                  style: TextStyle(
+                    color: kText1,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              _botaoOrdenar(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (totalAulas == 0)
+            _EmptyBox(
+              texto:
+                  'Não há aulas registradas neste período.\nSelecione outro intervalo para ver a frequência.',
+            )
+          else if (alunos.isEmpty)
+            _EmptyBox(texto: 'Nenhum aluno matriculado nesta turma.')
+          else
+            ...alunos.map(
+              (a) => _ResumoAlunoCard(
+                aluno: a,
+                foto: _fotoPorAluno[(a['alunoId'] ?? '').toString()],
+                onTap: () {
+                  final id = (a['alunoId'] ?? '').toString();
+                  if (id.isNotEmpty) context.push('/admin/alunos/$id');
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _botaoOrdenar() {
+    return PopupMenuButton<_OrdRel>(
+      color: kSurface,
+      initialValue: _ordenacao,
+      onSelected: (v) => setState(() => _ordenacao = v),
+      itemBuilder: (_) => _labelsOrdRel.entries
+          .map(
+            (e) => PopupMenuItem<_OrdRel>(
+              value: e.key,
+              child: Text(
+                e.value,
+                style: TextStyle(color: kText1, fontSize: 13),
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: kBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Ordenar por',
+              style: TextStyle(
+                color: kText2,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded, color: kText2, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  DashTone _toneFreq(double pct) {
+    if (pct >= 75) return DashTone.success;
+    if (pct >= 50) return DashTone.warning;
+    return DashTone.danger;
+  }
 }
 
-class _AlunoFreqCard extends StatelessWidget {
-  const _AlunoFreqCard({required this.aluno, required this.totalAulas});
+// ── Card de frequência por aluno ─────────────────────────────────────────────
+
+class _ResumoAlunoCard extends StatelessWidget {
+  const _ResumoAlunoCard({
+    required this.aluno,
+    required this.foto,
+    required this.onTap,
+  });
+
   final Map<String, dynamic> aluno;
-  final int totalAulas;
+  final String? foto;
+  final VoidCallback onTap;
 
   Color _cor(double pct) {
     if (pct >= 75) return kSuccess;
@@ -352,59 +529,202 @@ class _AlunoFreqCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nome = aluno['nomeAluno']?.toString() ?? '';
     final pct = (aluno['percentual'] as num? ?? 0).toDouble();
     final presencas = aluno['presencas'] as int? ?? 0;
     final faltas = aluno['faltas'] as int? ?? 0;
     final cor = _cor(pct);
+    final iniciais = nome
+        .trim()
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .join()
+        .toUpperCase();
+    final temFoto = foto != null && foto!.contains(',');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+    return Semantics(
+      button: true,
+      label:
+          '$nome, ${pct.toStringAsFixed(0)}% de frequência, '
+          '$presencas presenças, $faltas faltas',
+      child: Material(
         color: kSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  aluno['nomeAluno']?.toString() ?? '',
-                  style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: cor.withValues(alpha: 0.18),
+                      backgroundImage: temFoto
+                          ? MemoryImage(base64Decode(foto!.split(',').last))
+                          : null,
+                      child: temFoto
+                          ? null
+                          : Text(
+                              iniciais.isEmpty ? '?' : iniciais,
+                              style: TextStyle(
+                                color: cor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        nome,
+                        style: TextStyle(
+                          color: kText1,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${pct.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        color: cor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
+                  ],
                 ),
-              ),
-              Text(
-                '${pct.toStringAsFixed(0)}%',
-                style: TextStyle(color: cor, fontWeight: FontWeight.w800, fontSize: 16),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: pct / 100,
-              backgroundColor: kBorder,
-              valueColor: AlwaysStoppedAnimation<Color>(cor),
-              minHeight: 6,
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (pct / 100).clamp(0.0, 1.0),
+                    backgroundColor: kBorder,
+                    valueColor: AlwaysStoppedAnimation<Color>(cor),
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 14, color: kSuccess),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$presencas presenças',
+                      style: TextStyle(color: kText2, fontSize: 11.5),
+                    ),
+                    const SizedBox(width: 14),
+                    Icon(Icons.cancel_rounded, size: 14, color: kDanger),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$faltas faltas',
+                      style: TextStyle(color: kText2, fontSize: 11.5),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.check_circle_outline_rounded, size: 13, color: kSuccess),
-              const SizedBox(width: 4),
-              Text('$presencas presenças', style: TextStyle(color: kText2, fontSize: 11)),
-              const SizedBox(width: 12),
-              Icon(Icons.cancel_outlined, size: 13, color: kDanger),
-              const SizedBox(width: 4),
-              Text('$faltas faltas', style: TextStyle(color: kText2, fontSize: 11)),
-            ],
-          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Estados ─────────────────────────────────────────────────────────────────
+
+class _EmptyBox extends StatelessWidget {
+  const _EmptyBox({required this.texto});
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+      ),
+      child: Center(
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kText2, fontSize: 13),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyMsg extends StatelessWidget {
+  const _EmptyMsg({required this.icon, required this.texto});
+  final IconData icon;
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: kText2, size: 44),
+          const SizedBox(height: 12),
+          Text(texto, style: TextStyle(color: kText2, fontSize: 14)),
         ],
+      ),
+    );
+  }
+}
+
+class _EstadoErro extends StatelessWidget {
+  const _EstadoErro({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, color: kDanger, size: 44),
+            const SizedBox(height: 14),
+            Text(
+              'Não foi possível carregar as informações.',
+              style: TextStyle(color: kText2, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Tentar novamente'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kPrimary,
+                minimumSize: const Size(0, 46),
+                side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

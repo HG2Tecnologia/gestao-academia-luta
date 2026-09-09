@@ -232,6 +232,9 @@ final _router = GoRouter(
                   path: ':id',
                   builder: (_, state) => AdminTurmaDetalheScreen(
                     turmaId: state.pathParameters['id']!,
+                    initialTab: state.uri.queryParameters['tab'] == 'presenca'
+                        ? 1
+                        : 0,
                   ),
                 ),
               ],
