@@ -7591,6 +7591,180 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Campo obrigatório'**
   String get acRequiredField;
+
+  /// No description provided for @rnBadgeVersion.
+  ///
+  /// In pt, this message translates to:
+  /// **'VERSÃO {version}'**
+  String rnBadgeVersion(String version);
+
+  /// No description provided for @rnTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novidades do Sensei Manager!'**
+  String get rnTitle;
+
+  /// No description provided for @rnSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confira o que chegou nesta versão.'**
+  String get rnSubtitle;
+
+  /// No description provided for @rnCta.
+  ///
+  /// In pt, this message translates to:
+  /// **'Entendi'**
+  String get rnCta;
+
+  /// No description provided for @rnClose.
+  ///
+  /// In pt, this message translates to:
+  /// **'Fechar'**
+  String get rnClose;
+
+  /// No description provided for @rnA11yTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novidades da versão {version}'**
+  String rnA11yTitle(String version);
+
+  /// No description provided for @rnTagNew.
+  ///
+  /// In pt, this message translates to:
+  /// **'NOVO'**
+  String get rnTagNew;
+
+  /// No description provided for @rnTagImprovement.
+  ///
+  /// In pt, this message translates to:
+  /// **'MELHORIA'**
+  String get rnTagImprovement;
+
+  /// No description provided for @rnTagFix.
+  ///
+  /// In pt, this message translates to:
+  /// **'CORREÇÃO'**
+  String get rnTagFix;
+
+  /// No description provided for @rnFooterTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Estamos sempre evoluindo!'**
+  String get rnFooterTitle;
+
+  /// No description provided for @rnFooterBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Obrigado por ajudar o Sensei Manager a ficar cada vez melhor.'**
+  String get rnFooterBody;
+
+  /// No description provided for @rnMenuEntry.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novidades da versão'**
+  String get rnMenuEntry;
+
+  /// No description provided for @rnNewsCardHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque para rever o que mudou nesta versão.'**
+  String get rnNewsCardHint;
+
+  /// No description provided for @rnLightThemeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora também em tema claro'**
+  String get rnLightThemeTitle;
+
+  /// No description provided for @rnLightThemeDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolha entre tema claro, escuro ou seguir automaticamente o tema do seu dispositivo.'**
+  String get rnLightThemeDesc;
+
+  /// No description provided for @rnLanguageTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sensei Manager agora também em inglês'**
+  String get rnLanguageTitle;
+
+  /// No description provided for @rnLanguageDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolha entre Português e English nas preferências do aplicativo.'**
+  String get rnLanguageDesc;
+
+  /// No description provided for @rnRedesignStudentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Interface repaginada'**
+  String get rnRedesignStudentTitle;
+
+  /// No description provided for @rnRedesignStudentDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Início, aulas, graduações e financeiro foram redesenhados para ficar mais claros e fáceis de navegar.'**
+  String get rnRedesignStudentDesc;
+
+  /// No description provided for @rnRedesignAcademyTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Interface repaginada'**
+  String get rnRedesignAcademyTitle;
+
+  /// No description provided for @rnRedesignAcademyDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dashboard, turmas, configurações, faixas e relatórios foram redesenhados para facilitar a navegação e destacar o que importa.'**
+  String get rnRedesignAcademyDesc;
+
+  /// No description provided for @rnSignInTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova experiência de entrada'**
+  String get rnSignInTitle;
+
+  /// No description provided for @rnSignInDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você escolhe se é aluno/responsável ou academia antes de entrar, com primeiro acesso e recuperação de senha mais claros.'**
+  String get rnSignInDesc;
+
+  /// No description provided for @rnPasswordTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Redefinição de senha pelo app'**
+  String get rnPasswordTitle;
+
+  /// No description provided for @rnPasswordDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gestores autorizados geram uma senha temporária para alunos e funcionários, com troca obrigatória no próximo acesso.'**
+  String get rnPasswordDesc;
+
+  /// No description provided for @rnClassesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Turmas e graduações'**
+  String get rnClassesTitle;
+
+  /// No description provided for @rnClassesDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graduações lançadas por engano podem ser corrigidas sem refazer o histórico, e excluir uma turma não apaga mais alunos, presenças ou registros.'**
+  String get rnClassesDesc;
+
+  /// No description provided for @rnBillingTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Financeiro automático'**
+  String get rnBillingTitle;
+
+  /// No description provided for @rnBillingDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.'**
+  String get rnBillingDesc;
 }
 
 class _AppLocalizationsDelegate

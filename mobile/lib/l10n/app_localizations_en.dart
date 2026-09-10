@@ -4260,4 +4260,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get acRequiredField => 'Required field';
+
+  @override
+  String rnBadgeVersion(String version) {
+    return 'VERSION $version';
+  }
+
+  @override
+  String get rnTitle => 'What\'s new in Sensei Manager!';
+
+  @override
+  String get rnSubtitle => 'See what\'s new in this release.';
+
+  @override
+  String get rnCta => 'Got it';
+
+  @override
+  String get rnClose => 'Close';
+
+  @override
+  String rnA11yTitle(String version) {
+    return 'What\'s new in version $version';
+  }
+
+  @override
+  String get rnTagNew => 'NEW';
+
+  @override
+  String get rnTagImprovement => 'IMPROVEMENT';
+
+  @override
+  String get rnTagFix => 'FIX';
+
+  @override
+  String get rnFooterTitle => 'We\'re always improving!';
+
+  @override
+  String get rnFooterBody =>
+      'Thanks for helping us make Sensei Manager better with every release.';
+
+  @override
+  String get rnMenuEntry => 'What\'s new';
+
+  @override
+  String get rnNewsCardHint => 'Tap to review what changed in this release.';
+
+  @override
+  String get rnLightThemeTitle => 'Light theme is here';
+
+  @override
+  String get rnLightThemeDesc =>
+      'Choose Light, Dark, or automatically follow your device theme.';
+
+  @override
+  String get rnLanguageTitle => 'Sensei Manager is now available in English';
+
+  @override
+  String get rnLanguageDesc =>
+      'You can now switch between English and Portuguese in the app preferences.';
+
+  @override
+  String get rnRedesignStudentTitle => 'A fresh new look';
+
+  @override
+  String get rnRedesignStudentDesc =>
+      'Home, classes, promotions and billing have been redesigned to be clearer and easier to navigate.';
+
+  @override
+  String get rnRedesignAcademyTitle => 'A fresh new look';
+
+  @override
+  String get rnRedesignAcademyDesc =>
+      'The dashboard, classes, settings, belts and reports have been redesigned to simplify navigation and highlight what matters.';
+
+  @override
+  String get rnSignInTitle => 'New sign-in experience';
+
+  @override
+  String get rnSignInDesc =>
+      'Choose whether you\'re a student/guardian or an academy before signing in, with clearer first-time access and password recovery.';
+
+  @override
+  String get rnPasswordTitle => 'Password reset from the app';
+
+  @override
+  String get rnPasswordDesc =>
+      'Authorized staff can issue a temporary password for students and team members, with a required change at next sign-in.';
+
+  @override
+  String get rnClassesTitle => 'Classes and promotions';
+
+  @override
+  String get rnClassesDesc =>
+      'Belt promotions entered by mistake can be corrected without rebuilding history, and removing a class no longer deletes students, attendance or records.';
+
+  @override
+  String get rnBillingTitle => 'Automatic billing';
+
+  @override
+  String get rnBillingDesc =>
+      'Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned.';
 }

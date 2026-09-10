@@ -2125,5 +2125,48 @@
   "acCanLogin": "Aluno poderá fazer login normalmente",
   "acCannotLogin": "Aluno não conseguirá entrar no app",
   "acCreateStudent": "Cadastrar aluno",
-  "acRequiredField": "Campo obrigatório"
+  "acRequiredField": "Campo obrigatório",
+  "rnBadgeVersion": "VERSÃO {version}",
+  "@rnBadgeVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "rnTitle": "Novidades do Sensei Manager!",
+  "rnSubtitle": "Confira o que chegou nesta versão.",
+  "rnCta": "Entendi",
+  "rnClose": "Fechar",
+  "rnA11yTitle": "Novidades da versão {version}",
+  "@rnA11yTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "rnTagNew": "NOVO",
+  "rnTagImprovement": "MELHORIA",
+  "rnTagFix": "CORREÇÃO",
+  "rnFooterTitle": "Estamos sempre evoluindo!",
+  "rnFooterBody": "Obrigado por ajudar o Sensei Manager a ficar cada vez melhor.",
+  "rnMenuEntry": "Novidades da versão",
+  "rnNewsCardHint": "Toque para rever o que mudou nesta versão.",
+  "rnLightThemeTitle": "Agora também em tema claro",
+  "rnLightThemeDesc": "Escolha entre tema claro, escuro ou seguir automaticamente o tema do seu dispositivo.",
+  "rnLanguageTitle": "Sensei Manager agora também em inglês",
+  "rnLanguageDesc": "Escolha entre Português e English nas preferências do aplicativo.",
+  "rnRedesignStudentTitle": "Interface repaginada",
+  "rnRedesignStudentDesc": "Início, aulas, graduações e financeiro foram redesenhados para ficar mais claros e fáceis de navegar.",
+  "rnRedesignAcademyTitle": "Interface repaginada",
+  "rnRedesignAcademyDesc": "Dashboard, turmas, configurações, faixas e relatórios foram redesenhados para facilitar a navegação e destacar o que importa.",
+  "rnSignInTitle": "Nova experiência de entrada",
+  "rnSignInDesc": "Você escolhe se é aluno/responsável ou academia antes de entrar, com primeiro acesso e recuperação de senha mais claros.",
+  "rnPasswordTitle": "Redefinição de senha pelo app",
+  "rnPasswordDesc": "Gestores autorizados geram uma senha temporária para alunos e funcionários, com troca obrigatória no próximo acesso.",
+  "rnClassesTitle": "Turmas e graduações",
+  "rnClassesDesc": "Graduações lançadas por engano podem ser corrigidas sem refazer o histórico, e excluir uma turma não apaga mais alunos, presenças ou registros.",
+  "rnBillingTitle": "Financeiro automático",
+  "rnBillingDesc": "As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado."
 }

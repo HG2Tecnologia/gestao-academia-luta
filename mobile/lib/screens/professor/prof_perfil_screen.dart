@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/appearance_controls.dart';
+import '../../core/release_notes.dart';
+import '../../core/whats_new_service.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
@@ -301,6 +303,9 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                     const SizedBox(height: 32),
 
                     const AppearanceSettingsCard(),
+
+                    const SizedBox(height: 12),
+                    const ReleaseNotesMenuTile(viewer: ReleaseViewer.academy),
 
                     const SizedBox(height: 32),
 

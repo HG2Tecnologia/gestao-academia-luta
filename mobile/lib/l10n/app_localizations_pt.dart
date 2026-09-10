@@ -4264,4 +4264,104 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get acRequiredField => 'Campo obrigatório';
+
+  @override
+  String rnBadgeVersion(String version) {
+    return 'VERSÃO $version';
+  }
+
+  @override
+  String get rnTitle => 'Novidades do Sensei Manager!';
+
+  @override
+  String get rnSubtitle => 'Confira o que chegou nesta versão.';
+
+  @override
+  String get rnCta => 'Entendi';
+
+  @override
+  String get rnClose => 'Fechar';
+
+  @override
+  String rnA11yTitle(String version) {
+    return 'Novidades da versão $version';
+  }
+
+  @override
+  String get rnTagNew => 'NOVO';
+
+  @override
+  String get rnTagImprovement => 'MELHORIA';
+
+  @override
+  String get rnTagFix => 'CORREÇÃO';
+
+  @override
+  String get rnFooterTitle => 'Estamos sempre evoluindo!';
+
+  @override
+  String get rnFooterBody =>
+      'Obrigado por ajudar o Sensei Manager a ficar cada vez melhor.';
+
+  @override
+  String get rnMenuEntry => 'Novidades da versão';
+
+  @override
+  String get rnNewsCardHint => 'Toque para rever o que mudou nesta versão.';
+
+  @override
+  String get rnLightThemeTitle => 'Agora também em tema claro';
+
+  @override
+  String get rnLightThemeDesc =>
+      'Escolha entre tema claro, escuro ou seguir automaticamente o tema do seu dispositivo.';
+
+  @override
+  String get rnLanguageTitle => 'Sensei Manager agora também em inglês';
+
+  @override
+  String get rnLanguageDesc =>
+      'Escolha entre Português e English nas preferências do aplicativo.';
+
+  @override
+  String get rnRedesignStudentTitle => 'Interface repaginada';
+
+  @override
+  String get rnRedesignStudentDesc =>
+      'Início, aulas, graduações e financeiro foram redesenhados para ficar mais claros e fáceis de navegar.';
+
+  @override
+  String get rnRedesignAcademyTitle => 'Interface repaginada';
+
+  @override
+  String get rnRedesignAcademyDesc =>
+      'Dashboard, turmas, configurações, faixas e relatórios foram redesenhados para facilitar a navegação e destacar o que importa.';
+
+  @override
+  String get rnSignInTitle => 'Nova experiência de entrada';
+
+  @override
+  String get rnSignInDesc =>
+      'Você escolhe se é aluno/responsável ou academia antes de entrar, com primeiro acesso e recuperação de senha mais claros.';
+
+  @override
+  String get rnPasswordTitle => 'Redefinição de senha pelo app';
+
+  @override
+  String get rnPasswordDesc =>
+      'Gestores autorizados geram uma senha temporária para alunos e funcionários, com troca obrigatória no próximo acesso.';
+
+  @override
+  String get rnClassesTitle => 'Turmas e graduações';
+
+  @override
+  String get rnClassesDesc =>
+      'Graduações lançadas por engano podem ser corrigidas sem refazer o histórico, e excluir uma turma não apaga mais alunos, presenças ou registros.';
+
+  @override
+  String get rnBillingTitle => 'Financeiro automático';
+
+  @override
+  String get rnBillingDesc =>
+      'As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.';
 }

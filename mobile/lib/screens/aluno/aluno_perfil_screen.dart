@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/appearance_controls.dart';
+import '../../core/release_notes.dart';
+import '../../core/whats_new_service.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
@@ -1787,6 +1789,12 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: AppearanceSettingsCard(showSectionTitle: false),
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: ReleaseNotesMenuTile(viewer: ReleaseViewer.student),
               ),
             ),
 

@@ -1595,5 +1595,48 @@
   "acCanLogin": "Student will be able to log in normally",
   "acCannotLogin": "Student won't be able to enter the app",
   "acCreateStudent": "Register student",
-  "acRequiredField": "Required field"
+  "acRequiredField": "Required field",
+  "rnBadgeVersion": "VERSION {version}",
+  "@rnBadgeVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "rnTitle": "What's new in Sensei Manager!",
+  "rnSubtitle": "See what's new in this release.",
+  "rnCta": "Got it",
+  "rnClose": "Close",
+  "rnA11yTitle": "What's new in version {version}",
+  "@rnA11yTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "rnTagNew": "NEW",
+  "rnTagImprovement": "IMPROVEMENT",
+  "rnTagFix": "FIX",
+  "rnFooterTitle": "We're always improving!",
+  "rnFooterBody": "Thanks for helping us make Sensei Manager better with every release.",
+  "rnMenuEntry": "What's new",
+  "rnNewsCardHint": "Tap to review what changed in this release.",
+  "rnLightThemeTitle": "Light theme is here",
+  "rnLightThemeDesc": "Choose Light, Dark, or automatically follow your device theme.",
+  "rnLanguageTitle": "Sensei Manager is now available in English",
+  "rnLanguageDesc": "You can now switch between English and Portuguese in the app preferences.",
+  "rnRedesignStudentTitle": "A fresh new look",
+  "rnRedesignStudentDesc": "Home, classes, promotions and billing have been redesigned to be clearer and easier to navigate.",
+  "rnRedesignAcademyTitle": "A fresh new look",
+  "rnRedesignAcademyDesc": "The dashboard, classes, settings, belts and reports have been redesigned to simplify navigation and highlight what matters.",
+  "rnSignInTitle": "New sign-in experience",
+  "rnSignInDesc": "Choose whether you're a student/guardian or an academy before signing in, with clearer first-time access and password recovery.",
+  "rnPasswordTitle": "Password reset from the app",
+  "rnPasswordDesc": "Authorized staff can issue a temporary password for students and team members, with a required change at next sign-in.",
+  "rnClassesTitle": "Classes and promotions",
+  "rnClassesDesc": "Belt promotions entered by mistake can be corrected without rebuilding history, and removing a class no longer deletes students, attendance or records.",
+  "rnBillingTitle": "Automatic billing",
+  "rnBillingDesc": "Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned."
 }

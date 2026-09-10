@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/whats_new_service.dart';
+import '../../core/release_notes.dart';
 import 'widgets/belt_icon.dart';
 
 /// Casca da área do aluno: apenas a NavigationBar inferior (Material 3).
@@ -31,7 +32,9 @@ class _AlunoShellState extends State<AlunoShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) WhatsNewService.checkAndShow(context);
+      if (mounted) {
+        WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.student);
+      }
     });
   }
 

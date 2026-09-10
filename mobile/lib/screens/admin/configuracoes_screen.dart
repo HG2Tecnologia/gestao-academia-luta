@@ -11,6 +11,8 @@ import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import '../../core/release_notes.dart';
+import '../../core/whats_new_service.dart';
 import '../../l10n/app_localizations.dart';
 import 'modalidades_screen.dart';
 import 'planos_screen.dart';
@@ -424,6 +426,15 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                               titulo: l.settingsTheme,
                               subtitulo: _temaLabel(l),
                               onTap: _abrirTema,
+                            ),
+                            _NavRow(
+                              icon: Icons.auto_awesome_rounded,
+                              titulo: l.rnMenuEntry,
+                              subtitulo: l.rnSubtitle,
+                              onTap: () => WhatsNewService.showManually(
+                                context,
+                                viewer: ReleaseViewer.academy,
+                              ),
                             ),
                           ],
                         ),

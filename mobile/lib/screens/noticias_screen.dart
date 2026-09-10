@@ -4,6 +4,7 @@ import '../core/auth_storage.dart';
 import '../core/theme/context_ext.dart';
 import '../l10n/app_localizations.dart';
 import '../core/firestore_service.dart';
+import '../core/whats_new_service.dart';
 
 class NoticiasScreen extends StatefulWidget {
   const NoticiasScreen({super.key});
@@ -73,21 +74,27 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _carregar,
-              child: _items.isEmpty
-                  ? Center(
-                      child: Text(
-                        AppLocalizations.of(context).newsNonePublished,
-                        style: TextStyle(color: context.c.onSurfaceVariant),
+              child: ListView.builder(
+                controller: _scrollCtrl,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.isEmpty ? 2 : _items.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) return const ReleaseNotesNewsCard();
+                  if (_items.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 48),
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.of(context).newsNonePublished,
+                          style: TextStyle(color: context.c.onSurfaceVariant),
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        return _NoticiaCard(noticia: _items[index]);
-                      },
-                    ),
+                    );
+                  }
+                  return _NoticiaCard(noticia: _items[index - 1]);
+                },
+              ),
             ),
     );
   }

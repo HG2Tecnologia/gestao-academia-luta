@@ -8,6 +8,7 @@ import '../../core/profile_session_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/whats_new_service.dart';
+import '../../core/release_notes.dart';
 import '../../l10n/app_localizations.dart';
 
 class AdminShell extends StatefulWidget {
@@ -28,7 +29,9 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _atualizarPerfis();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) WhatsNewService.checkAndShow(context);
+      if (mounted) {
+        WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.academy);
+      }
     });
   }
 

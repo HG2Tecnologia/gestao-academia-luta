@@ -8,6 +8,7 @@ import '../../core/drawer_helper.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/profile_session_service.dart';
 import '../../core/whats_new_service.dart';
+import '../../core/release_notes.dart';
 
 class ProfessorShell extends StatefulWidget {
   const ProfessorShell({super.key, required this.shell});
@@ -75,7 +76,9 @@ class _ProfessorShellState extends State<ProfessorShell>
     WidgetsBinding.instance.addObserver(this);
     _carregarPermissoes();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) WhatsNewService.checkAndShow(context);
+      if (mounted) {
+        WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.academy);
+      }
     });
   }
 
