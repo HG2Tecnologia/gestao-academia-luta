@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/graduacao_color.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/context_ext.dart';
 
 /// Dados mínimos de uma graduação para exibição, extraídos do domínio
 /// existente (`Map<String, dynamic>` de `getGraduacoes` /
@@ -35,11 +36,11 @@ class GraduacaoView {
       modalidadeNome:
           (g['nomeModalidade'] ?? g['modalidadeNome'] ?? g['modalidade'] ?? '')
               .toString(),
-      graduacaoNome:
-          (g['nomeFaixa'] ?? g['faixaNome'] ?? g['graduacao'] ?? '').toString(),
+      graduacaoNome: (g['nomeFaixa'] ?? g['faixaNome'] ?? g['graduacao'] ?? '')
+          .toString(),
       corHex: (g['corFaixa'] ?? g['faixaCor'] ?? g['cor'])?.toString(),
-      corBarraHex:
-          (g['corBarraFaixa'] ?? g['faixaCorBarra'] ?? g['corBarra'])?.toString(),
+      corBarraHex: (g['corBarraFaixa'] ?? g['faixaCorBarra'] ?? g['corBarra'])
+          ?.toString(),
       temGraus: g['faixaTemGraus'] == true || asInt(g['grau']) > 0,
       grau: asInt(g['grau']),
       maxGraus: asInt(g['faixaMaxGraus']),
@@ -82,7 +83,9 @@ class GraduacaoDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     final cor = parseGraduationColor(graduacao.corHex);
     final nomeStyle = TextStyle(
-      color: cor != null ? Color.lerp(cor, Colors.white, 0.35) : AppColors.textPrimary,
+      color: cor != null
+          ? Color.lerp(cor, Colors.white, 0.35)
+          : context.c.onSurface,
       fontSize: _full ? 22 : 17,
       fontWeight: FontWeight.w900,
     );
@@ -92,14 +95,22 @@ class GraduacaoDisplay extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (overline != null) ...[
-          Text(overline!, style: AppText.sectionLabel),
+          Text(
+            overline!,
+            style: TextStyle(
+              color: context.c.onSurfaceVariant,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
         ],
         if (graduacao.modalidadeNome.isNotEmpty) ...[
           Text(
             graduacao.modalidadeNome,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.c.onSurfaceVariant,
               fontSize: _full ? 13 : 11,
               fontWeight: FontWeight.w600,
             ),
@@ -114,8 +125,8 @@ class GraduacaoDisplay extends StatelessWidget {
             if (cor != null) ...[
               _BeltVisual(
                 cor: cor,
-                corBarra: parseGraduationColor(graduacao.corBarraHex) ??
-                    Colors.black,
+                corBarra:
+                    parseGraduationColor(graduacao.corBarraHex) ?? Colors.black,
                 grau: graduacao.mostrarGraus ? graduacao.grau : 0,
                 maxGraus: graduacao._maxEfetivo,
                 height: _full ? 24 : 16,
@@ -126,7 +137,7 @@ class GraduacaoDisplay extends StatelessWidget {
             Flexible(
               child: Text(
                 graduacao.graduacaoNome.isEmpty
-                    ? 'Sem graduação'
+                    ? context.l10n.sdNoGraduation
                     : graduacao.graduacaoNome,
                 style: nomeStyle,
                 maxLines: 2,
@@ -182,6 +193,10 @@ class _BeltVisual extends StatelessWidget {
           height: height,
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            // Ambas as seções (cor lisa + tarja de graus) ocupam a altura
+            // total: sem isto a tarja encolhe para a altura dos risquinhos e o
+            // lado esquerdo (liso) fica visualmente mais "gordo" que o direito.
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(width: width, color: cor),
               if (desenharMarcadores)
@@ -227,13 +242,13 @@ class _GrauLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.15),
+        color: context.c.primary.withValues(alpha: 0.15),
         borderRadius: AppRadius.brSm,
       ),
       child: Text(
         texto,
-        style: const TextStyle(
-          color: AppColors.primary,
+        style: TextStyle(
+          color: context.c.primary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),

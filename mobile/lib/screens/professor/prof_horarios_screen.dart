@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 
@@ -37,6 +38,17 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
     'Sábado',
     'Domingo',
   ];
+
+  String _diaLabel(String d, AppLocalizations l) => switch (d) {
+    'Segunda' => l.dowFullMon,
+    'Terça' => l.dowFullTue,
+    'Quarta' => l.dowFullWed,
+    'Quinta' => l.dowFullThu,
+    'Sexta' => l.dowFullFri,
+    'Sábado' => l.dowFullSat,
+    'Domingo' => l.dowFullSun,
+    _ => d,
+  };
 
   @override
   void initState() {
@@ -140,7 +152,7 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
   Widget build(BuildContext context) {
     final dias = _diasOrdem.where((d) => _grouped.containsKey(d)).toList();
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,13 +163,17 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                 children: [
                   GestureDetector(
                     onTap: openAppDrawer,
-                    child: Icon(Icons.menu_rounded, color: kText1, size: 26),
+                    child: Icon(
+                      Icons.menu_rounded,
+                      color: context.c.onSurface,
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Text(
-                    'Meus Horários',
+                    context.l10n.profMySchedule,
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -167,17 +183,21 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
             ),
             Expanded(
               child: _loading
-                  ? Center(child: CircularProgressIndicator(color: kPrimary))
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: context.c.primary,
+                      ),
+                    )
                   : dias.isEmpty
                   ? Center(
                       child: Text(
-                        'Nenhum horário encontrado.',
-                        style: TextStyle(color: kText2),
+                        context.l10n.profNoScheduleFound,
+                        style: TextStyle(color: context.c.onSurfaceVariant),
                       ),
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
-                      color: kPrimary,
+                      color: context.c.primary,
                       child: ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -194,9 +214,9 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                   top: 4,
                                 ),
                                 child: Text(
-                                  dia,
+                                  _diaLabel(dia, context.l10n),
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -233,9 +253,11 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                     margin: const EdgeInsets.only(bottom: 8),
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: kSurface,
+                                      color: context.c.surfaceContainer,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: kBorder),
+                                      border: Border.all(
+                                        color: context.c.outline,
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
@@ -245,7 +267,8 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: kPrimary.withOpacity(0.15),
+                                            color: context.c.primary
+                                                .withOpacity(0.15),
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
@@ -253,7 +276,7 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                           child: Text(
                                             horarioStr,
                                             style: TextStyle(
-                                              color: kPrimary,
+                                              color: context.c.primary,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -268,7 +291,7 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                               Text(
                                                 turma,
                                                 style: TextStyle(
-                                                  color: kText1,
+                                                  color: context.c.onSurface,
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -278,7 +301,9 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                                 Text(
                                                   modalidade,
                                                   style: TextStyle(
-                                                    color: kText2,
+                                                    color: context
+                                                        .c
+                                                        .onSurfaceVariant,
                                                     fontSize: 12,
                                                   ),
                                                 ),
@@ -287,7 +312,7 @@ class _ProfHorariosScreenState extends State<ProfHorariosScreen> {
                                         ),
                                         Icon(
                                           Icons.chevron_right_rounded,
-                                          color: kText2,
+                                          color: context.c.onSurfaceVariant,
                                           size: 18,
                                         ),
                                       ],

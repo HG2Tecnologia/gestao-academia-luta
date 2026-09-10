@@ -2,15 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/phone_normalizer.dart';
 import '../../core/widgets.dart';
-
-const _kMsgEvasaoPadrao =
-    'Oi {nome}! Sentimos sua falta nos treinos — faz {dias} dias que você não '
-    'aparece. Está tudo bem? Qualquer coisa que a gente possa fazer pra te '
-    'ajudar a voltar, é só falar. 🥋';
 
 class AdminEvasaoScreen extends StatefulWidget {
   const AdminEvasaoScreen({super.key});
@@ -23,7 +18,7 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
   bool _loading = true;
   bool _erro = false;
   List<Map<String, dynamic>> _lista = [];
-  String _mensagem = _kMsgEvasaoPadrao;
+  String _mensagem = '';
 
   @override
   void initState() {
@@ -125,7 +120,10 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
         .trim()
         .split(' ')
         .first;
-    final texto = _mensagem
+    final base = _mensagem.isNotEmpty
+        ? _mensagem
+        : context.l10n.evasaoDefaultMsg('{nome}', '{dias}');
+    final texto = base
         .replaceAll('{nome}', primeiroNome)
         .replaceAll('{dias}', '${aluno['dias']}');
     final uri = Uri.parse(
@@ -135,8 +133,8 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Não foi possível abrir o WhatsApp.'),
-          backgroundColor: kDanger,
+          content: Text(context.l10n.commonCantOpenWhatsapp),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -147,13 +145,15 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kPrimary)),
+        backgroundColor: context.c.surface,
+        body: Center(
+          child: CircularProgressIndicator(color: context.c.primary),
+        ),
       );
     }
     if (_erro && _lista.isEmpty) {
       return Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         body: SafeArea(
           child: ErroConexao(
             onRetry: () {
@@ -169,10 +169,10 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
     }
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: SafeArea(
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -184,7 +184,7 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                     onTap: () => Navigator.of(context).maybePop(),
                     child: Icon(
                       Icons.arrow_back_rounded,
-                      color: kText1,
+                      color: context.c.onSurface,
                       size: 26,
                     ),
                   ),
@@ -194,16 +194,19 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Risco de evasão',
+                          context.l10n.evasaoRiskTitle,
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                         Text(
                           '${_lista.length} ${_lista.length == 1 ? 'aluno' : 'alunos'} sem treinar há 7+ dias',
-                          style: TextStyle(color: kText2, fontSize: 13),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -216,11 +219,18 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                   padding: const EdgeInsets.only(top: 60),
                   child: Column(
                     children: [
-                      Icon(Icons.celebration_rounded, color: kBorder, size: 56),
+                      Icon(
+                        Icons.celebration_rounded,
+                        color: context.c.outline,
+                        size: 56,
+                      ),
                       const SizedBox(height: 14),
                       Text(
-                        'Ninguém em risco de evasão agora. 🎉',
-                        style: TextStyle(color: kText2, fontSize: 14),
+                        context.l10n.evasaoNobodyAtRisk,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -254,21 +264,21 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: (vermelho ? kDanger : kWarning).withValues(
-              alpha: 0.16,
-            ),
+            backgroundColor:
+                (vermelho ? context.sem.danger : context.sem.warning)
+                    .withValues(alpha: 0.16),
             child: Text(
               iniciais.isEmpty ? '?' : iniciais,
               style: TextStyle(
-                color: vermelho ? kDanger : kWarning,
+                color: vermelho ? context.sem.danger : context.sem.warning,
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
               ),
@@ -282,7 +292,7 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                 Text(
                   nome,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -292,7 +302,10 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                 if ((a['turmas'] as String).isNotEmpty)
                   Text(
                     a['turmas'] as String,
-                    style: TextStyle(color: kText2, fontSize: 12),
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -300,7 +313,7 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
                 Text(
                   '$dias dias sem treinar',
                   style: TextStyle(
-                    color: vermelho ? kDanger : kWarning,
+                    color: vermelho ? context.sem.danger : context.sem.warning,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -313,7 +326,7 @@ class _AdminEvasaoScreenState extends State<AdminEvasaoScreen> {
               onPressed: () => _abrirWhatsApp(a),
               icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 22),
               color: const Color(0xFF25D366),
-              tooltip: 'Chamar no WhatsApp',
+              tooltip: context.l10n.evasaoCallWhatsapp,
             ),
         ],
       ),

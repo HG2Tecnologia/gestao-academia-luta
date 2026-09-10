@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/tab_refresh.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/whats_new_service.dart';
 import 'widgets/belt_icon.dart';
 
@@ -16,28 +16,15 @@ class AlunoShell extends StatefulWidget {
 }
 
 class _AlunoShellState extends State<AlunoShell> {
-  static const _destinos = [
-    (icon: Icons.home_rounded, iconOff: Icons.home_outlined, label: 'Início'),
+  static const _icons = [
+    (on: Icons.home_rounded, off: Icons.home_outlined),
+    (on: Icons.calendar_month_rounded, off: Icons.calendar_month_outlined),
     (
-      icon: Icons.calendar_month_rounded,
-      iconOff: Icons.calendar_month_outlined,
-      label: 'Aulas',
+      on: Icons.workspace_premium_rounded,
+      off: Icons.workspace_premium_outlined,
     ),
-    (
-      icon: Icons.workspace_premium_rounded, // substituído por BeltIcon no build
-      iconOff: Icons.workspace_premium_outlined,
-      label: 'Graduações',
-    ),
-    (
-      icon: Icons.credit_card_rounded,
-      iconOff: Icons.credit_card_outlined,
-      label: 'Financeiro',
-    ),
-    (
-      icon: Icons.person_rounded,
-      iconOff: Icons.person_outline_rounded,
-      label: 'Perfil',
-    ),
+    (on: Icons.credit_card_rounded, off: Icons.credit_card_outlined),
+    (on: Icons.person_rounded, off: Icons.person_outline_rounded),
   ];
 
   @override
@@ -58,21 +45,28 @@ class _AlunoShellState extends State<AlunoShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+    final labels = [
+      l.navHome,
+      l.navLessons,
+      l.navPromotions,
+      l.navBilling,
+      l.navProfile,
+    ];
     return Scaffold(
       body: widget.shell,
       bottomNavigationBar: NavigationBar(
-        backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.18),
+        backgroundColor: context.c.surfaceContainer,
+        indicatorColor: context.c.primary.withValues(alpha: 0.18),
         selectedIndex: widget.shell.currentIndex,
         onDestinationSelected: _navegar,
         destinations: [
-          for (var i = 0; i < _destinos.length; i++)
+          for (var i = 0; i < _icons.length; i++)
             NavigationDestination(
               // Graduações usa a faixa de artes marciais desenhada à mão.
-              icon: i == 2 ? const BeltIcon() : Icon(_destinos[i].iconOff),
-              selectedIcon:
-                  i == 2 ? const BeltIcon() : Icon(_destinos[i].icon),
-              label: _destinos[i].label,
+              icon: i == 2 ? const BeltIcon() : Icon(_icons[i].off),
+              selectedIcon: i == 2 ? const BeltIcon() : Icon(_icons[i].on),
+              label: labels[i],
             ),
         ],
       ),

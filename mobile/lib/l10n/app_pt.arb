@@ -1,0 +1,2129 @@
+{
+  "@@locale": "pt",
+  "appTagline": "Gestão inteligente para academia de lutas",
+  "commonSave": "Salvar",
+  "commonCancel": "Cancelar",
+  "commonDelete": "Excluir",
+  "commonRemove": "Remover",
+  "commonEdit": "Editar",
+  "commonBack": "Voltar",
+  "commonNext": "Avançar",
+  "commonContinue": "Continuar",
+  "commonConfirm": "Confirmar",
+  "commonClose": "Fechar",
+  "commonRetry": "Tentar novamente",
+  "commonUnderstood": "Entendi",
+  "commonRequiredField": "Obrigatório",
+  "commonLoading": "Carregando...",
+  "commonGenericError": "Algo deu errado. Tente novamente.",
+  "commonNoConnection": "Sem conexão com a internet.",
+  "commonMinChars": "Mínimo {count} caracteres",
+  "@commonMinChars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonPasswordsDontMatch": "As senhas não coincidem",
+  "commonInvalidEmail": "E-mail inválido",
+  "commonYes": "Sim",
+  "commonNo": "Não",
+  "commonSeeAll": "Ver todos",
+  "commonSeeAllFem": "Ver todas",
+  "commonDescriptionOptional": "Descrição (opcional)",
+  "commonSaveError": "Erro ao salvar. Tente novamente.",
+  "commonEnterValidValue": "Informe um valor válido",
+  "dashHello": "Olá!",
+  "dashHelloName": "Olá, {name}!",
+  "@dashHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashYourAcademyToday": "Sua academia hoje",
+  "dashActiveStudents": "Alunos ativos",
+  "dashActiveClasses": "Turmas ativas",
+  "dashAttendanceToday": "Presenças hoje",
+  "dashOverdueAccounts": "Inadimplentes",
+  "dashQuickActions": "Ações rápidas",
+  "dashNewStudent": "Novo aluno",
+  "dashNewClass": "Nova turma",
+  "dashMarkAttendance": "Registrar presença",
+  "dashTrialActive": "Trial gratuito ativo",
+  "dashTrialLastDay": "Último dia do trial!",
+  "dashTrialDaysLeft": "{days, plural, one{1 dia restante} other{{days} dias restantes}}",
+  "@dashTrialDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "dashSeePlans": "Ver planos",
+  "dashFreePlan": "Plano Gratuito",
+  "dashFreePlanLimits": "Limite: 3 turmas · 10 alunos/turma · anúncios",
+  "dashSubscribePro": "Assinar PRO",
+  "dashGettingStarted": "Primeiros passos",
+  "dashGettingStartedSubtitle": "Configure sua academia em ordem",
+  "dashStepModality": "Crie uma modalidade",
+  "dashStepModalityDesc": "Ex: Jiu-Jitsu, Muay Thai, Boxe.",
+  "dashStepPlan": "Crie um plano de mensalidade",
+  "dashStepPlanDesc": "Defina valores e periodicidade.",
+  "dashStepInstructor": "Cadastre um professor",
+  "dashStepInstructorDesc": "Turmas precisam de um professor responsável.",
+  "dashStepClass": "Monte uma turma",
+  "dashStepClassDesc": "Agrupe alunos por modalidade e horário.",
+  "dashStepFirstStudent": "Cadastre seu primeiro aluno",
+  "dashStepFirstStudentDesc": "Adicione alunos e matricule nas turmas.",
+  "dashAttendanceWatch": "Risco de evasão",
+  "dashWatchRedSubtitle": "{count, plural, one{1 aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}",
+  "@dashWatchRedSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashWatchYellowSubtitle": "{count, plural, one{1 aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}",
+  "@dashWatchYellowSubtitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashDaysCount": "{days, plural, one{1 dia} other{{days} dias}}",
+  "@dashDaysCount": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "dashSeeAllStudents": "Ver todos os {count} alunos",
+  "@dashSeeAllStudents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashOpenListWhatsapp": "Abrir lista (chamar no WhatsApp)",
+  "dashBirthdays": "Aniversariantes",
+  "dashThisMonth": "Este mês",
+  "dashNearingPromotion": "Próximos de graduar",
+  "dashNearingPromotionSubtitle": "Alunos próximos do mínimo de aulas",
+  "dashNoOneNearingPromotion": "Nenhum aluno próximo da graduação",
+  "dashClassesProgress": "{done}/{needed} aulas",
+  "@dashClassesProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "needed": {
+        "type": "int"
+      }
+    }
+  },
+  "dashEligible": "Apto!",
+  "dashLatestNews": "Últimas notícias",
+  "dashNewModalityTitle": "Nova modalidade",
+  "dashNewModalityHint": "Ex: Jiu-Jitsu, Muay Thai, Boxe, Luta Livre",
+  "dashModalityNameField": "Nome da modalidade",
+  "dashCreateModality": "Criar modalidade",
+  "dashNewPlanTitle": "Novo plano de mensalidade",
+  "dashNewPlanSubtitle": "Defina o valor que seus alunos pagarão.",
+  "dashPlanNameField": "Nome do plano (ex: Mensal, Trimestral)",
+  "dashPlanMonthlyValueField": "Valor mensal (R$)",
+  "dashPlanEnrollmentFeeField": "Taxa de matrícula (opcional)",
+  "dashCreatePlan": "Criar plano",
+  "dashWeeklyFrequency": "Frequência semanal",
+  "dashLast7Days": "Últimos 7 dias",
+  "dashNoAttendance7Days": "Nenhuma presença registrada nos últimos 7 dias.",
+  "dashTotalCount": "{count} total",
+  "@dashTotalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "navHome": "Início",
+  "navDashboard": "Dashboard",
+  "navStudents": "Alunos",
+  "navClasses": "Turmas",
+  "navStaff": "Equipe",
+  "navBilling": "Financeiro",
+  "navRanking": "Ranking",
+  "navMore": "Mais",
+  "menuSectionMain": "PRINCIPAL",
+  "menuSectionOther": "OUTROS",
+  "menuSectionAccount": "CONTA",
+  "menuNews": "Notícias",
+  "menuSettings": "Configurações",
+  "menuSignOut": "Sair",
+  "roleAdmin": "Administrador",
+  "roleStudent": "Aluno",
+  "roleTeacher": "Professor",
+  "roleSecretary": "Secretaria",
+  "psTitle": "Trocar perfil",
+  "psSubtitle": "Escolha quem está usando o app agora",
+  "psInUse": "Em uso",
+  "psAccess": "Acessar",
+  "adminPanelSubtitle": "Painel de Gestão",
+  "signOutConfirmTitle": "Sair da conta?",
+  "signOutConfirmBody": "Você precisará entrar novamente para acessar o app.",
+  "settingsAppearanceSection": "Aparência e idioma",
+  "settingsAppearanceSubtitle": "Ajuste o tema e o idioma do aplicativo.",
+  "settingsLanguage": "Idioma",
+  "settingsTheme": "Tema",
+  "settingsLanguageSheetTitle": "Idioma",
+  "settingsThemeSheetTitle": "Tema",
+  "settingsOptionSystem": "Automático",
+  "settingsOptionSystemLanguageHint": "Segue o idioma do dispositivo",
+  "settingsOptionSystemThemeHint": "Segue o tema do dispositivo",
+  "settingsLanguagePt": "Português (Brasil)",
+  "settingsLanguageEn": "English",
+  "settingsThemeLight": "Claro",
+  "settingsThemeDark": "Escuro",
+  "authWelcomeChooseAccess": "Bem-vindo, escolha sua forma de acesso",
+  "authIAmStudentOrGuardianTitle": "Sou Aluno ou Responsável",
+  "authIAmStudentOrGuardianSubtitle": "Treinos, graduações, financeiro e carteirinha",
+  "authIAmAcademyTitle": "Sou uma Academia",
+  "authIAmAcademySubtitle": "Gerencie alunos, turmas, equipe e financeiro",
+  "authEmailOrPhone": "E-mail ou Telefone",
+  "authPassword": "Senha",
+  "authSignIn": "Entrar",
+  "authForgotPassword": "Esqueci minha senha",
+  "authFirstTimeAccess": "Primeiro acesso",
+  "authCreateAcademy": "Criar uma academia",
+  "authAccessAcademyPanel": "Acesse o painel da sua academia",
+  "authAccessStudentAccount": "Acesse sua conta de aluno ou responsável",
+  "authEnterEmailOrPhone": "Informe seu e-mail ou telefone.",
+  "authInvalidEmailShort": "E-mail inválido.",
+  "authInvalidPhoneExample": "Telefone inválido. Ex: (11) 99999-0000",
+  "authWhichProfile": "Qual perfil deseja acessar?",
+  "authSigningIn": "Autenticando...",
+  "authLoadingYourData": "Carregando seus dados...",
+  "authAlmostThere": "Quase lá...",
+  "authErrWrongCredentials": "E-mail ou senha incorretos. Se nunca acessou pelo app, use \"Esqueci minha senha\" para definir sua senha.",
+  "authErrAccountDisabled": "Esta conta está desativada.",
+  "authErrTooManyRequests": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+  "authErrNetwork": "Sem conexão com a internet.",
+  "authErrGenericSignIn": "Erro ao autenticar. Verifique seus dados e tente novamente.",
+  "authErrTimeout": "Tempo esgotado. Verifique sua conexão e tente novamente.",
+  "authErrProfileNotFound": "Perfil de aluno não encontrado.",
+  "authErrAccountInactive": "Seu cadastro está inativo. Entre em contato com a secretaria.",
+  "authErrAppAccessSuspended": "Seu acesso ao app está suspenso. Entre em contato com a secretaria.",
+  "authErrBlockedOverdue": "Acesso bloqueado: mensalidade vencida. Regularize seu pagamento e tente novamente.",
+  "forgotTitle": "Esqueci minha senha",
+  "forgotHeadline": "Recuperar acesso",
+  "forgotInstruction": "Informe seu e-mail e enviaremos um link para você criar uma nova senha.",
+  "forgotEmailLabel": "E-mail",
+  "forgotEmailHint": "seu@email.com",
+  "forgotSendButton": "Enviar link de recuperação",
+  "forgotSentTitle": "E-mail enviado!",
+  "forgotSentBody": "Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.",
+  "forgotErrEmailNotFound": "Nenhuma conta encontrada com esse e-mail.",
+  "forgotErrInvalidEmail": "E-mail inválido.",
+  "forgotErrTooManyRequests": "Muitas tentativas. Aguarde alguns minutos.",
+  "forgotErrSendFailed": "Erro ao enviar e-mail. Tente novamente.",
+  "forgotErrUnexpected": "Erro inesperado. Tente novamente.",
+  "changePwTitle": "Alterar Senha",
+  "changePwHint": "Use no mínimo 6 caracteres com letras e números.",
+  "changePwCurrentLabel": "Senha atual",
+  "changePwCurrentHint": "Digite sua senha atual",
+  "changePwNewLabel": "Nova senha",
+  "changePwNewHint": "Digite a nova senha",
+  "changePwConfirmLabel": "Confirmar nova senha",
+  "changePwConfirmHint": "Repita a nova senha",
+  "changePwMustBeDifferent": "A nova senha deve ser diferente da atual",
+  "changePwSuccess": "Senha alterada com sucesso!",
+  "changePwErrWrongCurrent": "Senha atual incorreta.",
+  "changePwErrWeak": "A nova senha é muito fraca.",
+  "changePwErrGeneric": "Erro ao alterar senha. Tente novamente.",
+  "studentsSearchHint": "Buscar aluno...",
+  "studentsEmpty": "Nenhum aluno encontrado.",
+  "studentsLoadError": "Não foi possível carregar os alunos.",
+  "studentNoBelt": "Sem graduação",
+  "statusActive": "Ativo",
+  "statusInactive": "Inativo",
+  "finUpToDate": "Em dia",
+  "finPending": "Pendente",
+  "finOverdue": "Inadimplente",
+  "medicalCertificateShort": "Atestado",
+  "stripeLabel": "{count}º Grau",
+  "@stripeLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sdTitleFallback": "Aluno",
+  "sdActivate": "Ativar",
+  "sdDeactivate": "Desativar",
+  "sdNoAccessTitle": "Você não tem acesso a este aluno.",
+  "sdNoAccessBody": "Só é possível abrir alunos das suas turmas.",
+  "sdNotFound": "Aluno não encontrado.",
+  "sdLoadError": "Erro ao carregar aluno.",
+  "sdName": "Nome",
+  "sdEmail": "E-mail",
+  "sdPhone": "Telefone",
+  "sdBirthDate": "Nascimento",
+  "sdBeltSection": "Graduação",
+  "sdPromote": "Graduar",
+  "sdCurrentBelt": "Faixa atual",
+  "sdNoGraduation": "Nenhuma graduação",
+  "sdLevelXp": "Nível / XP",
+  "sdPlanSection": "Plano",
+  "sdNoPlan": "Nenhum plano vinculado.",
+  "sdMonthlyValue": "Valor mensal",
+  "sdDueDate": "Vencimento",
+  "sdEveryDayN": "Todo dia {day}",
+  "@sdEveryDayN": {
+    "placeholders": {
+      "day": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdAppAccessSection": "Acesso ao App",
+  "sdAccessBlocked": "Acesso bloqueado",
+  "sdAccessAllowed": "Acesso liberado",
+  "sdAccessBlockedHint": "Aluno não consegue entrar no app.",
+  "sdAccessAllowedHint": "Aluno pode usar o app normalmente.",
+  "sdResetPassword": "Redefinir senha",
+  "sdGenerateAccess": "Gerar acesso ao app",
+  "sdGenerateAccessHint": "Gere a senha temporária para o aluno entrar direto pelo telefone ou e-mail cadastrado, sem \"primeiro acesso\".",
+  "sdThisStudent": "este aluno",
+  "sdMedicalCertSection": "Atestado Médico",
+  "sdCertNone": "Sem atestado",
+  "sdCertPending": "Aguardando aprovação",
+  "sdCertApproved": "Aprovado",
+  "sdCertRejected": "Rejeitado",
+  "sdCertExpired": "Expirado",
+  "sdCertUnknown": "Desconhecido",
+  "sdValidity": "Validade",
+  "sdReason": "Motivo",
+  "sdViewCert": "Ver Atestado",
+  "sdApprove": "Aprovar",
+  "sdReject": "Rejeitar",
+  "sdAttach": "Anexar",
+  "sdRemind": "Lembrar",
+  "sdRejectReasonTitle": "Motivo da rejeição",
+  "sdRejectReasonHint": "Ex: atestado inválido, fora da validade...",
+  "sdFileUnavailable": "Arquivo não disponível.",
+  "sdFileOpenFailed": "Não foi possível abrir o arquivo.",
+  "sdFileOpenError": "Erro ao abrir o arquivo.",
+  "sdCertApprovedToast": "Atestado aprovado!",
+  "sdCertRejectedToast": "Atestado rejeitado.",
+  "sdCertReminderTitle": "Atestado médico pendente",
+  "sdCertReminderBody": "Apresente seu atestado médico à academia para regularizar sua situação.",
+  "sdReminderSent": "Lembrete enviado ao aluno!",
+  "sdReminderError": "Erro ao enviar lembrete.",
+  "sdFileTooLarge": "Arquivo muito grande. Máx 5 MB.",
+  "sdCertAttached": "Atestado anexado e aprovado!",
+  "sdCertAttachError": "Erro ao anexar atestado.",
+  "sdFamilySection": "Grupo Familiar",
+  "sdAdd": "Adicionar",
+  "sdLeave": "Sair",
+  "sdNoFamily": "Não vinculado a nenhum grupo familiar.",
+  "sdCreateGroup": "Criar grupo",
+  "sdLinkExisting": "Vincular existente",
+  "sdGuardian": "Responsável",
+  "sdNoOtherMembers": "Nenhum outro membro no grupo.",
+  "sdCreateFamilyTitle": "Criar Grupo Familiar",
+  "sdCreateFamilyHint": "O aluno será adicionado automaticamente ao grupo.",
+  "sdFamilyNameHint": "Ex: Família Silva",
+  "sdCreate": "Criar",
+  "sdCreateGroupError": "Erro ao criar grupo.",
+  "sdNoGroupsYet": "Nenhum grupo cadastrado ainda.",
+  "sdSelectGroup": "Selecionar Grupo",
+  "sdMemberCount": "{count, plural, one{1 membro} other{{count} membros}}",
+  "@sdMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sdLinkGroupError": "Erro ao vincular grupo.",
+  "sdAddMember": "Adicionar Membro",
+  "sdAddMemberError": "Erro ao adicionar membro.",
+  "sdRemoveMember": "Remover membro",
+  "sdRemoveMemberBody": "Remover {name} do grupo?",
+  "@sdRemoveMemberBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sdRemoveMemberError": "Erro ao remover membro.",
+  "sdLeaveGroup": "Sair do grupo",
+  "sdLeaveGroupBody": "Remover este aluno do grupo \"{name}\"?",
+  "@sdLeaveGroupBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sdLeaveGroupError": "Erro ao sair do grupo.",
+  "sdSetGuardian": "Definir responsável",
+  "sdSetGuardianBody": "Definir {name} como responsável financeiro do grupo?",
+  "@sdSetGuardianBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sdSetGuardianError": "Erro ao definir responsável.",
+  "sdView": "Visualizar",
+  "sdFill": "Preencher",
+  "sdParqEmpty": "PAR-Q não preenchido.",
+  "sdParqMedicalRecommended": "Avaliação médica recomendada",
+  "sdParqNoRisk": "Sem indicações de risco",
+  "sdParqFilledOn": "Preenchido em {date}",
+  "@sdParqFilledOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "sdParqFillTitle": "Preencher PAR-Q",
+  "sdParqEditTitle": "Editar PAR-Q",
+  "sdParqInstruction": "Responda \"Sim\" ou \"Não\" a cada pergunta. Preenchimento feito pela academia em nome do aluno.",
+  "sdParqQuestionnaire": "QUESTIONÁRIO",
+  "sdParqTerm": "TERMO DE RESPONSABILIDADE",
+  "sdParqTermBody": "Declaro que estou ciente de que é recomendável conversar com um médico, antes de iniciar ou aumentar o nível de atividade física pretendido, assumindo plena responsabilidade pela realização de qualquer atividade física sem o atendimento desta recomendação.",
+  "sdFullNameRequired": "Nome completo *",
+  "sdParqFillNameCpf": "Preencha nome e CPF.",
+  "sdParqSaved": "PAR-Q salvo com sucesso!",
+  "sdParqSaveError": "Erro ao salvar PAR-Q.",
+  "sdParqSaveBtn": "Salvar PAR-Q",
+  "sdParqUpdateBtn": "Atualizar PAR-Q",
+  "sdParqQ1": "Algum médico já disse que você possui algum problema de coração ou pressão arterial, e que somente deveria realizar atividade física supervisionado por profissionais de saúde?",
+  "sdParqQ2": "Você sente dores no peito quando pratica atividade física?",
+  "sdParqQ3": "No último mês, você sentiu dores no peito ao praticar atividade física?",
+  "sdParqQ4": "Você apresenta algum desequilíbrio devido à tontura e/ou perda momentânea da consciência?",
+  "sdParqQ5": "Você possui algum problema ósseo ou articular, que pode ser afetado ou agravado pela atividade física?",
+  "sdParqQ6": "Você toma atualmente algum tipo de medicação de uso contínuo?",
+  "sdParqQ7": "Você realiza algum tipo de tratamento médico para pressão arterial ou problemas cardíacos?",
+  "sdParqQ8": "Você realiza algum tratamento médico contínuo, que possa ser afetado ou prejudicado com a atividade física?",
+  "sdParqQ9": "Você já se submeteu a algum tipo de cirurgia, que comprometa de alguma forma a atividade física?",
+  "sdParqQ10": "Sabe de alguma outra razão pela qual a atividade física possa eventualmente comprometer sua saúde?",
+  "sdGradWhat": "O que deseja fazer?",
+  "sdGiveStripe": "Dar Grau",
+  "sdGiveStripeHint": "Incrementar grau na mesma faixa atual",
+  "sdNewBelt": "Nova Faixa",
+  "sdNewBeltHint": "Selecionar uma faixa diferente",
+  "sdSelectModality": "Selecione a modalidade",
+  "sdSelectBelt": "Selecione a faixa — {mod}",
+  "@sdSelectBelt": {
+    "placeholders": {
+      "mod": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdNoBeltsAvailable": "Nenhuma faixa disponível.",
+  "sdNext": "Próximo",
+  "sdStripe": "Grau",
+  "sdNoStripe": "Sem grau",
+  "sdObsOptional": "Observação (opcional)",
+  "sdGenerateCharge": "Gerar cobrança financeira",
+  "sdChargeAmount": "Valor da cobrança (R$)",
+  "sdPromoteStudent": "Graduar Aluno",
+  "sdConfirmPromotion": "Confirmar Graduação",
+  "sdPromotedToast": "{name} graduado para {belt}!",
+  "@sdPromotedToast": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      },
+      "belt": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdPromoteError": "Erro ao graduar.",
+  "sdLinkToClass": "Vincular a uma Turma",
+  "sdAlreadyLinked": "Já vinculado",
+  "sdLinkedToast": "Vinculado à {turma}!",
+  "@sdLinkedToast": {
+    "placeholders": {
+      "turma": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdLinkError": "Erro ao vincular.",
+  "sdLink": "Vincular",
+  "sdEditStudent": "Editar Aluno",
+  "sdPersonalData": "Dados pessoais",
+  "sdEditAccessWarning": "Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.",
+  "sdCpfOptional": "CPF (opcional)",
+  "sdBirthDateField": "Data de nascimento (DD/MM/AAAA)",
+  "sdGuardianEmergency": "Responsável / Emergência",
+  "sdContactName": "Nome do contato",
+  "sdContactPhone": "Telefone do contato",
+  "sdBillingPlan": "Plano financeiro",
+  "sdSelectPlan": "Selecionar Plano",
+  "sdNoPlanOption": "Sem plano",
+  "sdPerMonth": "R$ {value} / mês",
+  "@sdPerMonth": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "sdSelectPlanPlaceholder": "Selecionar plano",
+  "sdDueDayField": "Dia de vencimento (1-31)",
+  "sdNameRequired": "Nome é obrigatório.",
+  "sdPhoneInvalid": "Telefone inválido.",
+  "sdStudentUpdated": "Aluno atualizado com sucesso!",
+  "sdStudentUpdateError": "Erro ao atualizar aluno.",
+  "sdSaveChanges": "Salvar alterações",
+  "sdPoints": "Pontos",
+  "sdRankingsHint": "Toque em \"Pontos\" para lançar pontos em um ranking personalizado.",
+  "sdAddPoints": "Lançar Pontos",
+  "sdNoManualRankings": "Nenhum ranking com pontos manuais ativo.",
+  "sdPointsAmount": "Quantidade de pontos",
+  "sdPointsAddedToast": "{count, plural, one{1 ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}",
+  "@sdPointsAddedToast": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sdPointsError": "Erro ao lançar pontos.",
+  "sdEmergencyContact": "Contato de Emergência",
+  "sdNoClasses": "Nenhuma turma vinculada.",
+  "sdBeltHistory": "Histórico de Graduações",
+  "sdNoBeltHistory": "Nenhuma graduação registrada.",
+  "sdRemovePromotionTitle": "Remover graduação?",
+  "sdRemovePromotionBody": "Esta ação remove \"{label}\" do histórico de graduações e não pode ser desfeita.",
+  "@sdRemovePromotionBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "sdPromotionRemoved": "Graduação removida.",
+  "sdPromotionRemoveError": "Erro ao remover graduação.",
+  "sdEditPromotion": "Editar graduação",
+  "sdBelt": "Faixa",
+  "sdExamDate": "Data do exame",
+  "sdDateMask": "DD/MM/AAAA",
+  "sdNotesOptional": "Observações (opcional)",
+  "sdNotes": "Observações",
+  "sdDateFormatError": "Informe a data no formato DD/MM/AAAA.",
+  "sdPromotionUpdated": "Graduação atualizada.",
+  "sdCheckHistory": "Verifique o histórico",
+  "sdPromotionEditError": "Erro ao editar graduação.",
+  "sdSaveCorrection": "Salvar correção",
+  "sdPhotoError": "Erro ao salvar foto.",
+  "sdActivateConfirm": "Deseja ativar {name}?",
+  "@sdActivateConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdDeactivateConfirm": "Deseja desativar {name}?",
+  "@sdDeactivateConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdStatusChangeError": "Erro ao alterar status.",
+  "sdAllowAccessConfirm": "Liberar o acesso ao app de {name}?",
+  "@sdAllowAccessConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdBlockAccessConfirm": "Bloquear o acesso ao app de {name}?",
+  "@sdBlockAccessConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdAccessChangeError": "Erro ao alterar acesso.",
+  "sdBeltsLoadError": "Não foi possível carregar as faixas dessa modalidade.",
+  "commonMenu": "Menu",
+  "classesSubtitle": "Gerencie suas turmas e acompanhe a evolução dos alunos.",
+  "classesSearchHint": "Buscar turma...",
+  "attendanceReport": "Relatório de presenças",
+  "classesEmpty": "Nenhuma turma encontrada.",
+  "classesMoreTitle": "Mais turmas, mais histórias",
+  "classesMoreSubtitle": "Cadastre novas turmas e mantenha toda a sua academia organizada.",
+  "classesEmptyState": "Você ainda não possui turmas cadastradas.",
+  "classesCreateFirst": "Criar primeira turma",
+  "classesLoadError": "Não foi possível carregar as informações.",
+  "classStatusActive": "Ativa",
+  "classStatusInactive": "Inativa",
+  "classInstructorPrefix": "Prof. {name}",
+  "@classInstructorPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "classCapacitySuffix": " / {cap} alunos",
+  "@classCapacitySuffix": {
+    "placeholders": {
+      "cap": {
+        "type": "String"
+      }
+    }
+  },
+  "takeAttendance": "Fazer chamada",
+  "viewDetails": "Ver detalhes",
+  "editClass": "Editar turma",
+  "noSchedule": "Sem horários definidos",
+  "scheduleCount": "{count, plural, one{1 horário} other{{count} horários}}",
+  "@scheduleCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editClassTitle": "Editar Turma",
+  "newClassTitle": "Nova Turma",
+  "classNameField": "Nome da Turma",
+  "modality": "Modalidade",
+  "level": "Nível",
+  "instructorOptional": "Professor (opcional)",
+  "noInstructor": "Sem professor",
+  "maxCapacity": "Capacidade máxima",
+  "invalidNumber": "Número inválido",
+  "classActiveToggle": "Turma ativa",
+  "classEditError": "Erro ao editar turma",
+  "classCreateError": "Erro ao criar turma",
+  "levelBeginner": "Iniciante",
+  "levelIntermediate": "Intermediário",
+  "levelAdvanced": "Avançado",
+  "levelAll": "Todos os níveis",
+  "dowSun": "Dom",
+  "dowMon": "Seg",
+  "dowTue": "Ter",
+  "dowWed": "Qua",
+  "dowThu": "Qui",
+  "dowFri": "Sex",
+  "dowSat": "Sáb",
+  "attendanceReportTitle": "Relatório de Presenças",
+  "noClassesRegistered": "Nenhuma turma cadastrada.",
+  "periodLabel": "Período",
+  "periodDaysCount": "{count} dias",
+  "@periodDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "periodCustom": "Personalizado",
+  "totalSessions": "Total de Aulas",
+  "avgAttendance": "Frequência média",
+  "studentAttendanceCount": "Frequência dos alunos ({count})",
+  "@studentAttendanceCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noSessionsInPeriod": "Não há aulas registradas neste período.\nSelecione outro intervalo para ver a frequência.",
+  "noStudentsInClass": "Nenhum aluno matriculado nesta turma.",
+  "sortBy": "Ordenar por",
+  "sortAttendanceDesc": "Maior frequência",
+  "sortAttendanceAsc": "Menor frequência",
+  "sortNameAsc": "Nome (A–Z)",
+  "sortNameDesc": "Nome (Z–A)",
+  "presentCount": "{count, plural, one{1 presença} other{{count} presenças}}",
+  "@presentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "absentCount": "{count, plural, one{1 falta} other{{count} faltas}}",
+  "@absentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attendanceA11y": "{name}, {pct}% de frequência, {present} presenças, {absent} faltas",
+  "@attendanceA11y": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      },
+      "present": {
+        "type": "int"
+      },
+      "absent": {
+        "type": "int"
+      }
+    }
+  },
+  "dowFullSun": "Domingo",
+  "dowFullMon": "Segunda",
+  "dowFullTue": "Terça",
+  "dowFullWed": "Quarta",
+  "dowFullThu": "Quinta",
+  "dowFullFri": "Sexta",
+  "dowFullSat": "Sábado",
+  "tdTabAttendance": "Presença",
+  "tdTabSchedule": "Horários",
+  "tdDeleteClass": "Excluir turma",
+  "tdClassNotFound": "Turma não encontrada",
+  "tdClassLoadError": "Erro ao carregar turma",
+  "tdClassFallback": "Turma",
+  "tdEnrolledStudents": "Alunos matriculados",
+  "tdSortPrefix": "Ordenar: ",
+  "tdAddStudent": "Adicionar aluno",
+  "tdDragToReorder": "Segure e arraste para reordenar",
+  "tdEligibleToPromote": "Apto para graduar",
+  "tdAttendancesLabel": "presenças",
+  "tdSortStudents": "Ordenar alunos",
+  "tdReorderByDrag": "Reordenar arrastando",
+  "tdReorderHint": "Segure e arraste os alunos para montar a ordem da turma",
+  "tdOrderSaved": "Ordem da turma salva.",
+  "tdOrderSaveError": "Não foi possível salvar a ordem.",
+  "tdOrdManual": "Ordem personalizada",
+  "tdOrdBeltDesc": "Graduação (mais alta)",
+  "tdOrdBeltAsc": "Graduação (mais baixa)",
+  "tdOrdEnrollOld": "Matrícula (mais antiga)",
+  "tdOrdEnrollNew": "Matrícula (mais recente)",
+  "tdOrdAttendDesc": "Mais presenças",
+  "tdOrdAttendAsc": "Menos presenças",
+  "tdPresentToday": "Presentes hoje",
+  "tdDayAttendanceRate": "Frequência do dia",
+  "tdMarkAll": "Marcar todos",
+  "tdNoStudentsForAttendance": "Não há alunos matriculados para realizar a chamada.",
+  "tdOffScheduleDay": "Dia fora do horário",
+  "tdOffScheduleAllBody": "Hoje não é o dia de treino cadastrado para essa turma. Marcar presença de todos para {day}?",
+  "@tdOffScheduleAllBody": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "tdOffScheduleOneBody": "Hoje não é o dia de treino cadastrado para essa turma. Deseja mesmo confirmar presença para {day}?",
+  "@tdOffScheduleOneBody": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "tdConfirmAnyway": "Confirmar assim mesmo",
+  "tdAttendanceAllMarked": "Presença registrada para todos.",
+  "tdAttendanceSomeFailed": "Alguns não foram registrados ({count}). Tente novamente.",
+  "@tdAttendanceSomeFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tdEnrollIdNotFound": "ID de matrícula não encontrado.",
+  "tdRemoveStudent": "Remover aluno",
+  "tdRemoveStudentBody": "Deseja remover {name} desta turma?",
+  "@tdRemoveStudentBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tdStudentRemoved": "{name} removido da turma.",
+  "@tdStudentRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tdRemoveStudentError": "Erro ao remover aluno.",
+  "tdPresent": "Presente",
+  "tdMark": "Marcar",
+  "tdAttendanceMarked": "Presença registrada!",
+  "tdAttendanceMarkError": "Erro ao registrar presença.",
+  "tdUndoAttendance": "Desfazer presença",
+  "tdUndoAttendanceBody": "Deseja remover a presença de {name} nesta data?",
+  "@tdUndoAttendanceBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tdAttendanceRemoved": "Presença removida.",
+  "tdAttendanceRemoveError": "Erro ao remover presença.",
+  "tdToday": "Hoje",
+  "tdYesterday": "Ontem",
+  "tdWeeklyScheduleCount": "{count, plural, one{1 horário semanal} other{{count} horários semanais}}",
+  "@tdWeeklyScheduleCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tdClassSchedule": "Horários da turma",
+  "tdNewSchedule": "Novo horário",
+  "tdNoSchedules": "Nenhum horário cadastrado.",
+  "tdAddFirstSchedule": "Adicionar primeiro horário",
+  "tdRoomN": "Sala {room}",
+  "@tdRoomN": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "tdListAnd": " e ",
+  "tdDeleteScheduleTitle": "Excluir horário?",
+  "tdDeleteScheduleBody": "Este horário será removido da turma.",
+  "tdScheduleRemoveError": "Erro ao remover horário.",
+  "tdEditScheduleTitle": "Editar Horário",
+  "tdNewScheduleTitle": "Novo Horário",
+  "tdWeekday": "Dia da semana",
+  "tdWeekdays": "Dias da semana",
+  "tdStart": "Início",
+  "tdRoomOptional": "Sala (opcional)",
+  "tdSelectDayAndTime": "Selecione ao menos um dia e os horários.",
+  "tdScheduleEditError": "Erro ao editar horário.",
+  "tdScheduleCreateError": "Erro ao criar horário.",
+  "tdEnrollStudent": "Matricular aluno",
+  "tdNoStudentsAvailable": "Nenhum aluno disponível.",
+  "tdEnrollError": "Erro ao matricular aluno.",
+  "tdThisClass": "esta turma",
+  "tdDeleteClassConfirm": "Excluir \"{name}\"?",
+  "@tdDeleteClassConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tdDeleteClassBody": "A turma some das listagens ativas e as matrículas em aberto são encerradas. Alunos, presenças e graduações continuam no histórico — nada é apagado.",
+  "tdClassDeletedWithEnroll": "Turma excluída. {count} matrícula(s) encerrada(s).",
+  "@tdClassDeletedWithEnroll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tdClassDeleted": "Turma excluída.",
+  "tdClassDeleteError": "Erro ao excluir turma.",
+  "tdClassQrTitle": "QR Code da Turma",
+  "tdQrSubtitle": "Alunos escaneiam para registrar presença",
+  "tdQrValidity": "Válido apenas no horário da aula",
+  "caTitle": "Contas da Academia",
+  "caLoadError": "Erro ao carregar contas.",
+  "caMarkPaidError": "Erro ao marcar como paga.",
+  "caDeleteTitle": "Excluir conta",
+  "caDeleteBody": "Deseja excluir \"{desc}\"?",
+  "@caDeleteBody": {
+    "placeholders": {
+      "desc": {
+        "type": "String"
+      }
+    }
+  },
+  "caNewBill": "Nova conta",
+  "caEditBill": "Editar conta",
+  "caDescHint": "Descrição (ex: Conta de luz)",
+  "caAmountHint": "Valor (R$)",
+  "caDueOn": "Vencimento: {date}",
+  "@caDueOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "caRecurring": "Conta recorrente (todo mês)",
+  "caSaveBill": "Salvar conta",
+  "caToPay": "A pagar",
+  "caOverdue": "Atrasado",
+  "caFilterAll": "Todas",
+  "caFilterPending": "Pendentes",
+  "caFilterOverdue": "Atrasadas",
+  "caFilterPaid": "Pagas",
+  "caEmpty": "Nenhuma conta cadastrada",
+  "caStPaid": "Paga",
+  "caStOverdue": "Atrasada",
+  "caStCancelled": "Cancelada",
+  "caStPending": "Pendente",
+  "caCategoryDueOn": "{cat} · vence em {date}",
+  "@caCategoryDueOn": {
+    "placeholders": {
+      "cat": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "caMarkAsPaid": "Marcar como paga",
+  "caCatWater": "Água",
+  "caCatPower": "Luz",
+  "caCatRent": "Aluguel",
+  "caCatInternet": "Internet",
+  "caCatOther": "Outros",
+  "raTitle": "Relatório Anual",
+  "raLoadError": "Não foi possível carregar o relatório.",
+  "raYearOverview": "Visão geral do ano",
+  "raNoMovement": "Nenhuma movimentação financeira encontrada em {year}.",
+  "@raNoMovement": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "raMonthlyRevenue": "Receita mensal",
+  "raOverdueCount": "Inadimplentes ({count})",
+  "@raOverdueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "raNoOverdue": "Nenhum inadimplente neste período.",
+  "raPrevYear": "Ano anterior",
+  "raNextYear": "Próximo ano",
+  "raReceivedYear": "Recebido no ano",
+  "raChargesCount": "{count, plural, one{1 cobrança} other{{count} cobranças}}",
+  "@raChargesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "raOverdue": "Inadimplentes",
+  "raOutstanding": "Em aberto",
+  "raReceived": "Recebido",
+  "raNoRevenueYear": "Sem receita registrada em {year}.",
+  "@raNoRevenueYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "raDaysOverdue": "{count, plural, one{1 dia de atraso} other{{count} dias de atraso}}",
+  "@raDaysOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "raUnknownStudent": "Aluno não identificado",
+  "raBarTooltip": "{month} {year}\nRecebido: {received}\nPendente: {pending}\nTotal: {total}",
+  "@raBarTooltip": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "int"
+      },
+      "received": {
+        "type": "String"
+      },
+      "pending": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "fiStPending": "Pendente",
+  "fiStPaid": "Pago",
+  "fiStOverdue": "Atrasado",
+  "fiStForecast": "Previsto",
+  "fiStDismissed": "Desconsiderado",
+  "fiTypeMonthly": "Mensalidade",
+  "fiTypeEnrollment": "Taxa de Matrícula",
+  "fiReportTab": "Relatório",
+  "fiGenerateCharges": "Gerar cobranças",
+  "fiGenerateCharge": "Gerar cobrança",
+  "fiNewCharge": "Nova cobrança",
+  "fiCurrentMonth": "Mês atual",
+  "fiNoCharges": "Nenhuma cobrança.",
+  "fiChargesCount": "Cobranças · {count}",
+  "@fiChargesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiTabAll": "Todos",
+  "fiTabPending": "Pendentes",
+  "fiTabOverdue": "Atrasados",
+  "fiTabPaid": "Pagos",
+  "fiTabDismissed": "Desconsiderados",
+  "fiDueOn": "Venc. {date}",
+  "@fiDueOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "fiLateFee": "+ Taxa de atraso: {value}",
+  "@fiLateFee": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fiDiscount": "- Desconto: {value}",
+  "@fiDiscount": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fiReceivedAmount": "Recebido: {value}",
+  "@fiReceivedAmount": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "fiMarkPaid": "Marcar como pago",
+  "fiRefund": "Estornar pagamento",
+  "fiRefundTitle": "Estornar pagamento?",
+  "fiRefundBody": "Isso vai marcar o pagamento de {name} como pendente novamente.",
+  "@fiRefundBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fiRefundDone": "Pagamento estornado.",
+  "fiRestoreCharge": "Restaurar cobrança",
+  "fiDismissTitle": "Desconsiderar cobrança?",
+  "fiDismissBody": "A cobrança de {name} não será mais cobrada e sai dos totais do financeiro. Você pode restaurá-la depois.",
+  "@fiDismissBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fiDeleteCharge": "Excluir cobrança",
+  "fiDeleteChargeBody": "Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.",
+  "fiMarkedPaid": "{name} marcado como pago!",
+  "@fiMarkedPaid": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fiUpdateError": "Erro ao atualizar pagamento.",
+  "fiConfirmPayment": "Confirmar pagamento",
+  "fiBaseValue": "Valor base",
+  "fiToReceive": "A receber",
+  "fiDiscountOptional": "Desconto (opcional)",
+  "fiLoadError": "Erro ao carregar dados.",
+  "fiProcessError": "Erro ao processar cobranças.",
+  "fiCreateError": "Erro ao criar cobrança.",
+  "fiChargeCreated": "Cobrança criada!",
+  "fiChargeViaWhatsapp": "Cobrar via WhatsApp",
+  "fiChargeViaWhatsappN": "Cobrar via WhatsApp ({count})",
+  "@fiChargeViaWhatsappN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiGenerateNCharges": "{count, plural, one{Gerar 1 cobrança} other{Gerar {count} cobranças}}",
+  "@fiGenerateNCharges": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiAffectedStudents": "{count, plural, one{1 aluno afetado} other{{count} alunos afetados}}",
+  "@fiAffectedStudents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiSeeAffected": "Ver alunos afetados",
+  "fiNoStudentsForFilter": "Nenhum aluno corresponde a este filtro.",
+  "fiNChargesGenerated": "{count, plural, one{1 cobrança gerada} other{{count} cobranças geradas}}",
+  "@fiNChargesGenerated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiReadyForWhatsapp": "Pronto para cobrar via WhatsApp!",
+  "fiTapEachStudent": "Toque em cada aluno para abrir o WhatsApp com uma mensagem pronta.",
+  "fiNoPhone": "Sem telefone",
+  "fiSelectClass": "Selecione a turma",
+  "fiFilterBySituation": "Filtrar por situação",
+  "fiSelectStudent": "Selecione o aluno",
+  "fiWhatsappGreeting": "Olá {name}, ",
+  "@fiWhatsappGreeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fiOptNoChargeMonth": "Sem cobrança este mês",
+  "fiOptDueWithin7": "Venc. em até 7 dias",
+  "fiChooseWhoToCharge": "Escolha quem deve ser cobrado:",
+  "fiByClass": "Por turma",
+  "fiByClassHint": "Cobrar alunos de uma turma específica",
+  "fiAllActive": "Todos os ativos",
+  "fiAllActiveHint": "Cobrar todos os alunos ativos da academia",
+  "fiRefundShort": "Estornar",
+  "fiDismiss": "Desconsiderar",
+  "fiBillsShort": "Contas",
+  "fiType": "Tipo",
+  "rkNoData": "Sem dados no ranking",
+  "rkNoCustom": "Nenhum ranking personalizado",
+  "rkCreateHint": "Crie um ranking por presença ou pontos.",
+  "rkCreate": "Criar ranking",
+  "rkNewRanking": "Novo ranking",
+  "rkEditRanking": "Editar ranking",
+  "rkAskAdmin": "Peça ao administrador que crie rankings personalizados.",
+  "rkGeneralRanking": "Ranking Geral",
+  "rkCustomTab": "Personalizados",
+  "rkWeightAttendance": "Presenças ×{n}",
+  "@rkWeightAttendance": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "rkWeightManual": "Manual ×{n}",
+  "@rkWeightManual": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "rkWithPeriod": "📅 Com período",
+  "rkAddPoints": "Lançar pontos",
+  "rkNoParticipants": "Sem participantes",
+  "rkNobodyScored": "Ninguém pontuou neste ranking ainda.",
+  "rkAddPointsError": "Erro ao lançar pontos",
+  "rkInvalidValue": "Valor inválido",
+  "rkReasonOptional": "Motivo (opcional)",
+  "rkReasonHint1": "Ex: Vitória no campeonato",
+  "rkUpdateError": "Erro ao atualizar",
+  "rkTapPlus": "Toque em + para criar seu primeiro ranking",
+  "rkAcademyNotFound": "Academia não encontrada.",
+  "rkNameRequired": "Nome do ranking *",
+  "rkPointsComposition": "Composição dos pontos",
+  "rkIncludeAttendance": "Incluir presenças",
+  "rkEachAttendanceCounts": "Cada presença conta como pontos",
+  "rkAttendanceWeight": "Peso de cada presença:",
+  "rkIncludeManual": "Incluir pontos manuais",
+  "rkManualHint": "Pontos lançados manualmente pelo professor/admin",
+  "rkManualWeight": "Peso dos pontos manuais:",
+  "rkValidityPeriod": "Período de validade",
+  "rkOutsidePeriodIgnored": "Presenças fora deste período serão ignoradas no cálculo.",
+  "rkStartDate": "Data início",
+  "rkEndDate": "Data fim",
+  "rkRemoveEntryTitle": "Remover lançamento?",
+  "rkRemoveEntryBody": "Este lançamento será removido permanentemente.",
+  "rkEntries": "Lançamentos",
+  "rkNoParticipantsYet": "Nenhum participante ainda",
+  "rkPtsAttendance": "{n}pts presenças",
+  "@rkPtsAttendance": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "rkPtsManual": "{n}pts manuais",
+  "@rkPtsManual": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "rkNoPointsYet": "Nenhum ponto lançado ainda",
+  "rkUseButtonBelow": "Use o botão abaixo para lançar pontos",
+  "rkEnterPoints": "Informe a quantidade de pontos",
+  "rkMustNotBeZero": "Deve ser diferente de zero",
+  "rkPointsHint": "Pontos (ex: 10, -5)",
+  "rkDescribeReason": "Descreva o motivo",
+  "rkReasonHint2": "Motivo (ex: 1º lugar no torneio X)",
+  "rkConfirmEntry": "Confirmar lançamento",
+  "rkViewLeaderboardAddPoints": "Ver leaderboard e lançar pontos",
+  "rkNoRankings": "Nenhum ranking criado",
+  "rkVisibleStudentShort": "Visível aluno",
+  "rkVisibleToStudents": "Visível para os alunos",
+  "rkVisibleHint": "Os alunos poderão ver este ranking no app",
+  "rkByOn": "por {name} • {date}",
+  "rkManage": "Gerenciar",
+  "rkVisibility": "Visibilidade",
+  "newsNew": "Nova notícia",
+  "newsPublished": "Notícia publicada!",
+  "newsPublishError": "Erro ao publicar.",
+  "newsDeleteTitle": "Excluir notícia?",
+  "newsDeleteBody": "Esta ação não pode ser desfeita.",
+  "newsDeleteError": "Erro ao excluir.",
+  "newsEmpty": "Nenhuma notícia cadastrada.",
+  "newsStatusPublished": "Publicada",
+  "newsStatusDraft": "Rascunho",
+  "newsPublish": "Publicar",
+  "newsEditTitle": "Editar Notícia",
+  "newsNewTitle": "Nova Notícia",
+  "newsImageTooLarge": "Imagem muito grande. Máximo 3MB.",
+  "newsTitleSummaryRequired": "Título e resumo são obrigatórios.",
+  "newsSaveError": "Erro ao salvar notícia.",
+  "newsAddImage": "Adicionar imagem (opcional)",
+  "newsFieldTitle": "Título",
+  "newsFieldSummary": "Resumo (exibido na lista)",
+  "newsFieldContent": "Conteúdo completo (opcional)",
+  "newsPublishNow": "Publicar agora e notificar",
+  "newsCreate": "Criar notícia",
+  "newsNonePublished": "Nenhuma notícia publicada ainda.",
+  "newsDetailTitle": "Notícia",
+  "@rkByOn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "commonNew": "Novo",
+  "commonPreview": "Prévia",
+  "plnTitle": "Planos de Pagamento",
+  "plnLoadError": "Erro ao carregar planos.",
+  "plnEditTitle": "Editar Plano",
+  "plnNewTitle": "Novo Plano",
+  "plnNameField": "Nome do plano *",
+  "plnMonthlyValueField": "Valor mensal (R$) *",
+  "plnNameRequired": "Nome é obrigatório.",
+  "plnInvalidValue": "Informe um valor mensal válido.",
+  "plnUpdated": "Plano atualizado!",
+  "plnCreated": "Plano criado!",
+  "plnSaveError": "Erro ao salvar plano.",
+  "plnCreateBtn": "Criar plano",
+  "plnDeleteTitle": "Excluir plano",
+  "plnDeleteBody": "Excluir o plano \"{name}\"?\nAlunos vinculados não serão afetados.",
+  "@plnDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "plnDeleted": "Plano excluído.",
+  "plnDeleteError": "Erro ao excluir plano.",
+  "plnEmpty": "Nenhum plano cadastrado.",
+  "plnEmptyHint": "Crie planos para vincular aos alunos.",
+  "plnCreateFirst": "Criar primeiro plano",
+  "plnPerMonth": "R$ {value} / mês",
+  "@plnPerMonth": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "psvManageTitle": "Gerenciar Pesquisas",
+  "psvSatisfactionTitle": "Pesquisa de Satisfação",
+  "psvFallbackTitle": "Pesquisa",
+  "psvEditTitle": "Editar pesquisa",
+  "psvNewTitle": "Nova pesquisa",
+  "psvTitleField": "Título da pesquisa *",
+  "psvCreateBtn": "Criar pesquisa",
+  "psvSaveError": "Erro ao salvar pesquisa.",
+  "psvStatusError": "Erro ao alterar status.",
+  "psvDeleteTitle": "Excluir pesquisa?",
+  "psvDeleteBody": "Ao excluir \"{title}\", os dados de resposta desta pesquisa serão mantidos no histórico, mas o template não estará mais disponível.",
+  "@psvDeleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "psvDeleteError": "Erro ao excluir pesquisa.",
+  "psvLoadError": "Erro ao carregar.",
+  "psvEmpty": "Nenhuma pesquisa criada ainda",
+  "psvEmptyHint": "Toque em \"Nova pesquisa\" para começar",
+  "psvActiveInfo": "Apenas uma pesquisa pode estar ativa por vez. A pesquisa ativa é exibida para os alunos no mês corrente.",
+  "psvUntitled": "Sem título",
+  "psvActiveBadge": "ATIVA",
+  "psvViewResponses": "Ver respostas",
+  "psvResponsesLoadError": "Erro ao carregar respostas.",
+  "psvNoResponsesIn": "Nenhuma resposta em {month}",
+  "@psvNoResponsesIn": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "psvOverallAverage": "Média geral",
+  "psvResponsesCount": "{count, plural, =1{{count} resposta} other{{count} respostas}}",
+  "@psvResponsesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "psvDistribution": "Distribuição",
+  "psvRate1": "Muito ruim",
+  "psvRate2": "Ruim",
+  "psvRate3": "Regular",
+  "psvRate4": "Bom",
+  "psvRate5": "Excelente",
+  "psvCommentsCount": "Comentários ({count})",
+  "@psvCommentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ctTitle": "Modelos de Contrato",
+  "ctNew": "Novo Modelo",
+  "ctRemoveTitle": "Remover Modelo",
+  "ctRemoveBody": "Deseja remover \"{name}\"?",
+  "@ctRemoveBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ctRemoveError": "Erro ao remover modelo",
+  "ctLoadError": "Não foi possível carregar",
+  "ctEmpty": "Nenhum modelo cadastrado",
+  "ctEmptyHint": "Toque em + para criar",
+  "ctEditTitle": "Editar Modelo",
+  "ctNewTitle": "Novo Modelo de Contrato",
+  "ctPreview": "Preview",
+  "ctNameField": "Nome do Modelo",
+  "ctHtmlField": "Conteúdo HTML",
+  "ctSaveError": "Erro ao salvar modelo",
+  "ctCreateBtn": "Criar Modelo",
+  "mdlActivate": "Ativar",
+  "mdlDeactivate": "Desativar",
+  "mdlDeactivateBody": "Ela deixará de aparecer nas telas de turmas, faixas e cadastro de alunos, mas não será excluída.",
+  "mdlActivateBody": "Esta modalidade voltará a aparecer em todas as telas operacionais.",
+  "mdlToggleError": "Não foi possível alterar a modalidade.",
+  "mdlLinksCheckError": "Não foi possível verificar os vínculos da modalidade.",
+  "mdlCannotDeleteTitle": "Não é possível excluir",
+  "mdlCannotDeleteBody": "A modalidade \"{name}\" possui turmas ou faixas vinculadas. Você pode desativá-la — assim ela some das telas operacionais sem apagar o histórico.",
+  "@mdlCannotDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mdlDeleteTitle": "Excluir \"{name}\"?",
+  "@mdlDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mdlDeleteBody": "Essa ação não poderá ser desfeita.",
+  "mdlDeleted": "Modalidade excluída.",
+  "mdlDeleteError": "Não foi possível excluir a modalidade.",
+  "mdlTitle": "Modalidades",
+  "mdlSubtitle": "Gerencie as modalidades da sua academia.",
+  "mdlNew": "Nova modalidade",
+  "mdlInfoBanner": "Modalidades ativas aparecem na gestão de faixas, turmas e demais telas operacionais.",
+  "mdlFilterActive": "Ativas",
+  "mdlFilterInactive": "Inativas",
+  "mdlFilterAllCount": "Todas ({count})",
+  "@mdlFilterAllCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mdlFilterActiveCount": "Ativas ({count})",
+  "@mdlFilterActiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mdlFilterInactiveCount": "Inativas ({count})",
+  "@mdlFilterInactiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mdlSearchHint": "Buscar modalidade...",
+  "mdlSortAZ": "A–Z",
+  "mdlSortZA": "Z–A",
+  "mdlStatusActive": "Ativa",
+  "mdlStatusInactive": "Inativa",
+  "mdlA11yDeactivate": "Desativar modalidade {name}",
+  "@mdlA11yDeactivate": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mdlA11yActivate": "Ativar modalidade {name}",
+  "@mdlA11yActivate": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mdlEmpty": "Nenhuma modalidade cadastrada.",
+  "mdlEmptyHint": "Adicione a primeira modalidade da sua academia.",
+  "mdlNoResults": "Nenhuma modalidade encontrada.",
+  "mdlLoadError": "Não foi possível carregar as modalidades.",
+  "mdlImageTooLarge": "Imagem muito grande (máximo 8 MB).",
+  "mdlImageProcessError": "Não foi possível processar a imagem.",
+  "mdlImagePickError": "Não foi possível selecionar a imagem.",
+  "mdlSaveError": "Não foi possível salvar a modalidade.",
+  "mdlEditTitle": "Editar Modalidade",
+  "mdlNewTitle": "Nova Modalidade",
+  "mdlNameField": "Nome da modalidade",
+  "mdlNameHint": "Ex.: Jiu-Jitsu Adulto",
+  "mdlActiveToggle": "Modalidade ativa",
+  "mdlActiveToggleSub": "Modalidades inativas não aparecem nas telas operacionais.",
+  "mdlVisualId": "Identificação visual",
+  "mdlDefaultIcon": "Ícone padrão",
+  "mdlUploadImage": "Enviar imagem",
+  "mdlCreateBtn": "Criar Modalidade",
+  "mdlChangeImage": "Trocar imagem",
+  "mdlChooseGallery": "Escolher da galeria",
+  "mdlImageHint": "JPG ou PNG. A imagem é recortada em quadrado.",
+  "fxDeleteTitle": "Excluir faixa?",
+  "fxDeleteBody": "A faixa \"{name}\" será removida.",
+  "@fxDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fxDeleteError": "Não foi possível excluir a faixa.",
+  "fxAboutTitle": "Sobre as faixas",
+  "fxAboutBody": "Cada modalidade pode possuir suas próprias faixas e critérios de graduação.",
+  "fxSelectModality": "Selecione a modalidade",
+  "fxNewBelt": "Nova Faixa",
+  "fxLoadError": "Não foi possível carregar as faixas.",
+  "fxNoModalities": "Nenhuma modalidade cadastrada",
+  "fxNoModalitiesHint": "Cadastre uma modalidade antes de configurar faixas.",
+  "fxEmpty": "Nenhuma faixa cadastrada",
+  "fxEmptyHint": "Cadastre a primeira faixa desta modalidade.",
+  "fxCreateFirst": "Criar primeira faixa",
+  "fxTitle": "Gestão de Faixas",
+  "fxSubtitle": "Cadastre e organize as faixas de cada modalidade.",
+  "fxHelp": "Ajuda",
+  "fxModality": "Modalidade",
+  "fxBeltsCount": "{count, plural, =1{{count} faixa cadastrada} other{{count} faixas cadastradas}}",
+  "@fxBeltsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fxStudentsInModality": "Alunos nesta modalidade",
+  "fxMinMonths": "{count, plural, =1{Mín. {count} mês} other{Mín. {count} meses}}",
+  "@fxMinMonths": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fxMinAttendances": "{count, plural, =1{Mín. {count} presença} other{Mín. {count} presenças}}",
+  "@fxMinAttendances": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fxNoMinReq": "Sem exigência mínima",
+  "fxSaveError": "Não foi possível salvar a faixa.",
+  "fxEnterZeroOrMore": "Informe 0 ou mais",
+  "fxNumbersOnly": "Somente números",
+  "fxNotNegative": "Não pode ser negativo",
+  "fxEditTitle": "Editar Faixa",
+  "fxNameField": "Nome da Faixa",
+  "fxNameHint": "Ex.: Branca, Azul, Roxa...",
+  "fxOrder": "Ordem",
+  "fxInvalid": "Inválido",
+  "fxMin1": "Mínimo 1",
+  "fxOrderHint": "Posição da faixa na progressão da modalidade.",
+  "fxGradCriteria": "Critérios para graduação",
+  "fxMinTimeMonths": "Tempo mínimo (meses)",
+  "fxMinTimeMonthsHint": "Meses de treino antes de graduar.",
+  "fxMinAttendancesField": "Presenças mínimas",
+  "fxMinAttendancesHint": "Treinos necessários para graduar.",
+  "fxDescHint": "Ex.: Observações sobre a faixa...",
+  "fxBeltColor": "Cor da Faixa",
+  "fxCreateBtn": "Criar Faixa",
+  "cfgTitle": "Configurações da Academia",
+  "cfgSubtitle": "Gerencie as informações e preferências da sua academia.",
+  "cfgIdentitySection": "Identidade da Academia",
+  "cfgIdentitySub": "Personalize as informações da sua academia.",
+  "cfgLogo": "Logo da Academia",
+  "cfgLogoHasSub": "Toque para alterar ou remover",
+  "cfgLogoEmptySub": "Adicione a logo da academia",
+  "cfgGeneralInfo": "Informações Gerais",
+  "cfgGeneralInfoSub": "Nome, e-mail, telefone, CNPJ",
+  "cfgStudentsSection": "Alunos",
+  "cfgStudentsSub": "Configure opções relacionadas aos alunos.",
+  "cfgBlockCheckin": "Bloquear check-in por mensalidade vencida",
+  "cfgBlockCheckinSub": "Impede check-in de alunos com pagamento vencido",
+  "cfgGraceDays": "Dias de carência",
+  "cfgGraceDaysSub": "Bloqueia após os dias definidos do vencimento",
+  "cfgDaysCount": "{count, plural, =1{{count} dia} other{{count} dias}}",
+  "@cfgDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgCommSection": "Comunicação",
+  "cfgCommSub": "Personalize as mensagens enviadas aos alunos.",
+  "cfgReturnMsg": "Mensagem de retorno (WhatsApp)",
+  "cfgReturnMsgSub": "Mensagem para alunos em risco de evasão",
+  "cfgNewsSub": "Publicar notícias e comunicados",
+  "cfgFinanceSection": "Financeiro",
+  "cfgFinanceSub": "Configure cobranças e opções financeiras.",
+  "cfgPlansSub": "Criar, editar e excluir planos de mensalidade",
+  "cfgLateFee": "Taxa de atraso",
+  "cfgLateFeeSub": "Valor extra exibido em cobranças vencidas",
+  "cfgConfigFee": "Configurar taxa",
+  "cfgFeePercentSub": "Percentual sobre cobranças vencidas",
+  "cfgFeeFixedSub": "Valor fixo em cobranças vencidas",
+  "cfgGradSection": "Graduações e Modalidades",
+  "cfgGradSub": "Configure faixas, graduações e modalidades.",
+  "cfgBeltsSub": "Cadastrar e editar graduações por modalidade",
+  "cfgModalitiesMgmt": "Gestão de Modalidades",
+  "cfgModalitiesSub": "Ativar, desativar ou criar modalidades",
+  "cfgContractsSub": "Criar e editar modelos de contrato",
+  "cfgSurveySub": "Configure pesquisas e acompanhe as respostas dos alunos.",
+  "cfgSurveyConfig": "Configurações da pesquisa",
+  "cfgSurveyActiveSub": "Ativa · {xp} XP por resposta",
+  "@cfgSurveyActiveSub": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgSurveyInactiveSub": "Pesquisa mensal desativada",
+  "cfgSurveyManageSub": "Criar, ativar e acompanhar pesquisas",
+  "cfgSurveyAllResponses": "Ver todas as respostas",
+  "cfgSurveyAllResponsesSub": "Avaliações e comentários dos alunos",
+  "cfgSystemSection": "Sistema e Legal",
+  "cfgSystemSub": "Informações do sistema e documentos legais.",
+  "cfgSubdomain": "Subdomínio",
+  "cfgPrivacy": "Política de Privacidade",
+  "cfgPrivacySub": "Como tratamos seus dados (LGPD)",
+  "cfgTerms": "Termos de Uso",
+  "cfgTermsSub": "Condições de uso do Sensei Manager",
+  "cfgAccountSection": "Conta",
+  "cfgDangerSection": "Zona de Perigo",
+  "cfgSaveToggleError": "Não foi possível salvar a alteração.",
+  "cfgInfoSaved": "Informações salvas.",
+  "cfgLogoSaved": "Logo atualizada.",
+  "cfgMsgSaved": "Mensagem salva.",
+  "cfgFeeSaved": "Taxa de atraso salva.",
+  "cfgGraceSaved": "Carência atualizada.",
+  "cfgSurveySaved": "Configurações da pesquisa salvas.",
+  "cfgSubdomainCopied": "Subdomínio copiado.",
+  "cfgLoadError": "Não foi possível carregar as configurações.",
+  "cfgSaveError": "Não foi possível salvar as alterações.",
+  "cfgAcademyName": "Nome da Academia",
+  "cfgEmail": "E-mail",
+  "cfgPhone": "Telefone",
+  "cfgCnpj": "CNPJ",
+  "cfgChangeImage": "Trocar imagem",
+  "cfgChooseImage": "Escolher imagem",
+  "cfgReturnMsgTitle": "Mensagem de retorno",
+  "cfgReturnMsgDesc": "Usada ao entrar em contato com alunos que estão há alguns dias sem treinar. Deixe em branco para usar a mensagem padrão do sistema.",
+  "cfgReturnMsgDefault": "Oi {nome}! Sentimos sua falta — faz {dias} dias sem treino. Está tudo bem? Qualquer coisa a gente ajuda pra você voltar. 🥋",
+  "cfgReturnMsgHint": "Oi {nome}! Sentimos sua falta — faz {dias} dias sem treino...",
+  "cfgRestoreDefault": "Restaurar padrão",
+  "cfgSaveMsg": "Salvar mensagem",
+  "cfgLateFeeToggle": "Cobrar taxa em cobranças vencidas",
+  "cfgPercent": "Percentual (%)",
+  "cfgFixedValue": "Valor fixo (R$)",
+  "cfgFeePercentDesc": "Será adicionado {value}% às cobranças vencidas.",
+  "@cfgFeePercentDesc": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgFeeFixedDesc": "Será adicionado R$ {value} às cobranças vencidas.",
+  "@cfgFeeFixedDesc": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgFeePercentLabel": "Percentual de atraso",
+  "cfgFeeFixedLabel": "Valor fixo de atraso",
+  "cfgGraceDaysDesc": "O check-in do aluno é bloqueado somente após este número de dias do vencimento da mensalidade.",
+  "cfgSurveyEnable": "Ativar pesquisa mensal",
+  "cfgSurveyEnableSub": "Alunos serão convidados a avaliar a academia 1x/mês.",
+  "cfgSurveyXp": "XP por resposta",
+  "cfgSurveyXpSub": "Pontos concedidos ao aluno após responder.",
+  "cfgLogout": "Sair",
+  "cfgLogoutConfirm": "Deseja encerrar sua sessão?",
+  "cfgLogoutBtn": "Sair da conta",
+  "cfgDeleteAccountTitle": "Excluir conta?",
+  "cfgDeleteAccountBody": "Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.",
+  "cfgDeleteAccountError": "Erro ao excluir conta. Tente novamente.",
+  "cfgDeleteAccountBtn": "Excluir minha conta",
+  "cfgPlanActive": "Plano Ativo",
+  "cfgPlanTrial": "Trial",
+  "cfgPlanFree": "Gratuito",
+  "cfgPlanProDesc": "Acesso completo sem anúncios",
+  "cfgPlanTrialLastDay": "Último dia do trial!",
+  "cfgPlanTrialDaysLeft": "{days} dias restantes no trial",
+  "@cfgPlanTrialDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgPlanFreeDesc": "3 turmas · 10 alunos/turma · anúncios",
+  "@cfgReturnMsgDefault": {
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      },
+      "dias": {
+        "type": "String"
+      }
+    }
+  },
+  "@cfgReturnMsgHint": {
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      },
+      "dias": {
+        "type": "String"
+      }
+    }
+  },
+  "fxStudentsCount": "{count, plural, =1{{count} aluno} other{{count} alunos}}",
+  "@fxStudentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fxZeroNoMin": "0 = sem exigência mínima.",
+  "authEnterPassword": "Informe sua senha.",
+  "authErrUserNotFound": "Usuário não encontrado no sistema. Contate o administrador.",
+  "authErrDbNotConfigured": "Banco de dados ainda não configurado. Contate o administrador.",
+  "authErrNoPermission": "Sem permissão para acessar os dados. Contate o administrador.",
+  "authFirstTimeUsingApp": "Acessando o app pela primeira vez",
+  "authErrFirebaseCode": "Erro do Firebase ({code})",
+  "@authErrFirebaseCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "profMyProfile": "Meu Perfil",
+  "profUpdated": "Perfil atualizado!",
+  "profYourNameHint": "Seu nome",
+  "profChangePassword": "Alterar senha",
+  "apPhotoSaveError": "Erro ao salvar foto.",
+  "apPrimaryBelt": "Faixa Principal",
+  "apPrimaryBeltHint": "Escolha qual graduação exibir no seu perfil",
+  "apThanksFeedback": "Obrigado pelo feedback!",
+  "apRatingRecorded": "Sua avaliação foi registrada.",
+  "apSurveyQuestion": "Como está sendo sua experiência?",
+  "apTapToRate": "Toque para avaliar",
+  "apCommentHint": "Deixe um comentário (opcional)",
+  "apSurveySendError": "Erro ao enviar resposta. Verifique sua conexão.",
+  "apSendAndEarnXp": "Enviar e ganhar +{xp} XP",
+  "@apSendAndEarnXp": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "apSendRating": "Enviar avaliação",
+  "apEditProfile": "Editar Perfil",
+  "apFullName": "Nome completo",
+  "apCertPending": "Atestado médico pendente",
+  "apCertRejected": "Atestado rejeitado — envie um novo",
+  "apCertExpired": "Atestado expirado — envie um novo",
+  "apCertExpiringSoon": "Atestado vencendo em breve",
+  "apLogoutTitle": "Sair da conta?",
+  "apLogoutBody": "Você precisará entrar novamente para acessar o app.",
+  "apQrAttendance": "QR Presença",
+  "apSwitchProfile": "Trocar perfil",
+  "apSwitchShort": "Trocar",
+  "apOverdueCount": "{count, plural, one{1 atrasada} other{{count} atrasadas}}",
+  "apPendingCount": "{count, plural, one{1 pendente} other{{count} pendentes}}",
+  "apTapToChoose": "Toque para escolher",
+  "apTuitionOverdue": "Mensalidade em atraso",
+  "apTuitionOverdueHint": "Toque para ver detalhes e regularizar.",
+  "apTapToResolve": "Toque para resolver",
+  "apRateYourExperience": "Avalie sua experiência!",
+  "apEarnXpMonthlySurvey": "Ganhe +{xp} XP respondendo a pesquisa do mês",
+  "@apEarnXpMonthlySurvey": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "apMyClasses": "Minhas turmas",
+  "apNoClasses": "Nenhuma turma matriculada.",
+  "apAttendancesCount": "{count, plural, =1{{count} presença} other{{count} presenças}}",
+  "@apAttendancesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apEditData": "Editar dados",
+  "apEditDataHint": "Nome, contato e informações pessoais",
+  "apResetPasswordHint": "Trocar sua senha de acesso",
+  "apParqDone": "Questionário de saúde respondido",
+  "apParqPending": "Questionário de saúde pendente",
+  "apLogoutHint": "Encerrar a sessão neste dispositivo",
+  "apLegal": "Legal",
+  "apPrivacyHint": "Como seus dados são tratados",
+  "apTermsHint": "Regras e condições de uso do app",
+  "apDeleteAccountSection": "Excluir conta",
+  "apDeleteAccountHint": "Remove seus dados permanentemente",
+  "apXpAdded": "+{xp} XP adicionados ao seu perfil.",
+  "@apXpAdded": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "navLessons": "Aulas",
+  "navPromotions": "Graduações",
+  "navProfile": "Perfil",
+  "peseiTagline": "Seu parceiro de saúde e bem-estar",
+  "peseiFreeBadge": "Gratuito · iOS & Android",
+  "peseiFeatWeightTitle": "Controle de Peso",
+  "peseiFeatWeightSub": "Acompanhe ganhos e perdas com gráficos e histórico",
+  "peseiFeatWaterTitle": "Hidratação Diária",
+  "peseiFeatWaterSub": "Meta de consumo de água personalizada com alertas",
+  "peseiFeatMedsTitle": "Medicamentos",
+  "peseiFeatMedsSub": "Lembretes para não esquecer seus remédios e suplementos",
+  "peseiFeatProgressTitle": "Evolução Visual",
+  "peseiFeatProgressSub": "Gráficos de progresso para manter o foco nos seus objetivos",
+  "peseiDownloadFree": "Baixar gratuitamente",
+  "peseiFreeShort": "GRÁTIS",
+  "peseiCardTagline": "Controle de peso, água e saúde",
+  "peseiSeeApp": "Ver app",
+  "commonTomorrow": "Amanhã",
+  "apClassFallback": "Aula",
+  "apMyLessons": "Minhas aulas",
+  "apMyAttendance": "Minha frequência",
+  "apMyPromotions": "Minhas graduações",
+  "apAttendanceQr": "QR de presença",
+  "apNextClass": "Próxima aula",
+  "apCurrentGrad": "Graduação atual",
+  "apJourneyStarts": "Sua trajetória começa aqui.",
+  "apJourneyContinues": "Sua jornada continua aqui.",
+  "apHello": "Olá!",
+  "apHelloName": "Olá, {name}!",
+  "@apHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "apNotifications": "Notificações",
+  "apNoClassToday": "Nenhuma aula programada para hoje.",
+  "apProfPrefix": "Prof. {name}",
+  "@apProfPrefix": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "apWeekAttendance": "Frequência esta semana",
+  "apTuitionOk": "Mensalidade em dia",
+  "apTuitionOkSub": "Sem pendências no momento.",
+  "apTuitionPending": "Mensalidade pendente",
+  "apTuitionNeedsAttention": "Há uma mensalidade que precisa de atenção.",
+  "apNoCharges": "Nenhuma cobrança",
+  "apNoChargesSub": "Nada em aberto por aqui.",
+  "apWorkoutsCount": "{count, plural, =1{1 treino} other{{count} treinos}}",
+  "@apWorkoutsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apAbsencesCount": "{count, plural, =1{1 falta} other{{count} faltas}}",
+  "@apAbsencesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apNoClassOnDay": "Sem aulas nesse dia",
+  "apMyLessonsUpper": "MINHAS AULAS",
+  "apOtherLessonsUpper": "OUTRAS AULAS",
+  "apExamApproved": "Aprovado",
+  "apExamFailed": "Reprovado",
+  "apPromotionHistory": "Histórico de Graduações",
+  "apCurrentBeltsUpper": "FAIXAS ATUAIS",
+  "apHistoryUpper": "HISTÓRICO",
+  "apNoPromotions": "Nenhuma graduação registrada",
+  "apNoPromotionsSub": "Seu histórico de faixas aparecerá aqui.",
+  "apChargeFallback": "Cobrança",
+  "apOutstanding": "Em aberto",
+  "apAllPaid": "Em dia!",
+  "apAmountToSettle": "{value} a regularizar",
+  "@apAmountToSettle": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "apNoPendingNow": "Sem pendências no momento",
+  "apChargesUpper": "COBRANÇAS",
+  "apDueDatePrefix": "Vencimento: {date}",
+  "@apDueDatePrefix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "apContactSecretary": "Entre em contato com a secretaria para regularizar.",
+  "apNoChargesInCategory": "Nenhuma cobrança nessa categoria",
+  "apAttendanceTitle": "Presenças",
+  "apTrainingHistory": "Seu histórico de treinos",
+  "apTotalWorkouts": "Total de treinos",
+  "apAttendanceLabel": "Presenças",
+  "apAbsencesLabel": "Faltas",
+  "apNoAbsences": "Nenhuma falta registrada. Mandou bem!",
+  "apNoAttendanceYet": "Nenhuma presença registrada ainda",
+  "apNothingHereYet": "Nada por aqui ainda",
+  "apAbsence": "Falta",
+  "apPresent": "Presente",
+  "apCertTitle": "Atestado Médico",
+  "apCertNoneSent": "Nenhum atestado enviado",
+  "apCertSendHint": "Envie seu atestado médico para que a academia possa verificar.",
+  "apCertValidUntil": "Válido até: {date}",
+  "@apCertValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "apCertReasonPrefix": "Motivo: {reason}",
+  "@apCertReasonPrefix": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "apCertExpiringSoonSendNew": "Vencendo em breve! Envie um novo.",
+  "apCertSendNew": "Enviar novo atestado",
+  "apCertSend": "Enviar atestado",
+  "apCertSentToast": "Atestado enviado! Aguarde a aprovação da academia.",
+  "apCertSendError": "Erro ao enviar. Tente novamente.",
+  "apNotAuthenticated": "Usuário não autenticado.",
+  "apParqInstruction": "Questionário de Prontidão para Atividade Física. Por favor responda \"Sim\" ou \"Não\" às perguntas abaixo.",
+  "apParqFullNameReq": "Nome completo *",
+  "apParqSignSend": "Assinar e enviar PAR-Q",
+  "apAchievements": "Conquistas",
+  "apNoAchievements": "Nenhuma conquista ainda.",
+  "apLevel": "Nível",
+  "apStreak": "Sequência",
+  "apThisMonthXp": "Este mês: {xp} XP",
+  "@apThisMonthXp": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "apNextLevelXp": "Próx. nível: {xp} XP",
+  "@apNextLevelXp": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "apMyProfile": "Meu Perfil",
+  "apRankNoPeriodData": "Sem dados para este período",
+  "apRankTrainMore": "Treine mais para aparecer no ranking!",
+  "apRankingsTitle": "Rankings",
+  "apQrMyCode": "Meu QR Code",
+  "apQrScanAcademy": "Escanear Academia",
+  "apQrShowInstructor": "Apresente ao professor na entrada",
+  "apQrGenFailed": "Não foi possível gerar o QR Code",
+  "apQrShowInstructorLong": "Apresente este QR Code ao professor para registrar sua presença.",
+  "apQrCheckinSuccess": "Presença registrada com sucesso!",
+  "apQrCheckinError": "Erro ao registrar presença.",
+  "apQrCheckingIn": "Registrando presença...",
+  "apQrScanAgain": "Escanear novamente",
+  "apQrPointAtAcademy": "Aponte para o QR Code da academia na entrada",
+  "apYourBeltHistory": "Seu histórico de faixas",
+  "navSchedule": "Horários",
+  "profNewsAcademy": "Notícias da Academia",
+  "profAreaTitle": "Área do Professor",
+  "profPanelSubtitle": "Painel do professor",
+  "profQuickAccess": "Acessos rápidos",
+  "profTodayClasses": "Aulas de hoje",
+  "profNoClassToday": "Nenhuma aula hoje.",
+  "profSeeMyClasses": "Ver minhas turmas",
+  "profAlsoTrainsIn": "{count, plural, =1{Você também treina em 1 turma} other{Você também treina em {count} turmas}}",
+  "@profAlsoTrainsIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profMySchedule": "Meus Horários",
+  "profNoScheduleFound": "Nenhum horário encontrado.",
+  "profMyClasses": "Minhas Turmas",
+  "profNoClassesAssigned": "Nenhuma turma atribuída",
+  "profNoStudentsEnrolled": "Nenhum aluno matriculado",
+  "profPromotionRecorded": "Graduação registrada!",
+  "profPromotion": "Graduação",
+  "profAttendanceError": "Erro ao registrar.",
+  "profRemoveAttendance": "Remover presença",
+  "profRemoveAttendanceBody": "Deseja remover a presença de {name} em {date}?",
+  "@profRemoveAttendanceBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "profScanQr": "Escanear QR Code",
+  "profMarkWhoPresent": "Marque quem esteve presente",
+  "profAttendanceMarkedTapRemove": "Presença registrada · toque para remover",
+  "profRegisterNAttendance": "{count, plural, =1{Registrar 1 presença} other{Registrar {count} presenças}}",
+  "@profRegisterNAttendance": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profManual": "Manual",
+  "profRemoveAttendanceThisClass": "Deseja remover a presença de {name} nesta aula?",
+  "@profRemoveAttendanceThisClass": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profChange": "Alterar",
+  "profNoAttendanceThisClass": "Nenhuma presença nesta aula",
+  "profTapChangeDate": "Toque em \"Alterar\" para mudar a data",
+  "profAbsentPending": "Pendente",
+  "rkStudentsAppearHere": "Alunos aparecem aqui conforme registram presenças.",
+  "commonCantOpenWhatsapp": "Não foi possível abrir o WhatsApp.",
+  "evasaoRiskTitle": "Risco de evasão",
+  "evasaoNobodyAtRisk": "Ninguém em risco de evasão agora. 🎉",
+  "evasaoCallWhatsapp": "Chamar no WhatsApp",
+  "evasaoDefaultMsg": "Oi {nome}! Sentimos sua falta nos treinos — faz {dias} dias que você não aparece. Está tudo bem? Qualquer coisa que a gente possa fazer pra te ajudar a voltar, é só falar. 🥋",
+  "@evasaoDefaultMsg": {
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      },
+      "dias": {
+        "type": "String"
+      }
+    }
+  },
+  "birthdaysTitle": "Aniversariantes",
+  "birthdaysCurrentMonth": "Mês atual",
+  "birthdaysNoneInMonth": "Nenhum aniversariante em {month}",
+  "@birthdaysNoneInMonth": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "stfEditMember": "Editar membro",
+  "stfRoleOptional": "Cargo (opcional)",
+  "stfProfile": "Perfil",
+  "stfScreens": "Telas",
+  "stfActions": "Ações",
+  "stfAdvancedAccess": "Acesso avançado",
+  "stfMemberUpdated": "Membro atualizado!",
+  "stfUpdateError": "Erro ao atualizar.",
+  "stfRemoveFromTeam": "Remover da equipe",
+  "stfRemoveConfirm": "Remover {name} da equipe?",
+  "@stfRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stfMemberRemoved": "Funcionário removido.",
+  "stfRemoveError": "Não foi possível remover.",
+  "stfEmpty": "Nenhum funcionário cadastrado.",
+  "stfLoadError": "Erro ao carregar equipe.",
+  "stfActiveAccessWarning": "Este membro já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.",
+  "stfCreateError": "Erro ao cadastrar funcionário.",
+  "stfLinkProfiles": "Vincular perfis?",
+  "stfPhoneBelongsTo": "Esse telefone já pertence a:",
+  "stfLinkStaffQuestion": "Deseja vincular esse cadastro de funcionário ao mesmo contato? A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.",
+  "stfLinkAlso": "Vincular também",
+  "stfNewStaff": "Novo Funcionário",
+  "stfPersonalData": "Dados pessoais",
+  "stfFullNameReq": "Nome completo *",
+  "stfPhoneReq": "Telefone *",
+  "stfTempPasswordNote": "Ao cadastrar, geramos uma senha temporária para você repassar. A pessoa entra com o telefone ou e-mail + essa senha e o app pede para criar a senha definitiva — sem \"primeiro acesso\".",
+  "stfRoleAndProfile": "Cargo e perfil",
+  "stfRoleExample": "Cargo (ex: Professor de BJJ)",
+  "stfPermissions": "Permissões",
+  "stfPermissionsHint": "Defina o que esse funcionário pode acessar e fazer no aplicativo.",
+  "stfCreateStaff": "Cadastrar funcionário",
+  "stfVisibleScreens": "Telas visíveis",
+  "stfAllowedActions": "Ações permitidas",
+  "stfRequiredField": "Campo obrigatório",
+  "famLoadError": "Erro ao carregar grupos.",
+  "famNewGroup": "Novo Grupo Familiar",
+  "famGroupNameHint": "Nome do grupo (ex: Família Silva)",
+  "famCreate": "Criar",
+  "famCreateError": "Erro ao criar grupo.",
+  "famRename": "Renomear Grupo",
+  "famRenameError": "Erro ao renomear.",
+  "famDeleteTitle": "Excluir grupo?",
+  "famDeleteBody": "Os membros serão desvinculados mas não excluídos.",
+  "famDeleteError": "Erro ao excluir.",
+  "famRemoveMemberError": "Erro ao remover membro.",
+  "famTitle": "Grupos Familiares",
+  "famNewGroupShort": "Novo grupo",
+  "famEmpty": "Nenhum grupo familiar criado.",
+  "famEmptyHint": "Crie grupos para vincular membros da mesma família.",
+  "famCreateGroup": "Criar grupo",
+  "famRenameShort": "Renomear",
+  "famRemoveFromGroup": "Remover do grupo",
+  "famNoMembers": "Nenhum membro. Adicione via detalhes do aluno.",
+  "acCreateError": "Erro ao cadastrar aluno. Verifique os dados.",
+  "acCreateAnywayBody": "Deseja cadastrar mesmo assim?\nAo fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).",
+  "acCreateAnyway": "Cadastrar mesmo assim",
+  "acLinkStudentQuestion": "Deseja vincular esse cadastro de Aluno ao mesmo contato? A pessoa poderá trocar entre os perfis dentro do app.",
+  "acNewStudent": "Novo Aluno",
+  "acFullNameReq": "Nome completo *",
+  "acBirthDate": "Data de nascimento",
+  "acMinor": "Menor de idade",
+  "acGuardianName": "Nome do responsável",
+  "acGuardianPhone": "Telefone do responsável",
+  "acSelectPlanOptional": "Selecionar plano (opcional)",
+  "acAppAccessNote": "Ao cadastrar (com acesso liberado e telefone ou e-mail), geramos uma senha temporária para você repassar ao aluno. Ele entra digitando o telefone ou e-mail cadastrado + essa senha, e o app pede para criar a senha definitiva. Não é necessário \"primeiro acesso\".",
+  "acAccessAllowed": "Acesso ao app liberado",
+  "acAccessBlocked": "Acesso ao app bloqueado",
+  "acCanLogin": "Aluno poderá fazer login normalmente",
+  "acCannotLogin": "Aluno não conseguirá entrar no app",
+  "acCreateStudent": "Cadastrar aluno",
+  "acRequiredField": "Campo obrigatório"
+}

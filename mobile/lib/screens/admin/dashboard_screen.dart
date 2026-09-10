@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/tab_refresh.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/widgets.dart';
 import 'widgets/dashboard_widgets.dart';
 
@@ -55,16 +54,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final user = await AuthStorage.getUser();
     final academiaId = user?.academiaId ?? '';
     if (academiaId.isEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _user = user;
           _loading = false;
           _erro = true;
         });
+      }
       return;
     }
     try {
-      // Load core data in parallel
       final results = await Future.wait([
         firestoreService.getDashboardResumo(academiaId),
         firestoreService.getModalidades(academiaId),
@@ -90,38 +89,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .where((t) => t['ativo'] == true)
           .length;
 
-      // Aniversariantes: alunos com data_nascimento no mês atual
-      final now = DateTime.now();
+      final hoje = DateTime.now();
+      final mesAtual = hoje.month;
       final aniversariantes =
           alunos
-              .where((a) {
-                final dn =
-                    a['data_nascimento'] as String? ??
-                    a['dataNascimento'] as String? ??
-                    '';
-                if (dn.isEmpty) return false;
-                try {
-                  final d = DateTime.parse(dn);
-                  return d.month == now.month;
-                } catch (_) {
-                  return false;
-                }
-              })
               .map((a) {
-                final dn =
+                final nasc =
                     a['data_nascimento'] as String? ??
                     a['dataNascimento'] as String? ??
                     '';
-                int dia = 0;
+                if (nasc.isEmpty) return null;
+                DateTime? dt;
                 try {
-                  dia = DateTime.parse(dn).day;
-                } catch (_) {}
+                  dt = DateTime.parse(nasc);
+                } catch (_) {
+                  return null;
+                }
+                if (dt.month != mesAtual) return null;
+                final nascStr =
+                    a['data_nascimento'] as String? ??
+                    a['dataNascimento'] as String? ??
+                    '';
+                final dia = nascStr.isNotEmpty
+                    ? (DateTime.tryParse(nascStr)?.day ?? 0)
+                    : 0;
                 return {
                   'nome': a['nome'] ?? '',
                   'diaNascimento': dia,
                   'alunoId': a['id'] ?? '',
                 };
               })
+              .whereType<Map<String, dynamic>>()
               .toList()
             ..sort(
               (x, y) => ((x['diaNascimento'] as int?) ?? 0).compareTo(
@@ -129,38 +127,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             );
 
-      // Frequência últimos 7 dias: group presencas by date
-      final cutoff = now.subtract(const Duration(days: 7));
       final freqMap = <String, int>{};
       for (var i = 6; i >= 0; i--) {
-        final d = now.subtract(Duration(days: i));
+        final d = hoje.subtract(Duration(days: i));
         final key =
             '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
         freqMap[key] = 0;
       }
       for (final p in presencas) {
-        final dataStr =
+        final data =
             p['data'] as String? ?? p['data_presenca'] as String? ?? '';
-        if (dataStr.isEmpty) continue;
-        try {
-          final d = DateTime.parse(dataStr);
-          if (d.isAfter(cutoff)) {
-            final key =
-                '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-            freqMap[key] = (freqMap[key] ?? 0) + 1;
-          }
-        } catch (_) {}
+        if (data.isEmpty) continue;
+        final key = data.length >= 10 ? data.substring(0, 10) : data;
+        if (freqMap.containsKey(key)) freqMap[key] = (freqMap[key] ?? 0) + 1;
       }
       final frequencia = freqMap.entries
           .map((e) => {'data': e.key, 'total': e.value})
           .toList();
 
-      // Today's presences
-      final todayKey =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final presencasHoje = freqMap[todayKey] ?? 0;
+      var presencasHoje = 0;
+      final keyHoje =
+          '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+      presencasHoje = freqMap[keyHoje] ?? 0;
 
-      // Active alunos & inadimplentes from dashData or compute
       final totalAlunos =
           dashData['totalAlunos'] ??
           alunos.where((a) => a['ativo'] == true).length;
@@ -172,7 +161,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'turmasAtivas': turmasAtivas,
         'presencasHoje': presencasHoje,
         'alunosInadimplentes': alunosInadimplentes,
-        ...dashData,
       };
 
       final profs = funcionarios.where((f) {
@@ -181,47 +169,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return cargo.contains('professor') || perfil.contains('professor');
       }).toList();
 
-      // Próximos de graduação: só entradas com dados enriquecidos (nomeAluno populado)
-      final proximosGrad = List<Map<String, dynamic>>.from(
-        aptosGrad,
-      ).where((a) => (a['nomeAluno'] as String? ?? '').isNotEmpty).toList();
-      proximosGrad.sort((a, b) {
-        final pa = (b['percentual'] as num?)?.toDouble() ?? 0;
-        final pb = (a['percentual'] as num?)?.toDouble() ?? 0;
-        return pa.compareTo(pb);
-      });
+      final proximosGrad =
+          aptosGrad
+              .where((a) => (a['nomeAluno'] as String? ?? '').isNotEmpty)
+              .toList()
+            ..sort((a, b) {
+              final pa = (b['percentual'] as num?)?.toDouble() ?? 0;
+              final pb = (a['percentual'] as num?)?.toDouble() ?? 0;
+              return pb.compareTo(pa);
+            });
 
-      // Alertas de evasão: alunos ativos sem presença há 7+ dias
-      final Map<String, DateTime> ultimaPresencaPorAluno = {};
-      final Map<String, int> presencas7DiasPorAluno = {};
-      final limite7 = now.subtract(const Duration(days: 7));
+      final ultimaPresencaPorAluno = <String, DateTime>{};
       for (final p in presencas) {
         final aId = p['aluno_id']?.toString() ?? '';
         if (aId.isEmpty) continue;
-        final dataStr =
+        final data =
             p['data'] as String? ?? p['data_presenca'] as String? ?? '';
-        if (dataStr.isEmpty) continue;
-        final dataPres = DateTime.tryParse(dataStr);
-        if (dataPres == null) continue;
+        final dt = DateTime.tryParse(data);
+        if (dt == null) continue;
         final atual = ultimaPresencaPorAluno[aId];
-        if (atual == null || dataPres.isAfter(atual))
-          ultimaPresencaPorAluno[aId] = dataPres;
-        if (dataPres.isAfter(limite7)) {
-          presencas7DiasPorAluno[aId] = (presencas7DiasPorAluno[aId] ?? 0) + 1;
+        if (atual == null || dt.isAfter(atual)) {
+          ultimaPresencaPorAluno[aId] = dt;
         }
       }
       final alertas = <Map<String, dynamic>>[];
       for (final aluno in alunos.where((a) => a['ativo'] == true)) {
         final aId = aluno['id']?.toString() ?? '';
-        if (aId.isEmpty) continue;
         final ultima = ultimaPresencaPorAluno[aId];
-        if (ultima == null) continue; // nunca treinou → não é evasão
-        if ((presencas7DiasPorAluno[aId] ?? 0) >= 4)
-          continue; // voltou com força
-        final dias = now.difference(ultima).inDays;
+        if (ultima == null) continue;
+        final dias = hoje.difference(ultima).inDays;
         if (dias >= 7) {
           alertas.add({
-            ...aluno,
+            'nome': aluno['nome'] ?? '',
+            'id': aId,
             'diasSemPresenca': dias,
             'nivelAlerta': dias >= 14 ? 'red' : 'yellow',
           });
@@ -233,19 +213,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       );
 
-      // Noticias: sort by publicada_em desc, take 5
-      final noticiasOrdered = List<Map<String, dynamic>>.from(noticiasList);
-      noticiasOrdered.sort((a, b) {
-        final da = a['publicada_em'] ?? a['publicadaEm'] ?? '';
-        final db = b['publicada_em'] ?? b['publicadaEm'] ?? '';
-        return db.toString().compareTo(da.toString());
-      });
-      final noticiasMapped = noticiasOrdered
-          .take(5)
-          .map(
-            (n) => {...n, 'publicadaEm': n['publicada_em'] ?? n['publicadaEm']},
-          )
-          .toList();
+      final noticiasMapped =
+          noticiasList
+              .map(
+                (n) => {
+                  ...n,
+                  'publicadaEm': n['publicada_em'] ?? n['publicadaEm'],
+                },
+              )
+              .toList()
+            ..sort((a, b) {
+              final da = a['publicada_em'] ?? a['publicadaEm'] ?? '';
+              final db = b['publicada_em'] ?? b['publicadaEm'] ?? '';
+              return db.toString().compareTo(da.toString());
+            });
 
       if (mounted) {
         setState(() {
@@ -265,13 +246,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (e) {
       // ignore: avoid_print
       print('[Dashboard._load] ERRO: $e');
-      if (mounted)
+      if (mounted) {
         setState(() {
           _user = user;
           _loading = false;
           _erro = true;
           _erroMsg = e.toString();
         });
+      }
     }
   }
 
@@ -288,7 +270,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     if (_erro && _dash == null) {
       return Scaffold(
-        backgroundColor: kBg,
         body: SafeArea(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -308,7 +289,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Text(
                     _erroMsg!,
-                    style: const TextStyle(color: Colors.red, fontSize: 11),
+                    style: TextStyle(color: context.sem.danger, fontSize: 11),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -319,10 +300,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: kBg,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -347,12 +327,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               SliverToBoxAdapter(child: _buildProximosGraduacao()),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: WeeklyFrequencyChart(dados: _frequencia),
                 ),
               ),
@@ -370,6 +345,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── PLANO STATUS ────────────────────────────────────────────────────────────
 
   Widget _buildPlanStatus() {
+    final l = context.l10n;
     final plan = PlanService.instance;
     if (plan.isPro) return const SizedBox.shrink();
 
@@ -391,34 +367,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF1A1200), kPrimary.withOpacity(0.35)],
+                colors: [
+                  context.isDark
+                      ? const Color(0xFF1A1200)
+                      : context.sem.goldContainer,
+                  context.c.primary.withValues(alpha: 0.35),
+                ],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kPrimary.withOpacity(0.45)),
+              border: Border.all(
+                color: context.c.primary.withValues(alpha: 0.45),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.hourglass_top_rounded, color: kPrimary, size: 20),
+                Icon(
+                  Icons.hourglass_top_rounded,
+                  color: context.sem.goldOnSurface,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Trial gratuito ativo',
+                        l.dashTrialActive,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: context.c.onSurface,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         days <= 1
-                            ? 'Último dia do trial!'
-                            : '$days dias restantes',
-                        style: TextStyle(color: kText2, fontSize: 11),
+                            ? l.dashTrialLastDay
+                            : l.dashTrialDaysLeft(days),
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -429,13 +419,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: kPrimary,
+                    color: context.c.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Ver planos',
+                  child: Text(
+                    l.dashSeePlans,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: context.c.onPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -456,9 +446,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: kSurface,
+            color: context.c.surfaceContainer,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kWarning.withOpacity(0.55)),
+            border: Border.all(
+              color: context.sem.warning.withValues(alpha: 0.55),
+            ),
           ),
           child: Row(
             children: [
@@ -466,12 +458,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: kWarning.withOpacity(0.12),
+                  color: context.sem.warning.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.lock_outline_rounded,
-                  color: kWarning,
+                  color: context.sem.warning,
                   size: 19,
                 ),
               ),
@@ -481,16 +473,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Plano Gratuito',
+                      l.dashFreePlan,
                       style: TextStyle(
-                        color: kText1,
+                        color: context.c.onSurface,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      'Limite: 3 turmas · 10 alunos/turma · anúncios',
-                      style: TextStyle(color: kText2, fontSize: 11),
+                      l.dashFreePlanLimits,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -502,14 +497,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [kPrimary, const Color(0xFF0A0A0A)],
+                    colors: [
+                      context.c.primary,
+                      context.c.primary.withValues(alpha: 0.5),
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'Assinar PRO',
+                child: Text(
+                  l.dashSubscribePro,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.c.onPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -525,6 +523,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── HEADER ──────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
+    final l = context.l10n;
     final nome = _user?.nome ?? '';
     final primeiroNome = nome.split(' ').first;
     final initials = nome.isNotEmpty
@@ -538,11 +537,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         : 'A';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1200), Color(0xFF0A0A0A)],
+          colors: context.isDark
+              ? const [Color(0xFF1A1200), Color(0xFF0A0A0A)]
+              : [context.sem.goldContainer, context.c.surface],
         ),
       ),
       child: SafeArea(
@@ -551,13 +552,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
           child: Row(
             children: [
-              // Avatar
               Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [kPrimary, const Color(0xFF0A0A0A)],
+                    colors: [
+                      context.c.primary,
+                      context.c.primary.withValues(alpha: 0.35),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -566,8 +569,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Center(
                   child: Text(
                     initials,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: context.c.onPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -580,9 +583,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      primeiroNome.isEmpty ? 'Olá!' : 'Olá, $primeiroNome!',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      primeiroNome.isEmpty
+                          ? l.dashHello
+                          : l.dashHelloName(primeiroNome),
+                      style: TextStyle(
+                        color: context.c.onSurface,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         height: 1.1,
@@ -592,18 +597,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Sua academia hoje',
-                      style: TextStyle(color: kText2, fontSize: 12),
+                      l.dashYourAcademyToday,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Menu
               GestureDetector(
                 onTap: openAppDrawer,
-                child: const Icon(
+                child: Icon(
                   Icons.menu_rounded,
-                  color: Colors.white,
+                  color: context.c.onSurface,
                   size: 26,
                 ),
               ),
@@ -617,6 +624,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── MÉTRICAS ─────────────────────────────────────────────────────────────────
 
   Widget _buildMetrics() {
+    final l = context.l10n;
     final d = _dash ?? {};
     final alunos = '${d['totalAlunos'] ?? '—'}';
     final turmas = '${d['turmasAtivas'] ?? '—'}';
@@ -633,7 +641,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: DashMetricCard(
                   icon: Icons.sports_martial_arts_rounded,
                   value: alunos,
-                  label: 'Alunos ativos',
+                  label: l.dashActiveStudents,
                   tone: DashTone.gold,
                   onTap: () => context.go('/admin/alunos'),
                 ),
@@ -643,7 +651,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: DashMetricCard(
                   icon: Icons.groups_rounded,
                   value: turmas,
-                  label: 'Turmas ativas',
+                  label: l.dashActiveClasses,
                   tone: DashTone.info,
                   onTap: () => context.go('/admin/turmas'),
                 ),
@@ -657,7 +665,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: DashMetricCard(
                   icon: Icons.check_circle_rounded,
                   value: presencas,
-                  label: 'Presenças hoje',
+                  label: l.dashAttendanceToday,
                   tone: DashTone.success,
                 ),
               ),
@@ -666,7 +674,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: DashMetricCard(
                   icon: Icons.warning_amber_rounded,
                   value: inadimplentes,
-                  label: 'Inadimplentes',
+                  label: l.dashOverdueAccounts,
                   tone: DashTone.danger,
                   onTap: () => context.go('/admin/financeiro'),
                 ),
@@ -681,10 +689,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── AÇÕES RÁPIDAS ────────────────────────────────────────────────────────────
 
   Widget _buildQuickActions() {
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const DashSectionHeader('Ações rápidas'),
+        DashSectionHeader(l.dashQuickActions),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
           child: Row(
@@ -692,19 +701,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               DashQuickAction(
                 icon: Icons.person_add_rounded,
-                label: 'Novo aluno',
+                label: l.dashNewStudent,
                 tone: DashTone.gold,
                 onTap: () => context.push('/admin/alunos/novo'),
               ),
               DashQuickAction(
                 icon: Icons.groups_rounded,
-                label: 'Nova turma',
+                label: l.dashNewClass,
                 tone: DashTone.info,
                 onTap: () => context.push('/admin/turmas'),
               ),
               DashQuickAction(
                 icon: Icons.qr_code_scanner_rounded,
-                label: 'Registrar presença',
+                label: l.dashMarkAttendance,
                 tone: DashTone.success,
                 onTap: () async {
                   if (PlanService.instance.showAds) {
@@ -720,7 +729,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               DashQuickAction(
                 icon: Icons.account_balance_wallet_rounded,
-                label: 'Financeiro',
+                label: l.navBilling,
                 tone: DashTone.warning,
                 onTap: () => context.go('/admin/financeiro'),
               ),
@@ -734,6 +743,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ONBOARDING ───────────────────────────────────────────────────────────────
 
   Widget _buildOnboarding() {
+    final l = context.l10n;
     final d = _dash ?? {};
     final temTurma = ((d['turmasAtivas'] as num?)?.toInt() ?? 0) > 0;
     final temAluno = ((d['totalAlunos'] as num?)?.toInt() ?? 0) > 0;
@@ -741,8 +751,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final passos = [
       _OnboardingStep(
-        titulo: 'Crie uma modalidade',
-        descricao: 'Ex: Jiu-Jitsu, Muay Thai, Boxe.',
+        titulo: l.dashStepModality,
+        descricao: l.dashStepModalityDesc,
         feito: _temModalidades,
         icon: Icons.sports_martial_arts_rounded,
         onTap: () async {
@@ -756,8 +766,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Crie um plano de mensalidade',
-        descricao: 'Defina valores e periodicidade.',
+        titulo: l.dashStepPlan,
+        descricao: l.dashStepPlanDesc,
         feito: _temPlanos,
         icon: Icons.monetization_on_rounded,
         onTap: () async {
@@ -771,8 +781,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Cadastre um professor',
-        descricao: 'Turmas precisam de um professor responsável.',
+        titulo: l.dashStepInstructor,
+        descricao: l.dashStepInstructorDesc,
         feito: _temProfessores,
         icon: Icons.school_rounded,
         onTap: () async {
@@ -781,15 +791,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Monte uma turma',
-        descricao: 'Agrupe alunos por modalidade e horário.',
+        titulo: l.dashStepClass,
+        descricao: l.dashStepClassDesc,
         feito: temTurma,
         icon: Icons.groups_rounded,
         onTap: () => context.push('/admin/turmas'),
       ),
       _OnboardingStep(
-        titulo: 'Cadastre seu primeiro aluno',
-        descricao: 'Adicione alunos e matricule nas turmas.',
+        titulo: l.dashStepFirstStudent,
+        descricao: l.dashStepFirstStudentDesc,
         feito: temAluno,
         icon: Icons.person_add_rounded,
         onTap: () => context.push('/admin/alunos/novo'),
@@ -803,12 +813,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kPrimary.withOpacity(0.3)),
+          border: Border.all(color: context.c.primary.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: kPrimary.withOpacity(0.08),
+              color: context.c.primary.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -817,7 +827,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header do card
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Row(
@@ -827,13 +836,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [kPrimary, const Color(0xFF0A0A0A)],
+                        colors: [
+                          context.c.primary,
+                          context.c.primary.withValues(alpha: 0.4),
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.rocket_launch_rounded,
-                      color: Colors.white,
+                      color: context.c.onPrimary,
                       size: 20,
                     ),
                   ),
@@ -843,16 +855,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Primeiros passos',
+                          l.dashGettingStarted,
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         Text(
-                          'Configure sua academia em ordem',
-                          style: TextStyle(color: kText2, fontSize: 11),
+                          l.dashGettingStartedSubtitle,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -863,13 +878,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.15),
+                      color: context.c.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '$feitos/${passos.length}',
                       style: TextStyle(
-                        color: kPrimary,
+                        color: context.sem.goldOnSurface,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -878,21 +893,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ],
               ),
             ),
-            // Barra de progresso
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: progresso,
-                  backgroundColor: kBorder.withOpacity(0.4),
-                  valueColor: AlwaysStoppedAnimation<Color>(kPrimary),
+                  backgroundColor: context.c.outline.withValues(alpha: 0.4),
+                  valueColor: AlwaysStoppedAnimation<Color>(context.c.primary),
                   minHeight: 4,
                 ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFF2D3748)),
-            // Passos
+            Divider(height: 1, color: context.c.outlineVariant),
             ...passos.asMap().entries.map((entry) {
               final i = entry.key;
               final p = entry.value;
@@ -908,6 +921,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildPassoTile(_OnboardingStep p, bool bloqueado, bool isLast) {
+    final feitoColor = context.sem.success;
+    final lockColor = context.c.onSurfaceVariant;
+    final goldColor = context.c.primary;
     return InkWell(
       onTap: (p.feito || bloqueado) ? null : p.onTap,
       borderRadius: isLast
@@ -917,23 +933,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            // Step indicator
             Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
                 color: p.feito
-                    ? kSuccess.withOpacity(0.12)
+                    ? feitoColor.withValues(alpha: 0.12)
                     : bloqueado
-                    ? kBorder.withOpacity(0.2)
-                    : kPrimary.withOpacity(0.1),
+                    ? context.c.outline.withValues(alpha: 0.2)
+                    : goldColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: p.feito
-                      ? kSuccess.withOpacity(0.4)
+                      ? feitoColor.withValues(alpha: 0.4)
                       : bloqueado
-                      ? kBorder.withOpacity(0.4)
-                      : kPrimary.withOpacity(0.3),
+                      ? context.c.outline.withValues(alpha: 0.4)
+                      : goldColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -941,10 +956,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 p.feito ? Icons.check_rounded : p.icon,
                 size: 18,
                 color: p.feito
-                    ? kSuccess
+                    ? feitoColor
                     : bloqueado
-                    ? kText2
-                    : kPrimary,
+                    ? lockColor
+                    : context.sem.goldOnSurface,
               ),
             ),
             const SizedBox(width: 12),
@@ -955,21 +970,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text(
                     p.titulo,
                     style: TextStyle(
-                      color: p.feito
-                          ? kText2
-                          : bloqueado
-                          ? kText2
-                          : kText1,
+                      color: (p.feito || bloqueado)
+                          ? context.c.onSurfaceVariant
+                          : context.c.onSurface,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       decoration: p.feito ? TextDecoration.lineThrough : null,
-                      decorationColor: kText2,
+                      decorationColor: context.c.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     p.descricao,
-                    style: TextStyle(color: kText2, fontSize: 11),
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -979,20 +995,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: kPrimary.withOpacity(0.12),
+                  color: goldColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.arrow_forward_rounded,
                   size: 15,
-                  color: kPrimary,
+                  color: context.sem.goldOnSurface,
                 ),
               ),
             if (bloqueado)
               Icon(
                 Icons.lock_outline_rounded,
                 size: 15,
-                color: kText2.withOpacity(0.5),
+                color: lockColor.withValues(alpha: 0.5),
               ),
           ],
         ),
@@ -1003,13 +1019,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ALERTA DE EVASÃO ────────────────────────────────────────────────────────
 
   Widget _buildAlertaEvasao() {
+    final l = context.l10n;
     final temVermelho = _alertasEvasao.any((a) => a['nivelAlerta'] == 'red');
     final tone = temVermelho ? DashTone.danger : DashTone.warning;
     final total = _alertasEvasao.length;
     final visiveis = _alertasEvasao.take(5).toList();
     final subtitulo = temVermelho
-        ? '$total ${total == 1 ? 'aluno' : 'alunos'} sem treinar há 7+ dias'
-        : '$total ${total == 1 ? 'aluno' : 'alunos'} com 7–13 dias de ausência';
+        ? l.dashWatchRedSubtitle(total)
+        : l.dashWatchYellowSubtitle(total);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -1020,7 +1037,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             DashCardHeader(
               icon: Icons.person_off_rounded,
-              title: 'Risco de evasão',
+              title: l.dashAttendanceWatch,
               subtitle: subtitulo,
               tone: tone,
               trailing: Container(
@@ -1029,13 +1046,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: tone.color.withValues(alpha: 0.12),
+                  color: tone.color(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$total',
                   style: TextStyle(
-                    color: tone.color,
+                    color: tone.color(context),
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1048,7 +1065,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               final alunoId = a['id']?.toString() ?? '';
               final dias = (a['diasSemPresenca'] as int?) ?? 0;
               final isRed = a['nivelAlerta'] == 'red';
-              final cor = isRed ? kDanger : kWarning;
+              final cor = isRed ? context.sem.danger : context.sem.warning;
               final initials = nome
                   .trim()
                   .split(RegExp(r'\s+'))
@@ -1069,15 +1086,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: cor.withOpacity(0.04),
+                    color: cor.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: cor.withOpacity(0.2)),
+                    border: Border.all(color: cor.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 15,
-                        backgroundColor: cor.withOpacity(0.15),
+                        backgroundColor: cor.withValues(alpha: 0.15),
                         child: Text(
                           initials.isEmpty ? '?' : initials,
                           style: TextStyle(
@@ -1092,7 +1109,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         child: Text(
                           nome,
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1106,11 +1123,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: cor.withOpacity(0.12),
+                          color: cor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '$dias dias',
+                          l.dashDaysCount(dias),
                           style: TextStyle(
                             color: cor,
                             fontSize: 11,
@@ -1121,7 +1138,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(width: 6),
                       Icon(
                         Icons.chevron_right_rounded,
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         size: 16,
                       ),
                     ],
@@ -1138,10 +1155,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   child: Center(
                     child: Text(
                       total > visiveis.length
-                          ? 'Ver todos os $total alunos'
-                          : 'Abrir lista (chamar no WhatsApp)',
+                          ? l.dashSeeAllStudents(total)
+                          : l.dashOpenListWhatsapp,
                       style: TextStyle(
-                        color: kPrimary,
+                        color: context.sem.goldOnSurface,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1158,14 +1175,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ANIVERSARIANTES ─────────────────────────────────────────────────────────
 
   Widget _buildAniversariantes() {
+    final l = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kWarning.withOpacity(0.3)),
+          border: Border.all(color: context.sem.warning.withValues(alpha: 0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1176,10 +1194,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: kWarning.withOpacity(0.12),
+                    color: context.sem.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.cake_rounded, color: kWarning, size: 20),
+                  child: Icon(
+                    Icons.cake_rounded,
+                    color: context.sem.warning,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1187,16 +1209,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Aniversariantes',
+                        l.dashBirthdays,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        'Este mês',
-                        style: TextStyle(color: kText2, fontSize: 11),
+                        l.dashThisMonth,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -1204,9 +1229,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 GestureDetector(
                   onTap: () => context.push('/admin/dashboard/aniversariantes'),
                   child: Text(
-                    'Ver todos',
+                    l.commonSeeAll,
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.sem.goldOnSurface,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1236,19 +1261,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: kBg,
+                  color: context.c.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: kWarning.withOpacity(0.15),
+                      backgroundColor: context.sem.warning.withValues(
+                        alpha: 0.15,
+                      ),
                       child: Text(
                         initials.isEmpty ? '?' : initials,
                         style: TextStyle(
-                          color: kWarning,
+                          color: context.sem.warning,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1259,7 +1286,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Text(
                         nome,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1267,7 +1294,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     Text(
                       dataLabel,
-                      style: TextStyle(color: kText2, fontSize: 12),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -1282,6 +1312,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── PRÓXIMOS DE GRADUAR ──────────────────────────────────────────────────────
 
   Widget _buildProximosGraduacao() {
+    final l = context.l10n;
     final totalGrad = _proximosGraduacao.length;
     final visiveis = _proximosGraduacao.take(3).toList();
     return Padding(
@@ -1291,10 +1322,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DashCardHeader(
+            DashCardHeader(
               icon: Icons.military_tech_rounded,
-              title: 'Próximos de graduar',
-              subtitle: 'Alunos próximos do mínimo de aulas',
+              title: l.dashNearingPromotion,
+              subtitle: l.dashNearingPromotionSubtitle,
               tone: DashTone.gold,
             ),
             const SizedBox(height: 12),
@@ -1304,7 +1335,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text(
                     '0',
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
                       height: 1,
@@ -1313,8 +1344,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Nenhum aluno próximo da graduação',
-                      style: TextStyle(color: kText2, fontSize: 13),
+                      l.dashNoOneNearingPromotion,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -1345,22 +1379,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: jaApto ? kSuccess.withOpacity(0.05) : kBg,
+                      color: jaApto
+                          ? context.sem.success.withValues(alpha: 0.05)
+                          : context.c.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: jaApto ? kSuccess.withOpacity(0.3) : kBorder,
+                        color: jaApto
+                            ? context.sem.success.withValues(alpha: 0.3)
+                            : context.c.outline,
                       ),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: (jaApto ? kSuccess : kPrimary)
-                              .withOpacity(0.15),
+                          backgroundColor:
+                              (jaApto ? context.sem.success : context.c.primary)
+                                  .withValues(alpha: 0.15),
                           child: Text(
                             initials.isEmpty ? '?' : initials,
                             style: TextStyle(
-                              color: jaApto ? kSuccess : kPrimary,
+                              color: jaApto
+                                  ? context.sem.success
+                                  : context.sem.goldOnSurface,
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1374,14 +1415,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               Text(
                                 nome,
                                 style: TextStyle(
-                                  color: kText1,
+                                  color: context.c.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
                                 modalidade,
-                                style: TextStyle(color: kText2, fontSize: 11),
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
                               ),
                             ],
                           ),
@@ -1390,9 +1434,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '$total/$necessario aulas',
+                              l.dashClassesProgress(total, necessario),
                               style: TextStyle(
-                                color: jaApto ? kSuccess : kText2,
+                                color: jaApto
+                                    ? context.sem.success
+                                    : context.c.onSurfaceVariant,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1404,13 +1450,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: kSuccess.withOpacity(0.15),
+                                  color: context.sem.success.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'Apto!',
+                                  l.dashEligible,
                                   style: TextStyle(
-                                    color: kSuccess,
+                                    color: context.sem.success,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1419,7 +1467,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             else
                               Text(
                                 '$pct%',
-                                style: TextStyle(color: kPrimary, fontSize: 11),
+                                style: TextStyle(
+                                  color: context.sem.goldOnSurface,
+                                  fontSize: 11,
+                                ),
                               ),
                           ],
                         ),
@@ -1436,9 +1487,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Center(
                       child: Text(
-                        'Ver todos os $totalGrad alunos',
+                        l.dashSeeAllStudents(totalGrad),
                         style: TextStyle(
-                          color: kPrimary,
+                          color: context.sem.goldOnSurface,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1456,12 +1507,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── NOTÍCIAS ────────────────────────────────────────────────────────────────
 
   Widget _buildNoticias() {
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DashSectionHeader(
-          'Últimas notícias',
-          trailingLabel: 'Ver todas',
+          l.dashLatestNews,
+          trailingLabel: l.commonSeeAllFem,
           onTrailingTap: () => context.push('/admin/noticias'),
         ),
         ..._noticias.take(2).map((n) {
@@ -1490,12 +1542,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: kPrimary.withOpacity(0.12),
+                        color: context.c.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.campaign_rounded,
-                        color: kPrimary,
+                        color: context.sem.goldOnSurface,
                         size: 17,
                       ),
                     ),
@@ -1510,7 +1562,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 child: Text(
                                   titulo,
                                   style: TextStyle(
-                                    color: kText1,
+                                    color: context.c.onSurface,
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1522,7 +1574,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   dataLabel,
-                                  style: TextStyle(color: kText2, fontSize: 10),
+                                  style: TextStyle(
+                                    color: context.c.onSurfaceVariant,
+                                    fontSize: 10,
+                                  ),
                                 ),
                               ],
                             ],
@@ -1531,7 +1586,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const SizedBox(height: 3),
                             Text(
                               resumo,
-                              style: TextStyle(color: kText2, fontSize: 11.5),
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 11.5,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1540,7 +1598,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Icon(Icons.chevron_right_rounded, color: kText2, size: 16),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 16,
+                    ),
                   ],
                 ),
               ),
@@ -1596,6 +1658,7 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    final erroMsg = context.l10n.commonSaveError;
     setState(() {
       _loading = true;
       _erro = null;
@@ -1608,8 +1671,8 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
         'ativo': true,
       });
       if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      setState(() => _erro = 'Erro ao salvar: $e');
+    } catch (_) {
+      setState(() => _erro = erroMsg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1617,9 +1680,10 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(
@@ -1639,68 +1703,76 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: kBorder,
+                  color: context.c.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Nova modalidade',
+              l.dashNewModalityTitle,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
             ),
             Text(
-              'Ex: Jiu-Jitsu, Muay Thai, Boxe, Luta Livre',
-              style: TextStyle(color: kText2, fontSize: 12),
+              l.dashNewModalityHint,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _nomeCtrl,
               autofocus: true,
-              style: TextStyle(color: kText1),
+              style: TextStyle(color: context.c.onSurface),
               decoration: _dec(
-                'Nome da modalidade',
+                l.dashModalityNameField,
                 Icons.sports_martial_arts_rounded,
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? l.commonRequiredField
+                  : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _descCtrl,
-              style: TextStyle(color: kText1),
-              decoration: _dec('Descrição (opcional)', Icons.notes_rounded),
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.commonDescriptionOptional,
+                Icons.notes_rounded,
+              ),
             ),
             if (_erro != null) ...[
               const SizedBox(height: 10),
-              Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+              Text(
+                _erro!,
+                style: TextStyle(color: context.sem.danger, fontSize: 13),
+              ),
             ],
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _loading ? null : _salvar,
               style: FilledButton.styleFrom(
-                backgroundColor: kPrimary,
+                backgroundColor: context.c.primary,
+                foregroundColor: context.c.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: _loading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: context.c.onPrimary,
                       ),
                     )
-                  : const Text(
-                      'Criar modalidade',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                  : Text(
+                      l.dashCreateModality,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
             ),
           ],
@@ -1711,30 +1783,30 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2),
-    prefixIcon: Icon(icon, color: kText2, size: 20),
+    hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+    prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 20),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surfaceContainerLow,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kPrimary),
+      borderSide: BorderSide(color: context.c.primary),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
   );
 }
@@ -1769,6 +1841,7 @@ class _PlanoSheetState extends State<_PlanoSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    final erroMsg = context.l10n.commonSaveError;
     setState(() {
       _loading = true;
       _erro = null;
@@ -1787,8 +1860,8 @@ class _PlanoSheetState extends State<_PlanoSheet> {
         'ativo': true,
       });
       if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      setState(() => _erro = 'Erro ao salvar: $e');
+    } catch (_) {
+      setState(() => _erro = erroMsg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1796,9 +1869,10 @@ class _PlanoSheetState extends State<_PlanoSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(
@@ -1818,35 +1892,33 @@ class _PlanoSheetState extends State<_PlanoSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: kBorder,
+                  color: context.c.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Novo plano de mensalidade',
+              l.dashNewPlanTitle,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
             ),
             Text(
-              'Defina o valor que seus alunos pagarão.',
-              style: TextStyle(color: kText2, fontSize: 12),
+              l.dashNewPlanSubtitle,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _nomeCtrl,
               autofocus: true,
-              style: TextStyle(color: kText1),
-              decoration: _dec(
-                'Nome do plano (ex: Mensal, Trimestral)',
-                Icons.label_rounded,
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(l.dashPlanNameField, Icons.label_rounded),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? l.commonRequiredField
+                  : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -1854,15 +1926,15 @@ class _PlanoSheetState extends State<_PlanoSheet> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              style: TextStyle(color: kText1),
+              style: TextStyle(color: context.c.onSurface),
               decoration: _dec(
-                'Valor mensal (R\$)',
+                l.dashPlanMonthlyValueField,
                 Icons.monetization_on_rounded,
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Obrigatório';
+                if (v == null || v.trim().isEmpty) return l.commonRequiredField;
                 final n = double.tryParse(v.replaceAll(',', '.'));
-                if (n == null || n <= 0) return 'Informe um valor válido';
+                if (n == null || n <= 0) return l.commonEnterValidValue;
                 return null;
               },
             ),
@@ -1872,44 +1944,51 @@ class _PlanoSheetState extends State<_PlanoSheet> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              style: TextStyle(color: kText1),
+              style: TextStyle(color: context.c.onSurface),
               decoration: _dec(
-                'Taxa de matrícula (opcional)',
+                l.dashPlanEnrollmentFeeField,
                 Icons.receipt_long_rounded,
               ),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _descCtrl,
-              style: TextStyle(color: kText1),
-              decoration: _dec('Descrição (opcional)', Icons.notes_rounded),
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.commonDescriptionOptional,
+                Icons.notes_rounded,
+              ),
             ),
             if (_erro != null) ...[
               const SizedBox(height: 10),
-              Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+              Text(
+                _erro!,
+                style: TextStyle(color: context.sem.danger, fontSize: 13),
+              ),
             ],
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _loading ? null : _salvar,
               style: FilledButton.styleFrom(
-                backgroundColor: kPrimary,
+                backgroundColor: context.c.primary,
+                foregroundColor: context.c.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: _loading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: context.c.onPrimary,
                       ),
                     )
-                  : const Text(
-                      'Criar plano',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                  : Text(
+                      l.dashCreatePlan,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
             ),
           ],
@@ -1920,30 +1999,30 @@ class _PlanoSheetState extends State<_PlanoSheet> {
 
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2),
-    prefixIcon: Icon(icon, color: kText2, size: 20),
+    hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+    prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 20),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surfaceContainerLow,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kPrimary),
+      borderSide: BorderSide(color: context.c.primary),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
   );
 }

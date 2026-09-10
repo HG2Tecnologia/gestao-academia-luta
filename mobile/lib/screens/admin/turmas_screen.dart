@@ -2,11 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 
-const _kDiasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+/// Abreviação do dia da semana (índice 0 = domingo) no idioma ativo.
+String _dowAbbr(int d, AppLocalizations l) {
+  switch (d) {
+    case 0:
+      return l.dowSun;
+    case 1:
+      return l.dowMon;
+    case 2:
+      return l.dowTue;
+    case 3:
+      return l.dowWed;
+    case 4:
+      return l.dowThu;
+    case 5:
+      return l.dowFri;
+    case 6:
+      return l.dowSat;
+    default:
+      return '?';
+  }
+}
+
+/// Rótulo traduzido para o nível da turma. O valor persistido continua sendo a
+/// string em português (dado), só a exibição muda com o idioma.
+String nivelLabel(String? nivel, AppLocalizations l) {
+  switch (nivel) {
+    case 'Iniciante':
+      return l.levelBeginner;
+    case 'Intermediário':
+      return l.levelIntermediate;
+    case 'Avançado':
+      return l.levelAdvanced;
+    case 'Todos os níveis':
+      return l.levelAll;
+    default:
+      return nivel ?? '';
+  }
+}
 
 String _fmtHora(dynamic h) {
   final s = h?.toString() ?? '';
@@ -19,15 +57,13 @@ String _fmtHora(dynamic h) {
 /// - muitos horários                -> "Seg • Qua • Sex" + "N horários"
 ({String linha1, String linha2}) resumoHorarios(
   List<Map<String, dynamic>> horarios,
+  AppLocalizations l,
 ) {
-  if (horarios.isEmpty) return (linha1: 'Sem horários definidos', linha2: '');
+  if (horarios.isEmpty) return (linha1: l.noSchedule, linha2: '');
 
   int diaIdx(Map<String, dynamic> m) =>
       (m['diaSemana'] ?? m['dia_semana'] as num?)?.toInt() ?? 0;
-  String dia(Map<String, dynamic> m) {
-    final d = diaIdx(m);
-    return (d >= 0 && d < 7) ? _kDiasSemana[d] : '?';
-  }
+  String dia(Map<String, dynamic> m) => _dowAbbr(diaIdx(m), l);
 
   String ini(Map<String, dynamic> m) =>
       _fmtHora(m['horaInicio'] ?? m['hora_inicio']);
@@ -49,7 +85,7 @@ String _fmtHora(dynamic h) {
       linha2: '',
     );
   }
-  return (linha1: dias, linha2: '${ordenados.length} horários');
+  return (linha1: dias, linha2: l.scheduleCount(ordenados.length));
 }
 
 class AdminTurmasScreen extends StatefulWidget {
@@ -183,15 +219,15 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final poucasTurmas = _turmas.length <= 1;
     return Scaffold(
-      backgroundColor: kBg,
       floatingActionButton: (_loading || _turmas.isEmpty)
           ? null
           : FloatingActionButton(
               onPressed: () => _abrirForm(),
-              backgroundColor: kPrimary,
-              child: const Icon(Icons.add_rounded, color: Colors.black),
+              backgroundColor: context.c.primary,
+              child: Icon(Icons.add_rounded, color: context.c.onPrimary),
             ),
       body: SafeArea(
         child: Column(
@@ -207,17 +243,20 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Turmas',
+                          l.navClasses,
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Gerencie suas turmas e acompanhe a evolução dos alunos.',
-                          style: TextStyle(color: kText2, fontSize: 13),
+                          l.classesSubtitle,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -225,8 +264,12 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                   const SizedBox(width: 12),
                   IconButton(
                     onPressed: openAppDrawer,
-                    icon: Icon(Icons.menu_rounded, color: kText1, size: 26),
-                    tooltip: 'Menu',
+                    icon: Icon(
+                      Icons.menu_rounded,
+                      color: context.c.onSurface,
+                      size: 26,
+                    ),
+                    tooltip: l.commonMenu,
                   ),
                 ],
               ),
@@ -235,28 +278,31 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
                 controller: _ctrl,
-                style: TextStyle(color: kText1),
+                style: TextStyle(color: context.c.onSurface),
                 decoration: InputDecoration(
-                  hintText: 'Buscar turma...',
-                  hintStyle: TextStyle(color: kText2),
-                  prefixIcon: Icon(Icons.search_rounded, color: kText2),
+                  hintText: l.classesSearchHint,
+                  hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: context.c.onSurfaceVariant,
+                  ),
                   filled: true,
-                  fillColor: kSurface,
+                  fillColor: context.c.surfaceContainer,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: kBorder),
+                    borderSide: BorderSide(color: context.c.outline),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: kBorder),
+                    borderSide: BorderSide(color: context.c.outline),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: kPrimary),
+                    borderSide: BorderSide(color: context.c.primary),
                   ),
                 ),
               ),
@@ -264,7 +310,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Material(
-                color: kSurface,
+                color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   onTap: () => context.push('/admin/turmas/relatorio'),
@@ -276,17 +322,21 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder),
+                      border: Border.all(color: context.c.outline),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.insights_rounded, size: 18, color: kPrimary),
+                        Icon(
+                          Icons.insights_rounded,
+                          size: 18,
+                          color: context.c.primary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Relatório de presenças',
+                            l.attendanceReport,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -295,7 +345,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                         Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                         ),
                       ],
                     ),
@@ -305,7 +355,11 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
             ),
             Expanded(
               child: _loading
-                  ? Center(child: CircularProgressIndicator(color: kPrimary))
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: context.c.primary,
+                      ),
+                    )
                   : _erro
                   ? _EstadoErro(onRetry: _load)
                   : _turmas.isEmpty
@@ -313,8 +367,8 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                   : _filtradas.isEmpty
                   ? Center(
                       child: Text(
-                        'Nenhuma turma encontrada.',
-                        style: TextStyle(color: kText2),
+                        l.classesEmpty,
+                        style: TextStyle(color: context.c.onSurfaceVariant),
                       ),
                     )
                   : RefreshIndicator(
@@ -369,6 +423,7 @@ class _ClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final t = turma;
     final ativa = t['ativo'] == true;
     final total = (t['totalAlunos'] as num?)?.toInt() ?? 0;
@@ -379,16 +434,19 @@ class _ClassCard extends StatelessWidget {
         .toString();
     final nivel = (t['nivel'] ?? '').toString();
     final prof = (t['professorNome'] ?? t['nome_professor'] ?? '').toString();
-    final sub = [modalidade, nivel].where((s) => s.isNotEmpty).join(' · ');
-    final r = resumoHorarios(horarios);
+    final sub = [
+      modalidade,
+      nivelLabel(nivel.isEmpty ? null : nivel, l),
+    ].where((s) => s.isNotEmpty).join(' · ');
+    final r = resumoHorarios(horarios, l);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,7 +458,7 @@ class _ClassCard extends StatelessWidget {
                 child: Text(
                   t['nome']?.toString() ?? '',
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -412,13 +470,17 @@ class _ClassCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (ativa ? kSuccess : kText2).withValues(alpha: 0.15),
+                  color:
+                      (ativa ? context.sem.success : context.c.onSurfaceVariant)
+                          .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  ativa ? 'Ativa' : 'Inativa',
+                  ativa ? l.classStatusActive : l.classStatusInactive,
                   style: TextStyle(
-                    color: ativa ? kSuccess : kText2,
+                    color: ativa
+                        ? context.sem.success
+                        : context.c.onSurfaceVariant,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -430,7 +492,7 @@ class _ClassCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               sub,
-              style: TextStyle(color: kText2, fontSize: 13),
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -438,8 +500,8 @@ class _ClassCard extends StatelessWidget {
           if (prof.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
-              'Prof. $prof',
-              style: TextStyle(color: kPrimary, fontSize: 12),
+              l.classInstructorPrefix(prof),
+              style: TextStyle(color: context.sem.goldOnSurface, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -453,7 +515,11 @@ class _ClassCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.groups_rounded, color: kPrimary, size: 18),
+                  Icon(
+                    Icons.groups_rounded,
+                    color: context.c.primary,
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
                   Text.rich(
                     TextSpan(
@@ -461,14 +527,17 @@ class _ClassCard extends StatelessWidget {
                         TextSpan(
                           text: '$total',
                           style: TextStyle(
-                            color: kPrimary,
+                            color: context.sem.goldOnSurface,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         TextSpan(
-                          text: ' / $cap alunos',
-                          style: TextStyle(color: kText2, fontSize: 13),
+                          text: l.classCapacitySuffix(cap),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -483,7 +552,7 @@ class _ClassCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.calendar_month_rounded,
-                      color: kPrimary,
+                      color: context.c.primary,
                       size: 18,
                     ),
                     const SizedBox(width: 6),
@@ -494,7 +563,7 @@ class _ClassCard extends StatelessWidget {
                           Text(
                             r.linha1,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
                               height: 1.3,
@@ -505,7 +574,10 @@ class _ClassCard extends StatelessWidget {
                           if (r.linha2.isNotEmpty)
                             Text(
                               r.linha2,
-                              style: TextStyle(color: kText2, fontSize: 12),
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
                             ),
                         ],
                       ),
@@ -525,13 +597,13 @@ class _ClassCard extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: onChamada,
                     icon: const Icon(Icons.how_to_reg_rounded, size: 18),
-                    label: const Text(
-                      'Fazer chamada',
+                    label: Text(
+                      l.takeAttendance,
                       overflow: TextOverflow.ellipsis,
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.black,
+                      backgroundColor: context.c.primary,
+                      foregroundColor: context.c.onPrimary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       textStyle: const TextStyle(
@@ -553,27 +625,27 @@ class _ClassCard extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: onDetalhes,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kText1,
-                      side: BorderSide(color: kBorder),
+                      foregroundColor: context.c.onSurface,
+                      side: BorderSide(color: context.c.outline),
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Flexible(
                           child: Text(
-                            'Ver detalhes',
+                            l.viewDetails,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        Icon(Icons.chevron_right_rounded, size: 18),
+                        const Icon(Icons.chevron_right_rounded, size: 18),
                       ],
                     ),
                   ),
@@ -583,8 +655,12 @@ class _ClassCard extends StatelessWidget {
               IconButton(
                 onPressed: onEditar,
                 visualDensity: VisualDensity.compact,
-                icon: Icon(Icons.edit_rounded, color: kText2, size: 18),
-                tooltip: 'Editar turma',
+                icon: Icon(
+                  Icons.edit_rounded,
+                  color: context.c.onSurfaceVariant,
+                  size: 18,
+                ),
+                tooltip: l.editClass,
               ),
             ],
           ),
@@ -602,13 +678,14 @@ class _BlocoMaisTurmas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         children: [
@@ -616,16 +693,16 @@ class _BlocoMaisTurmas extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: kPrimary.withValues(alpha: 0.12),
+              color: context.c.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.groups_rounded, color: kPrimary),
+            child: Icon(Icons.groups_rounded, color: context.c.primary),
           ),
           const SizedBox(height: 12),
           Text(
-            'Mais turmas, mais histórias',
+            l.classesMoreTitle,
             style: TextStyle(
-              color: kText1,
+              color: context.c.onSurface,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
@@ -633,18 +710,18 @@ class _BlocoMaisTurmas extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Cadastre novas turmas e mantenha toda a sua academia organizada.',
-            style: TextStyle(color: kText2, fontSize: 12.5),
+            l.classesMoreSubtitle,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: onCriar,
             icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Nova turma'),
+            label: Text(l.dashNewClass),
             style: OutlinedButton.styleFrom(
-              foregroundColor: kPrimary,
-              side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+              foregroundColor: context.c.primary,
+              side: BorderSide(color: context.c.primary.withValues(alpha: 0.5)),
               minimumSize: const Size(0, 46),
               padding: const EdgeInsets.symmetric(horizontal: 24),
               shape: RoundedRectangleBorder(
@@ -664,27 +741,32 @@ class _EstadoVazio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.groups_rounded, color: kText2, size: 44),
+            Icon(
+              Icons.groups_rounded,
+              color: context.c.onSurfaceVariant,
+              size: 44,
+            ),
             const SizedBox(height: 14),
             Text(
-              'Você ainda não possui turmas cadastradas.',
-              style: TextStyle(color: kText2, fontSize: 14),
+              l.classesEmptyState,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             ElevatedButton.icon(
               onPressed: onCriar,
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Criar primeira turma'),
+              label: Text(l.classesCreateFirst),
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.black,
+                backgroundColor: context.c.primary,
+                foregroundColor: context.c.onPrimary,
                 elevation: 0,
                 minimumSize: const Size(0, 48),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -707,28 +789,31 @@ class _EstadoErro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_off_rounded, color: kDanger, size: 44),
+            Icon(Icons.wifi_off_rounded, color: context.sem.danger, size: 44),
             const SizedBox(height: 14),
             Text(
-              'Não foi possível carregar as informações.',
-              style: TextStyle(color: kText2, fontSize: 14),
+              l.classesLoadError,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Tentar novamente'),
+              label: Text(l.commonRetry),
               style: OutlinedButton.styleFrom(
-                foregroundColor: kPrimary,
+                foregroundColor: context.c.primary,
                 minimumSize: const Size(0, 46),
-                side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+                side: BorderSide(
+                  color: context.c.primary.withValues(alpha: 0.5),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -767,6 +852,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
   bool _loading = true;
   bool _salvando = false;
 
+  /// Valores persistidos (dados). A exibição usa [nivelLabel].
   static const _niveis = [
     'Iniciante',
     'Intermediário',
@@ -867,6 +953,9 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    final erroMsg = _editando
+        ? context.l10n.classEditError
+        : context.l10n.classCreateError;
     setState(() => _salvando = true);
     try {
       final body = {
@@ -892,11 +981,10 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      final msg = _editando ? 'Erro ao editar turma' : 'Erro ao criar turma';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg),
-          backgroundColor: kDanger,
+          content: Text(erroMsg),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -907,10 +995,11 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: BoxDecoration(
-        color: kBg,
+        color: context.c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottom),
@@ -922,7 +1011,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: kBorder,
+              color: context.c.outline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -930,9 +1019,9 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
           Row(
             children: [
               Text(
-                _editando ? 'Editar Turma' : 'Nova Turma',
+                _editando ? l.editClassTitle : l.newClassTitle,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -948,7 +1037,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                 TextButton(
                   onPressed: _salvar,
                   style: TextButton.styleFrom(
-                    backgroundColor: kPrimary.withOpacity(0.12),
+                    backgroundColor: context.c.primary.withValues(alpha: 0.12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
@@ -958,9 +1047,9 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     ),
                   ),
                   child: Text(
-                    'Salvar',
+                    l.commonSave,
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.sem.goldOnSurface,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -980,20 +1069,21 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                 children: [
                   _field(
                     _nomeCtrl,
-                    'Nome da Turma',
+                    l.classNameField,
                     Icons.groups_rounded,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l.commonRequiredField
+                        : null,
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     value: _modalidadeId,
                     decoration: _inputDecoration(
-                      'Modalidade',
+                      l.modality,
                       Icons.sports_martial_arts_rounded,
                     ),
-                    dropdownColor: kSurface,
-                    style: TextStyle(color: kText1, fontSize: 15),
+                    dropdownColor: context.c.surfaceContainer,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
                     items:
                         (_editando
                                 ? _modalidades
@@ -1005,29 +1095,31 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                                 value: m['id']?.toString(),
                                 child: Text(
                                   m['nome']?.toString() ?? '',
-                                  style: TextStyle(color: kText1),
+                                  style: TextStyle(color: context.c.onSurface),
                                 ),
                               ),
                             )
                             .toList(),
                     onChanged: (v) => setState(() => _modalidadeId = v),
-                    validator: (v) =>
-                        v == null ? 'Selecione a modalidade' : null,
+                    validator: (v) => v == null ? l.sdSelectModality : null,
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     value: _niveis.contains(_nivel) ? _nivel : null,
                     decoration: _inputDecoration(
-                      'Nível',
+                      l.level,
                       Icons.bar_chart_rounded,
                     ),
-                    dropdownColor: kSurface,
-                    style: TextStyle(color: kText1, fontSize: 15),
+                    dropdownColor: context.c.surfaceContainer,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
                     items: _niveis
                         .map(
                           (n) => DropdownMenuItem(
                             value: n,
-                            child: Text(n, style: TextStyle(color: kText1)),
+                            child: Text(
+                              nivelLabel(n, l),
+                              style: TextStyle(color: context.c.onSurface),
+                            ),
                           ),
                         )
                         .toList(),
@@ -1044,17 +1136,17 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                         ? _professorId
                         : null,
                     decoration: _inputDecoration(
-                      'Professor (opcional)',
+                      l.instructorOptional,
                       Icons.person_rounded,
                     ),
-                    dropdownColor: kSurface,
-                    style: TextStyle(color: kText1, fontSize: 15),
+                    dropdownColor: context.c.surfaceContainer,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
                     items: [
                       DropdownMenuItem<String>(
                         value: null,
                         child: Text(
-                          'Sem professor',
-                          style: TextStyle(color: kText2),
+                          l.noInstructor,
+                          style: TextStyle(color: context.c.onSurfaceVariant),
                         ),
                       ),
                       ..._professores.map((p) {
@@ -1065,7 +1157,10 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                             '';
                         return DropdownMenuItem(
                           value: id,
-                          child: Text(nome, style: TextStyle(color: kText1)),
+                          child: Text(
+                            nome,
+                            style: TextStyle(color: context.c.onSurface),
+                          ),
                         );
                       }),
                     ],
@@ -1074,13 +1169,16 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                   const SizedBox(height: 14),
                   _field(
                     _capCtrl,
-                    'Capacidade máxima',
+                    l.maxCapacity,
                     Icons.people_rounded,
                     keyboard: TextInputType.number,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                      if (int.tryParse(v.trim()) == null)
-                        return 'Número inválido';
+                      if (v == null || v.trim().isEmpty) {
+                        return l.commonRequiredField;
+                      }
+                      if (int.tryParse(v.trim()) == null) {
+                        return l.invalidNumber;
+                      }
                       return null;
                     },
                   ),
@@ -1092,28 +1190,28 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: kSurface,
+                        color: context.c.surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
+                        border: Border.all(color: context.c.outline),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.toggle_on_rounded,
-                            color: kText2,
+                            color: context.c.onSurfaceVariant,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Turma ativa',
-                              style: TextStyle(color: kText1),
+                              l.classActiveToggle,
+                              style: TextStyle(color: context.c.onSurface),
                             ),
                           ),
                           Switch(
                             value: _ativo,
                             onChanged: (v) => setState(() => _ativo = v),
-                            activeColor: kPrimary,
+                            activeThumbColor: context.c.primary,
                           ),
                         ],
                       ),
@@ -1137,36 +1235,36 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
     controller: ctrl,
     keyboardType: keyboard,
     validator: validator,
-    style: TextStyle(color: kText1, fontSize: 15),
+    style: TextStyle(color: context.c.onSurface, fontSize: 15),
     decoration: _inputDecoration(label, icon),
   );
 
   InputDecoration _inputDecoration(String label, IconData icon) =>
       InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: kText2, fontSize: 13),
-        prefixIcon: Icon(icon, color: kText2, size: 18),
+        labelStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+        prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 18),
         filled: true,
-        fillColor: kSurface,
+        fillColor: context.c.surfaceContainer,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kPrimary, width: 1.5),
+          borderSide: BorderSide(color: context.c.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kDanger),
+          borderSide: BorderSide(color: context.sem.danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kDanger, width: 1.5),
+          borderSide: BorderSide(color: context.sem.danger, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,

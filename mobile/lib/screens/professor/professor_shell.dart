@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/profile_session_service.dart';
@@ -22,42 +23,42 @@ class _ProfessorShellState extends State<ProfessorShell>
     (
       icon: Icons.home_rounded,
       iconOff: Icons.home_outlined,
-      label: 'Início',
+      labelKey: 'inicio',
       perm: '',
       idx: 0,
     ),
     (
       icon: Icons.groups_rounded,
       iconOff: Icons.groups_outlined,
-      label: 'Turmas',
+      labelKey: 'turmas',
       perm: 'tela_turmas',
       idx: 1,
     ),
     (
       icon: Icons.sports_martial_arts,
       iconOff: Icons.sports_martial_arts_outlined,
-      label: 'Alunos',
+      labelKey: 'alunos',
       perm: 'tela_alunos',
       idx: 2,
     ),
     (
       icon: Icons.schedule_rounded,
       iconOff: Icons.schedule_outlined,
-      label: 'Horários',
+      labelKey: 'horarios',
       perm: 'tela_horarios',
       idx: 3,
     ),
     (
       icon: Icons.emoji_events_rounded,
       iconOff: Icons.emoji_events_outlined,
-      label: 'Rankings',
+      labelKey: 'rankings',
       perm: 'tela_rankings',
       idx: 4,
     ),
     (
       icon: Icons.person_rounded,
       iconOff: Icons.person_outline_rounded,
-      label: 'Perfil',
+      labelKey: 'perfil',
       perm: '',
       idx: 5,
     ),
@@ -147,12 +148,22 @@ class _ProfessorShellState extends State<ProfessorShell>
     }
   }
 
+  String _label(String k, AppLocalizations l) => switch (k) {
+    'inicio' => l.navHome,
+    'turmas' => l.navClasses,
+    'alunos' => l.navStudents,
+    'horarios' => l.navSchedule,
+    'rankings' => l.navRanking,
+    'perfil' => l.navProfile,
+    _ => k,
+  };
+
   NavigationDestination _dest(int branch) {
     final item = _allItems.firstWhere((i) => i.idx == branch);
     return NavigationDestination(
       icon: Icon(item.iconOff),
       selectedIcon: Icon(item.icon),
-      label: item.label,
+      label: _label(item.labelKey, context.l10n),
     );
   }
 
@@ -165,7 +176,7 @@ class _ProfessorShellState extends State<ProfessorShell>
         .toList();
 
     return Drawer(
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,9 +184,9 @@ class _ProfessorShellState extends State<ProfessorShell>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF161616), Color(0xFF0A0A0A)],
+                  colors: [context.c.surfaceContainer, context.c.surface],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -191,7 +202,7 @@ class _ProfessorShellState extends State<ProfessorShell>
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161616),
+                            color: context.c.surfaceContainer,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Colors.blue.withOpacity(0.4),
@@ -204,10 +215,10 @@ class _ProfessorShellState extends State<ProfessorShell>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Área do Professor',
+                        Text(
+                          context.l10n.profAreaTitle,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: context.c.onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
@@ -215,8 +226,11 @@ class _ProfessorShellState extends State<ProfessorShell>
                         Text(
                           _nomePerfilAtual.isNotEmpty
                               ? _nomePerfilAtual
-                              : 'Painel do professor',
-                          style: TextStyle(color: kText2, fontSize: 12),
+                              : context.l10n.profPanelSubtitle,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -239,14 +253,14 @@ class _ProfessorShellState extends State<ProfessorShell>
                   for (final item in visibleItems)
                     _DrawerItem(
                       icon: currentIdx == item.idx ? item.icon : item.iconOff,
-                      label: item.label,
+                      label: _label(item.labelKey, context.l10n),
                       selected: currentIdx == item.idx,
                       onTap: () => _navegar(item.idx),
                     ),
                   const Divider(height: 24),
                   _DrawerItem(
                     icon: Icons.newspaper_rounded,
-                    label: 'Notícias da Academia',
+                    label: context.l10n.profNewsAcademy,
                     selected: false,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -263,7 +277,7 @@ class _ProfessorShellState extends State<ProfessorShell>
                   const Divider(height: 16),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
-                    label: 'Sair',
+                    label: context.l10n.cfgLogout,
                     selected: false,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -294,16 +308,16 @@ class _ProfessorShellState extends State<ProfessorShell>
       body: widget.shell,
       endDrawer: _buildDrawer(),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: kSurface,
-        indicatorColor: kPrimary.withValues(alpha: 0.18),
+        backgroundColor: context.c.surfaceContainer,
+        indicatorColor: context.c.primary.withValues(alpha: 0.18),
         selectedIndex: _navSelectedIndex,
         onDestinationSelected: _onNavTap,
         destinations: [
           for (final b in branches) _dest(b),
-          const NavigationDestination(
-            icon: Icon(Icons.more_horiz_rounded),
-            selectedIcon: Icon(Icons.more_horiz_rounded),
-            label: 'Mais',
+          NavigationDestination(
+            icon: const Icon(Icons.more_horiz_rounded),
+            selectedIcon: const Icon(Icons.more_horiz_rounded),
+            label: context.l10n.navMore,
           ),
         ],
       ),
@@ -326,7 +340,9 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? kPrimary.withOpacity(0.12) : Colors.transparent,
+      color: selected
+          ? context.c.primary.withOpacity(0.12)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -335,12 +351,18 @@ class _DrawerItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, color: selected ? kPrimary : kText2, size: 20),
+              Icon(
+                icon,
+                color: selected
+                    ? context.c.primary
+                    : context.c.onSurfaceVariant,
+                size: 20,
+              ),
               const SizedBox(width: 14),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? kPrimary : kText1,
+                  color: selected ? context.c.primary : context.c.onSurface,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 14,
                 ),

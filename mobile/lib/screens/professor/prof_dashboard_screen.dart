@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
@@ -133,17 +133,25 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
 
   List<(IconData, String, String)> get _acessos => [
     if (_perms.contains('tela_turmas'))
-      (Icons.groups_rounded, 'Turmas', '/professor/turmas'),
+      (Icons.groups_rounded, context.l10n.navClasses, '/professor/turmas'),
     if (_perms.contains('tela_alunos'))
-      (Icons.sports_martial_arts, 'Alunos', '/professor/alunos'),
+      (
+        Icons.sports_martial_arts,
+        context.l10n.navStudents,
+        '/professor/alunos',
+      ),
     if (_perms.contains('tela_horarios'))
-      (Icons.schedule_rounded, 'Horários', '/professor/horarios'),
+      (Icons.schedule_rounded, context.l10n.navSchedule, '/professor/horarios'),
     if (_perms.contains('tela_rankings'))
-      (Icons.emoji_events_rounded, 'Rankings', '/professor/rankings'),
+      (
+        Icons.emoji_events_rounded,
+        context.l10n.navRanking,
+        '/professor/rankings',
+      ),
   ];
 
   Widget _acessoCard(IconData icon, String label, String rota) => Material(
-    color: kSurface,
+    color: context.c.surfaceContainer,
     borderRadius: BorderRadius.circular(14),
     child: InkWell(
       onTap: () => context.go(rota),
@@ -152,7 +160,7 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -161,17 +169,17 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: kPrimary.withValues(alpha: 0.12),
+                color: context.c.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: kPrimary, size: 20),
+              child: Icon(icon, color: context.c.primary, size: 20),
             ),
             const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -187,13 +195,13 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: kPrimary))
+            ? Center(child: CircularProgressIndicator(color: context.c.primary))
             : RefreshIndicator(
                 onRefresh: _load,
-                color: kPrimary,
+                color: context.c.primary,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
@@ -209,9 +217,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                               Text(
                                 _primeiroNome.isEmpty
                                     ? 'Olá!'
-                                    : 'Olá, $_primeiroNome!',
+                                    : context.l10n.apHelloName(_primeiroNome),
                                 style: TextStyle(
-                                  color: kText1,
+                                  color: context.c.onSurface,
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -219,8 +227,11 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                'Painel do professor',
-                                style: TextStyle(color: kText2, fontSize: 13),
+                                context.l10n.profPanelSubtitle,
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -239,19 +250,19 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                       children: [
                         Expanded(
                           child: _statCard(
-                            'Turmas',
+                            context.l10n.navClasses,
                             '$_totalTurmas',
                             Icons.groups_rounded,
-                            kPrimary,
+                            context.c.primary,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _statCard(
-                            'Alunos',
+                            context.l10n.navStudents,
                             '$_totalAlunos',
                             Icons.sports_martial_arts,
-                            kSuccess,
+                            context.sem.success,
                           ),
                         ),
                       ],
@@ -259,19 +270,19 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                     if (_turmasComoAluno > 0) ...[
                       const SizedBox(height: 10),
                       _statCard(
-                        'Você também treina em $_turmasComoAluno turma(s)',
+                        context.l10n.profAlsoTrainsIn(_turmasComoAluno),
                         '',
                         Icons.emoji_events_rounded,
-                        kWarning,
+                        context.sem.warning,
                         wide: true,
                       ),
                     ],
                     if (_acessos.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       Text(
-                        'Acessos rápidos',
+                        context.l10n.profQuickAccess,
                         style: TextStyle(
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5,
@@ -293,9 +304,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                     ],
                     const SizedBox(height: 24),
                     Text(
-                      'Aulas de hoje',
+                      context.l10n.profTodayClasses,
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -306,21 +317,24 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: kSurface,
+                          color: context.c.surfaceContainer,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: kBorder),
+                          border: Border.all(color: context.c.outline),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.event_busy_rounded,
-                              color: kText2,
+                              color: context.c.onSurfaceVariant,
                               size: 20,
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              'Nenhuma aula hoje.',
-                              style: TextStyle(color: kText2, fontSize: 13),
+                              context.l10n.profNoClassToday,
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -335,9 +349,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: kSurface,
+                            color: context.c.surfaceContainer,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: kBorder),
+                            border: Border.all(color: context.c.outline),
                           ),
                           child: Row(
                             children: [
@@ -347,13 +361,13 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: kPrimary.withOpacity(0.12),
+                                  color: context.c.primary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   _hora(h, 'hora_inicio', 'horaInicio'),
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
                                   ),
@@ -364,7 +378,7 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                                 child: Text(
                                   turma,
                                   style: TextStyle(
-                                    color: kText1,
+                                    color: context.c.onSurface,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -381,18 +395,18 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                         onPressed: () => context.go('/professor/turmas'),
                         icon: Icon(
                           Icons.groups_rounded,
-                          color: kPrimary,
+                          color: context.c.primary,
                           size: 18,
                         ),
                         label: Text(
-                          'Ver minhas turmas',
+                          context.l10n.profSeeMyClasses,
                           style: TextStyle(
-                            color: kPrimary,
+                            color: context.c.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: kBorder),
+                          side: BorderSide(color: context.c.outline),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -416,9 +430,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
   }) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: kSurface,
+      color: context.c.surfaceContainer,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
+      border: Border.all(color: context.c.outline),
     ),
     child: wide
         ? Row(
@@ -429,7 +443,7 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -445,12 +459,18 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
               Text(
                 value,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(label, style: TextStyle(color: kText2, fontSize: 12)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
   );
@@ -478,11 +498,11 @@ class _Avatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: 22,
-      backgroundColor: kPrimary.withValues(alpha: 0.18),
+      backgroundColor: context.c.primary.withValues(alpha: 0.18),
       child: Text(
         iniciais.isEmpty ? '?' : iniciais,
         style: TextStyle(
-          color: kPrimary,
+          color: context.c.primary,
           fontWeight: FontWeight.w800,
           fontSize: 13,
         ),

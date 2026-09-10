@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/relatorio_presencas.dart';
 import 'widgets/dashboard_widgets.dart';
@@ -13,12 +14,18 @@ enum _Periodo { d30, d60, d90, custom }
 
 enum _OrdRel { freqDesc, freqAsc, nomeAsc, nomeDesc }
 
-const _labelsOrdRel = <_OrdRel, String>{
-  _OrdRel.freqDesc: 'Maior frequência',
-  _OrdRel.freqAsc: 'Menor frequência',
-  _OrdRel.nomeAsc: 'Nome (A–Z)',
-  _OrdRel.nomeDesc: 'Nome (Z–A)',
-};
+String _ordRelLabel(_OrdRel o, AppLocalizations l) {
+  switch (o) {
+    case _OrdRel.freqDesc:
+      return l.sortAttendanceDesc;
+    case _OrdRel.freqAsc:
+      return l.sortAttendanceAsc;
+    case _OrdRel.nomeAsc:
+      return l.sortNameAsc;
+    case _OrdRel.nomeDesc:
+      return l.sortNameDesc;
+  }
+}
 
 class AdminRelatorioPresencasScreen extends StatefulWidget {
   const AdminRelatorioPresencasScreen({super.key});
@@ -146,10 +153,10 @@ class _AdminRelatorioPresencasScreenState
       initialDateRange: DateTimeRange(start: _de, end: _ate),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: ColorScheme.dark(
-            primary: kPrimary,
-            surface: kSurface,
-            onSurface: kText1,
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+            primary: context.c.primary,
+            surface: context.c.surfaceContainer,
+            onSurface: context.c.onSurface,
           ),
         ),
         child: child!,
@@ -198,30 +205,34 @@ class _AdminRelatorioPresencasScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Relatório de Presenças',
+          context.l10n.attendanceReportTitle,
           style: TextStyle(
-            color: kText1,
+            color: context.c.onSurface,
             fontSize: 17,
             fontWeight: FontWeight.w800,
           ),
         ),
       ),
       body: _loadingTurmas
-          ? Center(child: CircularProgressIndicator(color: kPrimary))
+          ? Center(child: CircularProgressIndicator(color: context.c.primary))
           : _turmas.isEmpty
           ? _EmptyMsg(
               icon: Icons.groups_rounded,
-              texto: 'Nenhuma turma cadastrada.',
+              texto: context.l10n.noClassesRegistered,
             )
           : Column(
               children: [
@@ -229,7 +240,9 @@ class _AdminRelatorioPresencasScreenState
                 Expanded(
                   child: _loading
                       ? Center(
-                          child: CircularProgressIndicator(color: kPrimary),
+                          child: CircularProgressIndicator(
+                            color: context.c.primary,
+                          ),
                         )
                       : _erro
                       ? _EstadoErro(onRetry: _loadRelatorio)
@@ -247,7 +260,7 @@ class _AdminRelatorioPresencasScreenState
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: kBorder)),
+        border: Border(bottom: BorderSide(color: context.c.outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,19 +268,22 @@ class _AdminRelatorioPresencasScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: kSurface,
+              color: context.c.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: context.c.outline),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _turmaId,
                 isExpanded: true,
-                dropdownColor: kSurface,
+                dropdownColor: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(14),
-                icon: Icon(Icons.keyboard_arrow_down_rounded, color: kPrimary),
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: context.c.primary,
+                ),
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
@@ -276,7 +292,10 @@ class _AdminRelatorioPresencasScreenState
                     value: t['id']?.toString(),
                     child: Text(
                       t['nome']?.toString() ?? '',
-                      style: TextStyle(color: kText1, fontSize: 15),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   );
@@ -291,9 +310,9 @@ class _AdminRelatorioPresencasScreenState
           ),
           const SizedBox(height: 16),
           Text(
-            'Período',
+            context.l10n.periodLabel,
             style: TextStyle(
-              color: kText1,
+              color: context.c.onSurface,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -303,7 +322,7 @@ class _AdminRelatorioPresencasScreenState
             children: [
               Expanded(
                 child: _periodoChip(
-                  '30 dias',
+                  context.l10n.periodDaysCount(30),
                   _Periodo.d30,
                   () => _aplicarPreset(_Periodo.d30, 30),
                 ),
@@ -311,7 +330,7 @@ class _AdminRelatorioPresencasScreenState
               const SizedBox(width: 8),
               Expanded(
                 child: _periodoChip(
-                  '60 dias',
+                  context.l10n.periodDaysCount(60),
                   _Periodo.d60,
                   () => _aplicarPreset(_Periodo.d60, 60),
                 ),
@@ -319,7 +338,7 @@ class _AdminRelatorioPresencasScreenState
               const SizedBox(width: 8),
               Expanded(
                 child: _periodoChip(
-                  '90 dias',
+                  context.l10n.periodDaysCount(90),
                   _Periodo.d90,
                   () => _aplicarPreset(_Periodo.d90, 90),
                 ),
@@ -327,7 +346,7 @@ class _AdminRelatorioPresencasScreenState
               const SizedBox(width: 8),
               Expanded(
                 child: _periodoChip(
-                  'Personalizado',
+                  context.l10n.periodCustom,
                   _Periodo.custom,
                   _selecionarPeriodo,
                 ),
@@ -340,11 +359,18 @@ class _AdminRelatorioPresencasScreenState
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded, color: kText2, size: 14),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  color: context.c.onSurfaceVariant,
+                  size: 14,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '${fmt.format(_de)} — ${fmt.format(_ate)}',
-                  style: TextStyle(color: kText2, fontSize: 12.5),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12.5,
+                  ),
                 ),
               ],
             ),
@@ -364,9 +390,11 @@ class _AdminRelatorioPresencasScreenState
         padding: const EdgeInsets.symmetric(horizontal: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: sel ? kPrimary : kSurface,
+          color: sel ? context.c.primary : context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: sel ? kPrimary : kBorder),
+          border: Border.all(
+            color: sel ? context.c.primary : context.c.outline,
+          ),
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -374,7 +402,7 @@ class _AdminRelatorioPresencasScreenState
             label,
             maxLines: 1,
             style: TextStyle(
-              color: sel ? Colors.black : kText2,
+              color: sel ? Colors.black : context.c.onSurfaceVariant,
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
@@ -395,7 +423,7 @@ class _AdminRelatorioPresencasScreenState
 
     return RefreshIndicator(
       onRefresh: _loadRelatorio,
-      color: kPrimary,
+      color: context.c.primary,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -405,7 +433,7 @@ class _AdminRelatorioPresencasScreenState
                 child: DashMetricCard(
                   icon: Icons.calendar_month_rounded,
                   value: '$totalAulas',
-                  label: 'Total de Aulas',
+                  label: context.l10n.totalSessions,
                   tone: DashTone.gold,
                 ),
               ),
@@ -414,7 +442,7 @@ class _AdminRelatorioPresencasScreenState
                 child: DashMetricCard(
                   icon: Icons.insights_rounded,
                   value: totalAulas == 0 ? '—' : '${media.toStringAsFixed(1)}%',
-                  label: 'Frequência média',
+                  label: context.l10n.avgAttendance,
                   tone: _toneFreq(media),
                 ),
               ),
@@ -425,9 +453,9 @@ class _AdminRelatorioPresencasScreenState
             children: [
               Expanded(
                 child: Text(
-                  'Frequência dos alunos (${alunos.length})',
+                  context.l10n.studentAttendanceCount(alunos.length),
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
@@ -438,21 +466,21 @@ class _AdminRelatorioPresencasScreenState
           ),
           const SizedBox(height: 12),
           if (totalAulas == 0)
-            _EmptyBox(
-              texto:
-                  'Não há aulas registradas neste período.\nSelecione outro intervalo para ver a frequência.',
-            )
+            _EmptyBox(texto: context.l10n.noSessionsInPeriod)
           else if (alunos.isEmpty)
-            _EmptyBox(texto: 'Nenhum aluno matriculado nesta turma.')
+            _EmptyBox(texto: context.l10n.noStudentsInClass)
           else
             ...alunos.map(
-              (a) => _ResumoAlunoCard(
-                aluno: a,
-                foto: _fotoPorAluno[(a['alunoId'] ?? '').toString()],
-                onTap: () {
-                  final id = (a['alunoId'] ?? '').toString();
-                  if (id.isNotEmpty) context.push('/admin/alunos/$id');
-                },
+              (a) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _ResumoAlunoCard(
+                  aluno: a,
+                  foto: _fotoPorAluno[(a['alunoId'] ?? '').toString()],
+                  onTap: () {
+                    final id = (a['alunoId'] ?? '').toString();
+                    if (id.isNotEmpty) context.push('/admin/alunos/$id');
+                  },
+                ),
               ),
             ),
         ],
@@ -462,16 +490,16 @@ class _AdminRelatorioPresencasScreenState
 
   Widget _botaoOrdenar() {
     return PopupMenuButton<_OrdRel>(
-      color: kSurface,
+      color: context.c.surfaceContainer,
       initialValue: _ordenacao,
       onSelected: (v) => setState(() => _ordenacao = v),
-      itemBuilder: (_) => _labelsOrdRel.entries
+      itemBuilder: (_) => _OrdRel.values
           .map(
             (e) => PopupMenuItem<_OrdRel>(
-              value: e.key,
+              value: e,
               child: Text(
-                e.value,
-                style: TextStyle(color: kText1, fontSize: 13),
+                _ordRelLabel(e, context.l10n),
+                style: TextStyle(color: context.c.onSurface, fontSize: 13),
               ),
             ),
           )
@@ -479,22 +507,26 @@ class _AdminRelatorioPresencasScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Ordenar por',
+              context.l10n.sortBy,
               style: TextStyle(
-                color: kText2,
+                color: context.c.onSurfaceVariant,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Icon(Icons.keyboard_arrow_down_rounded, color: kText2, size: 16),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: context.c.onSurfaceVariant,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -521,10 +553,10 @@ class _ResumoAlunoCard extends StatelessWidget {
   final String? foto;
   final VoidCallback onTap;
 
-  Color _cor(double pct) {
-    if (pct >= 75) return kSuccess;
-    if (pct >= 50) return kWarning;
-    return kDanger;
+  Color _cor(BuildContext context, double pct) {
+    if (pct >= 75) return context.sem.success;
+    if (pct >= 50) return context.sem.warning;
+    return context.sem.danger;
   }
 
   @override
@@ -533,7 +565,7 @@ class _ResumoAlunoCard extends StatelessWidget {
     final pct = (aluno['percentual'] as num? ?? 0).toDouble();
     final presencas = aluno['presencas'] as int? ?? 0;
     final faltas = aluno['faltas'] as int? ?? 0;
-    final cor = _cor(pct);
+    final cor = _cor(context, pct);
     final iniciais = nome
         .trim()
         .split(RegExp(r'\s+'))
@@ -545,11 +577,14 @@ class _ResumoAlunoCard extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label:
-          '$nome, ${pct.toStringAsFixed(0)}% de frequência, '
-          '$presencas presenças, $faltas faltas',
+      label: context.l10n.attendanceA11y(
+        nome,
+        pct.toStringAsFixed(0),
+        presencas,
+        faltas,
+      ),
       child: Material(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -558,7 +593,7 @@ class _ResumoAlunoCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: context.c.outline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +622,7 @@ class _ResumoAlunoCard extends StatelessWidget {
                       child: Text(
                         nome,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -604,7 +639,11 @@ class _ResumoAlunoCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 18,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -612,7 +651,7 @@ class _ResumoAlunoCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: (pct / 100).clamp(0.0, 1.0),
-                    backgroundColor: kBorder,
+                    backgroundColor: context.c.outline,
                     valueColor: AlwaysStoppedAnimation<Color>(cor),
                     minHeight: 6,
                   ),
@@ -620,18 +659,32 @@ class _ResumoAlunoCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 14, color: kSuccess),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: context.sem.success,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      '$presencas presenças',
-                      style: TextStyle(color: kText2, fontSize: 11.5),
+                      context.l10n.presentCount(presencas),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 11.5,
+                      ),
                     ),
                     const SizedBox(width: 14),
-                    Icon(Icons.cancel_rounded, size: 14, color: kDanger),
+                    Icon(
+                      Icons.cancel_rounded,
+                      size: 14,
+                      color: context.sem.danger,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      '$faltas faltas',
-                      style: TextStyle(color: kText2, fontSize: 11.5),
+                      context.l10n.absentCount(faltas),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 11.5,
+                      ),
                     ),
                   ],
                 ),
@@ -655,15 +708,15 @@ class _EmptyBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Center(
         child: Text(
           texto,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kText2, fontSize: 13),
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
         ),
       ),
     );
@@ -681,9 +734,12 @@ class _EmptyMsg extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: kText2, size: 44),
+          Icon(icon, color: context.c.onSurfaceVariant, size: 44),
           const SizedBox(height: 12),
-          Text(texto, style: TextStyle(color: kText2, fontSize: 14)),
+          Text(
+            texto,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -702,22 +758,24 @@ class _EstadoErro extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_off_rounded, color: kDanger, size: 44),
+            Icon(Icons.wifi_off_rounded, color: context.sem.danger, size: 44),
             const SizedBox(height: 14),
             Text(
-              'Não foi possível carregar as informações.',
-              style: TextStyle(color: kText2, fontSize: 14),
+              context.l10n.classesLoadError,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Tentar novamente'),
+              label: Text(context.l10n.commonRetry),
               style: OutlinedButton.styleFrom(
-                foregroundColor: kPrimary,
+                foregroundColor: context.c.primary,
                 minimumSize: const Size(0, 46),
-                side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+                side: BorderSide(
+                  color: context.c.primary.withValues(alpha: 0.5),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

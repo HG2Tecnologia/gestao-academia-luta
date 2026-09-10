@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
 
@@ -14,6 +15,7 @@ class AdminFaixasScreen extends StatefulWidget {
 }
 
 class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
+  AppLocalizations get _l => context.l10n;
   List<Map<String, dynamic>> _modalidades = [];
   List<Map<String, dynamic>> _faixas = [];
   String? _modalidadeId;
@@ -154,29 +156,38 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
   }
 
   Future<void> _deletar(Map<String, dynamic> faixa) async {
-    final nome = faixa['nome']?.toString() ?? 'faixa';
+    final nome = faixa['nome']?.toString() ?? '';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Excluir faixa?',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          _l.fxDeleteTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          'A faixa "$nome" será removida.',
-          style: TextStyle(color: kText2),
+          _l.fxDeleteBody(nome),
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Excluir',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonDelete,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -189,9 +200,9 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível excluir a faixa.'),
-          backgroundColor: kDanger,
+        SnackBar(
+          content: Text(_l.fxDeleteError),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -224,22 +235,25 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Sobre as faixas',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          _l.fxAboutTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          'Cada modalidade pode possuir suas próprias faixas e critérios de '
-          'graduação. Defina para cada faixa a ordem, a cor e — se quiser — um '
-          'tempo mínimo de treino e/ou um mínimo de presenças. Use 0 quando não '
-          'houver exigência.',
-          style: TextStyle(color: kText2, height: 1.4),
+          _l.fxAboutBody,
+          style: TextStyle(color: context.c.onSurfaceVariant, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Entendi', style: TextStyle(color: kPrimary)),
+            child: Text(
+              _l.commonUnderstood,
+              style: TextStyle(color: context.c.primary),
+            ),
           ),
         ],
       ),
@@ -251,19 +265,23 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
       (e) => e['id']?.toString() == _modalidadeId,
       orElse: () => const {},
     );
-    return m['nome']?.toString() ?? 'Selecione a modalidade';
+    return m['nome']?.toString() ?? _l.fxSelectModality;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
       ),
@@ -297,9 +315,9 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () => _abrirForm(),
-                    icon: const Icon(Icons.add_rounded, color: Colors.black),
-                    label: const Text(
-                      'Nova Faixa',
+                    icon: Icon(Icons.add_rounded, color: Colors.black),
+                    label: Text(
+                      _l.fxNewBelt,
                       style: TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.w800,
@@ -307,7 +325,7 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
+                      backgroundColor: context.c.primary,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -326,30 +344,30 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
     if (_loading) return const _SkeletonLista();
     if (_erro) {
       return _EstadoErro(
-        mensagem: 'Não foi possível carregar as faixas.',
+        mensagem: _l.fxLoadError,
         onRetry: _modalidades.isEmpty ? _init : _loadFaixas,
       );
     }
     if (_modalidades.isEmpty) {
-      return const _EstadoVazio(
+      return _EstadoVazio(
         icon: Icons.sports_martial_arts_rounded,
-        titulo: 'Nenhuma modalidade cadastrada',
-        subtitulo: 'Cadastre uma modalidade antes de configurar faixas.',
+        titulo: _l.fxNoModalities,
+        subtitulo: _l.fxNoModalitiesHint,
       );
     }
     if (_loadingFaixas) return const _SkeletonLista();
     if (_faixas.isEmpty) {
       return _EstadoVazio(
         icon: Icons.military_tech_rounded,
-        titulo: 'Nenhuma faixa cadastrada',
-        subtitulo: 'Cadastre a primeira faixa desta modalidade.',
+        titulo: _l.fxEmpty,
+        subtitulo: _l.fxEmptyHint,
         acao: OutlinedButton.icon(
           onPressed: () => _abrirForm(),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Criar primeira faixa'),
+          icon: Icon(Icons.add_rounded),
+          label: Text(_l.fxCreateFirst),
           style: OutlinedButton.styleFrom(
-            foregroundColor: kPrimary,
-            side: BorderSide(color: kPrimary.withValues(alpha: 0.6)),
+            foregroundColor: context.c.primary,
+            side: BorderSide(color: context.c.primary.withValues(alpha: 0.6)),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
         ),
@@ -393,25 +411,33 @@ class _Cabecalho extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Gestão de Faixas',
+                  context.l10n.fxTitle,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Cadastre e organize as faixas de cada modalidade.',
-                  style: TextStyle(color: kText2, fontSize: 12.5, height: 1.3),
+                  context.l10n.fxSubtitle,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12.5,
+                    height: 1.3,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: onAjuda,
-            icon: Icon(Icons.help_outline_rounded, color: kPrimary, size: 22),
-            tooltip: 'Ajuda',
+            icon: Icon(
+              Icons.help_outline_rounded,
+              color: context.c.primary,
+              size: 22,
+            ),
+            tooltip: context.l10n.fxHelp,
           ),
         ],
       ),
@@ -431,7 +457,7 @@ class _ModalidadeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: kSurface,
+      color: context.c.surfaceContainer,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -440,13 +466,13 @@ class _ModalidadeSelector extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kPrimary.withValues(alpha: 0.5)),
+            border: Border.all(color: context.c.primary.withValues(alpha: 0.5)),
           ),
           child: Row(
             children: [
               Icon(
                 Icons.sports_martial_arts_rounded,
-                color: kPrimary,
+                color: context.c.primary,
                 size: 19,
               ),
               const SizedBox(width: 10),
@@ -454,14 +480,18 @@ class _ModalidadeSelector extends StatelessWidget {
                 child: Text(
                   nome,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.expand_more_rounded, color: kText2, size: 22),
+              Icon(
+                Icons.expand_more_rounded,
+                color: context.c.onSurfaceVariant,
+                size: 22,
+              ),
             ],
           ),
         ),
@@ -481,8 +511,8 @@ class _ModalidadePickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: kSurface,
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -497,7 +527,7 @@ class _ModalidadePickerSheet extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: kBorder,
+              color: context.c.outline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -506,9 +536,9 @@ class _ModalidadePickerSheet extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Modalidade',
+                context.l10n.fxModality,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -527,18 +557,24 @@ class _ModalidadePickerSheet extends StatelessWidget {
                   onTap: () => Navigator.pop(context, id),
                   leading: Icon(
                     Icons.sports_martial_arts_rounded,
-                    color: selected ? kPrimary : kText2,
+                    color: selected
+                        ? context.c.primary
+                        : context.c.onSurfaceVariant,
                     size: 20,
                   ),
                   title: Text(
                     m['nome']?.toString() ?? '',
                     style: TextStyle(
-                      color: selected ? kPrimary : kText1,
+                      color: selected ? context.c.primary : context.c.onSurface,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                   trailing: selected
-                      ? Icon(Icons.check_rounded, color: kPrimary, size: 20)
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: context.c.primary,
+                          size: 20,
+                        )
                       : null,
                 );
               },
@@ -569,7 +605,7 @@ class _ResumoModalidade extends StatelessWidget {
             child: _ResumoCard(
               icon: Icons.layers_rounded,
               valor: faixas?.toString() ?? '—',
-              label: faixas == 1 ? 'Faixa cadastrada' : 'Faixas cadastradas',
+              label: context.l10n.fxBeltsCount(faixas ?? 0),
             ),
           ),
           if (alunos != null) ...[
@@ -578,7 +614,7 @@ class _ResumoModalidade extends StatelessWidget {
               child: _ResumoCard(
                 icon: Icons.groups_rounded,
                 valor: '$alunos',
-                label: 'Alunos nesta modalidade',
+                label: context.l10n.fxStudentsInModality,
               ),
             ),
           ],
@@ -603,9 +639,9 @@ class _ResumoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
@@ -613,10 +649,10 @@ class _ResumoCard extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: kPrimary.withValues(alpha: 0.12),
+              color: context.c.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon, color: kPrimary, size: 18),
+            child: Icon(icon, color: context.c.primary, size: 18),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -627,14 +663,18 @@ class _ResumoCard extends StatelessWidget {
                 Text(
                   valor,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 Text(
                   label,
-                  style: TextStyle(color: kText2, fontSize: 11, height: 1.2),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 11,
+                    height: 1.2,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -685,15 +725,15 @@ class _FaixaCard extends StatelessWidget {
     // Barra lateral: clareia faixas muito escuras para não sumir no fundo.
     final corBarra = lum < 0.12 ? Color.lerp(cor, Colors.white, 0.3)! : cor;
     // Badge: contorno neutro p/ preta, a própria cor p/ demais.
-    final corBadgeBorda = lum < 0.12 ? kText2 : cor;
+    final corBadgeBorda = lum < 0.12 ? context.c.onSurfaceVariant : cor;
     final corBadgeTexto = lum > 0.6 ? Colors.black : cor;
 
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -735,7 +775,7 @@ class _FaixaCard extends StatelessWidget {
                           child: Text(
                             faixa['nome']?.toString() ?? '',
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                             ),
@@ -748,16 +788,16 @@ class _FaixaCard extends StatelessWidget {
                           visualDensity: VisualDensity.compact,
                           icon: Icon(
                             Icons.edit_rounded,
-                            color: kPrimary,
+                            color: context.c.primary,
                             size: 19,
                           ),
-                          tooltip: 'Editar',
+                          tooltip: context.l10n.commonEdit,
                         ),
                         PopupMenuButton<String>(
-                          color: kSurface,
+                          color: context.c.surfaceContainer,
                           icon: Icon(
                             Icons.more_vert_rounded,
-                            color: kText2,
+                            color: context.c.onSurfaceVariant,
                             size: 20,
                           ),
                           onSelected: (v) {
@@ -768,15 +808,15 @@ class _FaixaCard extends StatelessWidget {
                             PopupMenuItem(
                               value: 'editar',
                               child: Text(
-                                'Editar',
-                                style: TextStyle(color: kText1),
+                                context.l10n.commonEdit,
+                                style: TextStyle(color: context.c.onSurface),
                               ),
                             ),
                             PopupMenuItem(
                               value: 'excluir',
                               child: Text(
-                                'Excluir',
-                                style: TextStyle(color: kDanger),
+                                context.l10n.commonDelete,
+                                style: TextStyle(color: context.sem.danger),
                               ),
                             ),
                           ],
@@ -794,26 +834,26 @@ class _FaixaCard extends StatelessWidget {
                           if (meses > 0)
                             _Chip(
                               Icons.calendar_month_rounded,
-                              'Mín. $meses ${meses == 1 ? 'mês' : 'meses'}',
-                              kWarning,
+                              context.l10n.fxMinMonths(meses),
+                              context.sem.warning,
                             ),
                           if (presencas > 0)
                             _Chip(
                               Icons.check_circle_outline_rounded,
-                              'Mín. $presencas ${presencas == 1 ? 'presença' : 'presenças'}',
-                              kSuccess,
+                              context.l10n.fxMinAttendances(presencas),
+                              context.sem.success,
                             ),
                           if (meses == 0 && presencas == 0)
                             _Chip(
                               Icons.remove_circle_outline_rounded,
-                              'Sem exigência mínima',
-                              kText2,
+                              context.l10n.fxNoMinReq,
+                              context.c.onSurfaceVariant,
                             ),
                           if (alunos != null)
                             _Chip(
                               Icons.person_outline_rounded,
-                              '$alunos ${alunos == 1 ? 'aluno' : 'alunos'}',
-                              kText2,
+                              context.l10n.fxStudentsCount(alunos ?? 0),
+                              context.c.onSurfaceVariant,
                             ),
                         ],
                       ),
@@ -825,7 +865,7 @@ class _FaixaCard extends StatelessWidget {
                         child: Text(
                           descricao,
                           style: TextStyle(
-                            color: kText2,
+                            color: context.c.onSurfaceVariant,
                             fontSize: 12,
                             height: 1.3,
                           ),
@@ -894,9 +934,9 @@ class _SkeletonLista extends StatelessWidget {
       itemBuilder: (_, _) => Container(
         height: 78,
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
       ),
     );
@@ -923,12 +963,12 @@ class _EstadoVazio extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: kText2, size: 50),
+            Icon(icon, color: context.c.onSurfaceVariant, size: 50),
             const SizedBox(height: 14),
             Text(
               titulo,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -937,7 +977,11 @@ class _EstadoVazio extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               subtitulo,
-              style: TextStyle(color: kText2, fontSize: 12.5, height: 1.3),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 12.5,
+                height: 1.3,
+              ),
               textAlign: TextAlign.center,
             ),
             if (acao != null) ...[const SizedBox(height: 18), acao!],
@@ -961,19 +1005,25 @@ class _EstadoErro extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, color: kDanger, size: 50),
+            Icon(
+              Icons.error_outline_rounded,
+              color: context.sem.danger,
+              size: 50,
+            ),
             const SizedBox(height: 14),
             Text(
               mensagem,
-              style: TextStyle(color: kText2),
+              style: TextStyle(color: context.c.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Tentar novamente'),
-              style: OutlinedButton.styleFrom(foregroundColor: kPrimary),
+              icon: Icon(Icons.refresh_rounded),
+              label: Text(context.l10n.commonRetry),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.c.primary,
+              ),
             ),
           ],
         ),
@@ -1006,6 +1056,7 @@ class _FaixaFormSheet extends StatefulWidget {
 }
 
 class _FaixaFormSheetState extends State<_FaixaFormSheet> {
+  AppLocalizations get _l => context.l10n;
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
@@ -1089,9 +1140,9 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
       if (!mounted) return;
       setState(() => _salvando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível salvar a faixa.'),
-          backgroundColor: kDanger,
+        SnackBar(
+          content: Text(_l.fxSaveError),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1099,10 +1150,10 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
   }
 
   String? _validarInteiroNaoNegativo(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Informe 0 ou mais';
+    if (v == null || v.trim().isEmpty) return _l.fxEnterZeroOrMore;
     final n = int.tryParse(v.trim());
-    if (n == null) return 'Somente números';
-    if (n < 0) return 'Não pode ser negativo';
+    if (n == null) return _l.fxNumbersOnly;
+    if (n < 0) return _l.fxNotNegative;
     return null;
   }
 
@@ -1110,8 +1161,8 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
   Widget build(BuildContext context) {
     final isEdit = widget.faixa != null;
     return Container(
-      decoration: const BoxDecoration(
-        color: kSurface,
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -1133,7 +1184,7 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 18),
                   decoration: BoxDecoration(
-                    color: kBorder,
+                    color: context.c.outline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1144,21 +1195,21 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: kPrimary.withValues(alpha: 0.12),
+                      color: context.c.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.military_tech_rounded,
-                      color: kPrimary,
+                      color: context.c.primary,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      isEdit ? 'Editar Faixa' : 'Nova Faixa',
+                      isEdit ? _l.fxEditTitle : _l.fxNewBelt,
                       style: TextStyle(
-                        color: kText1,
+                        color: context.c.onSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1166,64 +1217,69 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close_rounded, color: kText2, size: 22),
-                    tooltip: 'Fechar',
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 22,
+                    ),
+                    tooltip: _l.commonClose,
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              _Label('Nome da Faixa'),
+              _Label(_l.fxNameField),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _nomeCtrl,
-                style: TextStyle(color: kText1),
+                style: TextStyle(color: context.c.onSurface),
                 textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                decoration: _deco('Ex.: Branca, Azul, Roxa...'),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? _l.commonRequiredField
+                    : null,
+                decoration: _deco(_l.fxNameHint),
               ),
               const SizedBox(height: 16),
 
-              _Label('Ordem'),
+              _Label(_l.fxOrder),
               const SizedBox(height: 6),
               SizedBox(
                 width: 120,
                 child: TextFormField(
                   controller: _ordemCtrl,
-                  style: TextStyle(color: kText1),
+                  style: TextStyle(color: context.c.onSurface),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: (v) {
                     final n = int.tryParse((v ?? '').trim());
-                    if (n == null) return 'Inválido';
-                    if (n < 1) return 'Mínimo 1';
+                    if (n == null) return _l.fxInvalid;
+                    if (n < 1) return _l.fxMin1;
                     return null;
                   },
                   decoration: _deco('1'),
                 ),
               ),
               const SizedBox(height: 4),
-              _Helper('Posição da faixa na progressão da modalidade.'),
+              _Helper(_l.fxOrderHint),
               const SizedBox(height: 18),
 
-              _Label('Critérios para graduação'),
+              _Label(_l.fxGradCriteria),
               const SizedBox(height: 8),
               LayoutBuilder(
                 builder: (context, c) {
                   final campoMeses = _CampoCriterio(
                     controller: _mesesCtrl,
-                    titulo: 'Tempo mínimo (meses)',
+                    titulo: _l.fxMinTimeMonths,
                     hint: '0',
-                    helper: 'Meses de treino antes de graduar.',
+                    helper: _l.fxMinTimeMonthsHint,
                     validator: _validarInteiroNaoNegativo,
                   );
                   final campoPresencas = _CampoCriterio(
                     controller: _presencasCtrl,
-                    titulo: 'Presenças mínimas',
+                    titulo: _l.fxMinAttendancesField,
                     hint: '0',
-                    helper: 'Treinos necessários para graduar.',
+                    helper: _l.fxMinAttendancesHint,
                     validator: _validarInteiroNaoNegativo,
                   );
                   if (c.maxWidth < 340) {
@@ -1246,22 +1302,22 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                 },
               ),
               const SizedBox(height: 8),
-              _Helper('0 = sem exigência mínima.'),
+              _Helper(_l.fxZeroNoMin),
               const SizedBox(height: 18),
 
-              _Label('Descrição (opcional)'),
+              _Label(_l.commonDescriptionOptional),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _descCtrl,
-                style: TextStyle(color: kText1),
+                style: TextStyle(color: context.c.onSurface),
                 maxLines: 3,
                 minLines: 1,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: _deco('Ex.: Observações sobre a faixa...'),
+                decoration: _deco(_l.fxDescHint),
               ),
               const SizedBox(height: 18),
 
-              _Label('Cor da Faixa'),
+              _Label(_l.fxBeltColor),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 12,
@@ -1278,13 +1334,17 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                         color: color,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: selected ? kPrimary : kBorder,
+                          color: selected
+                              ? context.c.primary
+                              : context.c.outline,
                           width: selected ? 3 : 1.5,
                         ),
                         boxShadow: selected
                             ? [
                                 BoxShadow(
-                                  color: kPrimary.withValues(alpha: 0.45),
+                                  color: context.c.primary.withValues(
+                                    alpha: 0.45,
+                                  ),
                                   blurRadius: 8,
                                   spreadRadius: 1,
                                 ),
@@ -1310,9 +1370,11 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                 child: ElevatedButton(
                   onPressed: _salvando ? null : _salvar,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
+                    backgroundColor: context.c.primary,
                     foregroundColor: Colors.black,
-                    disabledBackgroundColor: kPrimary.withValues(alpha: 0.5),
+                    disabledBackgroundColor: context.c.primary.withValues(
+                      alpha: 0.5,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -1328,7 +1390,7 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                           ),
                         )
                       : Text(
-                          isEdit ? 'Salvar alterações' : 'Criar Faixa',
+                          isEdit ? _l.sdSaveChanges : _l.fxCreateBtn,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -1345,30 +1407,33 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
 
   InputDecoration _deco(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2.withValues(alpha: 0.6), fontSize: 13),
+    hintStyle: TextStyle(
+      color: context.c.onSurfaceVariant.withValues(alpha: 0.6),
+      fontSize: 13,
+    ),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surface,
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kPrimary, width: 1.5),
+      borderSide: BorderSide(color: context.c.primary, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger, width: 1.5),
+      borderSide: BorderSide(color: context.sem.danger, width: 1.5),
     ),
   );
 }
@@ -1395,7 +1460,7 @@ class _CampoCriterio extends StatelessWidget {
         Text(
           titulo,
           style: TextStyle(
-            color: kText1,
+            color: context.c.onSurface,
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
           ),
@@ -1403,18 +1468,18 @@ class _CampoCriterio extends StatelessWidget {
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
-          style: TextStyle(color: kText1),
+          style: TextStyle(color: context.c.onSurface),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              color: kText2.withValues(alpha: 0.6),
+              color: context.c.onSurfaceVariant.withValues(alpha: 0.6),
               fontSize: 13,
             ),
             filled: true,
-            fillColor: kBg,
+            fillColor: context.c.surface,
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -1422,23 +1487,23 @@ class _CampoCriterio extends StatelessWidget {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder),
+              borderSide: BorderSide(color: context.c.outline),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder),
+              borderSide: BorderSide(color: context.c.outline),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kPrimary, width: 1.5),
+              borderSide: BorderSide(color: context.c.primary, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kDanger),
+              borderSide: BorderSide(color: context.sem.danger),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kDanger, width: 1.5),
+              borderSide: BorderSide(color: context.sem.danger, width: 1.5),
             ),
           ),
         ),
@@ -1457,7 +1522,7 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: TextStyle(
-      color: kText1,
+      color: context.c.onSurface,
       fontSize: 13.5,
       fontWeight: FontWeight.w700,
     ),
@@ -1469,6 +1534,12 @@ class _Helper extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(text, style: TextStyle(color: kText2, fontSize: 11, height: 1.3));
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(
+      color: context.c.onSurfaceVariant,
+      fontSize: 11,
+      height: 1.3,
+    ),
+  );
 }

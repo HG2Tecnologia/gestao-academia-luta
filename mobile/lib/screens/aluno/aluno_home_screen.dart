@@ -7,6 +7,8 @@ import '../../core/graduacao_order.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/widgets.dart';
 import 'aluno_qrcode_sheet.dart';
 import 'widgets/aluno_widgets.dart';
@@ -37,8 +39,6 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   int _faltasAno = 0;
   FinanceiroStatus _financeiro = FinanceiroStatus.semCobrancas;
   List<Map<String, dynamic>> _noticias = [];
-
-  static const _diasCurtos = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   @override
   void initState() {
@@ -131,7 +131,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
             : (_faixasPorModalidade.containsKey(_modalidadeSelecionada)
                   ? _modalidadeSelecionada
                   : _faixasPorModalidade.keys.first);
-        _proximaAula = _calcularProximaAula(horarios, turmaNome);
+        _proximaAula = _calcularProximaAula(horarios, turmaNome, context.l10n);
         _presencaDias = _diasComPresenca(presencas);
         final freq = calcularFrequencia(
           presencas: presencas,
@@ -156,6 +156,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   ({String turma, String quando, String professor})? _calcularProximaAula(
     List<Map<String, dynamic>> horarios,
     Map<String, String> turmaNome,
+    AppLocalizations l,
   ) {
     final now = DateTime.now();
     final hojeFs = now.weekday % 7; // 0=Dom .. 6=Sáb
@@ -210,16 +211,25 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       (melhor['hora_inicio'] ?? melhor['horaInicio'])?.toString(),
     );
     final fim = fmt((melhor['hora_fim'] ?? melhor['horaFim'])?.toString());
+    final diasCurtos = [
+      l.dowSun,
+      l.dowMon,
+      l.dowTue,
+      l.dowWed,
+      l.dowThu,
+      l.dowFri,
+      l.dowSat,
+    ];
     final diaLabel = melhorDelta == 0
-        ? 'Hoje'
+        ? l.tdToday
         : melhorDelta == 1
-        ? 'Amanhã'
-        : _diasCurtos[(hojeFs + melhorDelta) % 7];
+        ? l.commonTomorrow
+        : diasCurtos[(hojeFs + melhorDelta) % 7];
     final quando = fim.isEmpty ? '$diaLabel • $ini' : '$diaLabel • $ini — $fim';
     final turmaId = (melhor['turma_id'] ?? '').toString();
 
     return (
-      turma: turmaNome[turmaId] ?? 'Aula',
+      turma: turmaNome[turmaId] ?? l.apClassFallback,
       quando: quando,
       professor: (melhor['nomeProfessor'] ?? melhor['nome_professor'] ?? '')
           .toString(),
@@ -250,7 +260,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   Widget? _profileSwitcher() {
     if (_perfis.length < 2) return null;
     return Material(
-      color: AppColors.surface,
+      color: context.c.surfaceContainer,
       borderRadius: AppRadius.brSm,
       child: InkWell(
         borderRadius: AppRadius.brSm,
@@ -262,21 +272,21 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: AppRadius.brSm,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.c.outline),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.switch_account_rounded,
                 size: 16,
-                color: AppColors.primary,
+                color: context.c.primary,
               ),
               SizedBox(width: 5),
               Text(
-                'Trocar',
+                context.l10n.apSwitchShort,
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: context.c.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -291,16 +301,16 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: AppColors.bg,
+      return Scaffold(
+        backgroundColor: context.c.surface,
         body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+          child: CircularProgressIndicator(color: context.c.primary),
         ),
       );
     }
     if (_erro && _aluno == null) {
       return Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: context.c.surface,
         body: SafeArea(
           child: ErroConexao(
             onRetry: () {
@@ -320,10 +330,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         : _faixasPorModalidade[_modalidadeSelecionada];
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.c.surface,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: AppColors.primary,
+        color: context.c.primary,
         child: SafeArea(
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -361,12 +371,12 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               _atalhoRow(
                 StudentQuickActionCard(
                   icon: Icons.calendar_month_rounded,
-                  label: 'Minhas aulas',
+                  label: context.l10n.apMyLessons,
                   onTap: () => context.go('/aluno/horarios'),
                 ),
                 StudentQuickActionCard(
                   icon: Icons.check_circle_outline_rounded,
-                  label: 'Minha frequência',
+                  label: context.l10n.apMyAttendance,
                   onTap: () => context.push('/aluno/presencas'),
                 ),
               ),
@@ -375,19 +385,19 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 StudentQuickActionCard(
                   icon: Icons.workspace_premium_outlined,
                   iconBuilder: (c) => BeltIcon(size: 22, color: c),
-                  label: 'Minhas graduações',
+                  label: context.l10n.apMyPromotions,
                   onTap: () => context.go('/aluno/graduacoes'),
                 ),
                 StudentQuickActionCard(
                   icon: Icons.qr_code_rounded,
-                  label: 'QR de presença',
+                  label: context.l10n.apAttendanceQr,
                   onTap: _abrirQr,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
 
               SectionHeader(
-                'Próxima aula',
+                context.l10n.apNextClass,
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               ),
               NextClassCard(
@@ -423,14 +433,14 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
 
               if (_noticias.isNotEmpty) ...[
                 SectionHeader(
-                  'Notícias',
+                  context.l10n.menuNews,
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                   trailing: GestureDetector(
                     onTap: () => context.push('/noticias'),
-                    child: const Text(
-                      'Ver todas',
+                    child: Text(
+                      context.l10n.commonSeeAll,
                       style: TextStyle(
-                        color: AppColors.primary,
+                        color: context.c.primary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -468,19 +478,33 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.14),
+                color: context.c.primary.withValues(alpha: 0.14),
                 borderRadius: AppRadius.brSm,
               ),
-              child: const BeltIcon(size: 22, color: AppColors.primary),
+              child: const BeltIcon(size: 22),
             ),
             const SizedBox(width: AppSpacing.sm),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Graduação atual', style: AppText.sectionLabel),
+                  Text(
+                    context.l10n.apCurrentGrad,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
                   SizedBox(height: 2),
-                  Text('Sua trajetória começa aqui.', style: AppText.bodyMuted),
+                  Text(
+                    context.l10n.apJourneyStarts,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -493,7 +517,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     return AlunoCard(
       onTap: () => context.go('/aluno/graduacoes'),
       gradient: LinearGradient(
-        colors: [AppColors.surface, AppColors.surface.withValues(alpha: 0.6)],
+        colors: [
+          context.c.surfaceContainer,
+          context.c.surfaceContainer.withValues(alpha: 0.6),
+        ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -511,7 +538,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           GraduacaoDisplay(
             graduacao: view,
             size: GraduacaoDisplaySize.full,
-            overline: 'Graduação atual',
+            overline: context.l10n.apCurrentGrad,
           ),
         ],
       ),
@@ -530,7 +557,11 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           children: [
             Text(
               titulo,
-              style: AppText.cardTitle,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -538,7 +569,10 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
               const SizedBox(height: 4),
               Text(
                 resumo,
-                style: AppText.caption,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

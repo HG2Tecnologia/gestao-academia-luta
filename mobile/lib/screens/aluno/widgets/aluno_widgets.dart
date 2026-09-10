@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/context_ext.dart';
 
 export 'graduacao_display.dart';
 
@@ -27,7 +28,17 @@ class SectionHeader extends StatelessWidget {
       padding: padding,
       child: Row(
         children: [
-          Expanded(child: Text(label.toUpperCase(), style: AppText.sectionLabel)),
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
           ?trailing,
         ],
       ),
@@ -61,13 +72,13 @@ class AlunoEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.border, size: 60),
+            Icon(icon, color: context.c.outline, size: 60),
             const SizedBox(height: AppSpacing.md),
             Text(
               titulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -78,7 +89,7 @@ class AlunoEmptyState extends StatelessWidget {
                 subtitulo!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  color: context.c.onSurfaceVariant.withValues(alpha: 0.7),
                   fontSize: 12.5,
                 ),
               ),
@@ -88,9 +99,9 @@ class AlunoEmptyState extends StatelessWidget {
               OutlinedButton(
                 onPressed: onAcao,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+                  foregroundColor: context.c.primary,
                   side: BorderSide(
-                    color: AppColors.primary.withValues(alpha: 0.5),
+                    color: context.c.primary.withValues(alpha: 0.5),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
@@ -118,35 +129,40 @@ class StatusChip extends StatelessWidget {
   final StatusTone tone;
   final IconData? icon;
 
-  const StatusChip(this.label, {super.key, this.tone = StatusTone.neutral, this.icon});
+  const StatusChip(
+    this.label, {
+    super.key,
+    this.tone = StatusTone.neutral,
+    this.icon,
+  });
 
-  Color get _color => switch (tone) {
-        StatusTone.success => AppColors.success,
-        StatusTone.warning => AppColors.warning,
-        StatusTone.danger => AppColors.danger,
-        StatusTone.info => AppColors.primary,
-        StatusTone.neutral => AppColors.textSecondary,
-      };
+  Color _color(BuildContext context) => switch (tone) {
+    StatusTone.success => context.sem.success,
+    StatusTone.warning => context.sem.warning,
+    StatusTone.danger => context.sem.danger,
+    StatusTone.info => context.c.primary,
+    StatusTone.neutral => context.c.onSurfaceVariant,
+  };
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.15),
+        color: _color(context).withValues(alpha: 0.15),
         borderRadius: AppRadius.brSm,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: _color),
+            Icon(icon, size: 12, color: _color(context)),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: TextStyle(
-              color: _color,
+              color: _color(context),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -179,9 +195,9 @@ class StudentQuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = accent ?? AppColors.primary;
+    final c = accent ?? context.c.primary;
     return Material(
-      color: AppColors.surface,
+      color: context.c.surfaceContainer,
       borderRadius: AppRadius.brMd,
       child: InkWell(
         onTap: onTap,
@@ -191,7 +207,7 @@ class StudentQuickActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: AppRadius.brMd,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.c.outline),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,8 +229,8 @@ class StudentQuickActionCard extends StatelessWidget {
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.c.onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -250,10 +266,10 @@ class AlunoCard extends StatelessWidget {
     final content = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: gradient == null ? AppColors.surface : null,
+        color: gradient == null ? context.c.surfaceContainer : null,
         gradient: gradient,
         borderRadius: AppRadius.brMd,
-        border: Border.all(color: borderColor ?? AppColors.border),
+        border: Border.all(color: borderColor ?? context.c.outline),
       ),
       child: child,
     );

@@ -61,6 +61,10 @@ class BeltBadge extends StatelessWidget {
           height: height,
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            // Ambas as seções (cor lisa + tarja de graus) ocupam a altura
+            // total: sem isto a tarja encolhe para a altura dos risquinhos
+            // e o lado direito fica mais fino que o esquerdo.
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Main belt color
               Container(width: minWidth, color: cor),

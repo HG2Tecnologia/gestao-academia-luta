@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 
 class AdminRankingsScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class AdminRankingsScreen extends StatefulWidget {
 }
 
 class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
+  AppLocalizations get _l => context.l10n;
   List<Map<String, dynamic>> _rankings = [];
   bool _loading = true;
   String? _academiaId;
@@ -42,8 +44,10 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: context.c.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => CriarRankingSheet(onSalvo: _load),
     );
   }
@@ -51,14 +55,21 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
         elevation: 0,
-        title: const Text('Rankings', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Rankings',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.add_rounded), onPressed: _novoRanking, tooltip: 'Novo ranking'),
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            onPressed: _novoRanking,
+            tooltip: _l.rkNewRanking,
+          ),
         ],
       ),
       body: Column(
@@ -67,23 +78,26 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _rankings.isEmpty
-                    ? _empty()
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _rankings.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (_, i) => _RankingCard(
-                            ranking: _rankings[i],
-                            onTap: () async {
-                              await context.push('/admin/rankings/${_rankings[i]['id']}', extra: _rankings[i]);
-                              _load();
-                            },
-                            onToggleAtivo: () => _toggleAtivo(_rankings[i]),
-                          ),
-                        ),
+                ? _empty()
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _rankings.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) => _RankingCard(
+                        ranking: _rankings[i],
+                        onTap: () async {
+                          await context.push(
+                            '/admin/rankings/${_rankings[i]['id']}',
+                            extra: _rankings[i],
+                          );
+                          _load();
+                        },
+                        onToggleAtivo: () => _toggleAtivo(_rankings[i]),
                       ),
+                    ),
+                  ),
           ),
           const AdBannerWidget(),
         ],
@@ -96,40 +110,62 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
     final ativo = r['ativo'] as bool? ?? true;
     try {
       if (ativo) {
-        await firestoreService.deleteRankingCustom(_academiaId!, r['id'].toString());
+        await firestoreService.deleteRankingCustom(
+          _academiaId!,
+          r['id'].toString(),
+        );
       } else {
-        await firestoreService.updateRankingCustom(_academiaId!, r['id'].toString(), {
-          ...r,
-          'ativo': true,
-        });
+        await firestoreService.updateRankingCustom(
+          _academiaId!,
+          r['id'].toString(),
+          {...r, 'ativo': true},
+        );
       }
       _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Erro ao atualizar'),
-          backgroundColor: kDanger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_l.rkUpdateError),
+            backgroundColor: context.sem.danger,
+          ),
+        );
       }
     }
   }
 
   Widget _empty() => Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.emoji_events_outlined, size: 56, color: kText2.withOpacity(0.4)),
-          const SizedBox(height: 12),
-          Text('Nenhum ranking criado', style: TextStyle(color: kText2, fontSize: 15)),
-          const SizedBox(height: 6),
-          Text('Toque em + para criar seu primeiro ranking', style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 12)),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _novoRanking,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Criar ranking'),
-            style: FilledButton.styleFrom(backgroundColor: kPrimary),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.emoji_events_outlined,
+          size: 56,
+          color: context.c.onSurfaceVariant.withOpacity(0.4),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _l.rkNoRankings,
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 15),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _l.rkTapPlus,
+          style: TextStyle(
+            color: context.c.onSurfaceVariant.withOpacity(0.6),
+            fontSize: 12,
           ),
-        ]),
-      );
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: _novoRanking,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(_l.rkCreate),
+          style: FilledButton.styleFrom(backgroundColor: context.c.primary),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RankingCard extends StatelessWidget {
@@ -137,7 +173,11 @@ class _RankingCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onToggleAtivo;
 
-  const _RankingCard({required this.ranking, required this.onTap, required this.onToggleAtivo});
+  const _RankingCard({
+    required this.ranking,
+    required this.onTap,
+    required this.onToggleAtivo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -146,8 +186,12 @@ class _RankingCard extends StatelessWidget {
     final incManuais = ranking['incluirPontosManuais'] as bool? ?? false;
 
     final tags = <String>[];
-    if (incPresencas) tags.add('Presenças ×${ranking['pesoPresencas'] ?? 1}');
-    if (incManuais) tags.add('Pontos manuais ×${ranking['pesoManuais'] ?? 1}');
+    if (incPresencas) {
+      tags.add(context.l10n.rkWeightAttendance(ranking['pesoPresencas'] ?? 1));
+    }
+    if (incManuais) {
+      tags.add(context.l10n.rkWeightManual(ranking['pesoManuais'] ?? 1));
+    }
 
     final dataInicio = ranking['dataInicio'] != null
         ? DateFormat('dd/MM/yyyy').format(DateTime.parse(ranking['dataInicio']))
@@ -164,71 +208,149 @@ class _RankingCard extends StatelessWidget {
       child: Opacity(
         opacity: ativo ? 1.0 : 0.6,
         child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: ativo ? kBorder : kBorder.withOpacity(0.3)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Icon(Icons.emoji_events_rounded, color: ativo ? kPrimary : kText2, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                ranking['nome'] ?? '',
-                style: TextStyle(color: ativo ? kText1 : kText2, fontWeight: FontWeight.w700, fontSize: 15),
-              ),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: context.c.surfaceContainer,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: ativo
+                  ? context.c.outline
+                  : context.c.outline.withOpacity(0.3),
             ),
-            if (ranking['visivelParaAluno'] == true)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                child: Text('Visível aluno', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w600)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.emoji_events_rounded,
+                    color: ativo
+                        ? context.c.primary
+                        : context.c.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      ranking['nome'] ?? '',
+                      style: TextStyle(
+                        color: ativo
+                            ? context.c.onSurface
+                            : context.c.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  if (ranking['visivelParaAluno'] == true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.sem.success.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        context.l10n.rkVisibleStudentShort,
+                        style: TextStyle(
+                          color: context.sem.success,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: onToggleAtivo,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ativo
+                            ? context.sem.success.withOpacity(0.12)
+                            : context.sem.danger.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        ativo
+                            ? context.l10n.statusActive
+                            : context.l10n.statusInactive,
+                        style: TextStyle(
+                          color: ativo
+                              ? context.sem.success
+                              : context.sem.danger,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onToggleAtivo,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: ativo ? kSuccess.withOpacity(0.12) : kDanger.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
+              if (ranking['descricao'] != null &&
+                  (ranking['descricao'] as String).isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  ranking['descricao'],
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
-                child: Text(ativo ? 'Ativo' : 'Inativo',
-                    style: TextStyle(color: ativo ? kSuccess : kDanger, fontSize: 10, fontWeight: FontWeight.w600)),
+              ],
+              if (tags.isNotEmpty || periodoLabel != null) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    ...tags.map((t) => _tag(context, t)),
+                    if (periodoLabel != null)
+                      _tag(context, periodoLabel, color: context.sem.warning),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: context.c.onSurfaceVariant,
+                    size: 16,
+                  ),
+                  Text(
+                    context.l10n.rkViewLeaderboardAddPoints,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ]),
-          if (ranking['descricao'] != null && (ranking['descricao'] as String).isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(ranking['descricao'], style: TextStyle(color: kText2, fontSize: 12)),
-          ],
-          if (tags.isNotEmpty || periodoLabel != null) ...[
-            const SizedBox(height: 10),
-            Wrap(spacing: 6, runSpacing: 4, children: [
-              ...tags.map((t) => _tag(t)),
-              if (periodoLabel != null)
-                _tag(periodoLabel, color: kWarning),
-            ]),
-          ],
-          const SizedBox(height: 10),
-          Row(children: [
-            Icon(Icons.chevron_right_rounded, color: kText2, size: 16),
-            Text('Ver leaderboard e lançar pontos', style: TextStyle(color: kText2, fontSize: 12)),
-          ]),
-        ]),
-      ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _tag(String label, {Color? color}) {
-    final c = color ?? kPrimary;
+  Widget _tag(BuildContext context, String label, {Color? color}) {
+    final c = color ?? context.c.primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-      child: Text(label, style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }
@@ -246,6 +368,7 @@ class CriarRankingSheet extends StatefulWidget {
 }
 
 class _CriarRankingSheetState extends State<CriarRankingSheet> {
+  AppLocalizations get _l => context.l10n;
   final _formKey = GlobalKey<FormState>();
   final _nome = TextEditingController();
   final _descricao = TextEditingController();
@@ -274,7 +397,8 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
       _pesoPresencas.text = (r['pesoPresencas'] ?? 1).toString();
       _pesoManuais.text = (r['pesoManuais'] ?? 1).toString();
       _visivel = r['visivelParaAluno'] ?? false;
-      if (r['dataInicio'] != null) _dataInicio = DateTime.tryParse(r['dataInicio']);
+      if (r['dataInicio'] != null)
+        _dataInicio = DateTime.tryParse(r['dataInicio']);
       if (r['dataFim'] != null) _dataFim = DateTime.tryParse(r['dataFim']);
     }
     _loadUser();
@@ -297,34 +421,47 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_academiaId == null || _academiaId!.isEmpty) {
-      setState(() => _erro = 'Academia não encontrada.');
+      setState(() => _erro = _l.rkAcademyNotFound);
       return;
     }
-    setState(() { _salvando = true; _erro = null; });
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
     try {
       final body = {
         'nome': _nome.text.trim(),
-        'descricao': _descricao.text.trim().isEmpty ? null : _descricao.text.trim(),
+        'descricao': _descricao.text.trim().isEmpty
+            ? null
+            : _descricao.text.trim(),
         'incluirPresencas': _incPresencas,
         'incluirPontosManuais': _incManuais,
         'pesoPresencas': int.tryParse(_pesoPresencas.text) ?? 1,
         'pesoManuais': int.tryParse(_pesoManuais.text) ?? 1,
         'visivelParaAluno': _visivel,
-        'dataInicio': _dataInicio != null ? DateFormat('yyyy-MM-dd').format(_dataInicio!) : null,
-        'dataFim': _dataFim != null ? DateFormat('yyyy-MM-dd').format(_dataFim!) : null,
+        'dataInicio': _dataInicio != null
+            ? DateFormat('yyyy-MM-dd').format(_dataInicio!)
+            : null,
+        'dataFim': _dataFim != null
+            ? DateFormat('yyyy-MM-dd').format(_dataFim!)
+            : null,
         if (widget.ranking != null) 'ativo': widget.ranking!['ativo'],
       };
 
       if (widget.ranking == null) {
         await firestoreService.addRankingCustom(_academiaId!, body);
       } else {
-        await firestoreService.updateRankingCustom(_academiaId!, widget.ranking!['id'].toString(), body);
+        await firestoreService.updateRankingCustom(
+          _academiaId!,
+          widget.ranking!['id'].toString(),
+          body,
+        );
       }
 
       widget.onSalvo();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _erro = 'Erro ao salvar: $e');
+      setState(() => _erro = _l.commonSaveError);
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -333,159 +470,280 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         child: Form(
           key: _formKey,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
-              Expanded(
-                child: Text(
-                  widget.ranking == null ? 'Novo ranking' : 'Editar ranking',
-                  style: TextStyle(color: kText1, fontWeight: FontWeight.w700, fontSize: 17),
-                ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.ranking == null
+                          ? _l.rkNewRanking
+                          : _l.rkEditRanking,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: context.c.onSurfaceVariant),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
               ),
-              IconButton(icon: Icon(Icons.close, color: kText2), onPressed: () => Navigator.of(context).pop()),
-            ]),
-            const SizedBox(height: 16),
-
-            _field(_nome, 'Nome do ranking *', required: true),
-            const SizedBox(height: 10),
-            _field(_descricao, 'Descrição (opcional)'),
-            const SizedBox(height: 20),
-
-            Text('Composição dos pontos', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-            const SizedBox(height: 12),
-
-            _toggleRow(
-              'Incluir presenças',
-              'Cada presença conta como pontos',
-              _incPresencas,
-              (v) => setState(() => _incPresencas = v),
-            ),
-            if (_incPresencas) ...[
-              const SizedBox(height: 8),
-              Row(children: [
-                const SizedBox(width: 16),
-                Text('Peso de cada presença:', style: TextStyle(color: kText2, fontSize: 13)),
-                const SizedBox(width: 10),
-                SizedBox(width: 60, child: _fieldNum(_pesoPresencas)),
-              ]),
-            ],
-            const SizedBox(height: 10),
-
-            _toggleRow(
-              'Incluir pontos manuais',
-              'Pontos lançados manualmente pelo professor/admin',
-              _incManuais,
-              (v) => setState(() => _incManuais = v),
-            ),
-            if (_incManuais) ...[
-              const SizedBox(height: 8),
-              Row(children: [
-                const SizedBox(width: 16),
-                Text('Peso dos pontos manuais:', style: TextStyle(color: kText2, fontSize: 13)),
-                const SizedBox(width: 10),
-                SizedBox(width: 60, child: _fieldNum(_pesoManuais)),
-              ]),
-            ],
-            const SizedBox(height: 20),
-
-            Text('Visibilidade', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-            const SizedBox(height: 12),
-            _toggleRow(
-              'Visível para os alunos',
-              'Os alunos poderão ver este ranking no app',
-              _visivel,
-              (v) => setState(() => _visivel = v),
-            ),
-            const SizedBox(height: 20),
-
-            Text('Período de validade', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-            const SizedBox(height: 4),
-            Text('Presenças fora deste período serão ignoradas no cálculo.',
-                style: TextStyle(color: kText2.withOpacity(0.7), fontSize: 11)),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _datePicker(
-                label: _dataInicio != null ? DateFormat('dd/MM/yyyy').format(_dataInicio!) : 'Data início',
-                set: (d) => setState(() => _dataInicio = d),
-                clear: () => setState(() => _dataInicio = null),
-              )),
-              const SizedBox(width: 10),
-              const Text('→', style: TextStyle(color: Colors.white54)),
-              const SizedBox(width: 10),
-              Expanded(child: _datePicker(
-                label: _dataFim != null ? DateFormat('dd/MM/yyyy').format(_dataFim!) : 'Data fim',
-                set: (d) => setState(() => _dataFim = d),
-                clear: () => setState(() => _dataFim = null),
-              )),
-            ]),
-
-            if (_erro != null) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: kDanger.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+
+              _field(_nome, _l.rkNameRequired, required: true),
+              const SizedBox(height: 10),
+              _field(_descricao, _l.commonDescriptionOptional),
+              const SizedBox(height: 20),
+
+              Text(
+                _l.rkPointsComposition,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              _toggleRow(
+                _l.rkIncludeAttendance,
+                _l.rkEachAttendanceCounts,
+                _incPresencas,
+                (v) => setState(() => _incPresencas = v),
+              ),
+              if (_incPresencas) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Text(
+                      _l.rkAttendanceWeight,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(width: 60, child: _fieldNum(_pesoPresencas)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+
+              _toggleRow(
+                _l.rkIncludeManual,
+                _l.rkManualHint,
+                _incManuais,
+                (v) => setState(() => _incManuais = v),
+              ),
+              if (_incManuais) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Text(
+                      _l.rkManualWeight,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(width: 60, child: _fieldNum(_pesoManuais)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              Text(
+                _l.rkVisibility,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _toggleRow(
+                _l.rkVisibleToStudents,
+                _l.rkVisibleHint,
+                _visivel,
+                (v) => setState(() => _visivel = v),
+              ),
+              const SizedBox(height: 20),
+
+              Text(
+                _l.rkValidityPeriod,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _l.rkOutsidePeriodIgnored,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant.withOpacity(0.7),
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _datePicker(
+                      label: _dataInicio != null
+                          ? DateFormat('dd/MM/yyyy').format(_dataInicio!)
+                          : _l.rkStartDate,
+                      set: (d) => setState(() => _dataInicio = d),
+                      clear: () => setState(() => _dataInicio = null),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('→', style: TextStyle(color: Colors.white54)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _datePicker(
+                      label: _dataFim != null
+                          ? DateFormat('dd/MM/yyyy').format(_dataFim!)
+                          : _l.rkEndDate,
+                      set: (d) => setState(() => _dataFim = d),
+                      clear: () => setState(() => _dataFim = null),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (_erro != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.sem.danger.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _erro!,
+                    style: TextStyle(color: context.sem.danger, fontSize: 13),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _salvando ? null : _salvar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.c.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _salvando
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          widget.ranking == null
+                              ? _l.rkCreate
+                              : _l.sdSaveChanges,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                ),
               ),
             ],
-
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _salvando ? null : _salvar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _salvando
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(widget.ranking == null ? 'Criar ranking' : 'Salvar alterações',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              ),
-            ),
-          ]),
+          ),
         ),
       ),
     );
   }
 
-  Widget _field(TextEditingController ctrl, String hint, {bool required = false}) => TextFormField(
-        controller: ctrl,
-        style: TextStyle(color: kText1),
-        validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null : null,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: kText2, fontSize: 14),
-          filled: true,
-          fillColor: kBg,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
-        ),
-      );
+  Widget _field(
+    TextEditingController ctrl,
+    String hint, {
+    bool required = false,
+  }) => TextFormField(
+    controller: ctrl,
+    style: TextStyle(color: context.c.onSurface),
+    validator: required
+        ? (v) => (v == null || v.trim().isEmpty) ? _l.commonRequiredField : null
+        : null,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
+      filled: true,
+      fillColor: context.c.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: context.c.outline),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: context.c.outline),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: context.c.primary),
+      ),
+    ),
+  );
 
   Widget _fieldNum(TextEditingController ctrl) => TextFormField(
-        controller: ctrl,
-        keyboardType: TextInputType.number,
-        style: TextStyle(color: kText1, fontSize: 14),
-        textAlign: TextAlign.center,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: kBg,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: kPrimary)),
-        ),
-      );
+    controller: ctrl,
+    keyboardType: TextInputType.number,
+    style: TextStyle(color: context.c.onSurface, fontSize: 14),
+    textAlign: TextAlign.center,
+    decoration: InputDecoration(
+      filled: true,
+      fillColor: context.c.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: context.c.outline),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: context.c.outline),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: context.c.primary),
+      ),
+    ),
+  );
 
-  Widget _datePicker({required String label, required ValueChanged<DateTime?> set, required VoidCallback clear}) {
+  Widget _datePicker({
+    required String label,
+    required ValueChanged<DateTime?> set,
+    required VoidCallback clear,
+  }) {
     final hasDate = label.contains('/');
     return GestureDetector(
       onTap: () async {
@@ -496,7 +754,10 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
           lastDate: DateTime(2030),
           builder: (ctx, child) => Theme(
             data: ThemeData.dark().copyWith(
-              colorScheme: ColorScheme.dark(primary: kPrimary, surface: kSurface),
+              colorScheme: ColorScheme.dark(
+                primary: context.c.primary,
+                surface: context.c.surfaceContainer,
+              ),
             ),
             child: child!,
           ),
@@ -507,36 +768,73 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: kBg,
+          color: context.c.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: hasDate ? kPrimary.withOpacity(0.6) : kBorder),
+          border: Border.all(
+            color: hasDate
+                ? context.c.primary.withOpacity(0.6)
+                : context.c.outline,
+          ),
         ),
-        child: Row(children: [
-          Icon(Icons.calendar_today_rounded, size: 14, color: hasDate ? kPrimary : kText2),
-          const SizedBox(width: 6),
-          Expanded(child: Text(label,
-              style: TextStyle(color: hasDate ? kPrimary : kText2, fontSize: 12),
-              overflow: TextOverflow.ellipsis)),
-        ]),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 14,
+              color: hasDate ? context.c.primary : context.c.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: hasDate
+                      ? context.c.primary
+                      : context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _toggleRow(String titulo, String sub, bool value, ValueChanged<bool> onChange) => Row(
-        children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(titulo, style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w600)),
-              Text(sub, style: TextStyle(color: kText2, fontSize: 11)),
-            ]),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChange,
-            activeColor: kPrimary,
-            inactiveThumbColor: kText2,
-            inactiveTrackColor: kBorder,
-          ),
-        ],
-      );
+  Widget _toggleRow(
+    String titulo,
+    String sub,
+    bool value,
+    ValueChanged<bool> onChange,
+  ) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              titulo,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              sub,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+      Switch(
+        value: value,
+        onChanged: onChange,
+        activeColor: context.c.primary,
+        inactiveThumbColor: context.c.onSurfaceVariant,
+        inactiveTrackColor: context.c.outline,
+      ),
+    ],
+  );
 }

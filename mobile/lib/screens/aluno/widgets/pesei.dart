@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/theme/context_ext.dart';
 
 const _peseiGreen = Color(0xFF2E7D32);
 
@@ -42,35 +43,52 @@ void showPeseiSheet(BuildContext context) {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.asset('assets/logo_pesei.png',
-                    width: 64, height: 64, fit: BoxFit.cover),
+                child: Image.asset(
+                  'assets/logo_pesei.png',
+                  width: 64,
+                  height: 64,
+                  fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('PESEI',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5)),
-                    const Text('Seu parceiro de saúde e bem-estar',
-                        style: TextStyle(color: Colors.white60, fontSize: 13)),
+                    const Text(
+                      'PESEI',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      modalCtx.l10n.peseiTagline,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _peseiGreen,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text('Gratuito · iOS & Android',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
+                      child: Text(
+                        modalCtx.l10n.peseiFreeBadge,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -78,17 +96,29 @@ void showPeseiSheet(BuildContext context) {
             ],
           ),
           const SizedBox(height: 24),
-          _feature(Icons.monitor_weight_rounded, 'Controle de Peso',
-              'Acompanhe ganhos e perdas com gráficos e histórico'),
+          _feature(
+            Icons.monitor_weight_rounded,
+            modalCtx.l10n.peseiFeatWeightTitle,
+            modalCtx.l10n.peseiFeatWeightSub,
+          ),
           const SizedBox(height: 12),
-          _feature(Icons.water_drop_rounded, 'Hidratação Diária',
-              'Meta de consumo de água personalizada com alertas'),
+          _feature(
+            Icons.water_drop_rounded,
+            modalCtx.l10n.peseiFeatWaterTitle,
+            modalCtx.l10n.peseiFeatWaterSub,
+          ),
           const SizedBox(height: 12),
-          _feature(Icons.medication_rounded, 'Medicamentos',
-              'Lembretes para não esquecer seus remédios e suplementos'),
+          _feature(
+            Icons.medication_rounded,
+            modalCtx.l10n.peseiFeatMedsTitle,
+            modalCtx.l10n.peseiFeatMedsSub,
+          ),
           const SizedBox(height: 12),
-          _feature(Icons.insights_rounded, 'Evolução Visual',
-              'Gráficos de progresso para manter o foco nos seus objetivos'),
+          _feature(
+            Icons.insights_rounded,
+            modalCtx.l10n.peseiFeatProgressTitle,
+            modalCtx.l10n.peseiFeatProgressSub,
+          ),
           const SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
@@ -98,14 +128,20 @@ void showPeseiSheet(BuildContext context) {
                 _abrirLojaPesei();
               },
               icon: const Icon(Icons.download_rounded, size: 20),
-              label: const Text('Baixar gratuitamente',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              label: Text(
+                modalCtx.l10n.peseiDownloadFree,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: _peseiGreen,
                 foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(52),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
@@ -132,13 +168,18 @@ Widget _feature(IconData icon, String title, String subtitle) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
-            Text(subtitle,
-                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -175,8 +216,12 @@ class PeseiCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset('assets/logo_pesei.png',
-                  width: 52, height: 52, fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/logo_pesei.png',
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -185,34 +230,45 @@ class PeseiCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Text('PESEI',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5)),
+                      const Text(
+                        'PESEI',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text('GRÁTIS',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5)),
+                        child: Text(
+                          context.l10n.peseiFreeShort,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text('Controle de peso, água e saúde',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 12)),
+                  Text(
+                    context.l10n.peseiCardTagline,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -222,11 +278,14 @@ class PeseiCard extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('Ver app',
-                  style: TextStyle(
-                      color: _peseiGreen,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+              child: Text(
+                context.l10n.peseiSeeApp,
+                style: const TextStyle(
+                  color: _peseiGreen,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
         ),

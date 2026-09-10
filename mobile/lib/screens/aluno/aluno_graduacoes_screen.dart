@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/tab_refresh.dart';
@@ -41,7 +41,10 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _erro = false; });
+    setState(() {
+      _loading = true;
+      _erro = false;
+    });
     try {
       final user = await AuthStorage.getUser();
       if (user == null) return;
@@ -57,18 +60,21 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
       final aprovadas = list.where((g) => g['aprovado'] == true).toList();
       final atuaisPorModalidade = <String, Map<String, dynamic>>{};
       for (final graduacao in aprovadas) {
-        final modalidade = graduacao['modalidadeId']?.toString() ??
-            graduacao['nomeModalidade']?.toString() ?? 'modalidade';
+        final modalidade =
+            graduacao['modalidadeId']?.toString() ??
+            graduacao['nomeModalidade']?.toString() ??
+            'modalidade';
         final atual = atuaisPorModalidade[modalidade];
         if (atual == null ||
             compararProgressaoGraduacoes(graduacao, atual) > 0) {
           atuaisPorModalidade[modalidade] = graduacao;
         }
       }
-      if (mounted) setState(() {
-        _graduacoes = list;
-        _faixasAtuais = atuaisPorModalidade.values.toList();
-      });
+      if (mounted)
+        setState(() {
+          _graduacoes = list;
+          _faixasAtuais = atuaisPorModalidade.values.toList();
+        });
     } catch (_) {
       if (mounted) setState(() => _erro = true);
     } finally {
@@ -84,7 +90,9 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
 
   Widget _faixaAtualCard(Map<String, dynamic> faixaAtual) {
     final corFaixa = _hexCor(faixaAtual['corFaixa'] as String?);
-    final corBarra = _hexCor(faixaAtual['corBarraFaixa'] as String? ?? '#000000');
+    final corBarra = _hexCor(
+      faixaAtual['corBarraFaixa'] as String? ?? '#000000',
+    );
     final grau = (faixaAtual['grau'] as num?)?.toInt() ?? 0;
     final temGraus = faixaAtual['faixaTemGraus'] == true || grau > 0;
     final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
@@ -100,31 +108,62 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: corFaixa.withOpacity(0.4)),
       ),
-      child: Row(children: [
-        BeltBadge(
-          cor: corFaixa, corBarra: corBarra, temGraus: temGraus,
-          grau: grau, maxGraus: _effectiveMaxGraus(faixaAtual), height: 22, minWidth: 52,
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(faixaAtual['nomeModalidade']?.toString() ?? 'Modalidade',
-                style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w600)),
-            Text(faixaAtual['nomeFaixa']?.toString() ?? '',
-                style: TextStyle(color: accentLight, fontSize: 19, fontWeight: FontWeight.w900)),
-            if (temGraus && grau > 0)
-              Text('$grau° grau',
-                  style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
-          ]),
-        ),
-      ]),
+      child: Row(
+        children: [
+          BeltBadge(
+            cor: corFaixa,
+            corBarra: corBarra,
+            temGraus: temGraus,
+            grau: grau,
+            maxGraus: _effectiveMaxGraus(faixaAtual),
+            height: 22,
+            minWidth: 52,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  faixaAtual['nomeModalidade']?.toString() ??
+                      context.l10n.fxModality,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  faixaAtual['nomeFaixa']?.toString() ?? '',
+                  style: TextStyle(
+                    color: accentLight,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (temGraus && grau > 0)
+                  Text(
+                    '$grau° grau',
+                    style: TextStyle(
+                      color: context.c.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   List<Widget> _buildHistoricoByMod([String? modFiltro]) {
     final source = modFiltro == null
         ? _graduacoes
-        : _graduacoes.where((g) => g['nomeModalidade']?.toString() == modFiltro).toList();
+        : _graduacoes
+              .where((g) => g['nomeModalidade']?.toString() == modFiltro)
+              .toList();
 
     // Agrupa por modalidade preservando a linha do tempo antiga -> nova.
     final Map<String, List<Map<String, dynamic>>> byMod = {};
@@ -135,19 +174,24 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
 
     return byMod.entries.map((entry) {
       final items = entry.value;
-      return SliverMainAxisGroup(slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Text(
-              entry.key.toUpperCase(),
-              style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+      return SliverMainAxisGroup(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Text(
+                entry.key.toUpperCase(),
+                style: TextStyle(
+                  color: context.c.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ),
           ),
-        ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (_, i) {
+          SliverList(
+            delegate: SliverChildBuilderDelegate((_, i) {
               final g = items[i];
               final aprovado = g['aprovado'] == true;
               final cor = _hexCor(g['corFaixa'] as String?);
@@ -165,18 +209,36 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (!isFirst)
-                            Center(child: Container(width: 2, height: 10, color: kBorder)),
+                            Center(
+                              child: Container(
+                                width: 2,
+                                height: 10,
+                                color: context.c.outline,
+                              ),
+                            ),
                           Container(
-                            width: 14, height: 14,
+                            width: 14,
+                            height: 14,
                             margin: const EdgeInsets.symmetric(vertical: 4),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: aprovado ? cor : kBorder,
-                              border: Border.all(color: aprovado ? cor.withOpacity(0.5) : kBorder, width: 2),
+                              color: aprovado ? cor : context.c.outline,
+                              border: Border.all(
+                                color: aprovado
+                                    ? cor.withOpacity(0.5)
+                                    : context.c.outline,
+                                width: 2,
+                              ),
                             ),
                           ),
                           if (!isLast)
-                            Center(child: Container(width: 2, height: 24, color: kBorder)),
+                            Center(
+                              child: Container(
+                                width: 2,
+                                height: 24,
+                                color: context.c.outline,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -186,66 +248,141 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: kSurface,
+                            color: context.c.surfaceContainer,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: aprovado && isLast ? cor.withOpacity(0.4) : kBorder),
-                          ),
-                          child: Row(children: [
-                            BeltBadge(
-                              cor: cor,
-                              corBarra: _hexCor(g['corBarraFaixa'] as String? ?? '#000000'),
-                              temGraus: g['faixaTemGraus'] == true || ((g['grau'] as num?)?.toInt() ?? 0) > 0,
-                              grau: (g['grau'] as num?)?.toInt() ?? 0,
-                              maxGraus: _effectiveMaxGraus(g),
-                              height: 14,
-                              minWidth: 32,
+                            border: Border.all(
+                              color: aprovado && isLast
+                                  ? cor.withOpacity(0.4)
+                                  : context.c.outline,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Row(children: [
-                                  Flexible(child: Text(g['nomeFaixa'] ?? '', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)),
-                                  if (((g['grau'] as num?)?.toInt() ?? 0) > 0) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                                      child: Text('${(g['grau'] as num?)?.toInt()}° grau', style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
+                          ),
+                          child: Row(
+                            children: [
+                              BeltBadge(
+                                cor: cor,
+                                corBarra: _hexCor(
+                                  g['corBarraFaixa'] as String? ?? '#000000',
+                                ),
+                                temGraus:
+                                    g['faixaTemGraus'] == true ||
+                                    ((g['grau'] as num?)?.toInt() ?? 0) > 0,
+                                grau: (g['grau'] as num?)?.toInt() ?? 0,
+                                maxGraus: _effectiveMaxGraus(g),
+                                height: 14,
+                                minWidth: 32,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            g['nomeFaixa'] ?? '',
+                                            style: TextStyle(
+                                              color: context.c.onSurface,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (((g['grau'] as num?)?.toInt() ??
+                                                0) >
+                                            0) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: context.c.primary
+                                                  .withOpacity(0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${(g['grau'] as num?)?.toInt()}° grau',
+                                              style: TextStyle(
+                                                color: context.c.primary,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ],
-                                ]),
-                              ]),
-                            ),
-                            Flexible(
-                              flex: 0,
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                Text(_fmtData(g['dataExame']?.toString()), style: TextStyle(color: kText2, fontSize: 12)),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(color: (aprovado ? kSuccess : kDanger).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                                  child: Text(aprovado ? 'Aprovado' : 'Reprovado', style: TextStyle(color: aprovado ? kSuccess : kDanger, fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
-                              ]),
-                            ),
-                          ]),
+                              ),
+                              Flexible(
+                                flex: 0,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      _fmtData(g['dataExame']?.toString()),
+                                      style: TextStyle(
+                                        color: context.c.onSurfaceVariant,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            (aprovado
+                                                    ? context.sem.success
+                                                    : context.sem.danger)
+                                                .withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        aprovado
+                                            ? context.l10n.apExamApproved
+                                            : context.l10n.apExamFailed,
+                                        style: TextStyle(
+                                          color: aprovado
+                                              ? context.sem.success
+                                              : context.sem.danger,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               );
-            },
-            childCount: items.length,
+            }, childCount: items.length),
           ),
-        ),
-      ]);
+        ],
+      );
     }).toList();
   }
 
   Color _hexCor(String? hex) {
-    if (hex == null || hex.isEmpty) return kPrimary;
-    try { return Color(int.parse(hex.replaceAll('#', '0xFF'))); } catch (_) { return kPrimary; }
+    if (hex == null || hex.isEmpty) return context.c.primary;
+    try {
+      return Color(int.parse(hex.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return context.c.primary;
+    }
   }
 
   String _fmtData(String? s) {
@@ -254,36 +391,57 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
       final parts = s.split('-');
       if (parts.length < 3) return s;
       return '${parts[2]}/${parts[1]}/${parts[0]}';
-    } catch (_) { return s; }
+    } catch (_) {
+      return s;
+    }
   }
 
   AppBar _appBar() => AppBar(
-    backgroundColor: kSurface,
-    foregroundColor: kText1,
+    backgroundColor: context.c.surfaceContainer,
+    foregroundColor: context.c.onSurface,
     elevation: 0,
-    title: const Text('Histórico de Graduações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+    title: Text(
+      context.l10n.apPromotionHistory,
+      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: Center(child: CircularProgressIndicator(color: kPrimary)));
-    if (_erro) return Scaffold(backgroundColor: kBg, appBar: _appBar(), body: SafeArea(child: ErroConexao(onRetry: _load)));
+    if (_loading)
+      return Scaffold(
+        backgroundColor: context.c.surface,
+        appBar: _appBar(),
+        body: Center(
+          child: CircularProgressIndicator(color: context.c.primary),
+        ),
+      );
+    if (_erro)
+      return Scaffold(
+        backgroundColor: context.c.surface,
+        appBar: _appBar(),
+        body: SafeArea(child: ErroConexao(onRetry: _load)),
+      );
 
     // Modality filter
-    final mods = _graduacoes
-        .map((g) => g['nomeModalidade']?.toString() ?? '')
-        .where((m) => m.isNotEmpty)
-        .toSet()
-        .toList()..sort();
+    final mods =
+        _graduacoes
+            .map((g) => g['nomeModalidade']?.toString() ?? '')
+            .where((m) => m.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final multiMod = mods.length > 1;
-    final modSelected = multiMod && mods.contains(_histModFiltro) ? _histModFiltro : null;
+    final modSelected = multiMod && mods.contains(_histModFiltro)
+        ? _histModFiltro
+        : null;
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: _appBar(),
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: SafeArea(
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -295,8 +453,21 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Graduações', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
-                      Text('Seu histórico de faixas', style: TextStyle(color: kText2, fontSize: 13)),
+                      Text(
+                        context.l10n.navPromotions,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        context.l10n.apYourBeltHistory,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -310,9 +481,15 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('FAIXAS ATUAIS',
-                            style: TextStyle(color: kText2, fontSize: 11,
-                                fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                        Text(
+                          context.l10n.apCurrentBeltsUpper,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         ..._faixasAtuais.map(_faixaAtualCard),
                       ],
@@ -326,23 +503,57 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                     child: DropdownButtonFormField<String>(
-                      value: mods.contains(_histModFiltro) ? _histModFiltro : mods.first,
-                      onChanged: (v) { if (v != null) setState(() => _histModFiltro = v); },
-                      dropdownColor: kSurface,
-                      style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        filled: true,
-                        fillColor: kBg,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kPrimary)),
+                      value: mods.contains(_histModFiltro)
+                          ? _histModFiltro
+                          : mods.first,
+                      onChanged: (v) {
+                        if (v != null) setState(() => _histModFiltro = v);
+                      },
+                      dropdownColor: context.c.surfaceContainer,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
-                      icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
-                      items: mods.map((m) => DropdownMenuItem<String>(
-                        value: m,
-                        child: Text(m, overflow: TextOverflow.ellipsis, style: TextStyle(color: kText1, fontSize: 13)),
-                      )).toList(),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        filled: true,
+                        fillColor: context.c.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: context.c.primary),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: context.c.onSurfaceVariant,
+                      ),
+                      items: mods
+                          .map(
+                            (m) => DropdownMenuItem<String>(
+                              value: m,
+                              child: Text(
+                                m,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: context.c.onSurface,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
                 ),
@@ -351,7 +562,15 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                  child: Text('HISTÓRICO', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                  child: Text(
+                    context.l10n.apHistoryUpper,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
                 ),
               ),
 
@@ -359,11 +578,12 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                 SliverToBoxAdapter(
                   child: ListaVazia(
                     icon: Icons.military_tech_outlined,
-                    titulo: 'Nenhuma graduação registrada',
-                    subtitulo: 'Seu histórico de faixas aparecerá aqui.',
+                    titulo: context.l10n.apNoPromotions,
+                    subtitulo: context.l10n.apNoPromotionsSub,
                   ),
                 )
-              else ..._buildHistoricoByMod(modSelected),
+              else
+                ..._buildHistoricoByMod(modSelected),
 
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],

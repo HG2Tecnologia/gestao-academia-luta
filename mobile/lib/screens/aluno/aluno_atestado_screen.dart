@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 
 class AlunoAtestadoScreen extends StatefulWidget {
@@ -29,8 +29,14 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
     setState(() => _loading = true);
     try {
       final user = await AuthStorage.getUser();
-      if (user == null) { setState(() => _loading = false); return; }
-      final atestado = await firestoreService.getAtestadoAluno(user.academiaId!, user.id);
+      if (user == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      final atestado = await firestoreService.getAtestadoAluno(
+        user.academiaId!,
+        user.id,
+      );
       setState(() {
         _atestado = atestado;
         _loading = false;
@@ -53,7 +59,7 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
     if (file.bytes == null) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      _mostrarErro('Arquivo muito grande. Máximo 5 MB.');
+      _mostrarErro(context.l10n.sdFileTooLarge);
       return;
     }
 
@@ -74,10 +80,16 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
   }
 
   Future<void> _enviar(Uint8List bytes, String mime, String nome) async {
-    setState(() { _uploading = true; _erro = null; });
+    setState(() {
+      _uploading = true;
+      _erro = null;
+    });
     try {
       final user = await AuthStorage.getUser();
-      if (user == null) { _mostrarErro('Usuário não autenticado.'); return; }
+      if (user == null) {
+        _mostrarErro(context.l10n.apNotAuthenticated);
+        return;
+      }
       final base64Str = base64Encode(bytes);
       await firestoreService.addAtestado(user.academiaId!, {
         'aluno_id': user.id,
@@ -90,14 +102,14 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Atestado enviado! Aguarde a aprovação da academia.'),
-            backgroundColor: kSuccess,
+            content: Text(context.l10n.apCertSentToast),
+            backgroundColor: context.sem.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      _mostrarErro('Erro ao enviar. Tente novamente.');
+      _mostrarErro(context.l10n.apCertSendError);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -106,21 +118,28 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
   void _mostrarErro(String msg) {
     setState(() => _erro = msg);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: context.sem.danger,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
-        title: const Text('Atestado Médico', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
+        title: Text(
+          context.l10n.apCertTitle,
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _carregar,
               child: ListView(
@@ -128,12 +147,23 @@ class _AlunoAtestadoScreenState extends State<AlunoAtestadoScreen> {
                 children: [
                   _InfoCard(),
                   const SizedBox(height: 20),
-                  if (_atestado != null) _StatusCard(atestado: _atestado!) else _SemAtestadoCard(),
+                  if (_atestado != null)
+                    _StatusCard(atestado: _atestado!)
+                  else
+                    _SemAtestadoCard(),
                   const SizedBox(height: 24),
-                  _BotaoEnvio(uploading: _uploading, onTap: _selecionar, temAtestado: _atestado != null),
+                  _BotaoEnvio(
+                    uploading: _uploading,
+                    onTap: _selecionar,
+                    temAtestado: _atestado != null,
+                  ),
                   if (_erro != null) ...[
                     const SizedBox(height: 12),
-                    Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13), textAlign: TextAlign.center),
+                    Text(
+                      _erro!,
+                      style: TextStyle(color: context.sem.danger, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ],
               ),
@@ -150,16 +180,22 @@ class _InfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E40AF).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFF60A5FA), size: 22),
+          Icon(Icons.info_outline_rounded, color: Color(0xFF60A5FA), size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'O atestado médico é válido por 1 ano após o envio. Formatos aceitos: PDF, JPG, PNG (máx. 5 MB).',
-              style: TextStyle(color: kText2, fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ),
         ],
@@ -176,17 +212,34 @@ class _SemAtestadoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFC9A020).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFC9A020).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFFC9A020).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
-          Icon(Icons.upload_file_rounded, color: kText2, size: 40),
+          Icon(
+            Icons.upload_file_rounded,
+            color: context.c.onSurfaceVariant,
+            size: 40,
+          ),
           const SizedBox(height: 12),
-          Text('Nenhum atestado enviado', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(
+            context.l10n.apCertNoneSent,
+            style: TextStyle(
+              color: context.c.onSurface,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
-            'Envie seu atestado médico para que a academia possa verificar.',
-            style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+            context.l10n.apCertSendHint,
+            style: TextStyle(
+              color: context.c.onSurfaceVariant,
+              fontSize: 13,
+              height: 1.4,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -208,14 +261,40 @@ class _StatusCard extends StatelessWidget {
     final motivo = atestado['motivoRejeicao'] as String?;
 
     final (color, bg, icon, label) = switch (status) {
-      0 => (kWarning, kWarning.withValues(alpha: 0.12), Icons.hourglass_empty_rounded, 'Aguardando aprovação'),
-      1 => (kSuccess, kSuccess.withValues(alpha: 0.12), Icons.check_circle_rounded, 'Aprovado'),
-      2 => (kDanger, kDanger.withValues(alpha: 0.12), Icons.cancel_rounded, 'Rejeitado'),
-      3 => (kDanger, kDanger.withValues(alpha: 0.12), Icons.timer_off_rounded, 'Expirado'),
-      _ => (kText2, kSurface, Icons.help_outline_rounded, 'Desconhecido'),
+      0 => (
+        context.sem.warning,
+        context.sem.warning.withValues(alpha: 0.12),
+        Icons.hourglass_empty_rounded,
+        context.l10n.sdCertPending,
+      ),
+      1 => (
+        context.sem.success,
+        context.sem.success.withValues(alpha: 0.12),
+        Icons.check_circle_rounded,
+        context.l10n.sdCertApproved,
+      ),
+      2 => (
+        context.sem.danger,
+        context.sem.danger.withValues(alpha: 0.12),
+        Icons.cancel_rounded,
+        context.l10n.sdCertRejected,
+      ),
+      3 => (
+        context.sem.danger,
+        context.sem.danger.withValues(alpha: 0.12),
+        Icons.timer_off_rounded,
+        context.l10n.sdCertExpired,
+      ),
+      _ => (
+        context.c.onSurfaceVariant,
+        context.c.surfaceContainer,
+        Icons.help_outline_rounded,
+        context.l10n.sdCertUnknown,
+      ),
     };
 
-    final vencendoEmBreve = status == 1 &&
+    final vencendoEmBreve =
+        status == 1 &&
         dataValidade != null &&
         dataValidade.isBefore(DateTime.now().add(const Duration(days: 7)));
 
@@ -233,34 +312,57 @@ class _StatusCard extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 22),
               const SizedBox(width: 10),
-              Text(label, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w700)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           if (dataValidade != null) ...[
             const SizedBox(height: 10),
             Text(
-              'Válido até: ${_fmt(dataValidade)}',
-              style: TextStyle(color: kText2, fontSize: 13),
+              context.l10n.apCertValidUntil(_fmt(dataValidade)),
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
             ),
           ],
           if (motivo != null) ...[
             const SizedBox(height: 10),
-            Text('Motivo: $motivo', style: TextStyle(color: kDanger, fontSize: 13)),
+            Text(
+              context.l10n.apCertReasonPrefix(motivo),
+              style: TextStyle(color: context.sem.danger, fontSize: 13),
+            ),
           ],
           if (vencendoEmBreve) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: kWarning.withValues(alpha: 0.15),
+                color: context.sem.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: kWarning.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: context.sem.warning.withValues(alpha: 0.4),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: kWarning, size: 16),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: context.sem.warning,
+                    size: 16,
+                  ),
                   const SizedBox(width: 6),
-                  Text('Vencendo em breve! Envie um novo.', style: TextStyle(color: kWarning, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(
+                    context.l10n.apCertExpiringSoonSendNew,
+                    style: TextStyle(
+                      color: context.sem.warning,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -270,7 +372,8 @@ class _StatusCard extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class _BotaoEnvio extends StatelessWidget {
@@ -278,21 +381,32 @@ class _BotaoEnvio extends StatelessWidget {
   final VoidCallback onTap;
   final bool temAtestado;
 
-  const _BotaoEnvio({required this.uploading, required this.onTap, required this.temAtestado});
+  const _BotaoEnvio({
+    required this.uploading,
+    required this.onTap,
+    required this.temAtestado,
+  });
 
   @override
   Widget build(BuildContext context) {
     return FilledButton.icon(
       onPressed: uploading ? null : onTap,
       icon: uploading
-          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : const Icon(Icons.upload_file_rounded),
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(Icons.upload_file_rounded),
       label: Text(
-        temAtestado ? 'Enviar novo atestado' : 'Enviar atestado',
+        temAtestado ? context.l10n.apCertSendNew : context.l10n.apCertSend,
         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       ),
       style: FilledButton.styleFrom(
-        backgroundColor: kPrimary,
+        backgroundColor: context.c.primary,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

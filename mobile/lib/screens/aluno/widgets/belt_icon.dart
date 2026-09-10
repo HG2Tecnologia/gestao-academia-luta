@@ -14,7 +14,8 @@ class BeltIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconTheme = IconTheme.of(context);
     final s = size ?? iconTheme.size ?? 24.0;
-    final c = color ??
+    final c =
+        color ??
         iconTheme.color ??
         (Theme.of(context).brightness == Brightness.dark
             ? Colors.white

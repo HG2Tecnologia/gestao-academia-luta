@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 
 class AdminModelosContratoScreen extends StatefulWidget {
   const AdminModelosContratoScreen({super.key});
 
   @override
-  State<AdminModelosContratoScreen> createState() => _AdminModelosContratoScreenState();
+  State<AdminModelosContratoScreen> createState() =>
+      _AdminModelosContratoScreenState();
 }
 
-class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen> {
+class _AdminModelosContratoScreenState
+    extends State<AdminModelosContratoScreen> {
+  AppLocalizations get _l => context.l10n;
   List<Map<String, dynamic>> _modelos = [];
   bool _loading = true;
   bool _erro = false;
@@ -27,15 +31,29 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
 
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() { _loading = true; _erro = false; });
+    setState(() {
+      _loading = true;
+      _erro = false;
+    });
     try {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
-      if (_academiaId!.isEmpty) { setState(() => _loading = false); return; }
+      if (_academiaId!.isEmpty) {
+        setState(() => _loading = false);
+        return;
+      }
       final list = await firestoreService.getModelosContrato(_academiaId!);
-      if (mounted) setState(() { _modelos = list.cast<Map<String, dynamic>>(); _loading = false; });
+      if (mounted)
+        setState(() {
+          _modelos = list.cast<Map<String, dynamic>>();
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _erro = true; _loading = false; });
+      if (mounted)
+        setState(() {
+          _erro = true;
+          _loading = false;
+        });
     }
   }
 
@@ -43,26 +61,54 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Remover Modelo', style: TextStyle(color: kText1, fontWeight: FontWeight.w800)),
-        content: Text('Deseja remover "${m['nome']}"?', style: TextStyle(color: kText2)),
+        backgroundColor: context.c.surfaceContainer,
+        title: Text(
+          _l.ctRemoveTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          _l.ctRemoveBody(m['nome']?.toString() ?? ''),
+          style: TextStyle(color: context.c.onSurfaceVariant),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: kText2))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Remover', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700)),
+            child: Text(
+              _l.commonRemove,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
     );
     if (ok != true || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.deleteModeloContrato(_academiaId!, m['id'].toString());
+      await firestoreService.deleteModeloContrato(
+        _academiaId!,
+        m['id'].toString(),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Erro ao remover modelo'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(_l.ctRemoveError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -84,136 +130,226 @@ class _AdminModelosContratoScreenState extends State<AdminModelosContratoScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
-        title: Text('Modelos de Contrato', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          _l.ctTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       floatingActionButton: !_loading && !_erro
           ? FloatingActionButton.extended(
               onPressed: () => _abrirEditor(),
-              backgroundColor: kPrimary,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: const Text('Novo Modelo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              backgroundColor: context.c.primary,
+              icon: Icon(Icons.add_rounded, color: Colors.white),
+              label: Text(
+                _l.ctNew,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             )
           : null,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator())
           : _erro
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline_rounded, color: kDanger, size: 52),
-                      const SizedBox(height: 14),
-                      Text('Não foi possível carregar', style: TextStyle(color: kText2)),
-                      const SizedBox(height: 18),
-                      OutlinedButton.icon(
-                        onPressed: _load,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Tentar novamente'),
-                        style: OutlinedButton.styleFrom(foregroundColor: kPrimary),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: context.sem.danger,
+                    size: 52,
                   ),
-                )
-              : _modelos.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.description_rounded, color: kText2, size: 52),
-                          const SizedBox(height: 14),
-                          Text('Nenhum modelo cadastrado', style: TextStyle(color: kText2)),
-                          const SizedBox(height: 8),
-                          Text('Toque em + para criar', style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 12)),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                      itemCount: _modelos.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        final m = _modelos[i];
-                        final criadoEm = m['criadoEm'] != null || m['criado_em'] != null
-                            ? _fmt.format(DateTime.tryParse((m['criadoEm'] ?? m['criado_em']).toString()) ?? DateTime.now())
-                            : '';
-                        final htmlContent = m['conteudoHtml'] ?? m['conteudo_html'] ?? '';
-                        final previewHtml = (htmlContent as String)
-                            .replaceAll(RegExp(r'<[^>]*>'), ' ')
-                            .replaceAll(RegExp(r'\s+'), ' ')
-                            .trim();
-                        final preview = previewHtml.length > 80 ? '${previewHtml.substring(0, 80)}…' : previewHtml;
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: kSurface,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: kBorder),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                            leading: Container(
-                              width: 44, height: 44,
-                              decoration: BoxDecoration(
-                                color: kPrimary.withOpacity(0.10),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(Icons.description_rounded, color: kPrimary, size: 22),
-                            ),
-                            title: Text(
-                              m['nome']?.toString() ?? '',
-                              style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (preview.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(preview, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  ),
-                                if (criadoEm.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Row(children: [
-                                      Icon(Icons.calendar_today_rounded, size: 10, color: kText2.withOpacity(0.6)),
-                                      const SizedBox(width: 3),
-                                      Text(criadoEm, style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 10)),
-                                    ]),
-                                  ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: () => _abrirEditor(modelo: m),
-                                  icon: Icon(Icons.edit_rounded, color: kPrimary, size: 20),
-                                ),
-                                IconButton(
-                                  onPressed: () => _deletar(m),
-                                  icon: Icon(Icons.delete_outline_rounded, color: kDanger, size: 20),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                  const SizedBox(height: 14),
+                  Text(
+                    _l.ctLoadError,
+                    style: TextStyle(color: context.c.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 18),
+                  OutlinedButton.icon(
+                    onPressed: _load,
+                    icon: Icon(Icons.refresh_rounded),
+                    label: Text(_l.commonRetry),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.c.primary,
                     ),
+                  ),
+                ],
+              ),
+            )
+          : _modelos.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.description_rounded,
+                    color: context.c.onSurfaceVariant,
+                    size: 52,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    _l.ctEmpty,
+                    style: TextStyle(color: context.c.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _l.ctEmptyHint,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant.withOpacity(0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              itemCount: _modelos.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) {
+                final m = _modelos[i];
+                final criadoEm = m['criadoEm'] != null || m['criado_em'] != null
+                    ? _fmt.format(
+                        DateTime.tryParse(
+                              (m['criadoEm'] ?? m['criado_em']).toString(),
+                            ) ??
+                            DateTime.now(),
+                      )
+                    : '';
+                final htmlContent =
+                    m['conteudoHtml'] ?? m['conteudo_html'] ?? '';
+                final previewHtml = (htmlContent as String)
+                    .replaceAll(RegExp(r'<[^>]*>'), ' ')
+                    .replaceAll(RegExp(r'\s+'), ' ')
+                    .trim();
+                final preview = previewHtml.length > 80
+                    ? '${previewHtml.substring(0, 80)}…'
+                    : previewHtml;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: context.c.surfaceContainer,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.c.outline),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: context.c.primary.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.description_rounded,
+                        color: context.c.primary,
+                        size: 22,
+                      ),
+                    ),
+                    title: Text(
+                      m['nome']?.toString() ?? '',
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (preview.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              preview,
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        if (criadoEm.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 10,
+                                  color: context.c.onSurfaceVariant.withOpacity(
+                                    0.6,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  criadoEm,
+                                  style: TextStyle(
+                                    color: context.c.onSurfaceVariant
+                                        .withOpacity(0.6),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: () => _abrirEditor(modelo: m),
+                          icon: Icon(
+                            Icons.edit_rounded,
+                            color: context.c.primary,
+                            size: 20,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _deletar(m),
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            color: context.sem.danger,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
 
 class _ModeloEditorSheet extends StatefulWidget {
-  const _ModeloEditorSheet({required this.academiaId, this.modelo, required this.onSalvo});
+  const _ModeloEditorSheet({
+    required this.academiaId,
+    this.modelo,
+    required this.onSalvo,
+  });
   final String academiaId;
   final Map<String, dynamic>? modelo;
   final VoidCallback onSalvo;
@@ -223,6 +359,7 @@ class _ModeloEditorSheet extends StatefulWidget {
 }
 
 class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
+  AppLocalizations get _l => context.l10n;
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   final _htmlCtrl = TextEditingController();
@@ -235,7 +372,8 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
     final m = widget.modelo;
     if (m != null) {
       _nomeCtrl.text = m['nome']?.toString() ?? '';
-      _htmlCtrl.text = (m['conteudoHtml'] ?? m['conteudo_html'])?.toString() ?? '';
+      _htmlCtrl.text =
+          (m['conteudoHtml'] ?? m['conteudo_html'])?.toString() ?? '';
     }
   }
 
@@ -248,14 +386,20 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _salvando = true; });
+    setState(() {
+      _salvando = true;
+    });
     try {
       final data = {
         'nome': _nomeCtrl.text.trim(),
         'conteudo_html': _htmlCtrl.text,
       };
       if (widget.modelo != null) {
-        await firestoreService.updateModeloContrato(widget.academiaId, widget.modelo!['id'].toString(), data);
+        await firestoreService.updateModeloContrato(
+          widget.academiaId,
+          widget.modelo!['id'].toString(),
+          data,
+        );
       } else {
         await firestoreService.addModeloContrato(widget.academiaId, data);
       }
@@ -265,10 +409,17 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Erro ao salvar modelo'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(_l.ctSaveError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
-      if (mounted) setState(() { _salvando = false; });
+      if (mounted)
+        setState(() {
+          _salvando = false;
+        });
     }
   }
 
@@ -282,7 +433,7 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
       expand: false,
       builder: (ctx, scroll) => Container(
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Form(
@@ -294,8 +445,12 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
                 child: Row(
                   children: [
                     Container(
-                      width: 36, height: 4,
-                      decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.c.outline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                     const Spacer(),
                   ],
@@ -306,22 +461,43 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
                 child: Row(
                   children: [
                     Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                      child: Icon(Icons.description_rounded, color: kPrimary, size: 20),
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: context.c.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.description_rounded,
+                        color: context.c.primary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        isEdit ? 'Editar Modelo' : 'Novo Modelo de Contrato',
-                        style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800),
+                        isEdit ? _l.ctEditTitle : _l.ctNewTitle,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () => setState(() => _showPreview = !_showPreview),
-                      icon: Icon(_showPreview ? Icons.edit_rounded : Icons.visibility_rounded, size: 14),
-                      label: Text(_showPreview ? 'Editar' : 'Preview'),
-                      style: TextButton.styleFrom(foregroundColor: kPrimary, textStyle: const TextStyle(fontSize: 12)),
+                      onPressed: () =>
+                          setState(() => _showPreview = !_showPreview),
+                      icon: Icon(
+                        _showPreview
+                            ? Icons.edit_rounded
+                            : Icons.visibility_rounded,
+                        size: 14,
+                      ),
+                      label: Text(_showPreview ? _l.commonEdit : _l.ctPreview),
+                      style: TextButton.styleFrom(
+                        foregroundColor: context.c.primary,
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
@@ -330,18 +506,46 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
                 child: TextFormField(
                   controller: _nomeCtrl,
-                  style: TextStyle(color: kText1),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  style: TextStyle(color: context.c.onSurface),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? _l.commonRequiredField
+                      : null,
                   decoration: InputDecoration(
-                    labelText: 'Nome do Modelo',
-                    labelStyle: TextStyle(color: kText2, fontSize: 13),
-                    prefixIcon: Icon(Icons.label_rounded, color: kText2, size: 18),
-                    filled: true, fillColor: kBg,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-                    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    labelText: _l.ctNameField,
+                    labelStyle: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.label_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 18,
+                    ),
+                    filled: true,
+                    fillColor: context.c.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: context.c.outline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: context.c.outline),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: context.c.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: context.sem.danger),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
               ),
@@ -353,22 +557,38 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: kBg,
+                            color: context.c.surface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: kBorder),
+                            border: Border.all(color: context.c.outline),
                           ),
                           child: SingleChildScrollView(
                             controller: scroll,
                             child: Text(
                               _htmlCtrl.text
-                                  .replaceAll(RegExp(r'<br\s*/?>',  caseSensitive: false), '\n')
-                                  .replaceAll(RegExp(r'</p>',        caseSensitive: false), '\n\n')
-                                  .replaceAll(RegExp(r'</h[1-6]>',  caseSensitive: false), '\n\n')
-                                  .replaceAll(RegExp(r'</li>',       caseSensitive: false), '\n')
+                                  .replaceAll(
+                                    RegExp(r'<br\s*/?>', caseSensitive: false),
+                                    '\n',
+                                  )
+                                  .replaceAll(
+                                    RegExp(r'</p>', caseSensitive: false),
+                                    '\n\n',
+                                  )
+                                  .replaceAll(
+                                    RegExp(r'</h[1-6]>', caseSensitive: false),
+                                    '\n\n',
+                                  )
+                                  .replaceAll(
+                                    RegExp(r'</li>', caseSensitive: false),
+                                    '\n',
+                                  )
                                   .replaceAll(RegExp(r'<[^>]*>'), '')
                                   .replaceAll(RegExp(r'&nbsp;'), ' ')
                                   .trim(),
-                              style: TextStyle(color: kText1, fontSize: 13, height: 1.5),
+                              style: TextStyle(
+                                color: context.c.onSurface,
+                                fontSize: 13,
+                                height: 1.5,
+                              ),
                             ),
                           ),
                         )
@@ -377,37 +597,82 @@ class _ModeloEditorSheetState extends State<_ModeloEditorSheet> {
                           maxLines: null,
                           expands: true,
                           textAlignVertical: TextAlignVertical.top,
-                          style: TextStyle(color: kText1, fontSize: 13, fontFamily: 'monospace'),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontSize: 13,
+                            fontFamily: 'monospace',
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? _l.commonRequiredField
+                              : null,
                           decoration: InputDecoration(
-                            labelText: 'Conteúdo HTML',
-                            labelStyle: TextStyle(color: kText2, fontSize: 12),
+                            labelText: _l.ctHtmlField,
+                            labelStyle: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
                             alignLabelWithHint: true,
-                            filled: true, fillColor: kBg,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-                            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
+                            filled: true,
+                            fillColor: context.c.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.c.outline),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.c.outline),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: context.c.primary,
+                                width: 1.5,
+                              ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: context.sem.danger),
+                            ),
                             contentPadding: const EdgeInsets.all(14),
                           ),
                         ),
                 ),
               ),
               Padding(
-                padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  16,
+                  24,
+                  MediaQuery.of(context).viewInsets.bottom + 24,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _salvando ? null : _salvar,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary, foregroundColor: Colors.white,
+                      backgroundColor: context.c.primary,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: _salvando
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(isEdit ? 'Salvar Alterações' : 'Criar Modelo',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            isEdit ? _l.sdSaveChanges : _l.ctCreateBtn,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
               ),

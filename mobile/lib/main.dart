@@ -5,13 +5,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/ad_service.dart';
-import 'core/constants.dart';
+import 'core/app_settings.dart';
 import 'core/push_service.dart';
+import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/entrada_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -94,6 +95,7 @@ Future<void> _conectarEmuladores() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await loadAppSettings();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (_kUseFirebaseEmulator) await _conectarEmuladores();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -441,43 +443,23 @@ class TatameApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Tatame',
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.dark(
-          primary: kPrimary,
-          surface: kSurface,
-          onSurface: kText1,
-          outline: kBorder,
-        ),
-        scaffoldBackgroundColor: kBg,
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: kSurface,
-          indicatorColor: kPrimary.withOpacity(0.2),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return TextStyle(
-                color: kPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              );
-            }
-            return TextStyle(color: kText2, fontSize: 11);
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return IconThemeData(color: kPrimary);
-            }
-            return IconThemeData(color: kText2);
-          }),
-        ),
-      ),
-      routerConfig: _router,
+    return ValueListenableBuilder<AppSettings>(
+      valueListenable: appSettings,
+      builder: (context, settings, _) {
+        return MaterialApp.router(
+          title: 'Tatame',
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: settings.locale,
+          localeListResolutionCallback: (deviceLocales, supported) =>
+              resolveLocale(deviceLocales, supported),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: settings.themeMode,
+          routerConfig: _router,
+        );
+      },
     );
   }
 }

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/profile_session_service.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/whats_new_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key, required this.shell});
@@ -55,25 +56,22 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  static const _items = [
-    (
-      icon: Icons.bar_chart_rounded,
-      label: 'Dashboard',
-      route: '/admin/dashboard',
-    ),
-    (icon: Icons.sports_martial_arts, label: 'Alunos', route: '/admin/alunos'),
-    (icon: Icons.groups_rounded, label: 'Turmas', route: '/admin/turmas'),
-    (icon: Icons.badge_rounded, label: 'Equipe', route: '/admin/equipe'),
-    (
-      icon: Icons.credit_card_rounded,
-      label: 'Financeiro',
-      route: '/admin/financeiro',
-    ),
-    (
-      icon: Icons.emoji_events_rounded,
-      label: 'Ranking',
-      route: '/admin/ranking',
-    ),
+  static const _icons = [
+    Icons.bar_chart_rounded,
+    Icons.sports_martial_arts,
+    Icons.groups_rounded,
+    Icons.badge_rounded,
+    Icons.credit_card_rounded,
+    Icons.emoji_events_rounded,
+  ];
+
+  List<String> _labels(AppLocalizations l) => [
+    l.navDashboard,
+    l.navStudents,
+    l.navClasses,
+    l.navStaff,
+    l.navBilling,
+    l.navRanking,
   ];
 
   // Branches do StatefulShellRoute: 0 Dashboard · 1 Alunos · 2 Turmas ·
@@ -108,9 +106,11 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   }
 
   Widget _buildDrawer() {
+    final l = context.l10n;
     final idx = widget.shell.currentIndex;
+    final labels = _labels(l);
     return Drawer(
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,9 +118,14 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1A1200), Color(0xFF0A0A0A)],
+                  colors: context.isDark
+                      ? const [Color(0xFF1A1200), Color(0xFF0A0A0A)]
+                      : [
+                          context.sem.goldContainer,
+                          context.c.surfaceContainerLow,
+                        ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -137,21 +142,24 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                           height: 44,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [kPrimary, const Color(0xFF0A0A0A)],
+                              colors: [
+                                context.c.primary,
+                                context.c.primary.withValues(alpha: 0.4),
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.admin_panel_settings_rounded,
-                            color: Colors.white,
+                            color: context.c.onPrimary,
                             size: 22,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Administrador',
+                        Text(
+                          l.roleAdmin,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: context.c.onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
@@ -159,8 +167,11 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                         Text(
                           _nomePerfilAtual.isNotEmpty
                               ? _nomePerfilAtual
-                              : 'Painel de Gestão',
-                          style: TextStyle(color: kText2, fontSize: 12),
+                              : l.adminPanelSubtitle,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -181,19 +192,19 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 children: [
-                  _DrawerSection('PRINCIPAL'),
-                  for (int i = 0; i < _items.length; i++)
+                  _DrawerSection(l.menuSectionMain),
+                  for (int i = 0; i < _icons.length; i++)
                     _DrawerItem(
-                      icon: _items[i].icon,
-                      label: _items[i].label,
+                      icon: _icons[i],
+                      label: labels[i],
                       selected: idx == i,
                       onTap: () => _navegar(i),
                     ),
                   const Divider(height: 24),
-                  _DrawerSection('OUTROS'),
+                  _DrawerSection(l.menuSectionOther),
                   _DrawerItem(
                     icon: Icons.newspaper_rounded,
-                    label: 'Notícias',
+                    label: l.menuNews,
                     selected: false,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -202,7 +213,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                   ),
                   _DrawerItem(
                     icon: Icons.settings_rounded,
-                    label: 'Configurações',
+                    label: l.menuSettings,
                     selected: false,
                     onTap: () {
                       Navigator.of(context).pop();
@@ -217,18 +228,19 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
               child: Column(
                 children: [
                   const Divider(height: 16),
-                  _DrawerSection('CONTA'),
+                  _DrawerSection(l.menuSectionAccount),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
-                    label: 'Sair',
+                    label: l.menuSignOut,
                     selected: false,
                     onTap: () async {
+                      final router = GoRouter.of(context);
                       Navigator.of(context).pop();
                       try {
                         await FirebaseAuth.instance.signOut();
                       } catch (_) {}
                       await AuthStorage.clear();
-                      if (context.mounted) context.go('/boas-vindas');
+                      router.go('/boas-vindas');
                     },
                   ),
                 ],
@@ -242,40 +254,39 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
       key: adminShellKey,
       body: widget.shell,
       endDrawer: _buildDrawer(),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: kSurface,
-        indicatorColor: kPrimary.withOpacity(0.18),
         selectedIndex: _navSelectedIndex,
         onDestinationSelected: _onNavTap,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Início',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home_rounded),
+            label: l.navHome,
           ),
           NavigationDestination(
-            icon: Icon(Icons.sports_martial_arts_outlined),
-            selectedIcon: Icon(Icons.sports_martial_arts),
-            label: 'Alunos',
+            icon: const Icon(Icons.sports_martial_arts_outlined),
+            selectedIcon: const Icon(Icons.sports_martial_arts),
+            label: l.navStudents,
           ),
           NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups_rounded),
-            label: 'Turmas',
+            icon: const Icon(Icons.groups_outlined),
+            selectedIcon: const Icon(Icons.groups_rounded),
+            label: l.navClasses,
           ),
           NavigationDestination(
-            icon: Icon(Icons.credit_card_outlined),
-            selectedIcon: Icon(Icons.credit_card_rounded),
-            label: 'Financeiro',
+            icon: const Icon(Icons.credit_card_outlined),
+            selectedIcon: const Icon(Icons.credit_card_rounded),
+            label: l.navBilling,
           ),
           NavigationDestination(
-            icon: Icon(Icons.more_horiz_rounded),
-            selectedIcon: Icon(Icons.more_horiz_rounded),
-            label: 'Mais',
+            icon: const Icon(Icons.more_horiz_rounded),
+            selectedIcon: const Icon(Icons.more_horiz_rounded),
+            label: l.navMore,
           ),
         ],
       ),
@@ -294,7 +305,7 @@ class _DrawerSection extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: kText2,
+          color: context.c.onSurfaceVariant,
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
@@ -318,8 +329,11 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final active = selected ? context.c.primary : context.c.onSurfaceVariant;
     return Material(
-      color: selected ? kPrimary.withOpacity(0.12) : Colors.transparent,
+      color: selected
+          ? context.c.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -328,12 +342,12 @@ class _DrawerItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, color: selected ? kPrimary : kText2, size: 20),
+              Icon(icon, color: active, size: 20),
               const SizedBox(width: 14),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? kPrimary : kText1,
+                  color: selected ? context.c.primary : context.c.onSurface,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   fontSize: 14,
                 ),

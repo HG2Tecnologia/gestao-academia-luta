@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/senha_temporaria_modal.dart';
@@ -94,12 +94,12 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.dark(
-            primary: kPrimary,
+            primary: context.c.primary,
             onPrimary: Colors.white,
-            surface: kSurface,
-            onSurface: kText1,
+            surface: context.c.surfaceContainer,
+            onSurface: context.c.onSurface,
           ),
-          dialogBackgroundColor: kBg,
+          dialogBackgroundColor: context.c.surface,
         ),
         child: child!,
       ),
@@ -185,7 +185,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       // Com acesso liberado e havendo telefone ou e-mail, já gera a senha
       // temporária para a academia repassar — o aluno não precisa passar pelo
       // "primeiro acesso". Uma falha aqui não desfaz o cadastro: a academia
-      // usa "Gerar acesso" na ficha do aluno depois.
+      // usa context.l10n.sdGenerateAccess na ficha do aluno depois.
       if (mounted &&
           _acessoAppAtivo &&
           (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
@@ -209,7 +209,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
           return;
         }
       } catch (_) {}
-      setState(() => _erro = 'Erro ao cadastrar aluno. Verifique os dados.');
+      setState(() => _erro = context.l10n.acCreateError);
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -220,11 +220,11 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
               'E-mail já cadastrado',
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -235,23 +235,30 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               children: [
                 Text(
                   'O e-mail informado já pertence a:',
-                  style: TextStyle(color: kText2, fontSize: 13),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: context.c.surface,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.person_rounded, color: kPrimary, size: 20),
+                      Icon(
+                        Icons.person_rounded,
+                        color: context.c.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         nomeExist,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -260,23 +267,29 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Deseja cadastrar mesmo assim?\n'
-                  'Ao fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).',
-                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                  context.l10n.acCreateAnywayBody,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  context.l10n.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Cadastrar mesmo assim',
+                  context.l10n.acCreateAnyway,
                   style: TextStyle(
-                    color: kPrimary,
+                    color: context.c.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -293,11 +306,11 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
-              'Vincular perfis?',
+              context.l10n.stfLinkProfiles,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -307,25 +320,32 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Esse telefone já pertence a:',
-                  style: TextStyle(color: kText2, fontSize: 13),
+                  context.l10n.stfPhoneBelongsTo,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: context.c.surface,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.badge_rounded, color: kPrimary, size: 20),
+                      Icon(
+                        Icons.badge_rounded,
+                        color: context.c.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '$nome ($perfilNome)',
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -335,23 +355,29 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Deseja vincular esse cadastro de Aluno ao mesmo contato? '
-                  'A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.',
-                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                  context.l10n.acLinkStudentQuestion,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  context.l10n.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Vincular também',
+                  context.l10n.stfLinkAlso,
                   style: TextStyle(
-                    color: kPrimary,
+                    color: context.c.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -383,14 +409,17 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               '${_dataNascimento!.year}';
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
         elevation: 0,
         title: Text(
-          'Novo Aluno',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+          context.l10n.acNewStudent,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: Form(
@@ -398,12 +427,12 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _section('Dados pessoais'),
-            _field(_nome, 'Nome completo *', required: true),
+            _section(context.l10n.sdPersonalData),
+            _field(_nome, context.l10n.acFullNameReq, required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
             _field(
               _telefone,
-              'Telefone',
+              context.l10n.sdPhone,
               keyboard: TextInputType.phone,
               formatters: [_PhoneMaskFormatter()],
             ),
@@ -426,23 +455,25 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                     height: 50,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: kSurface,
+                      color: context.c.surfaceContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder),
+                      border: Border.all(color: context.c.outline),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.calendar_today_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 18,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            nascFormatted ?? 'Data de nascimento',
+                            nascFormatted ?? context.l10n.acBirthDate,
                             style: TextStyle(
-                              color: nascFormatted != null ? kText1 : kText2,
+                              color: nascFormatted != null
+                                  ? context.c.onSurface
+                                  : context.c.onSurfaceVariant,
                               fontSize: 14,
                             ),
                           ),
@@ -454,13 +485,13 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: kWarning.withOpacity(0.15),
+                              color: context.sem.warning.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Menor de idade',
+                              context.l10n.acMinor,
                               style: TextStyle(
-                                color: kWarning,
+                                color: context.sem.warning,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -474,44 +505,49 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             ),
 
             const SizedBox(height: 16),
-            _sectionWithBadge('Responsável / Emergência', 'opcional'),
+            _sectionWithBadge(context.l10n.sdGuardianEmergency, 'opcional'),
             _field(
               _emergenciaNome,
               _menorDeIdade
-                  ? 'Nome do responsável'
-                  : 'Nome do contato de emergência',
+                  ? context.l10n.acGuardianName
+                  : context.l10n.sdContactName,
             ),
             _field(
               _emergenciaTel,
-              _menorDeIdade ? 'Telefone do responsável' : 'Telefone do contato',
+              _menorDeIdade
+                  ? context.l10n.acGuardianPhone
+                  : context.l10n.sdContactPhone,
               keyboard: TextInputType.phone,
               formatters: [_PhoneMaskFormatter()],
             ),
             const SizedBox(height: 16),
-            _section('Plano financeiro'),
+            _section(context.l10n.sdBillingPlan),
             if (_planos.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: kSurface,
+                  color: context.c.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _planoId,
-                    dropdownColor: kSurface,
+                    dropdownColor: context.c.surfaceContainer,
                     hint: Text(
-                      'Selecionar plano (opcional)',
-                      style: TextStyle(color: kText2, fontSize: 14),
+                      context.l10n.acSelectPlanOptional,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
                     ),
                     isExpanded: true,
                     items: [
                       DropdownMenuItem<String?>(
                         value: null,
                         child: Text(
-                          'Sem plano',
-                          style: TextStyle(color: kText2),
+                          context.l10n.sdNoPlanOption,
+                          style: TextStyle(color: context.c.onSurfaceVariant),
                         ),
                       ),
                       ..._planos.map(
@@ -519,7 +555,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                           value: p['id'] as String?,
                           child: Text(
                             p['nome'] ?? '',
-                            style: TextStyle(color: kText1),
+                            style: TextStyle(color: context.c.onSurface),
                           ),
                         ),
                       ),
@@ -532,33 +568,35 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             ],
             _field(
               _diaVenc,
-              'Dia de vencimento (1-31)',
+              context.l10n.sdDueDayField,
               keyboard: TextInputType.number,
             ),
             const SizedBox(height: 24),
-            _section('Acesso ao App'),
+            _section(context.l10n.sdAppAccessSection),
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
-                color: kPrimary.withValues(alpha: 0.08),
+                color: context.c.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kPrimary.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: context.c.primary.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.vpn_key_rounded, color: kPrimary, size: 18),
+                  Icon(
+                    Icons.vpn_key_rounded,
+                    color: context.c.primary,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Ao cadastrar (com acesso liberado e telefone ou e-mail), '
-                      'geramos uma senha temporária para você repassar ao aluno. '
-                      'Ele entra digitando o telefone ou e-mail cadastrado + essa '
-                      'senha, e o app pede para criar a senha definitiva. Não é '
-                      'preciso usar "Primeiro acesso".',
+                      context.l10n.acAppAccessNote,
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 11.5,
                         height: 1.4,
                       ),
@@ -570,10 +608,12 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: kSurface,
+                color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _acessoAppAtivo ? kBorder : kDanger.withOpacity(0.5),
+                  color: _acessoAppAtivo
+                      ? context.c.outline
+                      : context.sem.danger.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -582,7 +622,9 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                     _acessoAppAtivo
                         ? Icons.lock_open_rounded
                         : Icons.lock_rounded,
-                    color: _acessoAppAtivo ? kSuccess : kDanger,
+                    color: _acessoAppAtivo
+                        ? context.sem.success
+                        : context.sem.danger,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -592,28 +634,33 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                       children: [
                         Text(
                           _acessoAppAtivo
-                              ? 'Acesso ao app liberado'
-                              : 'Acesso ao app bloqueado',
+                              ? context.l10n.acAccessAllowed
+                              : context.l10n.acAccessBlocked,
                           style: TextStyle(
-                            color: _acessoAppAtivo ? kSuccess : kDanger,
+                            color: _acessoAppAtivo
+                                ? context.sem.success
+                                : context.sem.danger,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
                           _acessoAppAtivo
-                              ? 'Aluno poderá fazer login normalmente'
-                              : 'Aluno não conseguirá entrar no app',
-                          style: TextStyle(color: kText2, fontSize: 11),
+                              ? context.l10n.acCanLogin
+                              : context.l10n.acCannotLogin,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Switch(
                     value: _acessoAppAtivo,
-                    activeColor: kSuccess,
-                    inactiveThumbColor: kDanger,
-                    inactiveTrackColor: kDanger.withOpacity(0.3),
+                    activeColor: context.sem.success,
+                    inactiveThumbColor: context.sem.danger,
+                    inactiveTrackColor: context.sem.danger.withOpacity(0.3),
                     onChanged: (v) => setState(() => _acessoAppAtivo = v),
                   ),
                 ],
@@ -625,12 +672,12 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: kDanger.withOpacity(0.12),
+                  color: context.sem.danger.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   _erro!,
-                  style: TextStyle(color: kDanger, fontSize: 13),
+                  style: TextStyle(color: context.sem.danger, fontSize: 13),
                 ),
               ),
             SizedBox(
@@ -638,7 +685,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
               child: ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -653,8 +700,8 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Cadastrar aluno',
+                    : Text(
+                        context.l10n.acCreateStudent,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -673,7 +720,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
     child: Text(
       label,
       style: TextStyle(
-        color: kText2,
+        color: context.c.onSurfaceVariant,
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
@@ -692,7 +739,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         Text(
           label,
           style: TextStyle(
-            color: kText2,
+            color: context.c.onSurfaceVariant,
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
@@ -702,7 +749,9 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         Text(
           badge,
           style: TextStyle(
-            color: obrigatorio ? kWarning : kText2,
+            color: obrigatorio
+                ? context.sem.warning
+                : context.c.onSurfaceVariant,
             fontSize: 11,
             fontWeight: obrigatorio ? FontWeight.w600 : FontWeight.normal,
           ),
@@ -723,34 +772,36 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       controller: ctrl,
       keyboardType: keyboard,
       inputFormatters: formatters,
-      style: TextStyle(color: kText1),
+      style: TextStyle(color: context.c.onSurface),
       validator: required
-          ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null
+          ? (v) => (v == null || v.trim().isEmpty)
+                ? context.l10n.acRequiredField
+                : null
           : null,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: kText2, fontSize: 14),
+        hintStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
         filled: true,
-        fillColor: kSurface,
+        fillColor: context.c.surfaceContainer,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kPrimary),
+          borderSide: BorderSide(color: context.c.primary),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kDanger),
+          borderSide: BorderSide(color: context.sem.danger),
         ),
       ),
     ),

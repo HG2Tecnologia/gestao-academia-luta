@@ -5,8 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
+
+String _mesLongo(BuildContext c, int m) {
+  final loc = Localizations.localeOf(c).languageCode;
+  return toBeginningOfSentenceCase(
+        DateFormat.MMMM(loc).format(DateTime(2020, m)),
+      ) ??
+      '';
+}
+
+String _mesCurto(BuildContext c, int m) {
+  final loc = Localizations.localeOf(c).languageCode;
+  return toBeginningOfSentenceCase(
+        DateFormat.MMM(loc).format(DateTime(2020, m)),
+      ) ??
+      '';
+}
 
 class AdminRelatorioAnualScreen extends StatefulWidget {
   const AdminRelatorioAnualScreen({super.key});
@@ -17,6 +34,7 @@ class AdminRelatorioAnualScreen extends StatefulWidget {
 }
 
 class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
+  AppLocalizations get _l => context.l10n;
   Map<String, dynamic>? _relatorio;
   bool _loading = true;
   bool _erro = false;
@@ -106,7 +124,7 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
             return doPagamento;
           }
           final doCadastro = (cadastro?['nome'] ?? '').toString().trim();
-          return doCadastro.isEmpty ? 'Aluno não identificado' : doCadastro;
+          return doCadastro.isEmpty ? _l.raUnknownStudent : doCadastro;
         }();
         final fotoAluno =
             cadastro?['fotoBase64'] as String? ??
@@ -236,19 +254,23 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Relatório Anual',
+          context.l10n.raTitle,
           style: TextStyle(
-            color: kText1,
+            color: context.c.onSurface,
             fontSize: 17,
             fontWeight: FontWeight.w800,
           ),
@@ -256,7 +278,7 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _erro
@@ -264,19 +286,23 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline_rounded, color: kDanger, size: 52),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: context.sem.danger,
+                      size: 52,
+                    ),
                     const SizedBox(height: 14),
                     Text(
-                      'Não foi possível carregar o relatório.',
-                      style: TextStyle(color: kText2),
+                      context.l10n.raLoadError,
+                      style: TextStyle(color: context.c.onSurfaceVariant),
                     ),
                     const SizedBox(height: 18),
                     OutlinedButton.icon(
                       onPressed: _load,
                       icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Tentar novamente'),
+                      label: Text(context.l10n.commonRetry),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: kPrimary,
+                        foregroundColor: context.c.primary,
                       ),
                     ),
                   ],
@@ -290,7 +316,7 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
                   children: [
                     _AnoSelector(ano: _ano, onNav: _navAno),
                     const SizedBox(height: 20),
-                    _SectionTitle('Visão geral do ano'),
+                    _SectionTitle(context.l10n.raYearOverview),
                     const SizedBox(height: 12),
                     _SummaryCards(relatorio: _relatorio ?? {}, brl: _brl),
                     if (_relatorio?['temMovimento'] == false) ...[
@@ -299,18 +325,21 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: kSurface,
+                          color: context.c.surfaceContainer,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: kBorder),
+                          border: Border.all(color: context.c.outline),
                         ),
                         child: Text(
-                          'Nenhuma movimentação financeira encontrada em $_ano.',
-                          style: TextStyle(color: kText2, fontSize: 13),
+                          context.l10n.raNoMovement(_ano),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
                     const SizedBox(height: 24),
-                    _SectionTitle('Receita mensal'),
+                    _SectionTitle(context.l10n.raMonthlyRevenue),
                     const SizedBox(height: 12),
                     _BarChart(
                       meses: _receitaMensal,
@@ -319,32 +348,34 @@ class _AdminRelatorioAnualScreenState extends State<AdminRelatorioAnualScreen> {
                       ano: _ano,
                     ),
                     const SizedBox(height: 24),
-                    _SectionTitle('Inadimplentes (${_inadimplentes.length})'),
+                    _SectionTitle(
+                      context.l10n.raOverdueCount(_inadimplentes.length),
+                    ),
                     const SizedBox(height: 12),
                     if (_inadimplentes.isEmpty)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: kSuccess.withValues(alpha: 0.08),
+                          color: context.sem.success.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: kSuccess.withValues(alpha: 0.3),
+                            color: context.sem.success.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.check_circle_rounded,
-                              color: kSuccess,
+                              color: context.sem.success,
                               size: 18,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Nenhum inadimplente neste período.',
+                                context.l10n.raNoOverdue,
                                 style: TextStyle(
-                                  color: kSuccess,
+                                  color: context.sem.success,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
@@ -377,23 +408,27 @@ class _AnoSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => onNav(-1),
-            tooltip: 'Ano anterior',
-            icon: Icon(Icons.chevron_left_rounded, color: kText1, size: 26),
+            tooltip: context.l10n.raPrevYear,
+            icon: Icon(
+              Icons.chevron_left_rounded,
+              color: context.c.onSurface,
+              size: 26,
+            ),
           ),
           Expanded(
             child: Text(
               '$ano',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
               ),
@@ -401,10 +436,10 @@ class _AnoSelector extends StatelessWidget {
           ),
           IconButton(
             onPressed: podeAvancar ? () => onNav(1) : null,
-            tooltip: 'Próximo ano',
+            tooltip: context.l10n.raNextYear,
             icon: Icon(
               Icons.chevron_right_rounded,
-              color: podeAvancar ? kText1 : kBorder,
+              color: podeAvancar ? context.c.onSurface : context.c.outline,
               size: 26,
             ),
           ),
@@ -432,35 +467,33 @@ class _SummaryCards extends StatelessWidget {
         children: [
           Expanded(
             child: _Card(
-              label: 'Recebido no ano',
+              label: context.l10n.raReceivedYear,
               value: brl.format(total),
               icon: Icons.attach_money_rounded,
-              color: kSuccess,
-              sub: qtdReceb > 0
-                  ? (qtdReceb == 1 ? '1 cobrança' : '$qtdReceb cobranças')
-                  : null,
+              color: context.sem.success,
+              sub: qtdReceb > 0 ? context.l10n.raChargesCount(qtdReceb) : null,
               subIcon: Icons.receipt_long_rounded,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: _Card(
-              label: 'Alunos ativos',
+              label: context.l10n.dashActiveStudents,
               value: '$ativos',
               icon: Icons.sports_martial_arts_rounded,
-              color: kPrimary,
+              color: context.c.primary,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: _Card(
-              label: 'Inadimplentes',
+              label: context.l10n.raOverdue,
               value: '$inadimplentes',
               icon: Icons.warning_amber_rounded,
-              color: kDanger,
-              sub: inadimplentes > 0 ? 'Em aberto' : null,
+              color: context.sem.danger,
+              sub: inadimplentes > 0 ? context.l10n.raOutstanding : null,
               subIcon: Icons.schedule_rounded,
-              subColor: kDanger,
+              subColor: context.sem.danger,
             ),
           ),
         ],
@@ -491,9 +524,9 @@ class _Card extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +547,7 @@ class _Card extends StatelessWidget {
             child: Text(
               value,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
                 height: 1,
@@ -524,7 +557,7 @@ class _Card extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             label,
-            style: TextStyle(color: kText2, fontSize: 11),
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -533,14 +566,18 @@ class _Card extends StatelessWidget {
             Row(
               children: [
                 if (subIcon != null) ...[
-                  Icon(subIcon, size: 11, color: subColor ?? kText2),
+                  Icon(
+                    subIcon,
+                    size: 11,
+                    color: subColor ?? context.c.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 3),
                 ],
                 Flexible(
                   child: Text(
                     sub!,
                     style: TextStyle(
-                      color: subColor ?? kText2,
+                      color: subColor ?? context.c.onSurfaceVariant,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -569,34 +606,6 @@ class _BarChart extends StatelessWidget {
   final NumberFormat brl;
   final int ano;
 
-  static const _labels = [
-    'Jan',
-    'Fev',
-    'Mar',
-    'Abr',
-    'Mai',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Set',
-    'Out',
-    'Nov',
-    'Dez',
-  ];
-  static const _labelsLongos = [
-    'Janeiro',
-    'Fevereiro',
-    'Março',
-    'Abril',
-    'Maio',
-    'Junho',
-    'Julho',
-    'Agosto',
-    'Setembro',
-    'Outubro',
-    'Novembro',
-    'Dezembro',
-  ];
   static const _barH = 150.0;
 
   double _niceMax(double v) {
@@ -635,9 +644,9 @@ class _BarChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         children: [
@@ -657,7 +666,10 @@ class _BarChart extends StatelessWidget {
                           alignment: Alignment.topRight,
                           child: Text(
                             _axisLabel(niceMax * i / linhas),
-                            style: TextStyle(color: kText2, fontSize: 9),
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 9,
+                            ),
                           ),
                         ),
                       ),
@@ -682,7 +694,9 @@ class _BarChart extends StatelessWidget {
                                     alignment: Alignment.topCenter,
                                     child: Container(
                                       height: 1,
-                                      color: kBorder.withValues(alpha: 0.6),
+                                      color: context.c.outline.withValues(
+                                        alpha: 0.6,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -690,7 +704,10 @@ class _BarChart extends StatelessWidget {
                           ),
                           Align(
                             alignment: Alignment.bottomCenter,
-                            child: Container(height: 1, color: kBorder),
+                            child: Container(
+                              height: 1,
+                              color: context.c.outline,
+                            ),
                           ),
                           // Barras
                           Row(
@@ -716,11 +733,13 @@ class _BarChart extends StatelessWidget {
                                   ),
                                   child: total > 0
                                       ? Tooltip(
-                                          message:
-                                              '${_labelsLongos[i]} $ano\n'
-                                              'Recebido: ${brl.format(recebido)}\n'
-                                              'Pendente: ${brl.format(pendente)}\n'
-                                              'Total: ${brl.format(total)}',
+                                          message: context.l10n.raBarTooltip(
+                                            _mesLongo(context, i + 1),
+                                            ano,
+                                            brl.format(recebido),
+                                            brl.format(pendente),
+                                            brl.format(total),
+                                          ),
                                           child: Column(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.end,
@@ -732,7 +751,7 @@ class _BarChart extends StatelessWidget {
                                                     _barH,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: kWarning,
+                                                    color: context.sem.warning,
                                                     borderRadius: recH > 0
                                                         ? const BorderRadius.vertical(
                                                             top:
@@ -752,7 +771,7 @@ class _BarChart extends StatelessWidget {
                                                     _barH,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: kSuccess,
+                                                    color: context.sem.success,
                                                     borderRadius: penH > 0
                                                         ? const BorderRadius.vertical(
                                                             bottom:
@@ -773,7 +792,7 @@ class _BarChart extends StatelessWidget {
                                           child: Container(
                                             height: 3,
                                             decoration: BoxDecoration(
-                                              color: kBorder,
+                                              color: context.c.outline,
                                               borderRadius:
                                                   BorderRadius.circular(2),
                                             ),
@@ -792,9 +811,12 @@ class _BarChart extends StatelessWidget {
                         12,
                         (i) => Expanded(
                           child: Text(
-                            _labels[i],
+                            _mesCurto(context, i + 1),
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: kText2, fontSize: 9),
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 9,
+                            ),
                           ),
                         ),
                       ),
@@ -807,16 +829,22 @@ class _BarChart extends StatelessWidget {
           const SizedBox(height: 12),
           if (semDados)
             Text(
-              'Sem receita registrada em $ano.',
-              style: TextStyle(color: kText2, fontSize: 12),
+              context.l10n.raNoRevenueYear(ano),
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
             )
           else
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _Legend(color: kSuccess, label: 'Recebido'),
+                _Legend(
+                  color: context.sem.success,
+                  label: context.l10n.raReceived,
+                ),
                 const SizedBox(width: 16),
-                _Legend(color: kWarning, label: 'Pendente'),
+                _Legend(
+                  color: context.sem.warning,
+                  label: context.l10n.finPending,
+                ),
               ],
             ),
         ],
@@ -843,7 +871,10 @@ class _Legend extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: kText2, fontSize: 11)),
+        Text(
+          label,
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
+        ),
       ],
     );
   }
@@ -873,7 +904,7 @@ class _InadimplenteCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: alunoId.isEmpty
@@ -884,13 +915,13 @@ class _InadimplenteCard extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: context.c.outline),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: kDanger.withValues(alpha: 0.15),
+                  backgroundColor: context.sem.danger.withValues(alpha: 0.15),
                   backgroundImage: temFoto
                       ? MemoryImage(base64Decode(foto.split(',').last))
                       : null,
@@ -899,7 +930,7 @@ class _InadimplenteCard extends StatelessWidget {
                       : Text(
                           iniciais.isEmpty ? '?' : iniciais,
                           style: TextStyle(
-                            color: kDanger,
+                            color: context.sem.danger,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
@@ -913,7 +944,7 @@ class _InadimplenteCard extends StatelessWidget {
                       Text(
                         nome,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -922,8 +953,11 @@ class _InadimplenteCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        dias == 1 ? '1 dia de atraso' : '$dias dias de atraso',
-                        style: TextStyle(color: kText2, fontSize: 12),
+                        context.l10n.raDaysOverdue(dias),
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -935,18 +969,25 @@ class _InadimplenteCard extends StatelessWidget {
                     Text(
                       brl.format(total),
                       style: TextStyle(
-                        color: kDanger,
+                        color: context.sem.danger,
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                       ),
                     ),
                     Text(
-                      'Em aberto',
-                      style: TextStyle(color: kText2, fontSize: 11),
+                      context.l10n.raOutstanding,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
-                Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.c.onSurfaceVariant,
+                  size: 18,
+                ),
               ],
             ),
           ),
@@ -965,7 +1006,7 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        color: kText1,
+        color: context.c.onSurface,
         fontSize: 15,
         fontWeight: FontWeight.w800,
       ),

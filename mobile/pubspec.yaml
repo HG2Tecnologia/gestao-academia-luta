@@ -77,6 +77,9 @@ flutter_launcher_icons:
 # The following section is specific to Flutter packages.
 flutter:
 
+  # Gera lib/l10n/app_localizations.dart a partir dos .arb (gen_l10n).
+  generate: true
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/appearance_controls.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/perfil_switch.dart';
@@ -16,6 +18,7 @@ class ProfPerfilScreen extends StatefulWidget {
 }
 
 class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
+  AppLocalizations get _l => context.l10n;
   final _nomeCtrl = TextEditingController();
   final _telCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -95,13 +98,13 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Perfil atualizado!')));
+        ).showSnackBar(SnackBar(content: Text(_l.profUpdated)));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Erro ao salvar.')));
+        ).showSnackBar(SnackBar(content: Text(_l.commonSaveError)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -112,25 +115,34 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
     final confirma = await showDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Sair',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          _l.cfgLogout,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          'Deseja encerrar sua sessão?',
-          style: TextStyle(color: kText2),
+          _l.cfgLogoutConfirm,
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dCtx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dCtx, true),
             child: Text(
-              'Sair',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.cfgLogout,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -148,25 +160,34 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
     final confirma = await showDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Excluir conta?',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          _l.cfgDeleteAccountTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          'Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.',
-          style: TextStyle(color: kText2),
+          _l.cfgDeleteAccountBody,
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dCtx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dCtx, true),
             child: Text(
-              'Excluir',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonDelete,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -191,13 +212,13 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: kPrimary))
+            ? Center(child: CircularProgressIndicator(color: context.c.primary))
             : RefreshIndicator(
                 onRefresh: _load,
-                color: kPrimary,
+                color: context.c.primary,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24),
@@ -208,16 +229,16 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                           onTap: openAppDrawer,
                           child: Icon(
                             Icons.menu_rounded,
-                            color: kText1,
+                            color: context.c.onSurface,
                             size: 26,
                           ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
-                            'Meu Perfil',
+                            _l.profMyProfile,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                             ),
@@ -237,17 +258,17 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                     const SizedBox(height: 28),
 
                     // ── Dados ────────────────────────────────
-                    _label('Nome'),
-                    _input(_nomeCtrl, 'Seu nome'),
+                    _label(_l.sdName),
+                    _input(_nomeCtrl, _l.profYourNameHint),
                     const SizedBox(height: 16),
-                    _label('Telefone'),
+                    _label(_l.sdPhone),
                     _input(
                       _telCtrl,
                       '(00) 00000-0000',
                       keyboard: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
-                    _label('E-mail'),
+                    _label(_l.sdEmail),
                     _input(
                       _emailCtrl,
                       'seu@email.com',
@@ -257,7 +278,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                     FilledButton(
                       onPressed: _saving ? null : _salvar,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kPrimary,
+                        backgroundColor: context.c.primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -268,8 +289,8 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                               color: Colors.white,
                               strokeWidth: 2,
                             )
-                          : const Text(
-                              'Salvar',
+                          : Text(
+                              _l.commonSave,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -279,22 +300,26 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
 
                     const SizedBox(height: 32),
 
+                    const AppearanceSettingsCard(),
+
+                    const SizedBox(height: 32),
+
                     // ── Conta ────────────────────────────────
-                    _secao('Conta'),
+                    _secao(_l.cfgAccountSection),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: () => context.push('/alterar-senha'),
-                      icon: const Icon(Icons.lock_reset_rounded, size: 18),
-                      label: const Text(
-                        'Alterar senha',
+                      icon: Icon(Icons.lock_reset_rounded, size: 18),
+                      label: Text(
+                        _l.profChangePassword,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: kText1,
-                        side: BorderSide(color: kBorder),
+                        foregroundColor: context.c.onSurface,
+                        side: BorderSide(color: context.c.outline),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         minimumSize: const Size.fromHeight(0),
                         shape: RoundedRectangleBorder(
@@ -309,16 +334,18 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                         onPressed: _sair,
                         icon: Icon(
                           Icons.logout_rounded,
-                          color: kDanger,
+                          color: context.sem.danger,
                           size: 18,
                         ),
-                        label: const Text(
-                          'Sair da conta',
+                        label: Text(
+                          _l.cfgLogoutBtn,
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kDanger,
-                          side: BorderSide(color: kDanger.withOpacity(0.5)),
+                          foregroundColor: context.sem.danger,
+                          side: BorderSide(
+                            color: context.sem.danger.withOpacity(0.5),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -330,22 +357,24 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                     const SizedBox(height: 24),
 
                     // ── Zona de Perigo ───────────────────────
-                    _secao('Zona de Perigo'),
+                    _secao(_l.cfgDangerSection),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
                         onPressed: _excluirConta,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kDanger,
-                          side: BorderSide(color: kDanger.withOpacity(0.5)),
+                          foregroundColor: context.sem.danger,
+                          side: BorderSide(
+                            color: context.sem.danger.withOpacity(0.5),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Excluir minha conta',
+                        child: Text(
+                          _l.cfgDeleteAccountBtn,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -364,7 +393,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   Widget _secao(String t) => Text(
     t,
     style: TextStyle(
-      color: kText1,
+      color: context.c.onSurface,
       fontSize: 14,
       fontWeight: FontWeight.w800,
       letterSpacing: 0.4,
@@ -376,7 +405,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
     child: Text(
       t,
       style: TextStyle(
-        color: kText2,
+        color: context.c.onSurfaceVariant,
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
@@ -390,24 +419,24 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
   }) => TextField(
     controller: c,
     keyboardType: keyboard,
-    style: TextStyle(color: kText1, fontSize: 15),
+    style: TextStyle(color: context.c.onSurface, fontSize: 15),
     decoration: InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: kText2),
+      hintStyle: TextStyle(color: context.c.onSurfaceVariant),
       filled: true,
-      fillColor: kSurface,
+      fillColor: context.c.surfaceContainer,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: kBorder),
+        borderSide: BorderSide(color: context.c.outline),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: kBorder),
+        borderSide: BorderSide(color: context.c.outline),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: kPrimary),
+        borderSide: BorderSide(color: context.c.primary),
       ),
     ),
   );

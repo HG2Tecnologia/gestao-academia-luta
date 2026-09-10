@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/context_ext.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// Componentes da Dashboard administrativa. Identidade preto/dourado do
 /// Sensei Manager: cor só em ícones, badges, bordas e pequenos fundos
-/// semânticos — sem grandes gradientes.
+/// semânticos — sem grandes gradientes. Agora tema-aware (claro/escuro).
 
 enum DashTone { gold, info, success, warning, danger, neutral }
 
 extension DashToneColor on DashTone {
-  Color get color => switch (this) {
-        DashTone.gold => AppColors.primary,
-        DashTone.info => AppColors.info,
-        DashTone.success => AppColors.success,
-        DashTone.warning => AppColors.warning,
-        DashTone.danger => AppColors.danger,
-        DashTone.neutral => AppColors.textSecondary,
-      };
+  Color color(BuildContext context) => switch (this) {
+    DashTone.gold => context.c.primary,
+    DashTone.info => context.sem.info,
+    DashTone.success => context.sem.success,
+    DashTone.warning => context.sem.warning,
+    DashTone.danger => context.sem.danger,
+    DashTone.neutral => context.c.onSurfaceVariant,
+  };
 }
 
 /// Cabeçalho de seção: título + ação "Ver todas" opcional.
@@ -30,8 +31,7 @@ class DashSectionHeader extends StatelessWidget {
     super.key,
     this.trailingLabel,
     this.onTrailingTap,
-    this.padding =
-        const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.sm),
+    this.padding = const EdgeInsets.fromLTRB(16, 20, 16, 12),
   });
 
   @override
@@ -43,8 +43,8 @@ class DashSectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.c.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
               ),
@@ -58,14 +58,17 @@ class DashSectionHeader extends StatelessWidget {
                 children: [
                   Text(
                     trailingLabel!,
-                    style: const TextStyle(
-                      color: AppColors.primary,
+                    style: TextStyle(
+                      color: context.c.primary,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.primary, size: 18),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: context.c.primary,
+                    size: 18,
+                  ),
                 ],
               ),
             ),
@@ -94,21 +97,21 @@ class DashMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = tone.color;
+    final c = tone.color(context);
     return Semantics(
       button: onTap != null,
       label: '$label: $value',
       excludeSemantics: true,
       child: Material(
-        color: AppColors.surface,
-        borderRadius: AppRadius.brMd,
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
-          borderRadius: AppRadius.brMd,
+          borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: AppRadius.brMd,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: c.withValues(alpha: 0.30)),
             ),
             child: Column(
@@ -121,21 +124,24 @@ class DashMetricCard extends StatelessWidget {
                       height: 34,
                       decoration: BoxDecoration(
                         color: c.withValues(alpha: 0.14),
-                        borderRadius: AppRadius.brSm,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(icon, color: c, size: 19),
                     ),
                     const Spacer(),
                     if (onTap != null)
-                      const Icon(Icons.chevron_right_rounded,
-                          color: AppColors.textSecondary, size: 18),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 18,
+                      ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: 12),
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.c.onSurface,
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     height: 1,
@@ -144,8 +150,10 @@ class DashMetricCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   label,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -175,7 +183,7 @@ class DashQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = tone.color;
+    final c = tone.color(context);
     return Expanded(
       child: Semantics(
         button: true,
@@ -185,18 +193,18 @@ class DashQuickAction extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Material(
             color: c.withValues(alpha: 0.10),
-            borderRadius: AppRadius.brMd,
+            borderRadius: BorderRadius.circular(14),
             child: InkWell(
               onTap: onTap,
-              borderRadius: AppRadius.brMd,
+              borderRadius: BorderRadius.circular(14),
               child: Container(
                 height: 96,
                 padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.sm,
+                  vertical: 12,
                   horizontal: 6,
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: AppRadius.brMd,
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: c.withValues(alpha: 0.28)),
                 ),
                 child: Column(
@@ -207,8 +215,8 @@ class DashQuickAction extends StatelessWidget {
                     Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.c.onSurface,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         height: 1.15,
@@ -237,19 +245,19 @@ class DashCard extends StatelessWidget {
     super.key,
     required this.child,
     this.tone = DashTone.neutral,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.padding = const EdgeInsets.all(16),
   });
 
   @override
   Widget build(BuildContext context) {
     final border = tone == DashTone.neutral
-        ? AppColors.border
-        : tone.color.withValues(alpha: 0.30);
+        ? context.c.outline
+        : tone.color(context).withValues(alpha: 0.30);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.brMd,
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: border),
       ),
       child: child,
@@ -277,7 +285,7 @@ class DashCardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = tone.color;
+    final c = tone.color(context);
     return Row(
       children: [
         Container(
@@ -285,24 +293,31 @@ class DashCardHeader extends StatelessWidget {
           height: 34,
           decoration: BoxDecoration(
             color: c.withValues(alpha: 0.12),
-            borderRadius: AppRadius.brSm,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: c, size: 18),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               if (subtitle != null)
-                Text(subtitle!,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 11)),
+                Text(
+                  subtitle!,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
             ],
           ),
         ),
@@ -324,6 +339,7 @@ class WeeklyFrequencyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final total = dados.fold<int>(0, (s, e) => s + _val(e));
     final maxVal = dados.fold<int>(1, (m, e) => _val(e) > m ? _val(e) : m);
 
@@ -333,38 +349,48 @@ class WeeklyFrequencyChart extends StatelessWidget {
         children: [
           DashCardHeader(
             icon: Icons.bar_chart_rounded,
-            title: 'Frequência semanal',
-            subtitle: 'Últimos 7 dias',
+            title: l.dashWeeklyFrequency,
+            subtitle: l.dashLast7Days,
             trailing: total == 0
                 ? null
                 : Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
+                      color: context.sem.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text('$total total',
-                        style: const TextStyle(
-                            color: AppColors.success,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      l.dashTotalCount(total),
+                      style: TextStyle(
+                        color: context.sem.success,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 16),
           if (total == 0)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
                 children: [
-                  Icon(Icons.event_busy_rounded,
-                      color: AppColors.textSecondary, size: 18),
-                  SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    Icons.event_busy_rounded,
+                    color: context.c.onSurfaceVariant,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Nenhuma presença registrada nos últimos 7 dias.',
+                      l.dashNoAttendance7Days,
                       style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 12.5),
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                 ],
@@ -388,16 +414,18 @@ class WeeklyFrequencyChart extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           if (v > 0)
-                            Text('$v',
-                                style: TextStyle(
-                                  color: isMax
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
-                                  fontSize: 10,
-                                  fontWeight: isMax
-                                      ? FontWeight.w700
-                                      : FontWeight.normal,
-                                )),
+                            Text(
+                              '$v',
+                              style: TextStyle(
+                                color: isMax
+                                    ? context.c.primary
+                                    : context.c.onSurfaceVariant,
+                                fontSize: 10,
+                                fontWeight: isMax
+                                    ? FontWeight.w700
+                                    : FontWeight.normal,
+                              ),
+                            ),
                           const SizedBox(height: 3),
                           Flexible(
                             child: FractionallySizedBox(
@@ -405,21 +433,26 @@ class WeeklyFrequencyChart extends StatelessWidget {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: isMax
-                                      ? AppColors.primary
-                                      : AppColors.primary
-                                          .withValues(alpha: 0.35),
+                                      ? context.c.primary
+                                      : context.c.primary.withValues(
+                                          alpha: 0.35,
+                                        ),
                                   borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(5)),
+                                    top: Radius.circular(5),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(dia,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            dia,
+                            style: TextStyle(
+                              color: context.c.onSurface,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),

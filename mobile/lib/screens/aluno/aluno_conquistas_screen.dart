@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 
 class AlunoConquistasScreen extends StatefulWidget {
@@ -23,10 +23,21 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() { _loading = true; _erro = false; });
+    if (mounted)
+      setState(() {
+        _loading = true;
+        _erro = false;
+      });
     try {
       final user = await AuthStorage.getUser();
-      if (user == null) { if (mounted) setState(() { _loading = false; _erro = true; }); return; }
+      if (user == null) {
+        if (mounted)
+          setState(() {
+            _loading = false;
+            _erro = true;
+          });
+        return;
+      }
       final academiaId = user.academiaId!;
 
       final results = await Future.wait([
@@ -39,7 +50,9 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
 
       // Marcar conquistas novas como vistas
       final naoVistas = conquistasList
-          .where((c) => c['desbloqueada'] == true && c['vista_pelo_aluno'] == false)
+          .where(
+            (c) => c['desbloqueada'] == true && c['vista_pelo_aluno'] == false,
+          )
           .toList();
       if (naoVistas.isNotEmpty) {
         try {
@@ -47,85 +60,117 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
         } catch (_) {}
       }
 
-      if (mounted) setState(() {
-        _perfil = perfilData;
-        _conquistas = conquistasList;
-        _loading = false;
-      });
+      if (mounted)
+        setState(() {
+          _perfil = perfilData;
+          _conquistas = conquistasList;
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _erro = true; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _erro = true;
+        });
     }
   }
 
   AppBar _appBar() => AppBar(
-    backgroundColor: kSurface,
-    foregroundColor: kText1,
+    backgroundColor: context.c.surfaceContainer,
+    foregroundColor: context.c.onSurface,
     elevation: 0,
-    title: const Text('Conquistas', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+    title: Text(
+      context.l10n.apAchievements,
+      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: _appBar(),
       body: SafeArea(
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: kPrimary))
+            ? Center(child: CircularProgressIndicator(color: context.c.primary))
             : _erro
-                ? _buildErro()
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    color: kPrimary,
-                    child: CustomScrollView(
-                      slivers: [
-                        SliverToBoxAdapter(child: _buildHeader()),
-                        SliverToBoxAdapter(child: _buildXpBar()),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                            child: Text('Conquistas', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w700)),
+            ? _buildErro()
+            : RefreshIndicator(
+                onRefresh: _load,
+                color: context.c.primary,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHeader()),
+                    SliverToBoxAdapter(child: _buildXpBar()),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                        child: Text(
+                          context.l10n.apAchievements,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (_conquistas.isEmpty)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Text('Nenhuma conquista ainda.', style: TextStyle(color: kText2), textAlign: TextAlign.center),
-                            ),
-                          )
-                        else
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverGrid(
-                              delegate: SliverChildBuilderDelegate(
-                                (ctx, i) => _ConquistaCard(c: _conquistas[i]),
-                                childCount: _conquistas.length,
-                              ),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      ),
+                    ),
+                    if (_conquistas.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Text(
+                            context.l10n.apNoAchievements,
+                            style: TextStyle(color: context.c.onSurfaceVariant),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverGrid(
+                          delegate: SliverChildBuilderDelegate(
+                            (ctx, i) => _ConquistaCard(c: _conquistas[i]),
+                            childCount: _conquistas.length,
+                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 12,
                                 crossAxisSpacing: 12,
                                 childAspectRatio: 1.1,
                               ),
-                            ),
-                          ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                  ],
+                ),
+              ),
       ),
     );
   }
 
   Widget _buildErro() => Center(
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.error_outline, color: kDanger, size: 40),
-      const SizedBox(height: 12),
-      Text('Erro ao carregar', style: TextStyle(color: kText2)),
-      const SizedBox(height: 16),
-      TextButton(onPressed: _load, child: Text('Tentar novamente', style: TextStyle(color: kPrimary))),
-    ]),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.error_outline, color: context.sem.danger, size: 40),
+        const SizedBox(height: 12),
+        Text(
+          context.l10n.ctLoadError,
+          style: TextStyle(color: context.c.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _load,
+          child: Text(
+            context.l10n.commonRetry,
+            style: TextStyle(color: context.c.primary),
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget _buildHeader() {
@@ -135,36 +180,79 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
     final sequencia = p['sequenciaAtual'] as int? ?? 0;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Meu Perfil', style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 20),
-        Row(children: [
-          _statBox(Icons.emoji_events_rounded, kWarning, 'Nível', nivel),
-          const SizedBox(width: 12),
-          _statBox(Icons.leaderboard_rounded, kPrimary, 'XP Total', '$xpTotal'),
-          const SizedBox(width: 12),
-          _statBox(Icons.local_fire_department_rounded, kDanger, 'Sequência', '${sequencia}d'),
-        ]),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.apMyProfile,
+            style: TextStyle(
+              color: context.c.onSurface,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              _statBox(
+                Icons.emoji_events_rounded,
+                context.sem.warning,
+                context.l10n.apLevel,
+                nivel,
+              ),
+              const SizedBox(width: 12),
+              _statBox(
+                Icons.leaderboard_rounded,
+                context.c.primary,
+                'XP Total',
+                '$xpTotal',
+              ),
+              const SizedBox(width: 12),
+              _statBox(
+                Icons.local_fire_department_rounded,
+                context.sem.danger,
+                context.l10n.apStreak,
+                '${sequencia}d',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _statBox(IconData icon, Color color, String label, String value) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 6),
-        Text(value, style: TextStyle(color: kText1, fontWeight: FontWeight.w800, fontSize: 16)),
-        Text(label, style: TextStyle(color: kText2, fontSize: 10)),
-      ]),
-    ),
-  );
+  Widget _statBox(IconData icon, Color color, String label, String value) =>
+      Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+          decoration: BoxDecoration(
+            color: context.c.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.c.outline),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _buildXpBar() {
     final p = _perfil ?? {};
@@ -177,31 +265,64 @@ class _AlunoConquistasScreenState extends State<AlunoConquistasScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('XP Total', style: TextStyle(color: kText2, fontSize: 12)),
-          Text('$xpTotal XP', style: TextStyle(color: kText1, fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progresso.clamp(0.0, 1.0),
-            minHeight: 8,
-            backgroundColor: kBorder,
-            valueColor: AlwaysStoppedAnimation<Color>(kPrimary),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'XP Total',
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                '$xpTotal XP',
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 6),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Este mês: $xpMensal XP', style: TextStyle(color: kText2, fontSize: 11)),
-          Text('Próx. nível: $xpProximo XP', style: TextStyle(color: kText2, fontSize: 11)),
-        ]),
-      ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progresso.clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: context.c.outline,
+              valueColor: AlwaysStoppedAnimation<Color>(context.c.primary),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                context.l10n.apThisMonthXp(xpMensal),
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+              Text(
+                context.l10n.apNextLevelXp(xpProximo),
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -216,10 +337,12 @@ class _ConquistaCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: desbloqueada ? kSurface : kBg,
+        color: desbloqueada ? context.c.surfaceContainer : context.c.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: desbloqueada ? kPrimary.withOpacity(0.4) : kBorder,
+          color: desbloqueada
+              ? context.c.primary.withOpacity(0.4)
+              : context.c.outline,
         ),
       ),
       child: Column(
@@ -230,11 +353,17 @@ class _ConquistaCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: desbloqueada ? kPrimary.withOpacity(0.15) : kBorder.withOpacity(0.3),
+              color: desbloqueada
+                  ? context.c.primary.withOpacity(0.15)
+                  : context.c.outline.withOpacity(0.3),
             ),
             child: Icon(
-              desbloqueada ? Icons.emoji_events_rounded : Icons.lock_outline_rounded,
-              color: desbloqueada ? kPrimary : kText2,
+              desbloqueada
+                  ? Icons.emoji_events_rounded
+                  : Icons.lock_outline_rounded,
+              color: desbloqueada
+                  ? context.c.primary
+                  : context.c.onSurfaceVariant,
               size: 24,
             ),
           ),
@@ -242,7 +371,9 @@ class _ConquistaCard extends StatelessWidget {
           Text(
             c['nome'] as String? ?? '',
             style: TextStyle(
-              color: desbloqueada ? kText1 : kText2,
+              color: desbloqueada
+                  ? context.c.onSurface
+                  : context.c.onSurfaceVariant,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -252,7 +383,14 @@ class _ConquistaCard extends StatelessWidget {
           ),
           if (desbloqueada && (c['pontosXpBonus'] as int? ?? 0) > 0) ...[
             const SizedBox(height: 4),
-            Text('+${c['pontosXpBonus']} XP', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w700)),
+            Text(
+              '+${c['pontosXpBonus']} XP',
+              style: TextStyle(
+                color: context.sem.success,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ],
       ),

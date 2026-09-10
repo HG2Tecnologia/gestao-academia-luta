@@ -1,9 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tatame/l10n/app_localizations.dart';
 import 'package:tatame/screens/auth/login_screen.dart';
 
 void main() {
+  Widget wrap(GoRouter router) => MaterialApp.router(
+    routerConfig: router,
+    locale: const Locale('pt'),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: const [
+      ...AppLocalizations.localizationsDelegates,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+  );
+
+  GoRouter singleLogin(String contexto) => GoRouter(
+    initialLocation: '/login',
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (_, __) => LoginScreen(contexto: contexto),
+      ),
+    ],
+  );
+
   GoRouter buildRouter(String initialLocation) {
     return GoRouter(
       initialLocation: initialLocation,
@@ -24,46 +48,21 @@ void main() {
     );
   }
 
-  testWidgets(
-    'contexto aluno esconde a ação empresarial "Criar uma academia"',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp.router(
-          routerConfig: GoRouter(
-            initialLocation: '/login',
-            routes: [
-              GoRoute(
-                path: '/login',
-                builder: (_, __) => const LoginScreen(contexto: 'aluno'),
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('contexto aluno esconde a ação empresarial "Criar uma academia"', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap(singleLogin('aluno')));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Criar uma academia'), findsNothing);
-      expect(find.text('Acessando o app pela primeira vez'), findsOneWidget);
-      expect(find.text('Esqueci minha senha'), findsOneWidget);
-    },
-  );
+    expect(find.text('Criar uma academia'), findsNothing);
+    expect(find.text('Acessando o app pela primeira vez'), findsOneWidget);
+    expect(find.text('Esqueci minha senha'), findsOneWidget);
+  });
 
   testWidgets(
     'contexto academia mostra a ação renomeada "Criar uma academia"',
     (tester) async {
-      await tester.pumpWidget(
-        MaterialApp.router(
-          routerConfig: GoRouter(
-            initialLocation: '/login',
-            routes: [
-              GoRoute(
-                path: '/login',
-                builder: (_, __) => const LoginScreen(contexto: 'academia'),
-              ),
-            ],
-          ),
-        ),
-      );
+      await tester.pumpWidget(wrap(singleLogin('academia')));
       await tester.pumpAndSettle();
 
       expect(find.text('Criar uma academia'), findsOneWidget);
@@ -71,14 +70,13 @@ void main() {
     },
   );
 
-  testWidgets('sem contexto (acesso direto/legado) redireciona para /boas-vindas', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp.router(routerConfig: buildRouter('/login')),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'sem contexto (acesso direto/legado) redireciona para /boas-vindas',
+    (tester) async {
+      await tester.pumpWidget(wrap(buildRouter('/login')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('boas-vindas'), findsOneWidget);
-  });
+      expect(find.text('boas-vindas'), findsOneWidget);
+    },
+  );
 }

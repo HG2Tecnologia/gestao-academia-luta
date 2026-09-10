@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/context_ext.dart';
 import 'aluno_widgets.dart';
 
 /// Cabeçalho da Home: avatar + saudação + ação de notificações.
@@ -16,7 +17,7 @@ class StudentHeader extends StatelessWidget {
     super.key,
     required this.primeiroNome,
     this.fotoBase64,
-    this.subtitulo = 'Sua jornada continua aqui.',
+    this.subtitulo = '',
     this.onNotificacoes,
     this.onAvatar,
     this.profileSwitcher,
@@ -36,9 +37,11 @@ class StudentHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                primeiroNome.isEmpty ? 'Olá!' : 'Olá, $primeiroNome!',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                primeiroNome.isEmpty
+                    ? context.l10n.apHello
+                    : context.l10n.apHelloName(primeiroNome),
+                style: TextStyle(
+                  color: context.c.onSurface,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
@@ -46,8 +49,11 @@ class StudentHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                subtitulo,
-                style: AppText.caption,
+                subtitulo.isEmpty ? context.l10n.apJourneyContinues : subtitulo,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -63,16 +69,16 @@ class StudentHeader extends StatelessWidget {
             onPressed: onNotificacoes,
             visualDensity: VisualDensity.compact,
             style: IconButton.styleFrom(
-              backgroundColor: AppColors.surface,
+              backgroundColor: context.c.surfaceContainer,
               shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
-              side: const BorderSide(color: AppColors.border),
+              side: BorderSide(color: context.c.outline),
             ),
-            icon: const Icon(
+            icon: Icon(
               Icons.notifications_none_rounded,
-              color: AppColors.textPrimary,
+              color: context.c.onSurface,
               size: 20,
             ),
-            tooltip: 'Notificações',
+            tooltip: context.l10n.apNotifications,
           ),
       ],
     );
@@ -101,11 +107,11 @@ class _Avatar extends StatelessWidget {
     }
     return CircleAvatar(
       radius: 22,
-      backgroundColor: AppColors.primary.withValues(alpha: 0.18),
+      backgroundColor: context.c.primary.withValues(alpha: 0.18),
       child: Text(
         iniciais.isEmpty ? '?' : iniciais,
-        style: const TextStyle(
-          color: AppColors.primary,
+        style: TextStyle(
+          color: context.c.primary,
           fontWeight: FontWeight.w800,
           fontSize: 13,
         ),
@@ -140,12 +146,12 @@ class NextClassCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.14),
+              color: context.c.primary.withValues(alpha: 0.14),
               borderRadius: AppRadius.brSm,
             ),
             child: Icon(
               vazio ? Icons.event_available_rounded : Icons.event_rounded,
-              color: AppColors.primary,
+              color: context.c.primary,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -154,26 +160,42 @@ class NextClassCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  vazio ? 'Nenhuma aula programada para hoje.' : turmaNome!,
-                  style: AppText.cardTitle,
+                  vazio ? context.l10n.apNoClassToday : turmaNome!,
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (!vazio && quando != null) ...[
                   const SizedBox(height: 2),
-                  Text(quando!, style: AppText.caption),
+                  Text(
+                    quando!,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
                 if (!vazio && professor != null && professor!.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text('Prof. ${professor!}', style: AppText.caption),
+                  Text(
+                    context.l10n.apProfPrefix(professor!),
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
           if (!vazio)
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
+              color: context.c.onSurfaceVariant,
             ),
         ],
       ),
@@ -211,7 +233,13 @@ class WeeklyAttendanceCard extends StatelessWidget {
     final hoje = DateTime.now();
     final hojeData = DateTime(hoje.year, hoje.month, hoje.day);
     final segunda = hojeData.subtract(Duration(days: hoje.weekday - 1));
-    const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+    final nomes = [
+      context.l10n.dowMon,
+      context.l10n.dowTue,
+      context.l10n.dowWed,
+      context.l10n.dowThu,
+      context.l10n.dowFri,
+    ];
     final dias = List.generate(5, (i) => segunda.add(Duration(days: i)));
     final total = dias.where((d) => diasComPresenca.contains(_key(d))).length;
 
@@ -222,12 +250,18 @@ class WeeklyAttendanceCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Frequência esta semana', style: AppText.caption),
+              Text(
+                context.l10n.apWeekAttendance,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
               const Spacer(),
               Text(
-                total == 1 ? '1 treino' : '$total treinos',
-                style: const TextStyle(
-                  color: AppColors.primary,
+                context.l10n.apWorkoutsCount(total),
+                style: TextStyle(
+                  color: context.c.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -248,8 +282,8 @@ class WeeklyAttendanceCard extends StatelessWidget {
                     nomes[i],
                     style: TextStyle(
                       color: ehHoje
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? context.c.onSurface
+                          : context.c.onSurfaceVariant,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -261,21 +295,21 @@ class WeeklyAttendanceCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: presente
-                          ? AppColors.primary
+                          ? context.c.primary
                           : (ehHoje
-                                ? AppColors.primary.withValues(alpha: 0.08)
-                                : AppColors.bg),
+                                ? context.c.primary.withValues(alpha: 0.08)
+                                : context.c.surface),
                       border: Border.all(
                         color: presente
-                            ? AppColors.primary
+                            ? context.c.primary
                             : (ehHoje
-                                  ? AppColors.primary.withValues(alpha: 0.4)
-                                  : AppColors.border),
+                                  ? context.c.primary.withValues(alpha: 0.4)
+                                  : context.c.outline),
                         width: ehHoje ? 1.5 : 1,
                       ),
                     ),
                     child: presente
-                        ? const Icon(
+                        ? Icon(
                             Icons.check_rounded,
                             color: Colors.black,
                             size: 18,
@@ -285,12 +319,12 @@ class WeeklyAttendanceCard extends StatelessWidget {
                               '${d.day}',
                               style: TextStyle(
                                 color: futuro
-                                    ? AppColors.textSecondary.withValues(
+                                    ? context.c.onSurfaceVariant.withValues(
                                         alpha: 0.5,
                                       )
                                     : (ehHoje
-                                          ? AppColors.primary
-                                          : AppColors.textSecondary),
+                                          ? context.c.primary
+                                          : context.c.onSurfaceVariant),
                                 fontSize: 11,
                                 fontWeight: ehHoje
                                     ? FontWeight.w800
@@ -309,18 +343,16 @@ class WeeklyAttendanceCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _AtalhoFrequencia(
-                    texto: presencasAno == 1
-                        ? '1 presença'
-                        : '$presencasAno presenças',
-                    cor: AppColors.success,
+                    texto: context.l10n.apAttendancesCount(presencasAno),
+                    cor: context.sem.success,
                     onTap: () => onAbrirDetalhe!('presencas'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: _AtalhoFrequencia(
-                    texto: faltasAno == 1 ? '1 falta' : '$faltasAno faltas',
-                    cor: AppColors.danger,
+                    texto: context.l10n.apAbsencesCount(faltasAno),
+                    cor: context.sem.danger,
                     onTap: () => onAbrirDetalhe!('faltas'),
                   ),
                 ),
@@ -367,7 +399,7 @@ class _AtalhoFrequencia extends StatelessWidget {
                 child: Text(
                   texto,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.c.onSurface,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -397,28 +429,28 @@ class FinancialStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (cor, icone, titulo, sub) = switch (status) {
       FinanceiroStatus.emDia => (
-        AppColors.success,
+        context.sem.success,
         Icons.verified_rounded,
-        'Mensalidade em dia',
-        'Sem pendências no momento.',
+        context.l10n.apTuitionOk,
+        context.l10n.apTuitionOkSub,
       ),
       FinanceiroStatus.pendente => (
-        AppColors.warning,
+        context.sem.warning,
         Icons.schedule_rounded,
-        'Mensalidade pendente',
-        'Há uma mensalidade que precisa de atenção.',
+        context.l10n.apTuitionPending,
+        context.l10n.apTuitionNeedsAttention,
       ),
       FinanceiroStatus.atrasado => (
-        AppColors.danger,
+        context.sem.danger,
         Icons.account_balance_wallet_rounded,
-        'Mensalidade em atraso',
-        'Há uma mensalidade que precisa de atenção.',
+        context.l10n.apTuitionOverdue,
+        context.l10n.apTuitionNeedsAttention,
       ),
       FinanceiroStatus.semCobrancas => (
-        AppColors.textSecondary,
+        context.c.onSurfaceVariant,
         Icons.receipt_long_rounded,
-        'Nenhuma cobrança',
-        'Nada em aberto por aqui.',
+        context.l10n.apNoCharges,
+        context.l10n.apNoChargesSub,
       ),
     };
 
@@ -450,14 +482,17 @@ class FinancialStatusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(sub, style: AppText.caption),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textSecondary,
-          ),
+          Icon(Icons.chevron_right_rounded, color: context.c.onSurfaceVariant),
         ],
       ),
     );
@@ -497,16 +532,16 @@ class ModalitySelector extends StatelessWidget {
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               decoration: BoxDecoration(
-                color: sel ? AppColors.primary : AppColors.surface,
+                color: sel ? context.c.primary : context.c.surfaceContainer,
                 borderRadius: AppRadius.brSm,
                 border: Border.all(
-                  color: sel ? AppColors.primary : AppColors.border,
+                  color: sel ? context.c.primary : context.c.outline,
                 ),
               ),
               child: Text(
                 m,
                 style: TextStyle(
-                  color: sel ? Colors.black : AppColors.textSecondary,
+                  color: sel ? Colors.black : context.c.onSurfaceVariant,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/frequencia_treino.dart';
 import '../../core/widgets.dart';
@@ -160,13 +160,15 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kPrimary)),
+        backgroundColor: context.c.surface,
+        body: Center(
+          child: CircularProgressIndicator(color: context.c.primary),
+        ),
       );
     }
     if (_erro && _presencas.isEmpty && _faltas.isEmpty) {
       return Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         body: SafeArea(
           child: ErroConexao(
             onRetry: () {
@@ -185,10 +187,10 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
     final groups = _grouped(itens).entries.toList();
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: SafeArea(
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -205,15 +207,15 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                             onTap: () => Navigator.of(context).maybePop(),
                             child: Icon(
                               Icons.arrow_back_rounded,
-                              color: kText1,
+                              color: context.c.onSurface,
                               size: 26,
                             ),
                           ),
                           const SizedBox(width: 14),
                           Text(
-                            'Presenças',
+                            context.l10n.apAttendanceTitle,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
                             ),
@@ -222,8 +224,11 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Seu histórico de treinos',
-                        style: TextStyle(color: kText2, fontSize: 13),
+                        context.l10n.apTrainingHistory,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -238,24 +243,24 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                     children: [
                       _statCard(
                         valor: _totalTreinos,
-                        label: 'Total de treinos',
-                        cor: kPrimary,
+                        label: context.l10n.apTotalWorkouts,
+                        cor: context.c.primary,
                         icone: Icons.fitness_center_rounded,
                         filtro: _Filtro.total,
                       ),
                       const SizedBox(width: 10),
                       _statCard(
                         valor: _presencas.length,
-                        label: 'Presenças',
-                        cor: kSuccess,
+                        label: context.l10n.apAttendanceLabel,
+                        cor: context.sem.success,
                         icone: Icons.check_circle_rounded,
                         filtro: _Filtro.presencas,
                       ),
                       const SizedBox(width: 10),
                       _statCard(
                         valor: _faltas.length,
-                        label: 'Faltas',
-                        cor: kDanger,
+                        label: context.l10n.apAbsencesLabel,
+                        cor: context.sem.danger,
                         icone: Icons.cancel_rounded,
                         filtro: _Filtro.faltas,
                       ),
@@ -274,7 +279,7 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                       _Filtro.total => 'HISTÓRICO',
                     },
                     style: TextStyle(
-                      color: kText2,
+                      color: context.c.onSurfaceVariant,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -302,7 +307,7 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                             Text(
                               label,
                               style: TextStyle(
-                                color: kPrimary,
+                                color: context.c.primary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -314,13 +319,15 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: kPrimary.withValues(alpha: 0.15),
+                                color: context.c.primary.withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 '${items.length}',
                                 style: TextStyle(
-                                  color: kPrimary,
+                                  color: context.c.primary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -347,19 +354,21 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                             _filtro == _Filtro.faltas
                                 ? Icons.emoji_events_rounded
                                 : Icons.sports_martial_arts_rounded,
-                            color: kBorder,
+                            color: context.c.outline,
                             size: 64,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             switch (_filtro) {
-                              _Filtro.faltas =>
-                                'Nenhuma falta registrada. Mandou bem!',
+                              _Filtro.faltas => context.l10n.apNoAbsences,
                               _Filtro.presencas =>
-                                'Nenhuma presença registrada ainda',
-                              _Filtro.total => 'Nada por aqui ainda',
+                                context.l10n.apNoAttendanceYet,
+                              _Filtro.total => context.l10n.apNothingHereYet,
                             },
-                            style: TextStyle(color: kText2, fontSize: 14),
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -378,16 +387,16 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
 
   Widget _itemTile(Map<String, dynamic> p) {
     final falta = p['tipo'] == 'falta';
-    final cor = falta ? kDanger : kSuccess;
+    final cor = falta ? context.sem.danger : context.sem.success;
     final hora = (p['horaCheckin'] as String?);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
         child: Row(
           children: [
@@ -414,19 +423,21 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
                         ? p['nomeTurma'].toString()
                         : (p['turma']?.toString() ?? '—'),
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
                     falta
-                        ? 'Falta'
+                        ? context.l10n.apAbsence
                         : (hora != null && hora.length >= 5
                               ? hora.substring(0, 5)
-                              : 'Presente'),
+                              : context.l10n.apPresent),
                     style: TextStyle(
-                      color: falta ? kDanger : kText2,
+                      color: falta
+                          ? context.sem.danger
+                          : context.c.onSurfaceVariant,
                       fontSize: 12,
                       fontWeight: falta ? FontWeight.w600 : FontWeight.normal,
                     ),
@@ -436,7 +447,7 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
             ),
             Text(
               _fmtDate(p['data']?.toString()),
-              style: TextStyle(color: kText2, fontSize: 12),
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
             ),
           ],
         ),
@@ -486,7 +497,7 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
               Text(
                 label,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),

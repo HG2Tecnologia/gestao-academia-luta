@@ -1,11 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'auth_storage.dart';
-import 'constants.dart';
+import 'theme/context_ext.dart';
 import 'firestore_service.dart';
 import 'profile_session_service.dart';
 import 'push_service.dart';
 import 'tab_refresh.dart';
+import '../l10n/app_localizations.dart';
+
+/// Rótulo localizado para o nome de perfil armazenado ('Aluno', 'Professor',
+/// 'Secretaria', 'Admin'). O valor cru continua sendo o dado de negócio — só a
+/// exibição é traduzida.
+String _perfilLabel(String? raw, AppLocalizations l) {
+  switch (raw) {
+    case 'Admin':
+      return l.roleAdmin;
+    case 'Professor':
+      return l.roleTeacher;
+    case 'Secretaria':
+      return l.roleSecretary;
+    case 'Aluno':
+      return l.roleStudent;
+    default:
+      return raw == null || raw.isEmpty ? l.roleStudent : raw;
+  }
+}
 
 /// Mostra o seletor de perfil (mesma pessoa com mais de um vínculo — ex:
 /// irmãos com o mesmo contato, ou Professor que também é Aluno em outra
@@ -29,7 +48,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
 
   final selecionado = await showModalBottomSheet<Map<String, dynamic>>(
     context: context,
-    backgroundColor: kSurface,
+    backgroundColor: context.c.surfaceContainer,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -47,7 +66,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: kBorder,
+                color: ctx.c.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -60,12 +79,12 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: kPrimary.withValues(alpha: 0.14),
+                      color: ctx.c.primary.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       Icons.switch_account_rounded,
-                      color: kPrimary,
+                      color: ctx.c.primary,
                       size: 24,
                     ),
                   ),
@@ -75,17 +94,20 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Trocar perfil',
+                          ctx.l10n.psTitle,
                           style: TextStyle(
-                            color: kText1,
+                            color: ctx.c.onSurface,
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Escolha quem está usando o app agora',
-                          style: TextStyle(color: kText2, fontSize: 12),
+                          ctx.l10n.psSubtitle,
+                          style: TextStyle(
+                            color: ctx.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -93,7 +115,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                 ],
               ),
             ),
-            Divider(height: 1, color: kBorder),
+            Divider(height: 1, color: ctx.c.outline),
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
@@ -108,12 +130,14 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: atual ? kPrimary.withValues(alpha: 0.10) : kBg,
+                      color: atual
+                          ? ctx.c.primary.withValues(alpha: 0.10)
+                          : ctx.c.surface,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: atual
-                            ? kPrimary.withValues(alpha: 0.45)
-                            : kBorder,
+                            ? ctx.c.primary.withValues(alpha: 0.45)
+                            : ctx.c.outline,
                       ),
                     ),
                     child: ListTile(
@@ -123,7 +147,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                       ),
                       leading: CircleAvatar(
                         radius: 20,
-                        backgroundColor: atual ? kPrimary : kBorder,
+                        backgroundColor: atual ? ctx.c.primary : ctx.c.outline,
                         child: Text(
                           nome
                               .split(' ')
@@ -131,8 +155,10 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                               .map((w) => w.isNotEmpty ? w[0] : '')
                               .join()
                               .toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: atual
+                                ? ctx.c.onPrimary
+                                : ctx.c.onSurfaceVariant,
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
                           ),
@@ -141,13 +167,16 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                       title: Text(
                         nome,
                         style: TextStyle(
-                          color: kText1,
+                          color: ctx.c.onSurface,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       subtitle: Text(
-                        p['perfil_nome'] as String? ?? 'Aluno',
-                        style: TextStyle(color: kText2, fontSize: 12),
+                        _perfilLabel(p['perfil_nome'] as String?, ctx.l10n),
+                        style: TextStyle(
+                          color: ctx.c.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       trailing: atual
                           ? Container(
@@ -156,13 +185,13 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: kSuccess.withValues(alpha: 0.14),
+                                color: ctx.sem.success.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                'Em uso',
+                                ctx.l10n.psInUse,
                                 style: TextStyle(
-                                  color: kSuccess,
+                                  color: ctx.sem.success,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -172,9 +201,9 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Acessar',
+                                  ctx.l10n.psAccess,
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: ctx.c.primary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -182,7 +211,7 @@ Future<void> mostrarTrocarPerfil(BuildContext context) async {
                                 const SizedBox(width: 3),
                                 Icon(
                                   Icons.chevron_right_rounded,
-                                  color: kPrimary,
+                                  color: ctx.c.primary,
                                   size: 18,
                                 ),
                               ],
@@ -278,19 +307,25 @@ class PerfilSwitchButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: context.c.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            border: Border.all(
+              color: context.c.primary.withValues(alpha: 0.30),
+            ),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.switch_account_rounded, color: Colors.white, size: 19),
-              SizedBox(width: 7),
+              Icon(
+                Icons.switch_account_rounded,
+                color: context.c.primary,
+                size: 19,
+              ),
+              const SizedBox(width: 7),
               Text(
-                'Trocar perfil',
+                context.l10n.psTitle,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: context.c.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),

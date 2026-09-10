@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/turma_service.dart';
@@ -25,17 +26,28 @@ enum _OrdAlunos {
   presencasAsc,
 }
 
-const _labelsOrd = <_OrdAlunos, String>{
-  _OrdAlunos.manual: 'Ordem personalizada',
-  _OrdAlunos.nomeAsc: 'Nome (A–Z)',
-  _OrdAlunos.nomeDesc: 'Nome (Z–A)',
-  _OrdAlunos.graduacaoDesc: 'Graduação (mais alta)',
-  _OrdAlunos.graduacaoAsc: 'Graduação (mais baixa)',
-  _OrdAlunos.matriculaAntiga: 'Matrícula (mais antiga)',
-  _OrdAlunos.matriculaNova: 'Matrícula (mais recente)',
-  _OrdAlunos.presencasDesc: 'Mais presenças',
-  _OrdAlunos.presencasAsc: 'Menos presenças',
-};
+String _ordLabel(_OrdAlunos o, AppLocalizations l) {
+  switch (o) {
+    case _OrdAlunos.manual:
+      return l.tdOrdManual;
+    case _OrdAlunos.nomeAsc:
+      return l.sortNameAsc;
+    case _OrdAlunos.nomeDesc:
+      return l.sortNameDesc;
+    case _OrdAlunos.graduacaoDesc:
+      return l.tdOrdBeltDesc;
+    case _OrdAlunos.graduacaoAsc:
+      return l.tdOrdBeltAsc;
+    case _OrdAlunos.matriculaAntiga:
+      return l.tdOrdEnrollOld;
+    case _OrdAlunos.matriculaNova:
+      return l.tdOrdEnrollNew;
+    case _OrdAlunos.presencasDesc:
+      return l.tdOrdAttendDesc;
+    case _OrdAlunos.presencasAsc:
+      return l.tdOrdAttendAsc;
+  }
+}
 
 class AdminTurmaDetalheScreen extends StatefulWidget {
   final String turmaId;
@@ -63,6 +75,7 @@ class AdminTurmaDetalheScreen extends StatefulWidget {
 
 class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     with SingleTickerProviderStateMixin {
+  AppLocalizations get _l => context.l10n;
   late TabController _tabCtrl;
   final _ctrl = TextEditingController();
 
@@ -158,7 +171,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       ]);
 
       final turmaData = results[0] as Map<String, dynamic>?;
-      if (turmaData == null) throw Exception('Turma não encontrada');
+      if (turmaData == null) throw Exception(_l.tdClassNotFound);
 
       final presencas = (results[1] as List).cast<Map<String, dynamic>>();
       final horariosList = (results[2] as List).cast<Map<String, dynamic>>();
@@ -251,7 +264,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _erro = 'Erro ao carregar turma');
+      if (mounted) setState(() => _erro = _l.tdClassLoadError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -263,35 +276,44 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   Future<void> _excluirTurma() async {
     final academiaId = _academiaId;
     if (academiaId == null) return;
-    final nome = _turma?['nome']?.toString() ?? 'esta turma';
+    final nome = _turma?['nome']?.toString() ?? _l.tdThisClass;
     final ok =
         await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
-              'Excluir "$nome"?',
+              _l.tdDeleteClassConfirm(nome),
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
             content: Text(
-              'A turma some das listagens ativas e as matrículas em aberto são encerradas. '
-              'Alunos, presenças e graduações continuam no histórico — nada é apagado.',
-              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+              _l.tdDeleteClassBody,
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Excluir',
-                  style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+                  _l.commonDelete,
+                  style: TextStyle(
+                    color: context.sem.danger,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -327,21 +349,21 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         SnackBar(
           content: Text(
             resultado.matriculasEncerradas > 0
-                ? 'Turma excluída. ${resultado.matriculasEncerradas} matrícula(s) encerrada(s).'
-                : 'Turma excluída.',
+                ? _l.tdClassDeletedWithEnroll(resultado.matriculasEncerradas)
+                : _l.tdClassDeleted,
           ),
-          backgroundColor: kSuccess,
+          backgroundColor: context.sem.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       rootNavigator.pop(); // fecha o loading
-      String msg = 'Erro ao excluir turma.';
+      String msg = _l.tdClassDeleteError;
       if (e is FirebaseFunctionsException) msg = e.message ?? msg;
       messenger.showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: kDanger,
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -353,13 +375,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final qrData = turmaId;
     if (!mounted) return;
 
-    final nomeTurma = _turma?['nome'] ?? 'Turma';
+    final nomeTurma = _turma?['nome'] ?? _l.tdClassFallback;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.fromLTRB(
@@ -375,20 +397,23 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: kBorder,
+                color: context.c.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'QR Code da Turma',
+              _l.tdClassQrTitle,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            Text(nomeTurma, style: TextStyle(color: kText2, fontSize: 13)),
+            Text(
+              nomeTurma,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+            ),
             const SizedBox(height: 16),
             Center(
               child: Container(
@@ -406,13 +431,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             ),
             const SizedBox(height: 12),
             Text(
-              'Alunos escaneiam para registrar presença',
-              style: TextStyle(color: kText2, fontSize: 12),
+              _l.tdQrSubtitle,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
               textAlign: TextAlign.center,
             ),
             Text(
-              'Válido apenas no horário da aula',
-              style: TextStyle(color: kText2, fontSize: 11),
+              _l.tdQrValidity,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
               textAlign: TextAlign.center,
             ),
           ],
@@ -511,7 +536,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     ];
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -523,9 +548,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             children: [
               const SizedBox(height: 14),
               Text(
-                'Ordenar alunos',
+                _l.tdSortStudents,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -538,12 +563,17 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     _ordenacao == o
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
-                    color: _ordenacao == o ? kPrimary : kText2,
+                    color: _ordenacao == o
+                        ? context.c.primary
+                        : context.c.onSurfaceVariant,
                     size: 20,
                   ),
                   title: Text(
-                    _labelsOrd[o]!,
-                    style: TextStyle(color: kText1, fontSize: 13.5),
+                    _ordLabel(o, _l),
+                    style: TextStyle(
+                      color: context.c.onSurface,
+                      fontSize: 13.5,
+                    ),
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -556,18 +586,24 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
               if (_podeReordenar) ...[
                 const Divider(height: 1),
                 ListTile(
-                  leading: Icon(Icons.swap_vert_rounded, color: kPrimary),
+                  leading: Icon(
+                    Icons.swap_vert_rounded,
+                    color: context.c.primary,
+                  ),
                   title: Text(
-                    'Reordenar arrastando',
+                    _l.tdReorderByDrag,
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.c.primary,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   subtitle: Text(
-                    'Segure e arraste os alunos para montar a ordem da turma',
-                    style: TextStyle(color: kText2, fontSize: 11),
+                    _l.tdReorderHint,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -626,13 +662,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Ordem da turma salva.')));
+        ).showSnackBar(SnackBar(content: Text(_l.tdOrderSaved)));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível salvar a ordem.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_l.tdOrderSaveError)));
       }
     } finally {
       if (mounted) setState(() => _salvandoOrdem = false);
@@ -651,8 +687,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       hoje.month,
       hoje.day,
     ).difference(DateTime(_dataSel.year, _dataSel.month, _dataSel.day)).inDays;
-    if (diff == 0) return 'Hoje';
-    if (diff == 1) return 'Ontem';
+    if (diff == 0) return _l.tdToday;
+    if (diff == 1) return _l.tdYesterday;
     return '${_dataSel.day.toString().padLeft(2, '0')}/${_dataSel.month.toString().padLeft(2, '0')}/${_dataSel.year}';
   }
 
@@ -664,7 +700,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.dark(primary: kPrimary, surface: kSurface),
+          colorScheme: ColorScheme.dark(
+            primary: context.c.primary,
+            surface: context.c.surfaceContainer,
+          ),
         ),
         child: child!,
       ),
@@ -736,14 +775,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     }
   }
 
-  static const _diasNomes = [
-    'Domingo',
-    'Segunda-feira',
-    'Terça-feira',
-    'Quarta-feira',
-    'Quinta-feira',
-    'Sexta-feira',
-    'Sábado',
+  List<String> get _diasNomes => [
+    _l.dowFullSun,
+    _l.dowFullMon,
+    _l.dowFullTue,
+    _l.dowFullWed,
+    _l.dowFullThu,
+    _l.dowFullFri,
+    _l.dowFullSat,
   ];
 
   // Converte DateTime.weekday (1=Mon..7=Sun) para índice Firestore (0=Dom..6=Sáb)
@@ -765,25 +804,34 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       final confirmar = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: kSurface,
+          backgroundColor: context.c.surfaceContainer,
           title: Text(
-            'Dia fora do horário',
-            style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+            _l.tdOffScheduleDay,
+            style: TextStyle(
+              color: context.c.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: Text(
-            'Hoje não é o dia de treino cadastrado para essa turma. Deseja mesmo confirmar presença para $diaLabel?',
-            style: TextStyle(color: kText2),
+            _l.tdOffScheduleOneBody(diaLabel),
+            style: TextStyle(color: context.c.onSurfaceVariant),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text('Cancelar', style: TextStyle(color: kText2)),
+              child: Text(
+                _l.commonCancel,
+                style: TextStyle(color: context.c.onSurfaceVariant),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(
-                'Confirmar assim mesmo',
-                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700),
+                _l.tdConfirmAnyway,
+                style: TextStyle(
+                  color: context.c.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -814,8 +862,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Presença registrada!'),
-            backgroundColor: kSuccess,
+            content: Text(_l.tdAttendanceMarked),
+            backgroundColor: context.sem.success,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -828,9 +876,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             content: Text(
               e is CheckinBloqueadoException
                   ? e.mensagem
-                  : 'Erro ao registrar presença.',
+                  : _l.tdAttendanceMarkError,
             ),
-            backgroundColor: kDanger,
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -853,25 +901,34 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Desfazer presença',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+          _l.tdUndoAttendance,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
-          'Deseja remover a presença de $nome nesta data?',
-          style: TextStyle(color: kText2),
+          _l.tdUndoAttendanceBody(nome),
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Remover',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonRemove,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -892,8 +949,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Presença removida.'),
-            backgroundColor: kSuccess,
+            content: Text(_l.tdAttendanceRemoved),
+            backgroundColor: context.sem.success,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -903,8 +960,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao remover presença.'),
-            backgroundColor: kDanger,
+            content: Text(_l.tdAttendanceRemoveError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -917,24 +974,35 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   Widget build(BuildContext context) {
     final t = _turma;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          t?['nome'] ?? 'Turma',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+          t?['nome'] ?? _l.tdClassFallback,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         actions: [
           if (!_pm && t != null && _academiaId != null)
             IconButton(
-              icon: Icon(Icons.edit_rounded, color: kText2, size: 20),
-              tooltip: 'Editar turma',
+              icon: Icon(
+                Icons.edit_rounded,
+                color: context.c.onSurfaceVariant,
+                size: 20,
+              ),
+              tooltip: _l.editClass,
               onPressed: () async {
                 final editou = await showModalBottomSheet<bool>(
                   context: context,
@@ -950,30 +1018,30 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             IconButton(
               icon: Icon(
                 Icons.delete_outline_rounded,
-                color: kDanger,
+                color: context.sem.danger,
                 size: 20,
               ),
-              tooltip: 'Excluir turma',
+              tooltip: _l.tdDeleteClass,
               onPressed: _excluirTurma,
             ),
         ],
         bottom: TabBar(
           controller: _tabCtrl,
-          labelColor: kPrimary,
-          unselectedLabelColor: kText2,
-          indicatorColor: kPrimary,
-          tabs: const [
-            Tab(text: 'Alunos'),
-            Tab(text: 'Presença'),
-            Tab(text: 'Horários'),
+          labelColor: context.c.primary,
+          unselectedLabelColor: context.c.onSurfaceVariant,
+          indicatorColor: context.c.primary,
+          tabs: [
+            Tab(text: _l.navStudents),
+            Tab(text: _l.tdTabAttendance),
+            Tab(text: _l.tdTabSchedule),
           ],
         ),
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: kPrimary))
+          ? Center(child: CircularProgressIndicator(color: context.c.primary))
           : _erro != null
           ? Center(
-              child: Text(_erro!, style: TextStyle(color: kDanger)),
+              child: Text(_erro!, style: TextStyle(color: context.sem.danger)),
             )
           : Column(
               children: [
@@ -1003,28 +1071,31 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               controller: _ctrl,
-              style: TextStyle(color: kText1),
+              style: TextStyle(color: context.c.onSurface),
               decoration: InputDecoration(
-                hintText: 'Buscar aluno...',
-                hintStyle: TextStyle(color: kText2),
-                prefixIcon: Icon(Icons.search, color: kText2),
+                hintText: _l.studentsSearchHint,
+                hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: context.c.onSurfaceVariant,
+                ),
                 filled: true,
-                fillColor: kSurface,
+                fillColor: context.c.surfaceContainer,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: context.c.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: context.c.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kPrimary),
+                  borderSide: BorderSide(color: context.c.primary),
                 ),
               ),
             ),
@@ -1043,15 +1114,15 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     ),
                     children: [
                       TextSpan(
-                        text: 'Alunos matriculados',
-                        style: TextStyle(color: kText2),
+                        text: _l.tdEnrolledStudents,
+                        style: TextStyle(color: context.c.onSurfaceVariant),
                       ),
                       TextSpan(
                         text: cap > 0
                             ? ' — $matriculados/$cap'
                             : ' — $matriculados',
                         style: TextStyle(
-                          color: kPrimary,
+                          color: context.c.primary,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -1068,18 +1139,22 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: kSuccess.withValues(alpha: 0.12),
+                      color: context.sem.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_rounded, color: kSuccess, size: 16),
+                        Icon(
+                          Icons.qr_code_rounded,
+                          color: context.sem.success,
+                          size: 16,
+                        ),
                         const SizedBox(width: 5),
                         Text(
                           'QR',
                           style: TextStyle(
-                            color: kSuccess,
+                            color: context.sem.success,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1095,7 +1170,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Material(
-              color: kSurface,
+              color: context.c.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
                 onTap: _abrirMenuOrdenacao,
@@ -1107,30 +1182,37 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kBorder),
+                    border: Border.all(color: context.c.outline),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.swap_vert_rounded, color: kText2, size: 18),
+                      Icon(
+                        Icons.swap_vert_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
-                        'Ordenar: ',
-                        style: TextStyle(color: kText2, fontSize: 13),
+                        _l.tdSortPrefix,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
                       ),
                       Expanded(
                         child: Text(
-                          _labelsOrd[_ordenacao] ?? '',
+                          _ordLabel(_ordenacao, _l),
                           style: TextStyle(
-                            color: kPrimary,
+                            color: context.c.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.expand_more_rounded,
-                        color: kPrimary,
+                        color: context.c.primary,
                         size: 18,
                       ),
                     ],
@@ -1149,15 +1231,18 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       children: [
                         Icon(
                           Icons.sports_martial_arts_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 42,
                         ),
                         const SizedBox(height: 12),
                         Text(
                           _ctrl.text.trim().isEmpty
-                              ? 'Nenhum aluno matriculado nesta turma.'
-                              : 'Nenhum aluno encontrado.',
-                          style: TextStyle(color: kText2, fontSize: 14),
+                              ? _l.noStudentsInClass
+                              : _l.studentsEmpty,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -1188,10 +1273,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: _abrirMatricula,
-                icon: const Icon(Icons.person_add_rounded, size: 18),
-                label: const Text('Adicionar aluno'),
+                icon: Icon(Icons.person_add_rounded, size: 18),
+                label: Text(_l.tdAddStudent),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   foregroundColor: Colors.black,
                   elevation: 0,
                   textStyle: const TextStyle(
@@ -1214,28 +1299,35 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
-        color: kPrimary.withValues(alpha: 0.10),
+        color: context.c.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kPrimary.withValues(alpha: 0.35)),
+        border: Border.all(color: context.c.primary.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          Icon(Icons.drag_indicator_rounded, color: kPrimary, size: 18),
+          Icon(
+            Icons.drag_indicator_rounded,
+            color: context.c.primary,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Segure e arraste para reordenar',
-              style: TextStyle(color: kText1, fontSize: 12.5),
+              _l.tdDragToReorder,
+              style: TextStyle(color: context.c.onSurface, fontSize: 12.5),
             ),
           ),
           TextButton(
             onPressed: _salvandoOrdem ? null : _cancelarReordenar,
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           ElevatedButton(
             onPressed: _salvandoOrdem ? null : _salvarOrdemManual,
             style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
+              backgroundColor: context.c.primary,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
@@ -1245,7 +1337,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Salvar'),
+                : Text(_l.commonSave),
           ),
         ],
       ),
@@ -1267,17 +1359,17 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
-          Icon(Icons.drag_indicator_rounded, color: kText2),
+          Icon(Icons.drag_indicator_rounded, color: context.c.onSurfaceVariant),
           const SizedBox(width: 8),
           CircleAvatar(
             radius: 16,
-            backgroundColor: kPrimary.withValues(alpha: 0.2),
+            backgroundColor: context.c.primary.withValues(alpha: 0.2),
             backgroundImage: foto != null && foto.contains(',')
                 ? MemoryImage(base64Decode(foto.split(',').last))
                 : null,
@@ -1285,7 +1377,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 ? Text(
                     initials.isEmpty ? '?' : initials,
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.c.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1297,7 +1389,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             child: Text(
               nome,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -1307,7 +1399,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           Text(
             '${index + 1}',
             style: TextStyle(
-              color: kText2,
+              color: context.c.onSurfaceVariant,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -1321,7 +1413,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     try {
       return Color(int.parse((hex ?? '').replaceAll('#', '0xFF')));
     } catch (_) {
-      return kPrimary;
+      return context.c.primary;
     }
   }
 
@@ -1368,19 +1460,22 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: apto ? kSuccess.withValues(alpha: 0.05) : kSurface,
+          color: apto
+              ? context.sem.success.withValues(alpha: 0.05)
+              : context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: apto ? kSuccess.withValues(alpha: 0.4) : kBorder,
+            color: apto
+                ? context.sem.success.withValues(alpha: 0.4)
+                : context.c.outline,
           ),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: (apto ? kSuccess : kPrimary).withValues(
-                alpha: 0.2,
-              ),
+              backgroundColor: (apto ? context.sem.success : context.c.primary)
+                  .withValues(alpha: 0.2),
               backgroundImage: foto != null && foto.contains(',')
                   ? MemoryImage(base64Decode(foto.split(',').last))
                   : null,
@@ -1388,7 +1483,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   ? Text(
                       initials.isEmpty ? '?' : initials,
                       style: TextStyle(
-                        color: apto ? kSuccess : kPrimary,
+                        color: apto ? context.sem.success : context.c.primary,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1403,7 +1498,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   Text(
                     nome,
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1429,13 +1524,13 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: kPrimary.withValues(alpha: 0.15),
+                              color: context.c.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
                               '+${faixasCount - 1}',
                               style: TextStyle(
-                                color: kPrimary,
+                                color: context.c.primary,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1448,10 +1543,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         Flexible(
                           child: Text(
                             grauAtual > 0
-                                ? '$faixaNome · $grauAtual° Grau'
+                                ? '$faixaNome · ${_l.stripeLabel(grauAtual)}'
                                 : faixaNome,
                             style: TextStyle(
-                              color: apto ? kSuccess : kText2,
+                              color: apto
+                                  ? context.sem.success
+                                  : context.c.onSurfaceVariant,
                               fontSize: 11,
                               fontWeight: apto
                                   ? FontWeight.w600
@@ -1462,17 +1559,20 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         )
                       else if (apto)
                         Text(
-                          'Apto para graduar',
+                          _l.tdEligibleToPromote,
                           style: TextStyle(
-                            color: kSuccess,
+                            color: context.sem.success,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       if (faixaNome == null && !apto)
                         Text(
-                          'Sem graduação',
-                          style: TextStyle(color: kText2, fontSize: 11),
+                          _l.studentNoBelt,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
                         ),
                     ],
                   ),
@@ -1486,7 +1586,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: kPrimary.withValues(alpha: 0.1),
+                  color: context.c.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -1494,20 +1594,27 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     Text(
                       '$count',
                       style: TextStyle(
-                        color: kPrimary,
+                        color: context.c.primary,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      'presenças',
-                      style: TextStyle(color: kText2, fontSize: 9),
+                      _l.tdAttendancesLabel,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ),
               ),
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded, color: kText2, size: 18),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.c.onSurfaceVariant,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -1521,12 +1628,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       background: Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: kDanger.withValues(alpha: 0.15),
+          color: context.sem.danger.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: Icon(Icons.person_remove_rounded, color: kDanger),
+        child: Icon(Icons.person_remove_rounded, color: context.sem.danger),
       ),
       confirmDismiss: (_) async {
         await _desmatricularAluno(a);
@@ -1560,9 +1667,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
@@ -1583,7 +1690,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 Text(
                   valor,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                     height: 1,
@@ -1592,7 +1699,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 const SizedBox(height: 2),
                 Text(
                   label,
-                  style: TextStyle(color: kText2, fontSize: 11),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1609,8 +1719,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final presentes = _presentesNaData.length;
     final pct = total == 0 ? 0 : (presentes / total * 100).round();
     final corFreq = pct >= 75
-        ? kSuccess
-        : (pct >= 50 ? kWarning : (presentes == 0 ? kText2 : kDanger));
+        ? context.sem.success
+        : (pct >= 50
+              ? context.sem.warning
+              : (presentes == 0
+                    ? context.c.onSurfaceVariant
+                    : context.sem.danger));
     final pendentes = _alunos
         .map((a) => (a['alunoId'] ?? a['aluno_id'] ?? '').toString())
         .where((id) => id.isNotEmpty && !_presentesNaData.contains(id))
@@ -1624,9 +1738,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Container(
             decoration: BoxDecoration(
-              color: kSurface,
+              color: context.c.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kPrimary.withValues(alpha: 0.4)),
+              border: Border.all(
+                color: context.c.primary.withValues(alpha: 0.4),
+              ),
             ),
             child: Row(
               children: [
@@ -1634,7 +1750,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   onPressed: _prevDay,
                   icon: Icon(
                     Icons.chevron_left_rounded,
-                    color: kPrimary,
+                    color: context.c.primary,
                     size: 26,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1651,7 +1767,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         children: [
                           Icon(
                             Icons.calendar_today_rounded,
-                            color: kPrimary,
+                            color: context.c.primary,
                             size: 16,
                           ),
                           const SizedBox(width: 8),
@@ -1659,7 +1775,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                             child: Text(
                               _dataLabel,
                               style: TextStyle(
-                                color: kPrimary,
+                                color: context.c.primary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1669,7 +1785,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                           ),
                           Icon(
                             Icons.expand_more_rounded,
-                            color: kPrimary,
+                            color: context.c.primary,
                             size: 18,
                           ),
                         ],
@@ -1681,7 +1797,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   onPressed: _isHoje ? null : _nextDay,
                   icon: Icon(
                     Icons.chevron_right_rounded,
-                    color: _isHoje ? kBorder : kPrimary,
+                    color: _isHoje ? context.c.outline : context.c.primary,
                     size: 26,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1700,8 +1816,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 child: _miniStatPresenca(
                   icon: Icons.groups_rounded,
                   valor: '$presentes / $total',
-                  label: 'Presentes hoje',
-                  cor: kPrimary,
+                  label: _l.tdPresentToday,
+                  cor: context.c.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1709,7 +1825,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 child: _miniStatPresenca(
                   icon: Icons.insights_rounded,
                   valor: '$pct%',
-                  label: 'Frequência do dia',
+                  label: _l.tdDayAttendanceRate,
                   cor: corFreq,
                 ),
               ),
@@ -1727,30 +1843,30 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   child: TextField(
                     controller: _presCtrl,
                     onChanged: (_) => setState(() {}),
-                    style: TextStyle(color: kText1, fontSize: 14),
+                    style: TextStyle(color: context.c.onSurface, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Buscar aluno...',
-                      hintStyle: TextStyle(color: kText2),
+                      hintText: _l.studentsSearchHint,
+                      hintStyle: TextStyle(color: context.c.onSurfaceVariant),
                       prefixIcon: Icon(
                         Icons.search_rounded,
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         size: 20,
                       ),
                       isDense: true,
                       filled: true,
-                      fillColor: kSurface,
+                      fillColor: context.c.surfaceContainer,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: kBorder),
+                        borderSide: BorderSide(color: context.c.outline),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: kBorder),
+                        borderSide: BorderSide(color: context.c.outline),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: kPrimary),
+                        borderSide: BorderSide(color: context.c.primary),
                       ),
                     ),
                   ),
@@ -1771,18 +1887,20 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         : Icon(
                             Icons.done_all_rounded,
                             size: 16,
-                            color: kPrimary,
+                            color: context.c.primary,
                           ),
                     label: Text(
-                      'Marcar todos',
+                      _l.tdMarkAll,
                       style: TextStyle(
-                        color: kPrimary,
+                        color: context.c.primary,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: kPrimary.withValues(alpha: 0.5)),
+                      side: BorderSide(
+                        color: context.c.primary.withValues(alpha: 0.5),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1803,8 +1921,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     child: Padding(
                       padding: const EdgeInsets.all(28),
                       child: Text(
-                        'Não há alunos matriculados para realizar a chamada.',
-                        style: TextStyle(color: kText2, fontSize: 14),
+                        _l.tdNoStudentsForAttendance,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -1815,8 +1936,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       if (lista.isEmpty) {
                         return Center(
                           child: Text(
-                            'Nenhum aluno encontrado.',
-                            style: TextStyle(color: kText2),
+                            _l.studentsEmpty,
+                            style: TextStyle(color: context.c.onSurfaceVariant),
                           ),
                         );
                       }
@@ -1847,26 +1968,34 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: kSurface,
+          backgroundColor: context.c.surfaceContainer,
           title: Text(
-            'Dia fora do horário',
-            style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+            _l.tdOffScheduleDay,
+            style: TextStyle(
+              color: context.c.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: Text(
-            'Hoje não é o dia de treino cadastrado para essa turma. '
-            'Marcar presença de todos para $diaLabel?',
-            style: TextStyle(color: kText2),
+            _l.tdOffScheduleAllBody(diaLabel),
+            style: TextStyle(color: context.c.onSurfaceVariant),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text('Cancelar', style: TextStyle(color: kText2)),
+              child: Text(
+                _l.commonCancel,
+                style: TextStyle(color: context.c.onSurfaceVariant),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(
-                'Confirmar',
-                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700),
+                _l.commonConfirm,
+                style: TextStyle(
+                  color: context.c.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -1913,10 +2042,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         SnackBar(
           content: Text(
             falhou == 0
-                ? 'Presença registrada para todos.'
-                : 'Alguns não foram registrados ($falhou). Tente novamente.',
+                ? _l.tdAttendanceAllMarked
+                : _l.tdAttendanceSomeFailed(falhou),
           ),
-          backgroundColor: falhou == 0 ? kSuccess : kDanger,
+          backgroundColor: falhou == 0
+              ? context.sem.success
+              : context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1953,8 +2084,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     if (matriculaId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('ID de matrícula não encontrado.'),
-          backgroundColor: kDanger,
+          content: Text(_l.tdEnrollIdNotFound),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1964,22 +2095,31 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Remover aluno', style: TextStyle(color: kText1)),
+        backgroundColor: context.c.surfaceContainer,
+        title: Text(
+          _l.tdRemoveStudent,
+          style: TextStyle(color: context.c.onSurface),
+        ),
         content: Text(
-          'Deseja remover $nome desta turma?',
-          style: TextStyle(color: kText2),
+          _l.tdRemoveStudentBody(nome),
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Remover',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonRemove,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1991,8 +2131,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$nome removido da turma.'),
-            backgroundColor: kSuccess,
+            content: Text(_l.tdStudentRemoved(nome)),
+            backgroundColor: context.sem.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2002,8 +2142,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao remover aluno.'),
-            backgroundColor: kDanger,
+            content: Text(_l.tdRemoveStudentError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2012,16 +2152,24 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
 
   // ── ABA HORÁRIOS ──────────────────────────────────────
 
-  static const _diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  List<String> get _diasSemana => [
+    _l.dowSun,
+    _l.dowMon,
+    _l.dowTue,
+    _l.dowWed,
+    _l.dowThu,
+    _l.dowFri,
+    _l.dowSat,
+  ];
 
-  static const _diasExtenso = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
+  List<String> get _diasExtenso => [
+    _l.dowFullSun,
+    _l.dowFullMon,
+    _l.dowFullTue,
+    _l.dowFullWed,
+    _l.dowFullThu,
+    _l.dowFullFri,
+    _l.dowFullSat,
   ];
 
   int _diaIdxHorario(Map<String, dynamic> h) =>
@@ -2077,7 +2225,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           .toList();
       if (nomes.isEmpty) return '';
       if (nomes.length == 1) return nomes.first;
-      return '${nomes.sublist(0, nomes.length - 1).join(', ')} e ${nomes.last}';
+      return '${nomes.sublist(0, nomes.length - 1).join(', ')}${_l.tdListAnd}${nomes.last}';
     }();
 
     return Column(
@@ -2087,9 +2235,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: kSurface,
+              color: context.c.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: context.c.outline),
             ),
             child: Row(
               children: [
@@ -2097,12 +2245,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: 0.12),
+                    color: context.c.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.event_repeat_rounded,
-                    color: kPrimary,
+                    color: context.c.primary,
                     size: 20,
                   ),
                 ),
@@ -2112,9 +2260,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        n == 1 ? '1 horário semanal' : '$n horários semanais',
+                        _l.tdWeeklyScheduleCount(n),
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2123,7 +2271,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         const SizedBox(height: 2),
                         Text(
                           diasResumo,
-                          style: TextStyle(color: kText2, fontSize: 12),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2137,13 +2288,19 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: (ativa ? kSuccess : kText2).withValues(alpha: 0.15),
+                    color:
+                        (ativa
+                                ? context.sem.success
+                                : context.c.onSurfaceVariant)
+                            .withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    ativa ? 'Ativa' : 'Inativa',
+                    ativa ? _l.classStatusActive : _l.classStatusInactive,
                     style: TextStyle(
-                      color: ativa ? kSuccess : kText2,
+                      color: ativa
+                          ? context.sem.success
+                          : context.c.onSurfaceVariant,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2157,9 +2314,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           child: Row(
             children: [
               Text(
-                'Horários da turma',
+                _l.tdClassSchedule,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -2174,18 +2331,22 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: kPrimary.withValues(alpha: 0.12),
+                      color: context.c.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.add_rounded, color: kPrimary, size: 14),
+                        Icon(
+                          Icons.add_rounded,
+                          color: context.c.primary,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          'Novo horário',
+                          _l.tdNewSchedule,
                           style: TextStyle(
-                            color: kPrimary,
+                            color: context.c.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2205,24 +2366,31 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.event_busy_rounded, color: kText2, size: 44),
+                        Icon(
+                          Icons.event_busy_rounded,
+                          color: context.c.onSurfaceVariant,
+                          size: 44,
+                        ),
                         const SizedBox(height: 12),
                         Text(
-                          'Nenhum horário cadastrado.',
-                          style: TextStyle(color: kText2, fontSize: 14),
+                          _l.tdNoSchedules,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         if (!_pm) ...[
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
                             onPressed: () => _abrirHorarioForm(),
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Adicionar primeiro horário'),
+                            icon: Icon(Icons.add_rounded, size: 18),
+                            label: Text(_l.tdAddFirstSchedule),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: kPrimary,
+                              foregroundColor: context.c.primary,
                               minimumSize: const Size(0, 46),
                               side: BorderSide(
-                                color: kPrimary.withValues(alpha: 0.5),
+                                color: context.c.primary.withValues(alpha: 0.5),
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -2261,9 +2429,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
@@ -2271,7 +2439,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: kPrimary.withValues(alpha: 0.12),
+              color: context.c.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -2280,7 +2448,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 Text(
                   diaLabel,
                   style: TextStyle(
-                    color: kPrimary,
+                    color: context.c.primary,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2296,7 +2464,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 Text(
                   '$inicio – $fim',
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2305,9 +2473,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 Text(
                   [
                     if (duracao.isNotEmpty) duracao,
-                    if (sala != null && sala.isNotEmpty) 'Sala $sala',
+                    if (sala != null && sala.isNotEmpty) _l.tdRoomN(sala),
                   ].join(' · '),
-                  style: TextStyle(color: kText2, fontSize: 12),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -2321,10 +2492,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: kPrimary.withValues(alpha: 0.10),
+                      color: context.c.primary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.edit_rounded, color: kPrimary, size: 16),
+                    child: Icon(
+                      Icons.edit_rounded,
+                      color: context.c.primary,
+                      size: 16,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2333,12 +2508,12 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: kDanger.withValues(alpha: 0.10),
+                      color: context.sem.danger.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.delete_outline_rounded,
-                      color: kDanger,
+                      color: context.sem.danger,
                       size: 16,
                     ),
                   ),
@@ -2371,22 +2546,31 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text('Excluir horário?', style: TextStyle(color: kText1)),
+        backgroundColor: context.c.surfaceContainer,
+        title: Text(
+          _l.tdDeleteScheduleTitle,
+          style: TextStyle(color: context.c.onSurface),
+        ),
         content: Text(
-          'Este horário será removido da turma.',
-          style: TextStyle(color: kText2),
+          _l.tdDeleteScheduleBody,
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Excluir',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonDelete,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -2403,8 +2587,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao remover horário.'),
-            backgroundColor: kDanger,
+            content: Text(_l.tdScheduleRemoveError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2429,10 +2613,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: presente ? kSuccess.withValues(alpha: 0.05) : kSurface,
+        color: presente
+            ? context.sem.success.withValues(alpha: 0.05)
+            : context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: presente ? kSuccess.withValues(alpha: 0.4) : kBorder,
+          color: presente
+              ? context.sem.success.withValues(alpha: 0.4)
+              : context.c.outline,
         ),
       ),
       child: Row(
@@ -2440,8 +2628,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           CircleAvatar(
             radius: 20,
             backgroundColor: presente
-                ? kSuccess.withValues(alpha: 0.2)
-                : kPrimary.withValues(alpha: 0.2),
+                ? context.sem.success.withValues(alpha: 0.2)
+                : context.c.primary.withValues(alpha: 0.2),
             backgroundImage: foto != null && foto.contains(',')
                 ? MemoryImage(base64Decode(foto.split(',').last))
                 : null,
@@ -2449,7 +2637,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                 ? Text(
                     initials.isEmpty ? '?' : initials,
                     style: TextStyle(
-                      color: presente ? kSuccess : kPrimary,
+                      color: presente ? context.sem.success : context.c.primary,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2461,7 +2649,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             child: Text(
               nome,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -2478,7 +2666,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: kSuccess.withValues(alpha: 0.15),
+                  color: context.sem.success.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -2495,14 +2683,14 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                           )
                         : Icon(
                             Icons.check_circle_rounded,
-                            color: kSuccess,
+                            color: context.sem.success,
                             size: 14,
                           ),
                     const SizedBox(width: 4),
                     Text(
-                      'Presente',
+                      _l.tdPresent,
                       style: TextStyle(
-                        color: kSuccess,
+                        color: context.sem.success,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2519,7 +2707,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                     ? null
                     : () => _marcarPresenca(alunoId),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   shape: RoundedRectangleBorder(
@@ -2539,7 +2727,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Marcar'),
+                    : Text(_l.tdMark),
               ),
             ),
         ],
@@ -2565,6 +2753,7 @@ class _MatriculaSheet extends StatefulWidget {
 }
 
 class _MatriculaSheetState extends State<_MatriculaSheet> {
+  AppLocalizations get _l => context.l10n;
   final _busca = TextEditingController();
   List<Map<String, dynamic>> _todos = [];
   List<Map<String, dynamic>> _filtrados = [];
@@ -2639,8 +2828,8 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao matricular aluno.'),
-            backgroundColor: kDanger,
+            content: Text(_l.tdEnrollError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2654,7 +2843,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: BoxDecoration(
-        color: kBg,
+        color: context.c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottom),
@@ -2666,7 +2855,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: kBorder,
+              color: context.c.outline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -2674,9 +2863,9 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
           Row(
             children: [
               Text(
-                'Matricular aluno',
+                _l.tdEnrollStudent,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -2693,7 +2882,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                   onPressed: _selecionadoId == null ? null : _matricular,
                   style: TextButton.styleFrom(
                     backgroundColor: _selecionadoId != null
-                        ? kPrimary.withValues(alpha: 0.12)
+                        ? context.c.primary.withValues(alpha: 0.12)
                         : Colors.transparent,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -2704,9 +2893,11 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                     ),
                   ),
                   child: Text(
-                    'Confirmar',
+                    _l.commonConfirm,
                     style: TextStyle(
-                      color: _selecionadoId != null ? kPrimary : kText2,
+                      color: _selecionadoId != null
+                          ? context.c.primary
+                          : context.c.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -2716,28 +2907,28 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _busca,
-            style: TextStyle(color: kText1),
+            style: TextStyle(color: context.c.onSurface),
             decoration: InputDecoration(
-              hintText: 'Buscar aluno...',
-              hintStyle: TextStyle(color: kText2),
-              prefixIcon: Icon(Icons.search, color: kText2),
+              hintText: _l.studentsSearchHint,
+              hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+              prefixIcon: Icon(Icons.search, color: context.c.onSurfaceVariant),
               filled: true,
-              fillColor: kSurface,
+              fillColor: context.c.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
+                borderSide: BorderSide(color: context.c.outline),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
+                borderSide: BorderSide(color: context.c.outline),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPrimary),
+                borderSide: BorderSide(color: context.c.primary),
               ),
             ),
           ),
@@ -2751,8 +2942,8 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Text(
-                'Nenhum aluno disponível.',
-                style: TextStyle(color: kText2),
+                _l.tdNoStudentsAvailable,
+                style: TextStyle(color: context.c.onSurfaceVariant),
               ),
             )
           else
@@ -2779,10 +2970,12 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                       ),
                       decoration: BoxDecoration(
                         color: sel
-                            ? kPrimary.withValues(alpha: 0.12)
-                            : kSurface,
+                            ? context.c.primary.withValues(alpha: 0.12)
+                            : context.c.surfaceContainer,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: sel ? kPrimary : kBorder),
+                        border: Border.all(
+                          color: sel ? context.c.primary : context.c.outline,
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -2790,7 +2983,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                             child: Text(
                               nome,
                               style: TextStyle(
-                                color: kText1,
+                                color: context.c.onSurface,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -2799,7 +2992,7 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
                           if (sel)
                             Icon(
                               Icons.check_circle_rounded,
-                              color: kPrimary,
+                              color: context.c.primary,
                               size: 18,
                             ),
                         ],
@@ -2832,15 +3025,24 @@ class _HorarioFormSheet extends StatefulWidget {
 }
 
 class _HorarioFormSheetState extends State<_HorarioFormSheet> {
-  static const _dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  static const _diasFull = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
+  AppLocalizations get _l => context.l10n;
+  List<String> get _dias => [
+    _l.dowSun,
+    _l.dowMon,
+    _l.dowTue,
+    _l.dowWed,
+    _l.dowThu,
+    _l.dowFri,
+    _l.dowSat,
+  ];
+  List<String> get _diasFull => [
+    _l.dowFullSun,
+    _l.dowFullMon,
+    _l.dowFullTue,
+    _l.dowFullWed,
+    _l.dowFullThu,
+    _l.dowFullFri,
+    _l.dowFullSat,
   ];
   final _salaCtrl = TextEditingController();
 
@@ -2898,7 +3100,10 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
           : (_fim ?? const TimeOfDay(hour: 9, minute: 0)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.dark(primary: kPrimary, surface: kSurface),
+          colorScheme: ColorScheme.dark(
+            primary: context.c.primary,
+            surface: context.c.surfaceContainer,
+          ),
         ),
         child: child!,
       ),
@@ -2913,8 +3118,8 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
     if (dias.isEmpty || _inicio == null || _fim == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Selecione ao menos um dia e os horários.'),
-          backgroundColor: kDanger,
+          content: Text(_l.tdSelectDayAndTime),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -2948,14 +3153,12 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      final msg = _editando
-          ? 'Erro ao editar horário.'
-          : 'Erro ao criar horário.';
+      final msg = _editando ? _l.tdScheduleEditError : _l.tdScheduleCreateError;
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
-            backgroundColor: kDanger,
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2969,7 +3172,7 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: BoxDecoration(
-        color: kBg,
+        color: context.c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottom),
@@ -2981,7 +3184,7 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: kBorder,
+              color: context.c.outline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -2989,9 +3192,9 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
           Row(
             children: [
               Text(
-                _editando ? 'Editar Horário' : 'Novo Horário',
+                _editando ? _l.tdEditScheduleTitle : _l.tdNewScheduleTitle,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3007,7 +3210,7 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                 TextButton(
                   onPressed: _salvar,
                   style: TextButton.styleFrom(
-                    backgroundColor: kPrimary.withValues(alpha: 0.12),
+                    backgroundColor: context.c.primary.withValues(alpha: 0.12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
@@ -3017,9 +3220,9 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                     ),
                   ),
                   child: Text(
-                    'Salvar',
+                    _l.commonSave,
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.c.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -3032,39 +3235,45 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
             DropdownButtonFormField<int>(
               value: _diaSemana,
               decoration: InputDecoration(
-                labelText: 'Dia da semana',
-                labelStyle: TextStyle(color: kText2, fontSize: 13),
+                labelText: _l.tdWeekday,
+                labelStyle: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 13,
+                ),
                 prefixIcon: Icon(
                   Icons.calendar_today_rounded,
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   size: 18,
                 ),
                 filled: true,
-                fillColor: kSurface,
+                fillColor: context.c.surfaceContainer,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: context.c.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: context.c.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kPrimary, width: 1.5),
+                  borderSide: BorderSide(color: context.c.primary, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
               ),
-              dropdownColor: kSurface,
-              style: TextStyle(color: kText1, fontSize: 15),
+              dropdownColor: context.c.surfaceContainer,
+              style: TextStyle(color: context.c.onSurface, fontSize: 15),
               items: List.generate(
                 7,
                 (i) => DropdownMenuItem(
                   value: i,
-                  child: Text(_diasFull[i], style: TextStyle(color: kText1)),
+                  child: Text(
+                    _diasFull[i],
+                    style: TextStyle(color: context.c.onSurface),
+                  ),
                 ),
               ),
               onChanged: (v) => setState(() => _diaSemana = v),
@@ -3073,9 +3282,9 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Dias da semana',
+                _l.tdWeekdays,
                 style: TextStyle(
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -3096,15 +3305,21 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: sel ? kPrimary : kSurface,
+                        color: sel
+                            ? context.c.primary
+                            : context.c.surfaceContainer,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: sel ? kPrimary : kBorder),
+                        border: Border.all(
+                          color: sel ? context.c.primary : context.c.outline,
+                        ),
                       ),
                       child: Text(
                         _dias[i],
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: sel ? Colors.white : kText2,
+                          color: sel
+                              ? Colors.white
+                              : context.c.onSurfaceVariant,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -3128,15 +3343,15 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                       vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: kSurface,
+                      color: context.c.surfaceContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder),
+                      border: Border.all(color: context.c.outline),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.access_time_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
@@ -3144,15 +3359,20 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Início',
-                              style: TextStyle(color: kText2, fontSize: 11),
+                              _l.tdStart,
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
                             ),
                             Text(
                               _inicio != null
                                   ? _formatTime(_inicio!).substring(0, 5)
                                   : '--:--',
                               style: TextStyle(
-                                color: _inicio != null ? kText1 : kText2,
+                                color: _inicio != null
+                                    ? context.c.onSurface
+                                    : context.c.onSurfaceVariant,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -3174,15 +3394,15 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                       vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: kSurface,
+                      color: context.c.surfaceContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder),
+                      border: Border.all(color: context.c.outline),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.access_time_filled_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
@@ -3191,14 +3411,19 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
                           children: [
                             Text(
                               'Fim',
-                              style: TextStyle(color: kText2, fontSize: 11),
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
                             ),
                             Text(
                               _fim != null
                                   ? _formatTime(_fim!).substring(0, 5)
                                   : '--:--',
                               style: TextStyle(
-                                color: _fim != null ? kText1 : kText2,
+                                color: _fim != null
+                                    ? context.c.onSurface
+                                    : context.c.onSurfaceVariant,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -3215,24 +3440,31 @@ class _HorarioFormSheetState extends State<_HorarioFormSheet> {
           const SizedBox(height: 14),
           TextFormField(
             controller: _salaCtrl,
-            style: TextStyle(color: kText1, fontSize: 15),
+            style: TextStyle(color: context.c.onSurface, fontSize: 15),
             decoration: InputDecoration(
-              labelText: 'Sala (opcional)',
-              labelStyle: TextStyle(color: kText2, fontSize: 13),
-              prefixIcon: Icon(Icons.room_rounded, color: kText2, size: 18),
+              labelText: _l.tdRoomOptional,
+              labelStyle: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 13,
+              ),
+              prefixIcon: Icon(
+                Icons.room_rounded,
+                color: context.c.onSurfaceVariant,
+                size: 18,
+              ),
               filled: true,
-              fillColor: kSurface,
+              fillColor: context.c.surfaceContainer,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
+                borderSide: BorderSide(color: context.c.outline),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder),
+                borderSide: BorderSide(color: context.c.outline),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPrimary, width: 1.5),
+                borderSide: BorderSide(color: context.c.primary, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

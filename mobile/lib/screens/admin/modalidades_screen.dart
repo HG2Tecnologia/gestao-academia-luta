@@ -6,7 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as img;
 
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/modalidade_icones.dart';
 import 'widgets/modalidade_avatar.dart';
@@ -37,6 +38,7 @@ class AdminModalidadesScreen extends StatefulWidget {
 }
 
 class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
+  AppLocalizations get _l => context.l10n;
   List<Map<String, dynamic>> _modalidades = [];
   bool _loading = true;
   bool _erro = false;
@@ -125,28 +127,32 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          '${ativo ? 'Desativar' : 'Ativar'} "${m['nome']}"?',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          '${ativo ? _l.mdlDeactivate : _l.mdlActivate} "${m['nome']}"?',
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          ativo
-              ? 'Ela deixará de aparecer nas telas de turmas, faixas e cadastro de alunos, mas não será excluída.'
-              : 'Esta modalidade voltará a aparecer em todas as telas operacionais.',
-          style: TextStyle(color: kText2),
+          ativo ? _l.mdlDeactivateBody : _l.mdlActivateBody,
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              ativo ? 'Desativar' : 'Ativar',
+              ativo ? _l.mdlDeactivate : _l.mdlActivate,
               style: TextStyle(
-                color: ativo ? kWarning : kSuccess,
+                color: ativo ? context.sem.warning : context.sem.success,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -162,7 +168,7 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
       );
       await _carregar();
     } catch (_) {
-      _snack('Não foi possível alterar a modalidade.', erro: true);
+      _snack(_l.mdlToggleError, erro: true);
     }
   }
 
@@ -191,10 +197,7 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
               .where((f) => (f['modalidadeId'] ?? '').toString() == id)
               .length;
     } catch (_) {
-      _snack(
-        'Não foi possível verificar os vínculos da modalidade.',
-        erro: true,
-      );
+      _snack(_l.mdlLinksCheckError, erro: true);
       return;
     }
     if (!mounted) return;
@@ -203,21 +206,25 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: kSurface,
+          backgroundColor: context.c.surfaceContainer,
           title: Text(
-            'Não é possível excluir',
-            style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+            _l.mdlCannotDeleteTitle,
+            style: TextStyle(
+              color: context.c.onSurface,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           content: Text(
-            'A modalidade "$nome" possui turmas ou faixas vinculadas. '
-            'Você pode desativá-la — assim ela some das telas operacionais '
-            'sem perder os dados.',
-            style: TextStyle(color: kText2),
+            _l.mdlCannotDeleteBody(nome),
+            style: TextStyle(color: context.c.onSurfaceVariant),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('Entendi', style: TextStyle(color: kPrimary)),
+              child: Text(
+                _l.commonUnderstood,
+                style: TextStyle(color: context.c.primary),
+              ),
             ),
           ],
         ),
@@ -228,25 +235,34 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Excluir "$nome"?',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w800),
+          _l.mdlDeleteTitle(nome),
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          'Essa ação não poderá ser desfeita.',
-          style: TextStyle(color: kText2),
+          _l.mdlDeleteBody,
+          style: TextStyle(color: context.c.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Excluir',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonDelete,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -256,9 +272,9 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     try {
       await firestoreService.deleteModalidade(_academiaId!, id);
       await _carregar();
-      _snack('Modalidade excluída.');
+      _snack(_l.mdlDeleted);
     } catch (_) {
-      _snack('Não foi possível excluir a modalidade.', erro: true);
+      _snack(_l.mdlDeleteError, erro: true);
     }
   }
 
@@ -285,7 +301,7 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: erro ? kDanger : kSuccess,
+        backgroundColor: erro ? context.sem.danger : context.sem.success,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -294,13 +310,17 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -312,7 +332,7 @@ class _AdminModalidadesScreenState extends State<AdminModalidadesScreen> {
             ? _EstadoErro(onRetry: _carregar)
             : RefreshIndicator(
                 onRefresh: _carregar,
-                color: kPrimary,
+                color: context.c.primary,
                 child: _conteudo(),
               ),
       ),
@@ -390,17 +410,21 @@ class _Cabecalho extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Modalidades',
+                context.l10n.mdlTitle,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                'Gerencie as modalidades da sua academia.',
-                style: TextStyle(color: kText2, fontSize: 12.5, height: 1.3),
+                context.l10n.mdlSubtitle,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12.5,
+                  height: 1.3,
+                ),
               ),
             ],
           ),
@@ -408,9 +432,9 @@ class _Cabecalho extends StatelessWidget {
         const SizedBox(width: 8),
         Semantics(
           button: true,
-          label: 'Nova modalidade',
+          label: context.l10n.mdlNew,
           child: Material(
-            color: kPrimary,
+            color: context.c.primary,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
@@ -452,9 +476,12 @@ class _CardInfo extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Modalidades ativas aparecem na gestão de faixas, turmas e demais '
-              'telas. Inativas ficam ocultas, mas não são excluídas.',
-              style: TextStyle(color: kText2, fontSize: 12, height: 1.4),
+              context.l10n.mdlInfoBanner,
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -480,18 +507,28 @@ class _Resumo extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _MiniStat(valor: total, label: 'Modalidades', cor: kText1),
+            child: _MiniStat(
+              valor: total,
+              label: context.l10n.mdlTitle,
+              cor: context.c.onSurface,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: _MiniStat(valor: ativas, label: 'Ativas', cor: kSuccess),
+            child: _MiniStat(
+              valor: ativas,
+              label: context.l10n.mdlFilterActive,
+              cor: context.sem.success,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: _MiniStat(
               valor: inativas,
-              label: 'Inativas',
-              cor: inativas > 0 ? kWarning : kText2,
+              label: context.l10n.mdlFilterInactive,
+              cor: inativas > 0
+                  ? context.sem.warning
+                  : context.c.onSurfaceVariant,
             ),
           ),
         ],
@@ -515,9 +552,9 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +571,11 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(color: kText2, fontSize: 11, height: 1.2),
+            style: TextStyle(
+              color: context.c.onSurfaceVariant,
+              fontSize: 11,
+              height: 1.2,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -554,35 +595,43 @@ class _BuscaField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
-      style: TextStyle(color: kText1, fontSize: 14),
+      style: TextStyle(color: context.c.onSurface, fontSize: 14),
       decoration: InputDecoration(
-        hintText: 'Buscar modalidade...',
-        hintStyle: TextStyle(color: kText2, fontSize: 14),
-        prefixIcon: Icon(Icons.search_rounded, color: kText2, size: 20),
+        hintText: context.l10n.mdlSearchHint,
+        hintStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          color: context.c.onSurfaceVariant,
+          size: 20,
+        ),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                icon: Icon(Icons.close_rounded, color: kText2, size: 18),
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: context.c.onSurfaceVariant,
+                  size: 18,
+                ),
                 onPressed: () {
                   controller.clear();
                   onChanged('');
                 },
               ),
         filled: true,
-        fillColor: kSurface,
+        fillColor: context.c.surfaceContainer,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kPrimary, width: 1.5),
+          borderSide: BorderSide(color: context.c.primary, width: 1.5),
         ),
       ),
     );
@@ -616,18 +665,30 @@ class _BarraFiltros extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _chip('Todas ($total)', _Filtro.todas),
+                _chip(
+                  context,
+                  context.l10n.mdlFilterAllCount(total),
+                  _Filtro.todas,
+                ),
                 const SizedBox(width: 8),
-                _chip('Ativas ($ativas)', _Filtro.ativas),
+                _chip(
+                  context,
+                  context.l10n.mdlFilterActiveCount(ativas),
+                  _Filtro.ativas,
+                ),
                 const SizedBox(width: 8),
-                _chip('Inativas ($inativas)', _Filtro.inativas),
+                _chip(
+                  context,
+                  context.l10n.mdlFilterInactiveCount(inativas),
+                  _Filtro.inativas,
+                ),
               ],
             ),
           ),
         ),
         const SizedBox(width: 8),
         Material(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           child: InkWell(
             borderRadius: BorderRadius.circular(20),
@@ -636,17 +697,21 @@ class _BarraFiltros extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: kBorder),
+                border: Border.all(color: context.c.outline),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.swap_vert_rounded, color: kText2, size: 16),
+                  Icon(
+                    Icons.swap_vert_rounded,
+                    color: context.c.onSurfaceVariant,
+                    size: 16,
+                  ),
                   const SizedBox(width: 4),
                   Text(
-                    ordAsc ? 'A–Z' : 'Z–A',
+                    ordAsc ? context.l10n.mdlSortAZ : context.l10n.mdlSortZA,
                     style: TextStyle(
-                      color: kText2,
+                      color: context.c.onSurfaceVariant,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -660,13 +725,13 @@ class _BarraFiltros extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label, _Filtro f) {
+  Widget _chip(BuildContext context, String label, _Filtro f) {
     final sel = f == filtro;
     return Semantics(
       button: true,
       selected: sel,
       child: Material(
-        color: sel ? kPrimary : kSurface,
+        color: sel ? context.c.primary : context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
@@ -675,12 +740,14 @@ class _BarraFiltros extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: sel ? kPrimary : kBorder),
+              border: Border.all(
+                color: sel ? context.c.primary : context.c.outline,
+              ),
             ),
             child: Text(
               label,
               style: TextStyle(
-                color: sel ? Colors.black : kText2,
+                color: sel ? Colors.black : context.c.onSurfaceVariant,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -712,9 +779,9 @@ class _ModalidadeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Row(
         children: [
@@ -730,7 +797,9 @@ class _ModalidadeCard extends StatelessWidget {
                 Text(
                   nome,
                   style: TextStyle(
-                    color: ativo ? kText1 : kText2,
+                    color: ativo
+                        ? context.c.onSurface
+                        : context.c.onSurfaceVariant,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -739,9 +808,13 @@ class _ModalidadeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  ativo ? 'Ativa' : 'Inativa',
+                  ativo
+                      ? context.l10n.mdlStatusActive
+                      : context.l10n.mdlStatusInactive,
                   style: TextStyle(
-                    color: ativo ? kSuccess : kText2,
+                    color: ativo
+                        ? context.sem.success
+                        : context.c.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -751,23 +824,27 @@ class _ModalidadeCard extends StatelessWidget {
           ),
           Semantics(
             label: ativo
-                ? 'Desativar modalidade $nome'
-                : 'Ativar modalidade $nome',
+                ? context.l10n.mdlA11yDeactivate(nome)
+                : context.l10n.mdlA11yActivate(nome),
             child: Transform.scale(
               scale: 0.85,
               child: Switch(
                 value: ativo,
                 onChanged: (_) => onToggle(),
                 activeThumbColor: Colors.white,
-                activeTrackColor: kSuccess,
-                inactiveThumbColor: kText2,
-                inactiveTrackColor: kBorder,
+                activeTrackColor: context.sem.success,
+                inactiveThumbColor: context.c.onSurfaceVariant,
+                inactiveTrackColor: context.c.outline,
               ),
             ),
           ),
           PopupMenuButton<String>(
-            color: kSurface,
-            icon: Icon(Icons.more_vert_rounded, color: kText2, size: 20),
+            color: context.c.surfaceContainer,
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: context.c.onSurfaceVariant,
+              size: 20,
+            ),
             onSelected: (v) {
               if (v == 'editar') onEditar();
               if (v == 'excluir') onExcluir();
@@ -775,11 +852,17 @@ class _ModalidadeCard extends StatelessWidget {
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'editar',
-                child: Text('Editar', style: TextStyle(color: kText1)),
+                child: Text(
+                  context.l10n.commonEdit,
+                  style: TextStyle(color: context.c.onSurface),
+                ),
               ),
               PopupMenuItem(
                 value: 'excluir',
-                child: Text('Excluir', style: TextStyle(color: kDanger)),
+                child: Text(
+                  context.l10n.commonDelete,
+                  style: TextStyle(color: context.sem.danger),
+                ),
               ),
             ],
           ),
@@ -804,9 +887,9 @@ class _SkeletonLista extends StatelessWidget {
           height: 70,
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: kSurface,
+            color: context.c.surfaceContainer,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kBorder),
+            border: Border.all(color: context.c.outline),
           ),
         ),
       ),
@@ -824,30 +907,34 @@ class _EstadoVazio extends StatelessWidget {
       padding: const EdgeInsets.only(top: 40),
       child: Column(
         children: [
-          Icon(Icons.sports_martial_arts_rounded, color: kText2, size: 50),
+          Icon(
+            Icons.sports_martial_arts_rounded,
+            color: context.c.onSurfaceVariant,
+            size: 50,
+          ),
           const SizedBox(height: 14),
           Text(
-            'Nenhuma modalidade cadastrada.',
+            context.l10n.mdlEmpty,
             style: TextStyle(
-              color: kText1,
+              color: context.c.onSurface,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Adicione a primeira modalidade da sua academia.',
-            style: TextStyle(color: kText2, fontSize: 12.5),
+            context.l10n.mdlEmptyHint,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 18),
           OutlinedButton.icon(
             onPressed: onNova,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Nova modalidade'),
+            icon: Icon(Icons.add_rounded),
+            label: Text(context.l10n.mdlNew),
             style: OutlinedButton.styleFrom(
-              foregroundColor: kPrimary,
-              side: BorderSide(color: kPrimary.withValues(alpha: 0.6)),
+              foregroundColor: context.c.primary,
+              side: BorderSide(color: context.c.primary.withValues(alpha: 0.6)),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             ),
           ),
@@ -866,11 +953,15 @@ class _SemResultados extends StatelessWidget {
       padding: const EdgeInsets.only(top: 40),
       child: Column(
         children: [
-          Icon(Icons.search_off_rounded, color: kText2, size: 46),
+          Icon(
+            Icons.search_off_rounded,
+            color: context.c.onSurfaceVariant,
+            size: 46,
+          ),
           const SizedBox(height: 12),
           Text(
-            'Nenhuma modalidade encontrada.',
-            style: TextStyle(color: kText2, fontSize: 13.5),
+            context.l10n.mdlNoResults,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13.5),
           ),
         ],
       ),
@@ -890,19 +981,25 @@ class _EstadoErro extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, color: kDanger, size: 48),
+            Icon(
+              Icons.error_outline_rounded,
+              color: context.sem.danger,
+              size: 48,
+            ),
             const SizedBox(height: 14),
             Text(
-              'Não foi possível carregar as modalidades.',
-              style: TextStyle(color: kText2),
+              context.l10n.mdlLoadError,
+              style: TextStyle(color: context.c.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Tentar novamente'),
-              style: OutlinedButton.styleFrom(foregroundColor: kPrimary),
+              icon: Icon(Icons.refresh_rounded),
+              label: Text(context.l10n.commonRetry),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.c.primary,
+              ),
             ),
           ],
         ),
@@ -923,6 +1020,7 @@ class _ModalidadeFormSheet extends StatefulWidget {
 }
 
 class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
+  AppLocalizations get _l => context.l10n;
   final _formKey = GlobalKey<FormState>();
   final _nomeCtrl = TextEditingController();
   bool _ativa = true;
@@ -963,7 +1061,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
       final bytes = res?.files.single.bytes;
       if (bytes == null) return;
       if (bytes.lengthInBytes > 8 * 1024 * 1024) {
-        _snack('Imagem muito grande (máximo 8 MB).');
+        _snack(_l.mdlImageTooLarge);
         return;
       }
       setState(() => _processando = true);
@@ -971,7 +1069,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
       if (!mounted) return;
       setState(() => _processando = false);
       if (out == null) {
-        _snack('Não foi possível processar a imagem.');
+        _snack(_l.mdlImageProcessError);
         return;
       }
       setState(() {
@@ -981,7 +1079,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
     } catch (_) {
       if (mounted) {
         setState(() => _processando = false);
-        _snack('Não foi possível selecionar a imagem.');
+        _snack(_l.mdlImagePickError);
       }
     }
   }
@@ -990,7 +1088,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: kDanger,
+        backgroundColor: context.sem.danger,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -1026,15 +1124,15 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _salvando = false);
-      _snack('Não foi possível salvar a modalidade.');
+      _snack(_l.mdlSaveError);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: kSurface,
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -1056,7 +1154,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: kBorder,
+                    color: context.c.outline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1065,9 +1163,9 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      _isEdit ? 'Editar Modalidade' : 'Nova Modalidade',
+                      _isEdit ? _l.mdlEditTitle : _l.mdlNewTitle,
                       style: TextStyle(
-                        color: kText1,
+                        color: context.c.onSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1075,8 +1173,12 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close_rounded, color: kText2, size: 22),
-                    tooltip: 'Fechar',
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 22,
+                    ),
+                    tooltip: _l.commonClose,
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
@@ -1084,9 +1186,9 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
               const SizedBox(height: 12),
 
               Text(
-                'Nome da modalidade',
+                _l.mdlNameField,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1095,20 +1197,21 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
               TextFormField(
                 controller: _nomeCtrl,
                 autofocus: !_isEdit,
-                style: TextStyle(color: kText1),
+                style: TextStyle(color: context.c.onSurface),
                 textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                decoration: _deco('Ex.: Jiu-Jitsu Adulto'),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? _l.commonRequiredField
+                    : null,
+                decoration: _deco(_l.mdlNameHint),
               ),
               const SizedBox(height: 16),
 
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
                 decoration: BoxDecoration(
-                  color: kBg,
+                  color: context.c.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: Row(
                   children: [
@@ -1117,19 +1220,18 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Modalidade ativa',
+                            _l.mdlActiveToggle,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Modalidades inativas não aparecem nas telas '
-                            'operacionais, mas continuam cadastradas.',
+                            _l.mdlActiveToggleSub,
                             style: TextStyle(
-                              color: kText2,
+                              color: context.c.onSurfaceVariant,
                               fontSize: 11,
                               height: 1.3,
                             ),
@@ -1141,9 +1243,9 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                       value: _ativa,
                       onChanged: (v) => setState(() => _ativa = v),
                       activeThumbColor: Colors.white,
-                      activeTrackColor: kSuccess,
-                      inactiveThumbColor: kText2,
-                      inactiveTrackColor: kBorder,
+                      activeTrackColor: context.sem.success,
+                      inactiveThumbColor: context.c.onSurfaceVariant,
+                      inactiveTrackColor: context.c.outline,
                     ),
                   ],
                 ),
@@ -1151,24 +1253,24 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
               const SizedBox(height: 20),
 
               Text(
-                'Identificação visual',
+                _l.mdlVisualId,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
               SegmentedButton<ModalidadeVisualTipo>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: ModalidadeVisualTipo.icone,
-                    label: Text('Ícone padrão'),
+                    label: Text(_l.mdlDefaultIcon),
                     icon: Icon(Icons.grid_view_rounded, size: 16),
                   ),
                   ButtonSegment(
                     value: ModalidadeVisualTipo.imagem,
-                    label: Text('Enviar imagem'),
+                    label: Text(_l.mdlUploadImage),
                     icon: Icon(Icons.image_rounded, size: 16),
                   ),
                 ],
@@ -1194,9 +1296,11 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                 child: ElevatedButton(
                   onPressed: _salvando ? null : _salvar,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
+                    backgroundColor: context.c.primary,
                     foregroundColor: Colors.black,
-                    disabledBackgroundColor: kPrimary.withValues(alpha: 0.5),
+                    disabledBackgroundColor: context.c.primary.withValues(
+                      alpha: 0.5,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -1212,7 +1316,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                           ),
                         )
                       : Text(
-                          _isEdit ? 'Salvar alterações' : 'Criar Modalidade',
+                          _isEdit ? _l.sdSaveChanges : _l.mdlCreateBtn,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -1254,7 +1358,7 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                       color: cor.withValues(alpha: sel ? 0.22 : 0.14),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: sel ? kPrimary : kBorder,
+                        color: sel ? context.c.primary : context.c.outline,
                         width: sel ? 2 : 1,
                       ),
                     ),
@@ -1267,7 +1371,9 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: sel ? kPrimary : kText2,
+                      color: sel
+                          ? context.c.primary
+                          : context.c.onSurfaceVariant,
                       fontSize: 10,
                       fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
                     ),
@@ -1289,13 +1395,13 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
           width: 88,
           height: 88,
           decoration: BoxDecoration(
-            color: kBg,
+            color: context.c.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder),
+            border: Border.all(color: context.c.outline),
           ),
           clipBehavior: Clip.antiAlias,
           child: _processando
-              ? const Center(
+              ? Center(
                   child: SizedBox(
                     width: 22,
                     height: 22,
@@ -1307,12 +1413,14 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                   base64Decode(_imagemB64!.split(',').last),
                   fit: BoxFit.cover,
                   gaplessPlayback: true,
-                  errorBuilder: (_, _, _) =>
-                      Icon(Icons.broken_image_rounded, color: kText2),
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.broken_image_rounded,
+                    color: context.c.onSurfaceVariant,
+                  ),
                 )
               : Icon(
                   Icons.add_photo_alternate_rounded,
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   size: 28,
                 ),
         ),
@@ -1323,11 +1431,13 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
             children: [
               OutlinedButton.icon(
                 onPressed: _processando ? null : _escolherImagem,
-                icon: const Icon(Icons.upload_rounded, size: 16),
-                label: Text(temImg ? 'Trocar imagem' : 'Escolher da galeria'),
+                icon: Icon(Icons.upload_rounded, size: 16),
+                label: Text(temImg ? _l.mdlChangeImage : _l.mdlChooseGallery),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: kPrimary,
-                  side: BorderSide(color: kPrimary.withValues(alpha: 0.6)),
+                  foregroundColor: context.c.primary,
+                  side: BorderSide(
+                    color: context.c.primary.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               if (temImg)
@@ -1337,12 +1447,18 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
                     _tipo = ModalidadeVisualTipo.icone;
                   }),
                   icon: Icon(Icons.delete_outline_rounded, size: 16),
-                  label: const Text('Remover'),
-                  style: TextButton.styleFrom(foregroundColor: kDanger),
+                  label: Text(_l.commonRemove),
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.sem.danger,
+                  ),
                 ),
               Text(
-                'JPG ou PNG. A imagem é recortada em quadrado.',
-                style: TextStyle(color: kText2, fontSize: 10.5, height: 1.3),
+                _l.mdlImageHint,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 10.5,
+                  height: 1.3,
+                ),
               ),
             ],
           ),
@@ -1353,30 +1469,33 @@ class _ModalidadeFormSheetState extends State<_ModalidadeFormSheet> {
 
   InputDecoration _deco(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2.withValues(alpha: 0.6), fontSize: 13),
+    hintStyle: TextStyle(
+      color: context.c.onSurfaceVariant.withValues(alpha: 0.6),
+      fontSize: 13,
+    ),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surface,
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kBorder),
+      borderSide: BorderSide(color: context.c.outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kPrimary, width: 1.5),
+      borderSide: BorderSide(color: context.c.primary, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger),
+      borderSide: BorderSide(color: context.sem.danger),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: kDanger, width: 1.5),
+      borderSide: BorderSide(color: context.sem.danger, width: 1.5),
     ),
   );
 }
