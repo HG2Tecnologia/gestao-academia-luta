@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/permissoes.dart';
+import '../../core/senha_temporaria_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
   @override
@@ -97,7 +98,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         }
       }
 
-      await firestoreService.addFuncionario(academiaId, {
+      final funcId = await firestoreService.addFuncionario(academiaId, {
         'nome': _nome.text.trim(),
         'email': emailVal.isEmpty ? null : emailVal,
         'telefone': telVal,
@@ -107,9 +108,23 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         // Admin tem tudo, não precisa salvar mapa
         'permissoes': _perfil == 'Admin' ? <String, bool>{} : _permissoes,
       });
+
+      // Tendo telefone ou e-mail, já gera a senha temporária para a academia
+      // repassar — o funcionário não precisa passar pelo "primeiro acesso".
+      // Falha aqui não desfaz o cadastro.
+      if (mounted && (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
+        await provisionarAcessoApp(
+          context,
+          academiaId: academiaId,
+          colecao: 'funcionarios',
+          usuarioId: funcId,
+          nome: _nome.text.trim(),
+          motivo: 'provisao_criacao',
+        );
+      }
       if (mounted) context.pop();
     } catch (e) {
-      if (mounted) setState(() => _erro = 'Erro ao cadastrar funcionário.');
+      if (mounted) setState(() => _erro = context.l10n.stfCreateError);
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -120,11 +135,11 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
-              'Vincular perfis?',
+              context.l10n.stfLinkProfiles,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -134,21 +149,24 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Esse telefone já pertence a:',
-                  style: TextStyle(color: kText2, fontSize: 13),
+                  context.l10n.stfPhoneBelongsTo,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: context.c.surface,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.sports_martial_arts,
-                        color: kPrimary,
+                        color: context.c.primary,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -156,7 +174,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                         child: Text(
                           '$nome (Aluno)',
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -166,23 +184,29 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Deseja vincular esse cadastro de funcionário ao mesmo contato? '
-                  'A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.',
-                  style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                  context.l10n.stfLinkStaffQuestion,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  context.l10n.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Vincular também',
+                  context.l10n.stfLinkAlso,
                   style: TextStyle(
-                    color: kPrimary,
+                    color: context.c.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -205,14 +229,17 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
         elevation: 0,
         title: Text(
-          'Novo Funcionário',
-          style: TextStyle(color: kText1, fontWeight: FontWeight.w700),
+          context.l10n.stfNewStaff,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: Form(
@@ -220,19 +247,20 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _section('Dados pessoais'),
-            _field(_nome, 'Nome completo *', required: true),
+            _section(context.l10n.stfPersonalData),
+            _field(_nome, context.l10n.stfFullNameReq, required: true),
             _field(_email, 'E-mail', keyboard: TextInputType.emailAddress),
             _field(
               _telefone,
-              'Telefone *',
+              context.l10n.stfPhoneReq,
               keyboard: TextInputType.phone,
               required: true,
               phoneMask: true,
             ),
+            _infoBox(context.l10n.stfTempPasswordNote),
             const SizedBox(height: 16),
-            _section('Cargo e perfil'),
-            _field(_cargo, 'Cargo (ex: Professor de BJJ)'),
+            _section(context.l10n.stfRoleAndProfile),
+            _field(_cargo, context.l10n.stfRoleExample),
             const SizedBox(height: 10),
             // Perfil selector via dialog (evita DropdownButton dentro de scroll)
             GestureDetector(
@@ -240,11 +268,11 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                 final sel = await showDialog<String>(
                   context: context,
                   builder: (dCtx) => SimpleDialog(
-                    backgroundColor: kSurface,
+                    backgroundColor: context.c.surfaceContainer,
                     title: Text(
-                      'Perfil',
+                      context.l10n.stfProfile,
                       style: TextStyle(
-                        color: kText1,
+                        color: context.c.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -256,7 +284,10 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Text(
                                 p,
-                                style: TextStyle(color: kText1, fontSize: 15),
+                                style: TextStyle(
+                                  color: context.c.onSurface,
+                                  fontSize: 15,
+                                ),
                               ),
                             ),
                           ),
@@ -272,19 +303,26 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: kSurface,
+                  color: context.c.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         _perfil,
-                        style: TextStyle(color: kText1, fontSize: 14),
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                    Icon(Icons.expand_more_rounded, color: kText2, size: 20),
+                    Icon(
+                      Icons.expand_more_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
@@ -292,10 +330,8 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
             // Permissões (só para professor e secretaria)
             if (_perfil != 'Admin') ...[
               const SizedBox(height: 24),
-              _section('Permissões'),
-              _infoBox(
-                'Defina o que esse funcionário pode acessar e fazer no aplicativo.',
-              ),
+              _section(context.l10n.stfPermissions),
+              _infoBox(context.l10n.stfPermissionsHint),
               const SizedBox(height: 12),
               _permissoesWidget(),
             ],
@@ -305,12 +341,12 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: kDanger.withOpacity(0.12),
+                  color: context.sem.danger.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   _erro!,
-                  style: TextStyle(color: kDanger, fontSize: 13),
+                  style: TextStyle(color: context.sem.danger, fontSize: 13),
                 ),
               ),
             SizedBox(
@@ -318,7 +354,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
               child: ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -333,8 +369,8 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Cadastrar funcionário',
+                    : Text(
+                        context.l10n.stfCreateStaff,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -364,11 +400,11 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _permissaoGrupo('Telas visíveis', telasKeys),
+        _permissaoGrupo(context.l10n.stfVisibleScreens, telasKeys),
         const SizedBox(height: 12),
-        _permissaoGrupo('Ações permitidas', acoesKeys),
+        _permissaoGrupo(context.l10n.stfAllowedActions, acoesKeys),
         const SizedBox(height: 12),
-        _permissaoGrupo('Acesso avançado', acessoKeys),
+        _permissaoGrupo(context.l10n.stfAdvancedAccess, acessoKeys),
       ],
     );
   }
@@ -376,9 +412,9 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   Widget _permissaoGrupo(String titulo, List<String> chaves) {
     return Container(
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: context.c.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,7 +424,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
             child: Text(
               titulo,
               style: TextStyle(
-                color: kText2,
+                color: context.c.onSurfaceVariant,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
@@ -396,7 +432,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
             ),
           ),
           for (int i = 0; i < chaves.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: kBorder, indent: 16),
+            if (i > 0) Divider(height: 1, color: context.c.outline, indent: 16),
             _permissaoTile(chaves[i]),
           ],
         ],
@@ -413,16 +449,19 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     return SwitchListTile(
       value: valor,
       onChanged: (v) => setState(() => _permissoes[chave] = v),
-      activeColor: kPrimary,
+      activeColor: context.c.primary,
       title: Text(
         label,
         style: TextStyle(
-          color: kText1,
+          color: context.c.onSurface,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
       ),
-      subtitle: Text(desc, style: TextStyle(color: kText2, fontSize: 12)),
+      subtitle: Text(
+        desc,
+        style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       dense: true,
     );
@@ -433,7 +472,7 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     child: Text(
       label,
       style: TextStyle(
-        color: kText2,
+        color: context.c.onSurfaceVariant,
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
@@ -444,16 +483,19 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   Widget _infoBox(String msg) => Container(
     padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
-      color: kPrimary.withOpacity(0.08),
+      color: context.c.primary.withOpacity(0.08),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: kPrimary.withOpacity(0.2)),
+      border: Border.all(color: context.c.primary.withOpacity(0.2)),
     ),
     child: Row(
       children: [
-        Icon(Icons.info_outline_rounded, color: kPrimary, size: 16),
+        Icon(Icons.info_outline_rounded, color: context.c.primary, size: 16),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(msg, style: TextStyle(color: kPrimary, fontSize: 12)),
+          child: Text(
+            msg,
+            style: TextStyle(color: context.c.primary, fontSize: 12),
+          ),
         ),
       ],
     ),
@@ -471,34 +513,36 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
       controller: ctrl,
       keyboardType: keyboard,
       inputFormatters: phoneMask ? [_PhoneMaskFormatter()] : null,
-      style: TextStyle(color: kText1),
+      style: TextStyle(color: context.c.onSurface),
       validator: required
-          ? (v) => (v == null || v.trim().isEmpty) ? 'Campo obrigatório' : null
+          ? (v) => (v == null || v.trim().isEmpty)
+                ? context.l10n.stfRequiredField
+                : null
           : null,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: kText2, fontSize: 14),
+        hintStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
         filled: true,
-        fillColor: kSurface,
+        fillColor: context.c.surfaceContainer,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kPrimary),
+          borderSide: BorderSide(color: context.c.primary),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kDanger),
+          borderSide: BorderSide(color: context.sem.danger),
         ),
       ),
     ),

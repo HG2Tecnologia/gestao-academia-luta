@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
+import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 
 class ProfDashboardScreen extends StatefulWidget {
@@ -16,20 +17,13 @@ class ProfDashboardScreen extends StatefulWidget {
 class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
   bool _loading = true;
   String? _nome;
+  String? _fotoBase64;
+  List<Map<String, dynamic>> _perfis = [];
   int _totalTurmas = 0;
   int _totalAlunos = 0;
   int _turmasComoAluno = 0;
   List<Map<String, dynamic>> _aulasHoje = [];
-
-  static const _diaNomes = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
-  ];
+  final Set<String> _perms = {};
 
   @override
   void initState() {
@@ -51,6 +45,17 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
       if (user == null || user.academiaId == null) return;
       final academiaId = user.academiaId!;
       _nome = user.nome;
+      _perfis = user.perfis;
+
+      _perms.clear();
+      for (final k in const [
+        'tela_turmas',
+        'tela_alunos',
+        'tela_horarios',
+        'tela_rankings',
+      ]) {
+        if (user.temPermissao(k)) _perms.add(k);
+      }
 
       final verTodas = user.temPermissao('acesso_turmas_todas');
       final alunoUsuarioId =
@@ -67,8 +72,13 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
         ),
         firestoreService.getMatriculas(academiaId, ativasOnly: true),
         firestoreService.getHorarios(academiaId),
+        firestoreService
+            .getFuncionario(academiaId, user.id)
+            .catchError((_) => null),
       ]);
       final turmas = (results[0] as List).cast<Map<String, dynamic>>();
+      final meuDoc = results[3] as Map<String, dynamic>?;
+      _fotoBase64 = meuDoc?['fotoBase64'] as String?;
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
       final horarios = (results[2] as List).cast<Map<String, dynamic>>();
 
@@ -114,56 +124,125 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
     }
   }
 
+  String get _primeiroNome => (_nome ?? '').trim().split(' ').first;
+
   String _hora(Map<String, dynamic> h, String field, String fallback) {
     final val = (h[field] ?? h[fallback] ?? '').toString();
     return val.length >= 5 ? val.substring(0, 5) : val;
   }
 
+  List<(IconData, String, String)> get _acessos => [
+    if (_perms.contains('tela_turmas'))
+      (Icons.groups_rounded, context.l10n.navClasses, '/professor/turmas'),
+    if (_perms.contains('tela_alunos'))
+      (
+        Icons.sports_martial_arts,
+        context.l10n.navStudents,
+        '/professor/alunos',
+      ),
+    if (_perms.contains('tela_horarios'))
+      (Icons.schedule_rounded, context.l10n.navSchedule, '/professor/horarios'),
+    if (_perms.contains('tela_rankings'))
+      (
+        Icons.emoji_events_rounded,
+        context.l10n.navRanking,
+        '/professor/rankings',
+      ),
+  ];
+
+  Widget _acessoCard(IconData icon, String label, String rota) => Material(
+    color: context.c.surfaceContainer,
+    borderRadius: BorderRadius.circular(14),
+    child: InkWell(
+      onTap: () => context.go(rota),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.c.outline),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: context.c.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: context.c.primary, size: 20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: kPrimary))
+            ? Center(child: CircularProgressIndicator(color: context.c.primary))
             : RefreshIndicator(
                 onRefresh: _load,
-                color: kPrimary,
+                color: context.c.primary,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: [
                     Row(
                       children: [
-                        GestureDetector(
-                          onTap: openAppDrawer,
-                          child: Icon(
-                            Icons.menu_rounded,
-                            color: kText1,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
+                        _Avatar(fotoBase64: _fotoBase64, nome: _nome ?? ''),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Dashboard',
+                                _primeiroNome.isEmpty
+                                    ? 'Olá!'
+                                    : context.l10n.apHelloName(_primeiroNome),
                                 style: TextStyle(
-                                  color: kText1,
+                                  color: context.c.onSurface,
                                   fontSize: 22,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                context.l10n.profPanelSubtitle,
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 13,
                                 ),
                               ),
-                              if (_nome != null)
-                                Text(
-                                  _nome!,
-                                  style: TextStyle(color: kText2, fontSize: 13),
-                                ),
                             ],
                           ),
                         ),
+                        if (_perfis.length > 1)
+                          PerfilSwitchButton(
+                            onPressed: () async {
+                              await mostrarTrocarPerfil(context);
+                              _load();
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -171,19 +250,19 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                       children: [
                         Expanded(
                           child: _statCard(
-                            'Turmas',
+                            context.l10n.navClasses,
                             '$_totalTurmas',
                             Icons.groups_rounded,
-                            kPrimary,
+                            context.c.primary,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _statCard(
-                            'Alunos',
+                            context.l10n.navStudents,
                             '$_totalAlunos',
                             Icons.sports_martial_arts,
-                            kSuccess,
+                            context.sem.success,
                           ),
                         ),
                       ],
@@ -191,18 +270,43 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                     if (_turmasComoAluno > 0) ...[
                       const SizedBox(height: 10),
                       _statCard(
-                        'Você também treina em $_turmasComoAluno turma(s)',
+                        context.l10n.profAlsoTrainsIn(_turmasComoAluno),
                         '',
                         Icons.emoji_events_rounded,
-                        kWarning,
+                        context.sem.warning,
                         wide: true,
+                      ),
+                    ],
+                    if (_acessos.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        context.l10n.profQuickAccess,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        crossAxisCount: 3,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1,
+                        children: [
+                          for (final a in _acessos)
+                            _acessoCard(a.$1, a.$2, a.$3),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 24),
                     Text(
-                      'Aulas de hoje',
+                      context.l10n.profTodayClasses,
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -213,21 +317,24 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: kSurface,
+                          color: context.c.surfaceContainer,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: kBorder),
+                          border: Border.all(color: context.c.outline),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.event_busy_rounded,
-                              color: kText2,
+                              color: context.c.onSurfaceVariant,
                               size: 20,
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              'Nenhuma aula hoje.',
-                              style: TextStyle(color: kText2, fontSize: 13),
+                              context.l10n.profNoClassToday,
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -242,9 +349,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: kSurface,
+                            color: context.c.surfaceContainer,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: kBorder),
+                            border: Border.all(color: context.c.outline),
                           ),
                           child: Row(
                             children: [
@@ -254,13 +361,13 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: kPrimary.withOpacity(0.12),
+                                  color: context.c.primary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   _hora(h, 'hora_inicio', 'horaInicio'),
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
                                   ),
@@ -271,7 +378,7 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                                 child: Text(
                                   turma,
                                   style: TextStyle(
-                                    color: kText1,
+                                    color: context.c.onSurface,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -288,18 +395,18 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                         onPressed: () => context.go('/professor/turmas'),
                         icon: Icon(
                           Icons.groups_rounded,
-                          color: kPrimary,
+                          color: context.c.primary,
                           size: 18,
                         ),
                         label: Text(
-                          'Ver minhas turmas',
+                          context.l10n.profSeeMyClasses,
                           style: TextStyle(
-                            color: kPrimary,
+                            color: context.c.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: kBorder),
+                          side: BorderSide(color: context.c.outline),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -323,9 +430,9 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
   }) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: kSurface,
+      color: context.c.surfaceContainer,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
+      border: Border.all(color: context.c.outline),
     ),
     child: wide
         ? Row(
@@ -336,7 +443,7 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -352,13 +459,54 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
               Text(
                 value,
                 style: TextStyle(
-                  color: kText1,
+                  color: context.c.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(label, style: TextStyle(color: kText2, fontSize: 12)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
   );
+}
+
+class _Avatar extends StatelessWidget {
+  final String? fotoBase64;
+  final String nome;
+  const _Avatar({this.fotoBase64, required this.nome});
+
+  @override
+  Widget build(BuildContext context) {
+    final iniciais = nome
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0])
+        .join()
+        .toUpperCase();
+    if (fotoBase64 != null && fotoBase64!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(fotoBase64!.split(',').last);
+        return CircleAvatar(radius: 22, backgroundImage: MemoryImage(bytes));
+      } catch (_) {}
+    }
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: context.c.primary.withValues(alpha: 0.18),
+      child: Text(
+        iniciais.isEmpty ? '?' : iniciais,
+        style: TextStyle(
+          color: context.c.primary,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
 }

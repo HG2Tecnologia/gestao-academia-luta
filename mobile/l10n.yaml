@@ -1,0 +1,8 @@
+# Configuração do gen_l10n. Os arquivos gerados vão para lib/l10n/ (source),
+# sem depender de package:flutter_gen.
+arb-dir: lib/l10n
+template-arb-file: app_pt.arb
+output-dir: lib/l10n
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

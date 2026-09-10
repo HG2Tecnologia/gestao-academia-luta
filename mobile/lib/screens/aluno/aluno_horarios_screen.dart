@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class AlunoHorariosScreen extends StatefulWidget {
   const AlunoHorariosScreen({super.key});
@@ -17,10 +17,25 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
   bool _loading = true;
   String? _diaAtivo;
 
-  static const _ordem = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-  static const _abrev = {'Segunda': 'Seg', 'Terça': 'Ter', 'Quarta': 'Qua', 'Quinta': 'Qui', 'Sexta': 'Sex', 'Sábado': 'Sáb', 'Domingo': 'Dom'};
+  static const _ordem = [
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
+  ];
   // dia_semana int no Firestore: 0=Domingo, 1=Segunda … 6=Sábado
-  static const _diaNomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  static const _diaNomes = [
+    'Domingo',
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+  ];
 
   @override
   void initState() {
@@ -43,9 +58,13 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
       final list = (results[0] as List).cast<Map<String, dynamic>>();
       final meusHorarios = (results[1] as List).cast<Map<String, dynamic>>();
       final turmas = (results[2] as List).cast<Map<String, dynamic>>();
-      final turmaMap = {for (final t in turmas) t['id'].toString(): t['nome']?.toString() ?? ''};
+      final turmaMap = {
+        for (final t in turmas) t['id'].toString(): t['nome']?.toString() ?? '',
+      };
 
-      final minhasTurmaIds = meusHorarios.map((h) => h['turma_id']?.toString() ?? '').toSet();
+      final minhasTurmaIds = meusHorarios
+          .map((h) => h['turma_id']?.toString() ?? '')
+          .toSet();
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final h in list) {
@@ -65,9 +84,15 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
 
       // Sort each day by hora_inicio
       for (final k in grouped.keys) {
-        grouped[k]!.sort((a, b) =>
-            (a['hora_inicio'] as String? ?? a['horaInicio'] as String? ?? '')
-                .compareTo(b['hora_inicio'] as String? ?? b['horaInicio'] as String? ?? ''));
+        grouped[k]!.sort(
+          (a, b) =>
+              (a['hora_inicio'] as String? ?? a['horaInicio'] as String? ?? '')
+                  .compareTo(
+                    b['hora_inicio'] as String? ??
+                        b['horaInicio'] as String? ??
+                        '',
+                  ),
+        );
       }
 
       if (mounted) {
@@ -78,34 +103,69 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
           _diaAtivo = _hojeOuPrimeiro(dias);
         });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   String _hojeOuPrimeiro(List<String> dias) {
-    const hoje = {1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 7: 'Domingo'};
+    const hoje = {
+      1: 'Segunda',
+      2: 'Terça',
+      3: 'Quarta',
+      4: 'Quinta',
+      5: 'Sexta',
+      6: 'Sábado',
+      7: 'Domingo',
+    };
     final diaHoje = hoje[DateTime.now().weekday];
     if (diaHoje != null && dias.contains(diaHoje)) return diaHoje;
     return dias.isNotEmpty ? dias.first : '';
   }
 
-  String _fmt(String? t) => t?.length != null && t!.length >= 5 ? t.substring(0, 5) : (t ?? '');
+  String _abbr(String dia, AppLocalizations l) => switch (dia) {
+    'Segunda' => l.dowMon,
+    'Terça' => l.dowTue,
+    'Quarta' => l.dowWed,
+    'Quinta' => l.dowThu,
+    'Sexta' => l.dowFri,
+    'Sábado' => l.dowSat,
+    'Domingo' => l.dowSun,
+    _ => dia,
+  };
+
+  String _fmt(String? t) =>
+      t?.length != null && t!.length >= 5 ? t.substring(0, 5) : (t ?? '');
 
   bool _isHoje(String dia) {
-    const hoje = {1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 7: 'Domingo'};
+    const hoje = {
+      1: 'Segunda',
+      2: 'Terça',
+      3: 'Quarta',
+      4: 'Quinta',
+      5: 'Sexta',
+      6: 'Sábado',
+      7: 'Domingo',
+    };
     return hoje[DateTime.now().weekday] == dia;
   }
 
   @override
   Widget build(BuildContext context) {
     final dias = _ordem.where((d) => _grouped.containsKey(d)).toList();
-    final horarios = _diaAtivo != null ? (_grouped[_diaAtivo] ?? []) : <Map<String, dynamic>>[];
-    final minhas = horarios.where((h) => _minhasTurmas.contains(h['turma_id']?.toString() ?? '')).toList();
-    final outras = horarios.where((h) => !_minhasTurmas.contains(h['turma_id']?.toString() ?? '')).toList();
+    final horarios = _diaAtivo != null
+        ? (_grouped[_diaAtivo] ?? [])
+        : <Map<String, dynamic>>[];
+    final minhas = horarios
+        .where((h) => _minhasTurmas.contains(h['turma_id']?.toString() ?? ''))
+        .toList();
+    final outras = horarios
+        .where((h) => !_minhasTurmas.contains(h['turma_id']?.toString() ?? ''))
+        .toList();
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,11 +173,14 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
             // ── Header ──────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 20, 4),
-              child: Row(children: [
-                GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                const SizedBox(width: 14),
-                Text('Horários', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
-              ]),
+              child: Text(
+                context.l10n.navLessons,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
 
             // ── Day chips ───────────────────────────────
@@ -139,21 +202,34 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
                             onTap: () => setState(() => _diaAtivo = dia),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
-                                color: sel ? kPrimary : kSurface,
+                                color: sel
+                                    ? context.c.primary
+                                    : context.c.surfaceContainer,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: sel ? kPrimary : (hoje ? kPrimary.withOpacity(0.4) : kBorder),
+                                  color: sel
+                                      ? context.c.primary
+                                      : (hoje
+                                            ? context.c.primary.withOpacity(0.4)
+                                            : context.c.outline),
                                 ),
                               ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    _abrev[dia] ?? dia,
+                                    _abbr(dia, context.l10n),
                                     style: TextStyle(
-                                      color: sel ? Colors.white : (hoje ? kPrimary : kText2),
+                                      color: sel
+                                          ? Colors.white
+                                          : (hoje
+                                                ? context.c.primary
+                                                : context.c.onSurfaceVariant),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -162,7 +238,10 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
                                     Container(
                                       width: 4,
                                       height: 4,
-                                      decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle),
+                                      decoration: BoxDecoration(
+                                        color: context.c.primary,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -176,38 +255,57 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
             // ── Content ──────────────────────────────────
             Expanded(
               child: _loading
-                  ? Center(child: CircularProgressIndicator(color: kPrimary))
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: context.c.primary,
+                      ),
+                    )
                   : horarios.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.event_busy_rounded, color: kBorder, size: 56),
-                              const SizedBox(height: 16),
-                              Text('Sem aulas nesse dia',
-                                  style: TextStyle(color: kText2, fontSize: 14)),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.event_busy_rounded,
+                            color: context.c.outline,
+                            size: 56,
                           ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          color: kPrimary,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          children: [
-                            if (minhas.isNotEmpty) ...[
-                              _sectionLabel('MINHAS AULAS', kPrimary),
-                              ...minhas.map((h) => _horarioCard(h, true)),
-                              const SizedBox(height: 8),
-                            ],
-                            if (outras.isNotEmpty) ...[
-                              _sectionLabel('OUTRAS AULAS', kText2),
-                              ...outras.map((h) => _horarioCard(h, false)),
-                            ],
+                          const SizedBox(height: 16),
+                          Text(
+                            context.l10n.apNoClassOnDay,
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      color: context.c.primary,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        children: [
+                          if (minhas.isNotEmpty) ...[
+                            _sectionLabel(
+                              context.l10n.apMyLessonsUpper,
+                              context.c.primary,
+                            ),
+                            ...minhas.map((h) => _horarioCard(h, true)),
+                            const SizedBox(height: 8),
                           ],
-                        ),
-                        ),
+                          if (outras.isNotEmpty) ...[
+                            _sectionLabel(
+                              context.l10n.apOtherLessonsUpper,
+                              context.c.onSurfaceVariant,
+                            ),
+                            ...outras.map((h) => _horarioCard(h, false)),
+                          ],
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -216,10 +314,17 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
   }
 
   Widget _sectionLabel(String label, Color cor) => Padding(
-        padding: const EdgeInsets.only(bottom: 10, top: 4),
-        child: Text(label,
-            style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-      );
+    padding: const EdgeInsets.only(bottom: 10, top: 4),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: cor,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.2,
+      ),
+    ),
+  );
 
   Widget _horarioCard(Map<String, dynamic> h, bool isMinha) {
     final nome = h['nomeTurma'] as String? ?? '';
@@ -230,10 +335,12 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: kSurface,
+        color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isMinha ? kPrimary.withOpacity(0.4) : kBorder,
+          color: isMinha
+              ? context.c.primary.withOpacity(0.4)
+              : context.c.outline,
           width: isMinha ? 1.5 : 1.0,
         ),
       ),
@@ -245,25 +352,45 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
             children: [
               // Time block
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isMinha ? kPrimary.withOpacity(0.15) : kBorder.withOpacity(0.5),
+                  color: isMinha
+                      ? context.c.primary.withOpacity(0.15)
+                      : context.c.outline.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Column(
                   children: [
-                    Text(inicio,
-                        style: TextStyle(
-                          color: isMinha ? kPrimary : kText2,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        )),
-                    Container(width: 20, height: 1, color: isMinha ? kPrimary.withOpacity(0.4) : kBorder, margin: const EdgeInsets.symmetric(vertical: 3)),
-                    Text(fim,
-                        style: TextStyle(
-                          color: isMinha ? kPrimary.withOpacity(0.7) : kText2.withOpacity(0.6),
-                          fontSize: 11,
-                        )),
+                    Text(
+                      inicio,
+                      style: TextStyle(
+                        color: isMinha
+                            ? context.c.primary
+                            : context.c.onSurfaceVariant,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Container(
+                      width: 20,
+                      height: 1,
+                      color: isMinha
+                          ? context.c.primary.withOpacity(0.4)
+                          : context.c.outline,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                    ),
+                    Text(
+                      fim,
+                      style: TextStyle(
+                        color: isMinha
+                            ? context.c.primary.withOpacity(0.7)
+                            : context.c.onSurfaceVariant.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -272,15 +399,36 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(nome,
-                        style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
+                    Text(
+                      nome,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (prof != null) ...[
                       const SizedBox(height: 3),
-                      Row(children: [
-                        Icon(Icons.person_outline_rounded, size: 13, color: kText2),
-                        const SizedBox(width: 4),
-                        Flexible(child: Text('Prof. $prof', style: TextStyle(color: kText2, fontSize: 12), overflow: TextOverflow.ellipsis)),
-                      ]),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline_rounded,
+                            size: 13,
+                            color: context.c.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              context.l10n.apProfPrefix(prof),
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
@@ -289,7 +437,10 @@ class _AlunoHorariosScreenState extends State<AlunoHorariosScreen> {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: context.c.primary,
+                    shape: BoxShape.circle,
+                  ),
                 ),
             ],
           ),

@@ -30,6 +30,10 @@ function publicProfile(profile) {
     colecao: profile.colecao,
     perfil_nome: profile.perfil_nome,
     nome: profile.nome,
+    // E-mails de login do Firebase Auth que este contato pode ter (sintéticos
+    // de telefone). Permite ao app resolver "login por e-mail" quando a conta
+    // Auth na verdade usa o e-mail sintético do telefone.
+    authEmails: Array.isArray(profile.authEmails) ? profile.authEmails : [],
   };
 }
 
@@ -121,6 +125,9 @@ async function findProfiles(identifier) {
       perfil_nome: perfilNome,
       nome: String(data.nome || ""),
       firebaseUid: data.firebaseUid || data.firebase_uid || null,
+      authEmails: syntheticAuthEmails(
+        canonicalizePhone(data.telefone_canonical || data.telefone || data.telefone_digits) || "",
+      ),
       ref: doc.ref,
     };
     profile.key = profileKey(profile);
@@ -260,6 +267,10 @@ exports.refreshAccessAccount = onCall(IDENTITY_FUNCTION_OPTIONS, async (request)
   );
   return { account };
 });
+
+// Reutilizados pelo provisionamento/redefinição de acesso (admin-functions.js).
+exports.findProfiles = findProfiles;
+exports.upsertAccount = upsertAccount;
 
 exports._test = {
   findProfiles,

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/appearance_controls.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/phone_normalizer.dart';
@@ -57,16 +59,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  AppLocalizations get _l => context.l10n;
   final _idCtrl = TextEditingController();
   final _senhaCtrl = TextEditingController();
   bool _loading = false;
   String? _erro;
   _InputMode _mode = _InputMode.indefinido;
 
-  static const _loadingMsgs = [
-    'Autenticando...',
-    'Carregando seus dados...',
-    'Quase lá...',
+  List<String> get _loadingMsgs => [
+    _l.authSigningIn,
+    _l.authLoadingYourData,
+    _l.authAlmostThere,
   ];
   int _loadingMsgIdx = 0;
   Timer? _loadingTimer;
@@ -101,22 +104,69 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _validarId() {
     final v = _idCtrl.text.trim();
-    if (v.isEmpty) return 'Informe seu e-mail ou telefone.';
+    if (v.isEmpty) return _l.authEnterEmailOrPhone;
     if (_mode == _InputMode.email) {
-      if (!_emailRegex.hasMatch(v)) return 'E-mail inválido.';
+      if (!_emailRegex.hasMatch(v)) return _l.authInvalidEmailShort;
     } else if (_mode == _InputMode.telefone) {
       final digits = v.replaceAll(RegExp(r'\D'), '');
-      if (digits.length < 10) return 'Telefone inválido. Ex: (11) 99999-0000';
+      if (digits.length < 10) return _l.authInvalidPhoneExample;
     }
     return null;
   }
 
+  static const _authRetryCodes = {
+    'invalid-credential',
+    'user-not-found',
+    'wrong-password',
+  };
+
+  /// Um e-mail digitado pode ser só o CONTATO de um cadastro cuja conta do
+  /// Firebase Auth na verdade usa o e-mail sintético do telefone
+  /// (`<digitos>@sensei.app`). Descobre esses e-mails alternativos pelo
+  /// servidor para tentar o login por eles também.
+  Future<List<String>> _emailsAlternativosPara(String email) async {
+    try {
+      final descoberta = await firebaseIdentityService.discoverProfiles(email);
+      final alternativos = <String>{};
+      for (final perfil in descoberta.profiles) {
+        final lista = perfil['authEmails'];
+        if (lista is List) {
+          for (final item in lista) {
+            final valor = item?.toString().trim() ?? '';
+            if (valor.isNotEmpty && valor.toLowerCase() != email) {
+              alternativos.add(valor);
+            }
+          }
+        }
+      }
+      return alternativos.toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<UserCredential> _autenticar(String senha) async {
     if (_mode != _InputMode.telefone) {
-      return FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _idCtrl.text.trim().toLowerCase(),
-        password: senha,
-      );
+      final email = _idCtrl.text.trim().toLowerCase();
+      try {
+        return await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: senha,
+        );
+      } on FirebaseAuthException catch (error) {
+        if (!_authRetryCodes.contains(error.code)) rethrow;
+        for (final alternativo in await _emailsAlternativosPara(email)) {
+          try {
+            return await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: alternativo,
+              password: senha,
+            );
+          } on FirebaseAuthException catch (erroAlt) {
+            if (!_authRetryCodes.contains(erroAlt.code)) rethrow;
+          }
+        }
+        rethrow;
+      }
     }
 
     final rawDigits = _idCtrl.text.replaceAll(RegExp(r'\D'), '');
@@ -148,19 +198,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _validarAcessoAluno(String academiaId, String alunoId) async {
     final alunoDoc = await firestoreService.getUsuario(academiaId, alunoId);
-    if (alunoDoc == null) return 'Perfil de aluno não encontrado.';
+    if (alunoDoc == null) return _l.authErrProfileNotFound;
     if (alunoDoc['ativo'] == false) {
-      return 'Seu cadastro está inativo. Entre em contato com a secretaria.';
+      return _l.authErrAccountInactive;
     }
     if (alunoDoc['acesso_app_bloqueado'] == true) {
-      return 'Seu acesso ao app está suspenso. Entre em contato com a secretaria.';
+      return _l.authErrAppAccessSuspended;
     }
     final motivoMensalidade = await firestoreService.motivoBloqueioCheckin(
       academiaId,
       alunoId,
     );
     if (motivoMensalidade != null) {
-      return 'Acesso bloqueado: mensalidade vencida. Regularize seu pagamento e tente novamente.';
+      return _l.authErrBlockedOverdue;
     }
     return null;
   }
@@ -172,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     if (_senhaCtrl.text.isEmpty) {
-      setState(() => _erro = 'Informe sua senha.');
+      setState(() => _erro = _l.authEnterPassword);
       return;
     }
 
@@ -211,10 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userData == null) {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
-        setState(
-          () => _erro =
-              'Usuário não encontrado no sistema. Contate o administrador.',
-        );
+        setState(() => _erro = _l.authErrUserNotFound);
         return;
       }
 
@@ -326,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'Professor':
           context.go('/professor/dashboard');
         case 'Aluno':
-          context.go('/aluno/perfil');
+          context.go('/aluno/inicio');
         default:
           context.go('/boas-vindas');
       }
@@ -337,27 +384,18 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final code = e.code;
       if (code == 'unavailable' || code == 'failed-precondition') {
-        setState(
-          () => _erro =
-              'Banco de dados ainda não configurado. Contate o administrador.',
-        );
+        setState(() => _erro = _l.authErrDbNotConfigured);
       } else if (code == 'permission-denied') {
-        setState(
-          () => _erro =
-              'Sem permissão para acessar os dados. Contate o administrador.',
-        );
+        setState(() => _erro = _l.authErrNoPermission);
       } else {
-        setState(() => _erro = 'Erro Firebase ($code): ${e.message}');
+        setState(() => _erro = _l.authErrFirebaseCode(code));
       }
     } on TimeoutException {
       if (!mounted) return;
-      setState(
-        () =>
-            _erro = 'Tempo esgotado. Verifique sua conexão e tente novamente.',
-      );
+      setState(() => _erro = _l.authErrTimeout);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _erro = 'Erro inesperado: $e');
+      setState(() => _erro = _l.commonGenericError);
     } finally {
       _loadingTimer?.cancel();
       _loadingTimer = null;
@@ -388,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
   ) async {
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -401,7 +439,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: kBorder,
+                color: context.c.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -409,12 +447,12 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
-                  Icon(Icons.group_rounded, color: kPrimary, size: 22),
+                  Icon(Icons.group_rounded, color: context.c.primary, size: 22),
                   const SizedBox(width: 10),
                   Text(
-                    'Qual perfil deseja acessar?',
+                    _l.authWhichProfile,
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -427,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ListTile(
                 leading: CircleAvatar(
                   radius: 18,
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   child: Text(
                     (p['nome'] as String? ?? '')
                         .split(' ')
@@ -444,7 +482,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 title: Text(
                   p['nome'] as String? ?? '',
-                  style: TextStyle(color: kText1, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Container(
                   margin: const EdgeInsets.only(top: 4),
@@ -453,13 +494,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: 0.14),
+                    color: context.c.primary.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     (p['perfil_nome'] as String?) ?? 'Aluno',
                     style: TextStyle(
-                      color: kPrimary,
+                      color: context.c.primary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -467,7 +508,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 trailing: Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   size: 14,
                 ),
                 onTap: () => Navigator.of(ctx).pop(p),
@@ -484,15 +525,15 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'E-mail ou senha incorretos. Se nunca acessou pelo app, use "Esqueci minha senha" para definir sua senha.';
+        return _l.authErrWrongCredentials;
       case 'user-disabled':
-        return 'Esta conta está desativada.';
+        return _l.authErrAccountDisabled;
       case 'too-many-requests':
-        return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+        return _l.authErrTooManyRequests;
       case 'network-request-failed':
-        return 'Sem conexão com a internet.';
+        return _l.authErrNetwork;
       default:
-        return 'Erro ao autenticar. Verifique seus dados e tente novamente.';
+        return _l.authErrGenericSignIn;
     }
   }
 
@@ -508,7 +549,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isPhone = _mode == _InputMode.telefone;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: SafeArea(
         child: Stack(
           children: [
@@ -526,11 +567,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
+                    Text(
                       'SENSEI MANAGER',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: context.c.onSurface,
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 3,
@@ -539,16 +580,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 4),
                     Text(
                       _isAcademia
-                          ? 'Acesse o painel da sua academia'
-                          : 'Acesse sua conta de aluno ou responsável',
+                          ? _l.authAccessAcademyPanel
+                          : _l.authAccessStudentAccount,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: kText2, fontSize: 13),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 40),
                     Text(
-                      'E-mail ou Telefone',
+                      _l.authEmailOrPhone,
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -559,44 +603,47 @@ class _LoginScreenState extends State<LoginScreen> {
                       onChanged: _onIdChanged,
                       keyboardType: TextInputType.emailAddress,
                       inputFormatters: [_SmartInputFormatter()],
-                      style: TextStyle(color: kText1, fontSize: 15),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
                       decoration: InputDecoration(
                         hintText: isPhone ? '(11) 99999-0000' : 'seu@email.com',
-                        hintStyle: TextStyle(color: kText2),
+                        hintStyle: TextStyle(color: context.c.onSurfaceVariant),
                         prefixIcon: Icon(
                           _mode == _InputMode.telefone
                               ? Icons.phone_outlined
                               : _mode == _InputMode.email
                               ? Icons.mail_outline
                               : Icons.person_outline,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 20,
                         ),
                         filled: true,
-                        fillColor: kSurface,
+                        fillColor: context.c.surfaceContainer,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 14,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kPrimary),
+                          borderSide: BorderSide(color: context.c.primary),
                         ),
                       ),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Senha',
+                      _l.authPassword,
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -605,27 +652,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _senhaCtrl,
                       obscureText: true,
-                      style: TextStyle(color: kText1, fontSize: 15),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
                       decoration: InputDecoration(
                         hintText: '••••••••',
-                        hintStyle: TextStyle(color: kText2),
+                        hintStyle: TextStyle(color: context.c.onSurfaceVariant),
                         filled: true,
-                        fillColor: kSurface,
+                        fillColor: context.c.surfaceContainer,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 14,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kPrimary),
+                          borderSide: BorderSide(color: context.c.primary),
                         ),
                       ),
                     ),
@@ -634,12 +684,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kDanger.withValues(alpha: 0.12),
+                          color: context.sem.danger.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           _erro!,
-                          style: TextStyle(color: kDanger, fontSize: 13),
+                          style: TextStyle(
+                            color: context.sem.danger,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -647,7 +700,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     FilledButton(
                       onPressed: _loading ? null : _login,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kPrimary,
+                        backgroundColor: context.c.primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -662,8 +715,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Entrar',
+                          : Text(
+                              _l.authSignIn,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -688,7 +741,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           _loadingMsgs[_loadingMsgIdx],
                           key: ValueKey(_loadingMsgIdx),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: kText2, fontSize: 12),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -699,17 +755,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         extra: {'contexto': widget.contexto},
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: kPrimary,
+                        foregroundColor: context.c.primary,
                         side: BorderSide(
-                          color: kPrimary.withValues(alpha: 0.4),
+                          color: context.c.primary.withValues(alpha: 0.4),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Acessando o app pela primeira vez',
+                      child: Text(
+                        _l.authFirstTimeUsingApp,
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -723,15 +779,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         extra: {'contexto': widget.contexto},
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: kText2,
-                        side: BorderSide(color: kBorder),
+                        foregroundColor: context.c.onSurfaceVariant,
+                        side: BorderSide(color: context.c.outline),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Esqueci minha senha',
+                      child: Text(
+                        _l.authForgotPassword,
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
@@ -745,17 +801,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       OutlinedButton(
                         onPressed: () => context.push('/cadastrar'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kPrimary,
+                          foregroundColor: context.c.primary,
                           side: BorderSide(
-                            color: kPrimary.withValues(alpha: 0.4),
+                            color: context.c.primary.withValues(alpha: 0.4),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Criar uma academia',
+                        child: Text(
+                          _l.authCreateAcademy,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -767,6 +823,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+            Positioned(
+              top: 10,
+              right: 12,
+              child: const PreLoginAppearanceBar(),
+            ),
             if (widget.contexto != null)
               Positioned(
                 top: 4,
@@ -775,8 +836,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () => context.canPop()
                       ? context.pop()
                       : context.go('/boas-vindas'),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  tooltip: 'Voltar',
+                  icon: Icon(Icons.arrow_back, color: context.c.onSurface),
+                  tooltip: _l.commonBack,
                 ),
               ),
           ],

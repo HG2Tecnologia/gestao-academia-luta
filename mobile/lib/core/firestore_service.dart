@@ -526,9 +526,9 @@ class FirestoreService {
   ) async {
     final ref = _col(academiaId, 'modalidades').doc();
     await ref.set({
+      'ativo': true,
       ...data,
       'id': ref.id,
-      'ativo': true,
       'criado_em': FieldValue.serverTimestamp(),
     });
     return ref.id;
@@ -539,6 +539,16 @@ class FirestoreService {
     final atual = (doc.data() as Map?)?['ativo'] as bool? ?? true;
     await _doc(academiaId, 'modalidades', id).update({'ativo': !atual});
   }
+
+  Future<void> updateModalidade(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'modalidades',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
   Future<void> deleteModalidade(String academiaId, String id) =>
       _doc(academiaId, 'modalidades', id).delete();
@@ -751,6 +761,27 @@ class FirestoreService {
 
   Future<void> deleteMatricula(String academiaId, String id) =>
       _doc(academiaId, 'matriculas', id).delete();
+
+  Future<void> updateMatricula(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(academiaId, 'matriculas', id).update(data);
+
+  /// Persiste a ordem manual dos alunos de uma turma gravando o índice
+  /// `ordem` em cada matrícula, na sequência informada.
+  Future<void> salvarOrdemMatriculas(
+    String academiaId,
+    List<String> matriculaIdsOrdenados,
+  ) async {
+    final batch = _db.batch();
+    for (var i = 0; i < matriculaIdsOrdenados.length; i++) {
+      batch.update(_doc(academiaId, 'matriculas', matriculaIdsOrdenados[i]), {
+        'ordem': i,
+      });
+    }
+    await batch.commit();
+  }
 
   // ─── PRESENÇAS ─────────────────────────────────────────────────────────────
 

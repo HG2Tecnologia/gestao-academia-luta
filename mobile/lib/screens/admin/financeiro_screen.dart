@@ -5,7 +5,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
@@ -19,6 +20,34 @@ class AdminFinanceiroScreen extends StatefulWidget {
 }
 
 class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
+  AppLocalizations get _l => context.l10n;
+
+  String _mesCurto(int m) {
+    final loc = Localizations.localeOf(context).languageCode;
+    return toBeginningOfSentenceCase(
+          DateFormat.MMM(loc).format(DateTime(2020, m)),
+        ) ??
+        '';
+  }
+
+  String _statusLabel(String? st) {
+    switch (st) {
+      case 'Pago':
+        return _l.fiStPaid;
+      case 'Atrasado':
+        return _l.fiStOverdue;
+      case 'Previsto':
+        return _l.fiStForecast;
+      case 'Desconsiderado':
+        return _l.fiStDismissed;
+      default:
+        return _l.fiStPending;
+    }
+  }
+
+  String _tipoLabel(String? t) =>
+      t == 'Taxa de Matrícula' ? _l.fiTypeEnrollment : _l.fiTypeMonthly;
+
   Map<String, dynamic>? _resumo;
   List<Map<String, dynamic>> _cobrancas = [];
   bool _loading = true;
@@ -36,20 +65,6 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   int _taxaAtrasoTipo = 0;
   double _taxaAtrasoValor = 0.0;
 
-  static const _meses = [
-    'Jan',
-    'Fev',
-    'Mar',
-    'Abr',
-    'Mai',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Set',
-    'Out',
-    'Nov',
-    'Dez',
-  ];
   static const _statusMap = {
     0: 'Pendente',
     1: 'Pago',
@@ -88,8 +103,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Garantia server-side: nunca gera mensalidade só no cliente. Falha
       // de rede/permite aqui não trava a tela — só mostra o que já existe.
-      final periodo =
-          '$_ano-${_mes.toString().padLeft(2, '0')}';
+      final periodo = '$_ano-${_mes.toString().padLeft(2, '0')}';
       try {
         await FinanceService.ensureChargesForPeriod(
           academiaId: _academiaId!,
@@ -127,6 +141,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Compute resumo client-side (exclude desconsiderado)
       double recebido = 0, pendente = 0, atrasado = 0;
+      int recebidoQtd = 0, pendenteQtd = 0, atrasadoQtd = 0;
       final Set<String> inadimplentesSet = {};
 
       for (final p in todos) {
@@ -145,14 +160,19 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         } catch (_) {}
 
         if (statusStr == 'Pago') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
             recebido += valor;
+            recebidoQtd++;
+          }
         } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes)
+          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
             pendente += valor;
+            pendenteQtd++;
+          }
           if (vencDt != null &&
               DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
             atrasado += valor;
+            atrasadoQtd++;
             final alunoId = p['aluno_id']?.toString() ?? '';
             if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
           }
@@ -199,6 +219,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             'totalPendenteMes': pendente,
             'totalAtrasado': atrasado,
             'alunosInadimplentes': inadimplentesSet.length,
+            'qtdRecebido': recebidoQtd,
+            'qtdPendente': pendenteQtd,
+            'qtdAtrasado': atrasadoQtd,
           };
           _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
         });
@@ -253,11 +276,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   String _fmtInt(num v) => 'R\$ ${_brlInt.format(v)}';
 
   Color _statusCor(String? s) {
-    if (s == 'Pago') return kSuccess;
-    if (s == 'Pendente') return kWarning;
-    if (s == 'Previsto') return kText2;
-    if (s == 'Desconsiderado') return kText2;
-    return kDanger; // Atrasado
+    if (s == 'Pago') return context.sem.success;
+    if (s == 'Pendente') return context.sem.warning;
+    if (s == 'Previsto') return context.c.onSurfaceVariant;
+    if (s == 'Desconsiderado') return context.c.onSurfaceVariant;
+    return context.sem.danger; // Atrasado
   }
 
   Future<void> _criarCobrancaAvulsa() async {
@@ -277,7 +300,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -298,7 +321,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: kBorder,
+                  color: context.c.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -306,14 +329,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 children: [
                   Icon(
                     Icons.add_circle_outline_rounded,
-                    color: kPrimary,
+                    color: context.c.primary,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Nova cobrança',
+                    _l.fiNewCharge,
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -322,9 +345,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Aluno',
+                _l.sdTitleFallback,
                 style: TextStyle(
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -336,27 +359,36 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: kBg,
+                  color: context.c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: DropdownButton<String>(
                   value: alunoId,
                   isExpanded: true,
-                  dropdownColor: kSurface,
+                  dropdownColor: context.c.surfaceContainer,
                   underline: const SizedBox(),
                   hint: Text(
-                    'Selecione o aluno',
-                    style: TextStyle(color: kText2, fontSize: 13),
+                    _l.fiSelectStudent,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
-                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
+                  icon: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: context.c.onSurfaceVariant,
+                  ),
                   items: alunos
                       .map(
                         (a) => DropdownMenuItem<String>(
                           value: a['id']?.toString(),
                           child: Text(
                             a['nome']?.toString() ?? '',
-                            style: TextStyle(color: kText1, fontSize: 13),
+                            style: TextStyle(
+                              color: context.c.onSurface,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       )
@@ -366,9 +398,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Tipo',
+                _l.fiType,
                 style: TextStyle(
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -380,18 +412,21 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: kBg,
+                  color: context.c.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: context.c.outline),
                 ),
                 child: DropdownButton<int>(
                   value: tipo,
                   isExpanded: true,
-                  dropdownColor: kSurface,
+                  dropdownColor: context.c.surfaceContainer,
                   underline: const SizedBox(),
-                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: kText2),
-                  items: const [
-                    DropdownMenuItem(value: 1, child: Text('Mensalidade')),
+                  icon: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: context.c.onSurfaceVariant,
+                  ),
+                  items: [
+                    DropdownMenuItem(value: 1, child: Text(_l.fiTypeMonthly)),
                     DropdownMenuItem(
                       value: 2,
                       child: Text('Taxa de Matrícula'),
@@ -402,9 +437,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Valor (R\$)',
+                _l.caAmountHint,
                 style: TextStyle(
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -415,35 +450,35 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                style: TextStyle(color: kText1, fontSize: 15),
+                style: TextStyle(color: context.c.onSurface, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: '0,00',
-                  hintStyle: TextStyle(color: kText2),
+                  hintStyle: TextStyle(color: context.c.onSurfaceVariant),
                   filled: true,
-                  fillColor: kBg,
+                  fillColor: context.c.surface,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: kBorder),
+                    borderSide: BorderSide(color: context.c.outline),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: kBorder),
+                    borderSide: BorderSide(color: context.c.outline),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: kPrimary),
+                    borderSide: BorderSide(color: context.c.primary),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                'Vencimento',
+                _l.sdDueDate,
                 style: TextStyle(
-                  color: kText2,
+                  color: context.c.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -462,9 +497,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     builder: (c, child) => Theme(
                       data: Theme.of(c).copyWith(
                         colorScheme: ColorScheme.dark(
-                          primary: kPrimary,
-                          surface: kSurface,
-                          onSurface: kText1,
+                          primary: context.c.primary,
+                          surface: context.c.surfaceContainer,
+                          onSurface: context.c.onSurface,
                         ),
                       ),
                       child: child!,
@@ -478,21 +513,24 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: context.c.surface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: kBorder),
+                    border: Border.all(color: context.c.outline),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.calendar_today_rounded,
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         size: 16,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${vencimento.day.toString().padLeft(2, '0')}/${vencimento.month.toString().padLeft(2, '0')}/${vencimento.year}',
-                        style: TextStyle(color: kText1, fontSize: 14),
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -504,30 +542,33 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     ? null
                     : () => Navigator.of(ctx).pop(true),
                 style: FilledButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor: context.c.primary,
                   minimumSize: const Size.fromHeight(50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  disabledBackgroundColor: kPrimary.withOpacity(0.3),
+                  disabledBackgroundColor: context.c.primary.withOpacity(0.3),
                 ),
-                child: const Text(
-                  'Gerar cobrança',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                child: Text(
+                  _l.fiGenerateCharge,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: kText2,
-                  side: BorderSide(color: kBorder),
+                  foregroundColor: context.c.onSurfaceVariant,
+                  side: BorderSide(color: context.c.outline),
                   minimumSize: const Size.fromHeight(44),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Cancelar'),
+                child: Text(_l.commonCancel),
               ),
             ],
           ),
@@ -541,8 +582,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (valor <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Informe um valor válido.'),
-          backgroundColor: kDanger,
+          content: Text(_l.commonEnterValidValue),
+          backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -557,6 +598,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     final nomeAluno = alunoSel['nome']?.toString() ?? '';
     final tipoStr = tipo == 1 ? 'Mensalidade' : 'Taxa de Matrícula';
+    final tipoLabelStr = tipo == 1 ? _l.fiTypeMonthly : _l.fiTypeEnrollment;
     try {
       await firestoreService.addPagamento(_academiaId!, {
         'aluno_id': alunoId,
@@ -571,7 +613,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         final tel = alunoSel['telefone']?.toString() ?? '';
         showModalBottomSheet(
           context: context,
-          backgroundColor: kSurface,
+          backgroundColor: context.c.surfaceContainer,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
@@ -586,7 +628,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     height: 4,
                     margin: const EdgeInsets.only(top: 12, bottom: 16),
                     decoration: BoxDecoration(
-                      color: kBorder,
+                      color: context.c.outline,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -595,28 +637,31 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: kSuccess.withOpacity(0.15),
+                    color: context.sem.success.withOpacity(0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.check_circle_rounded,
-                    color: kSuccess,
+                    color: context.sem.success,
                     size: 28,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Cobrança criada!',
+                  _l.fiChargeCreated,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$nomeAluno · $tipoStr · ${_fmtVal(valor)}',
-                  style: TextStyle(color: kText2, fontSize: 13),
+                  '$nomeAluno · $tipoLabelStr · ${_fmtVal(valor)}',
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
@@ -627,8 +672,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       _abrirWhatsApp(tel, nomeAluno);
                     },
                     icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 18),
-                    label: const Text(
-                      'Cobrar via WhatsApp',
+                    label: Text(
+                      _l.fiChargeViaWhatsapp,
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     style: FilledButton.styleFrom(
@@ -645,14 +690,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 OutlinedButton(
                   onPressed: () => Navigator.of(c).pop(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: kText2,
-                    side: BorderSide(color: kBorder),
+                    foregroundColor: context.c.onSurfaceVariant,
+                    side: BorderSide(color: context.c.outline),
                     minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Fechar'),
+                  child: Text(_l.commonClose),
                 ),
               ],
             ),
@@ -663,8 +708,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao criar cobrança.'),
-            backgroundColor: kDanger,
+            content: Text(_l.fiCreateError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -676,7 +721,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final digits = telefone.replaceAll(RegExp(r'\D'), '');
     if (digits.length < 10) return;
     final ddi = digits.startsWith('55') ? digits : '55$digits';
-    final msg = Uri.encodeComponent('Olá $nome, ');
+    final msg = Uri.encodeComponent(_l.fiWhatsappGreeting(nome));
     final url = Uri.parse('https://wa.me/$ddi?text=$msg');
     launchUrl(url, mode: LaunchMode.externalApplication);
   }
@@ -701,8 +746,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao carregar dados.'),
-            backgroundColor: kDanger,
+            content: Text(_l.fiLoadError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -791,18 +836,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final filtroOpcoes = [
       {
         'key': 'gerar',
-        'label': 'Sem cobrança este mês',
+        'label': _l.fiOptNoChargeMonth,
         'icon': Icons.add_circle_outline_rounded,
       },
-      {'key': 'atrasados', 'label': 'Atrasados', 'icon': Icons.warning_rounded},
+      {
+        'key': 'atrasados',
+        'label': _l.fiTabOverdue,
+        'icon': Icons.warning_rounded,
+      },
       {
         'key': 'pendentes',
-        'label': 'Pendentes',
+        'label': _l.fiTabPending,
         'icon': Icons.schedule_rounded,
       },
       {
         'key': 'proximo',
-        'label': 'Venc. em até 7 dias',
+        'label': _l.fiOptDueWithin7,
         'icon': Icons.event_rounded,
       },
     ];
@@ -810,7 +859,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -824,7 +873,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: kBorder,
+                color: context.c.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -848,14 +897,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     children: [
                       Icon(
                         Icons.receipt_long_rounded,
-                        color: kPrimary,
+                        color: context.c.primary,
                         size: 22,
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Gerar cobranças',
+                        _l.fiGenerateCharges,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -864,14 +913,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Escolha quem deve ser cobrado:',
-                    style: TextStyle(color: kText2, fontSize: 13),
+                    _l.fiChooseWhoToCharge,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _modeCard(
                     icon: Icons.group_rounded,
-                    title: 'Por turma',
-                    subtitle: 'Cobrar alunos de uma turma específica',
+                    title: _l.fiByClass,
+                    subtitle: _l.fiByClassHint,
                     onTap: () => setModal(() {
                       mode = 'turma';
                       step = 1;
@@ -880,8 +932,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   const SizedBox(height: 10),
                   _modeCard(
                     icon: Icons.groups_rounded,
-                    title: 'Todos os ativos',
-                    subtitle: 'Cobrar todos os alunos ativos da academia',
+                    title: _l.fiAllActive,
+                    subtitle: _l.fiAllActiveHint,
                     onTap: () => setModal(() {
                       mode = 'todos';
                       step = 1;
@@ -891,14 +943,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   OutlinedButton(
                     onPressed: () => Navigator.of(ctx).pop(),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kText2,
-                      side: BorderSide(color: kBorder),
+                      foregroundColor: context.c.onSurfaceVariant,
+                      side: BorderSide(color: context.c.outline),
                       minimumSize: const Size.fromHeight(44),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Cancelar'),
+                    child: Text(_l.commonCancel),
                   ),
                 ],
               ),
@@ -925,15 +977,15 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         onTap: () => setModal(() => step = 0),
                         child: Icon(
                           Icons.arrow_back_rounded,
-                          color: kText1,
+                          color: context.c.onSurface,
                           size: 20,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        mode == 'turma' ? 'Por turma' : 'Todos os ativos',
+                        mode == 'turma' ? _l.fiByClass : _l.fiAllActive,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -945,7 +997,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     Text(
                       'Turma',
                       style: TextStyle(
-                        color: kText2,
+                        color: context.c.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -957,22 +1009,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: kBg,
+                        color: context.c.surface,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: kBorder),
+                        border: Border.all(color: context.c.outline),
                       ),
                       child: DropdownButton<String>(
                         value: turmaId,
                         isExpanded: true,
-                        dropdownColor: kSurface,
+                        dropdownColor: context.c.surfaceContainer,
                         underline: const SizedBox(),
                         hint: Text(
-                          'Selecione a turma',
-                          style: TextStyle(color: kText2, fontSize: 13),
+                          _l.fiSelectClass,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
                         ),
                         icon: Icon(
                           Icons.keyboard_arrow_down_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                         ),
                         items: turmasList
                             .map(
@@ -980,7 +1035,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 value: t['id']?.toString(),
                                 child: Text(
                                   t['nome']?.toString() ?? '',
-                                  style: TextStyle(color: kText1, fontSize: 13),
+                                  style: TextStyle(
+                                    color: context.c.onSurface,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             )
@@ -991,9 +1049,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     const SizedBox(height: 16),
                   ],
                   Text(
-                    'Filtrar por situação',
+                    _l.fiFilterBySituation,
                     style: TextStyle(
-                      color: kText2,
+                      color: context.c.onSurfaceVariant,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1013,9 +1071,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: sel ? kPrimary : kBg,
+                            color: sel ? context.c.primary : context.c.surface,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: sel ? kPrimary : kBorder),
+                            border: Border.all(
+                              color: sel
+                                  ? context.c.primary
+                                  : context.c.outline,
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -1023,13 +1085,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               Icon(
                                 f['icon'] as IconData,
                                 size: 13,
-                                color: sel ? Colors.white : kText2,
+                                color: sel
+                                    ? Colors.white
+                                    : context.c.onSurfaceVariant,
                               ),
                               const SizedBox(width: 5),
                               Text(
                                 f['label'] as String,
                                 style: TextStyle(
-                                  color: sel ? Colors.white : kText2,
+                                  color: sel
+                                      ? Colors.white
+                                      : context.c.onSurfaceVariant,
                                   fontSize: 12,
                                   fontWeight: sel
                                       ? FontWeight.w700
@@ -1081,12 +1147,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             });
                           },
                     style: FilledButton.styleFrom(
-                      backgroundColor: kPrimary,
+                      backgroundColor: context.c.primary,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      disabledBackgroundColor: kPrimary.withOpacity(0.3),
+                      disabledBackgroundColor: context.c.primary.withOpacity(
+                        0.3,
+                      ),
                     ),
                     child: stepLoading
                         ? const SizedBox(
@@ -1097,8 +1165,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Ver alunos afetados',
+                        : Text(
+                            _l.fiSeeAffected,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
@@ -1109,14 +1177,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   OutlinedButton(
                     onPressed: () => setModal(() => step = 0),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kText2,
-                      side: BorderSide(color: kBorder),
+                      foregroundColor: context.c.onSurfaceVariant,
+                      side: BorderSide(color: context.c.outline),
                       minimumSize: const Size.fromHeight(44),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Voltar'),
+                    child: Text(_l.commonBack),
                   ),
                 ],
               ),
@@ -1127,8 +1195,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           if (step == 2) {
             final count = previewAlunos.length;
             final actionLabel = isGerar
-                ? 'Gerar $count cobrança${count != 1 ? 's' : ''}'
-                : 'Cobrar via WhatsApp ($count)';
+                ? _l.fiGenerateNCharges(count)
+                : _l.fiChargeViaWhatsappN(count);
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1142,15 +1210,15 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         onTap: () => setModal(() => step = 1),
                         child: Icon(
                           Icons.arrow_back_rounded,
-                          color: kText1,
+                          color: context.c.onSurface,
                           size: 20,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        '$count aluno${count != 1 ? 's' : ''} afetado${count != 1 ? 's' : ''}',
+                        _l.fiAffectedStudents(count),
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1166,13 +1234,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       children: [
                         Icon(
                           Icons.check_circle_rounded,
-                          color: kSuccess,
+                          color: context.sem.success,
                           size: 48,
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Nenhum aluno corresponde a este filtro.',
-                          style: TextStyle(color: kText2, fontSize: 14),
+                          _l.fiNoStudentsForFilter,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -1198,11 +1269,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 14,
-                                backgroundColor: kPrimary.withOpacity(0.15),
+                                backgroundColor: context.c.primary.withOpacity(
+                                  0.15,
+                                ),
                                 child: Text(
                                   nome.isNotEmpty ? nome[0].toUpperCase() : '?',
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1216,7 +1289,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     Text(
                                       nome,
                                       style: TextStyle(
-                                        color: kText1,
+                                        color: context.c.onSurface,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1288,10 +1361,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                         context,
                                       ).showSnackBar(
                                         SnackBar(
-                                          content: const Text(
-                                            'Erro ao processar cobranças.',
-                                          ),
-                                          backgroundColor: kDanger,
+                                          content: Text(_l.fiProcessError),
+                                          backgroundColor: context.sem.danger,
                                           behavior: SnackBarBehavior.floating,
                                         ),
                                       );
@@ -1299,7 +1370,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 },
                           style: FilledButton.styleFrom(
                             backgroundColor: isGerar
-                                ? kPrimary
+                                ? context.c.primary
                                 : const Color(0xFF25D366),
                             minimumSize: const Size.fromHeight(50),
                             shape: RoundedRectangleBorder(
@@ -1330,14 +1401,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                           stepLoading = false;
                         }),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kText2,
-                          side: BorderSide(color: kBorder),
+                          foregroundColor: context.c.onSurfaceVariant,
+                          side: BorderSide(color: context.c.outline),
                           minimumSize: const Size.fromHeight(44),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Voltar'),
+                        child: Text(_l.commonBack),
                       ),
                     ],
                   ),
@@ -1366,14 +1437,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
-                          color: (isGerar ? kSuccess : const Color(0xFF25D366))
-                              .withOpacity(0.15),
+                          color:
+                              (isGerar
+                                      ? context.sem.success
+                                      : const Color(0xFF25D366))
+                                  .withOpacity(0.15),
                           shape: BoxShape.circle,
                         ),
                         child: isGerar
                             ? Icon(
                                 Icons.check_circle_rounded,
-                                color: kSuccess,
+                                color: context.sem.success,
                                 size: 32,
                               )
                             : const FaIcon(
@@ -1385,10 +1459,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       const SizedBox(height: 12),
                       Text(
                         isGerar
-                            ? '${successAlunos.length} cobrança${successAlunos.length != 1 ? 's' : ''} gerada${successAlunos.length != 1 ? 's' : ''}!'
-                            : 'Pronto para cobrar via WhatsApp!',
+                            ? _l.fiNChargesGenerated(successAlunos.length)
+                            : _l.fiReadyForWhatsapp,
                         style: TextStyle(
-                          color: kText1,
+                          color: context.c.onSurface,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1396,8 +1470,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Toque em cada aluno para abrir o WhatsApp com uma mensagem pronta.',
-                        style: TextStyle(color: kText2, fontSize: 12),
+                        _l.fiTapEachStudent,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1420,23 +1497,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         decoration: BoxDecoration(
                           color: hasTel
                               ? const Color(0xFF25D366).withOpacity(0.08)
-                              : kBg,
+                              : context.c.surface,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: hasTel
                                 ? const Color(0xFF25D366).withOpacity(0.3)
-                                : kBorder,
+                                : context.c.outline,
                           ),
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 14,
-                              backgroundColor: kPrimary.withOpacity(0.15),
+                              backgroundColor: context.c.primary.withOpacity(
+                                0.15,
+                              ),
                               child: Text(
                                 nome.isNotEmpty ? nome[0].toUpperCase() : '?',
                                 style: TextStyle(
-                                  color: kPrimary,
+                                  color: context.c.primary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -1447,7 +1526,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               child: Text(
                                 nome,
                                 style: TextStyle(
-                                  color: kText1,
+                                  color: context.c.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1461,8 +1540,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               )
                             else
                               Text(
-                                'Sem telefone',
-                                style: TextStyle(color: kText2, fontSize: 11),
+                                _l.fiNoPhone,
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
                               ),
                           ],
                         ),
@@ -1474,15 +1556,18 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 FilledButton(
                   onPressed: () => Navigator.of(ctx).pop(),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kPrimary,
+                    backgroundColor: context.c.primary,
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Fechar',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  child: Text(
+                    _l.commonClose,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ],
@@ -1499,7 +1584,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final result = await showModalBottomSheet<Map<String, dynamic>?>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kSurface,
+      backgroundColor: context.c.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1524,14 +1609,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: kBorder,
+                    color: context.c.outline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 Text(
-                  'Marcar como pago',
+                  _l.fiMarkPaid,
                   style: TextStyle(
-                    color: kText1,
+                    color: context.c.onSurface,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1539,7 +1624,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '${c['nomeAluno']} · ${c['tipo']}',
-                  style: TextStyle(color: kText2, fontSize: 13),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1548,13 +1636,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Valor base',
-                          style: TextStyle(color: kText2, fontSize: 11),
+                          _l.fiBaseValue,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
                         ),
                         Text(
                           _fmtVal(valorBase),
                           style: TextStyle(
-                            color: kText1,
+                            color: context.c.onSurface,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1567,13 +1658,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'A receber',
-                            style: TextStyle(color: kText2, fontSize: 11),
+                            _l.fiToReceive,
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 11,
+                            ),
                           ),
                           Text(
                             _fmtVal(valorPago),
                             style: TextStyle(
-                              color: kSuccess,
+                              color: context.sem.success,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1589,30 +1683,33 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  style: TextStyle(color: kText1),
+                  style: TextStyle(color: context.c.onSurface),
                   onChanged: (_) => setM(() {}),
                   decoration: InputDecoration(
-                    hintText: 'Desconto (opcional)',
-                    hintStyle: TextStyle(color: kText2, fontSize: 14),
+                    hintText: _l.fiDiscountOptional,
+                    hintStyle: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
                     prefixText: 'R\$ ',
-                    prefixStyle: TextStyle(color: kText2),
+                    prefixStyle: TextStyle(color: context.c.onSurfaceVariant),
                     filled: true,
-                    fillColor: kBg,
+                    fillColor: context.c.surface,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kBorder),
+                      borderSide: BorderSide(color: context.c.outline),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kBorder),
+                      borderSide: BorderSide(color: context.c.outline),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: kPrimary),
+                      borderSide: BorderSide(color: context.c.primary),
                     ),
                   ),
                 ),
@@ -1622,14 +1719,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     ctx,
                   ).pop({'desconto': desconto, 'valorPago': valorPago}),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kSuccess,
+                    backgroundColor: context.sem.success,
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Confirmar pagamento',
+                  child: Text(
+                    _l.fiConfirmPayment,
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ),
@@ -1637,14 +1734,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 OutlinedButton(
                   onPressed: () => Navigator.of(ctx).pop(null),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: kText2,
-                    side: BorderSide(color: kBorder),
+                    foregroundColor: context.c.onSurfaceVariant,
+                    side: BorderSide(color: context.c.outline),
                     minimumSize: const Size.fromHeight(44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Cancelar'),
+                  child: Text(_l.commonCancel),
                 ),
               ],
             ),
@@ -1669,8 +1766,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${c['nomeAluno']} marcado como pago!'),
-            backgroundColor: kSuccess,
+            content: Text(_l.fiMarkedPaid(c['nomeAluno']?.toString() ?? '')),
+            backgroundColor: context.sem.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1680,8 +1777,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Erro ao atualizar pagamento.'),
-            backgroundColor: kDanger,
+            content: Text(_l.fiUpdateError),
+            backgroundColor: context.sem.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1693,29 +1790,39 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
-              'Estornar pagamento?',
+              _l.fiRefundTitle,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
             content: Text(
-              'Isso vai marcar o pagamento de ${c['nomeAluno']} como pendente novamente.',
-              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+              _l.fiRefundBody(c['nomeAluno']?.toString() ?? ''),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Estornar',
-                  style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+                  _l.fiRefundShort,
+                  style: TextStyle(
+                    color: context.sem.danger,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1733,8 +1840,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Pagamento estornado.'),
-            backgroundColor: kWarning,
+            content: Text(_l.fiRefundDone),
+            backgroundColor: context.sem.warning,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1748,30 +1855,37 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: kSurface,
+            backgroundColor: context.c.surfaceContainer,
             title: Text(
-              'Desconsiderar cobrança?',
+              _l.fiDismissTitle,
               style: TextStyle(
-                color: kText1,
+                color: context.c.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
             content: Text(
-              'A cobrança de ${c['nomeAluno']} não será mais cobrada e sai dos totais do financeiro. Você pode restaurá-la depois.',
-              style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+              _l.fiDismissBody(c['nomeAluno']?.toString() ?? ''),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancelar', style: TextStyle(color: kText2)),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
-                  'Desconsiderar',
+                  _l.fiDismiss,
                   style: TextStyle(
-                    color: kWarning,
+                    color: context.sem.warning,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1808,29 +1922,35 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surfaceContainer,
         title: Text(
-          'Excluir cobrança',
+          _l.fiDeleteCharge,
           style: TextStyle(
-            color: kText1,
+            color: context.c.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
         content: Text(
-          'Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.',
-          style: TextStyle(color: kText2, fontSize: 14),
+          _l.fiDeleteChargeBody,
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: TextStyle(color: kText2)),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Excluir',
-              style: TextStyle(color: kDanger, fontWeight: FontWeight.w700),
+              _l.commonDelete,
+              style: TextStyle(
+                color: context.sem.danger,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1850,15 +1970,15 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final r = _resumo;
     final isAtual = DateTime.now().year == _ano && DateTime.now().month == _mes;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       floatingActionButton: FloatingActionButton(
         onPressed: _criarCobrancaAvulsa,
-        backgroundColor: kPrimary,
+        backgroundColor: context.c.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: SafeArea(
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -1877,9 +1997,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         Row(
                           children: [
                             Text(
-                              'Financeiro',
+                              _l.navBilling,
                               style: TextStyle(
-                                color: kText1,
+                                color: context.c.onSurface,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1889,7 +2009,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               onTap: openAppDrawer,
                               child: Icon(
                                 Icons.menu_rounded,
-                                color: kText1,
+                                color: context.c.onSurface,
                                 size: 26,
                               ),
                             ),
@@ -1909,23 +2029,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     vertical: 7,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: kSurface,
+                                    color: context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: kBorder),
+                                    border: Border.all(
+                                      color: context.c.outline,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.bar_chart_rounded,
-                                        color: kText2,
+                                        color: context.c.onSurfaceVariant,
                                         size: 14,
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
-                                        'Relatório',
+                                        _l.fiReportTab,
                                         style: TextStyle(
-                                          color: kText2,
+                                          color: context.c.onSurfaceVariant,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -1944,23 +2066,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     vertical: 7,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: kSurface,
+                                    color: context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: kBorder),
+                                    border: Border.all(
+                                      color: context.c.outline,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.receipt_rounded,
-                                        color: kText2,
+                                        color: context.c.onSurfaceVariant,
                                         size: 14,
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
-                                        'Contas',
+                                        _l.fiBillsShort,
                                         style: TextStyle(
-                                          color: kText2,
+                                          color: context.c.onSurfaceVariant,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -1975,18 +2099,19 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 icon: Icon(
                                   Icons.receipt_long_rounded,
                                   size: 16,
-                                  color: kPrimary,
+                                  color: context.c.primary,
                                 ),
                                 label: Text(
-                                  'Gerar cobranças',
+                                  _l.fiGenerateCharges,
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 style: TextButton.styleFrom(
-                                  backgroundColor: kPrimary.withOpacity(0.10),
+                                  backgroundColor: context.c.primary
+                                      .withOpacity(0.10),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
@@ -2012,34 +2137,37 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: kSurface,
+                        color: context.c.surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
+                        border: Border.all(color: context.c.outline),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
                             onPressed: () => _navMes(-1),
-                            icon: Icon(Icons.chevron_left, color: kText1),
+                            icon: Icon(
+                              Icons.chevron_left,
+                              color: context.c.onSurface,
+                            ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
                           Column(
                             children: [
                               Text(
-                                '${_meses[_mes - 1]} $_ano',
+                                '${_mesCurto(_mes)} $_ano',
                                 style: TextStyle(
-                                  color: kText1,
+                                  color: context.c.onSurface,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                               if (isAtual)
                                 Text(
-                                  'Mês atual',
+                                  _l.fiCurrentMonth,
                                   style: TextStyle(
-                                    color: kPrimary,
+                                    color: context.c.primary,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -2052,7 +2180,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             onPressed: () => _navMes(1),
                             icon: Icon(
                               Icons.chevron_right,
-                              color: kText1,
+                              color: context.c.onSurface,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -2069,27 +2197,34 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 1.6,
+                      childAspectRatio: 1.55,
                       children: [
                         _met(
-                          'Recebido',
-                          _fmtInt((r['totalRecebidoMes'] as num?) ?? 0),
-                          kSuccess,
+                          label: _l.raReceived,
+                          value: _fmtInt((r['totalRecebidoMes'] as num?) ?? 0),
+                          color: context.sem.success,
+                          icon: Icons.attach_money_rounded,
+                          sub: _labelCobrancas((r['qtdRecebido'] as int?) ?? 0),
                         ),
                         _met(
-                          'Pendente',
-                          _fmtInt((r['totalPendenteMes'] as num?) ?? 0),
-                          kWarning,
+                          label: _l.fiStPending,
+                          value: _fmtInt((r['totalPendenteMes'] as num?) ?? 0),
+                          color: context.sem.warning,
+                          icon: Icons.schedule_rounded,
+                          sub: _labelCobrancas((r['qtdPendente'] as int?) ?? 0),
                         ),
                         _met(
-                          'Atrasado',
-                          _fmtInt((r['totalAtrasado'] as num?) ?? 0),
-                          kDanger,
+                          label: _l.fiStOverdue,
+                          value: _fmtInt((r['totalAtrasado'] as num?) ?? 0),
+                          color: context.sem.danger,
+                          icon: Icons.warning_amber_rounded,
+                          sub: _labelCobrancas((r['qtdAtrasado'] as int?) ?? 0),
                         ),
                         _met(
-                          'Inadimplentes',
-                          '${r['alunosInadimplentes'] ?? 0}',
-                          kDanger,
+                          label: _l.raOverdue,
+                          value: '${r['alunosInadimplentes'] ?? 0}',
+                          color: context.c.onSurface,
+                          icon: Icons.groups_rounded,
                         ),
                       ],
                     ),
@@ -2100,21 +2235,27 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: TextField(
                       controller: _buscaCtrl,
-                      style: TextStyle(color: kText1, fontSize: 14),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 14,
+                      ),
                       onChanged: (v) => setState(() => _busca = v),
                       decoration: InputDecoration(
-                        hintText: 'Buscar aluno...',
-                        hintStyle: TextStyle(color: kText2, fontSize: 14),
+                        hintText: _l.studentsSearchHint,
+                        hintStyle: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
-                          color: kText2,
+                          color: context.c.onSurfaceVariant,
                           size: 20,
                         ),
                         suffixIcon: _busca.isNotEmpty
                             ? IconButton(
                                 icon: Icon(
                                   Icons.close_rounded,
-                                  color: kText2,
+                                  color: context.c.onSurfaceVariant,
                                   size: 18,
                                 ),
                                 onPressed: () {
@@ -2124,22 +2265,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               )
                             : null,
                         filled: true,
-                        fillColor: kSurface,
+                        fillColor: context.c.surfaceContainer,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 12,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kBorder),
+                          borderSide: BorderSide(color: context.c.outline),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: kPrimary),
+                          borderSide: BorderSide(color: context.c.primary),
                         ),
                       ),
                     ),
@@ -2154,11 +2295,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       child: Row(
                         children: [
                           for (final tab in [
-                            ('todos', 'Todos'),
-                            ('pendente', 'Pendentes'),
-                            ('atrasado', 'Atrasados'),
-                            ('pago', 'Pagos'),
-                            ('desconsiderado', 'Desconsiderados'),
+                            ('todos', _l.fiTabAll),
+                            ('pendente', _l.fiTabPending),
+                            ('atrasado', _l.fiTabOverdue),
+                            ('pago', _l.fiTabPaid),
+                            ('desconsiderado', _l.fiTabDismissed),
                           ])
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
@@ -2172,13 +2313,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _tabFiltro == tab.$1
-                                        ? kPrimary
-                                        : kSurface,
+                                        ? context.c.primary
+                                        : context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
                                       color: _tabFiltro == tab.$1
-                                          ? kPrimary
-                                          : kBorder,
+                                          ? context.c.primary
+                                          : context.c.outline,
                                     ),
                                   ),
                                   child: Text(
@@ -2186,7 +2327,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     style: TextStyle(
                                       color: _tabFiltro == tab.$1
                                           ? Colors.white
-                                          : kText2,
+                                          : context.c.onSurfaceVariant,
                                       fontSize: 12,
                                       fontWeight: _tabFiltro == tab.$1
                                           ? FontWeight.w700
@@ -2209,10 +2350,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         final lista = _cobrancasFiltradas;
                         return Text(
                           lista.isEmpty
-                              ? 'Nenhuma cobrança.'
-                              : 'Cobranças · ${lista.length}',
+                              ? _l.fiNoCharges
+                              : _l.fiChargesCount(lista.length),
                           style: TextStyle(
-                            color: kText2,
+                            color: context.c.onSurfaceVariant,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2259,14 +2400,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                           child: Container(
                             margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                             decoration: BoxDecoration(
-                              color: kSurface,
+                              color: context.c.surfaceContainer,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isDesconsiderado
-                                    ? kBorder
+                                    ? context.c.outline
                                     : (!isPago
                                           ? _statusCor(status).withOpacity(0.3)
-                                          : kBorder),
+                                          : context.c.outline),
                               ),
                             ),
                             child: Column(
@@ -2285,19 +2426,22 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                             Text(
                                               c['nomeAluno'] ?? '',
                                               style: TextStyle(
-                                                color: kText1,
+                                                color: context.c.onSurface,
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             Text(
                                               [
-                                                c['tipo'],
+                                                _tipoLabel(
+                                                  c['tipo']?.toString(),
+                                                ),
                                                 if (dataStr != null)
-                                                  'Venc. $dataStr',
+                                                  _l.fiDueOn(dataStr),
                                               ].join(' · '),
                                               style: TextStyle(
-                                                color: kText2,
+                                                color:
+                                                    context.c.onSurfaceVariant,
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -2307,25 +2451,31 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                               const SizedBox(height: 6),
                                               if (taxaValor > 0)
                                                 Text(
-                                                  '+ Taxa de atraso: ${_fmtVal(taxaValor)}',
+                                                  _l.fiLateFee(
+                                                    _fmtVal(taxaValor),
+                                                  ),
                                                   style: TextStyle(
-                                                    color: kDanger,
+                                                    color: context.sem.danger,
                                                     fontSize: 11,
                                                   ),
                                                 ),
                                               if (desconto > 0)
                                                 Text(
-                                                  '- Desconto: ${_fmtVal(desconto)}',
+                                                  _l.fiDiscount(
+                                                    _fmtVal(desconto),
+                                                  ),
                                                   style: TextStyle(
-                                                    color: kSuccess,
+                                                    color: context.sem.success,
                                                     fontSize: 11,
                                                   ),
                                                 ),
                                               if (valorPago != null)
                                                 Text(
-                                                  'Recebido: ${_fmtVal(valorPago)}',
+                                                  _l.fiReceivedAmount(
+                                                    _fmtVal(valorPago),
+                                                  ),
                                                   style: TextStyle(
-                                                    color: kSuccess,
+                                                    color: context.sem.success,
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w700,
                                                   ),
@@ -2342,17 +2492,18 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                           Text(
                                             _fmtVal(valorBase),
                                             style: TextStyle(
-                                              color: kText1,
+                                              color: context.c.onSurface,
                                               fontSize: 14,
                                               fontWeight: FontWeight.w700,
                                               decoration: desconto > 0
                                                   ? TextDecoration.lineThrough
                                                   : null,
-                                              decorationColor: kText2,
+                                              decorationColor:
+                                                  context.c.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            status ?? '',
+                                            _statusLabel(status),
                                             style: TextStyle(
                                               color: _statusCor(status),
                                               fontSize: 12,
@@ -2365,10 +2516,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       PopupMenuButton<String>(
                                         icon: Icon(
                                           Icons.more_vert_rounded,
-                                          color: kText2,
+                                          color: context.c.onSurfaceVariant,
                                           size: 18,
                                         ),
-                                        color: kSurface,
+                                        color: context.c.surfaceContainer,
                                         padding: EdgeInsets.zero,
                                         itemBuilder: (_) => [
                                           if (isPago)
@@ -2379,13 +2530,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                   Icon(
                                                     Icons.undo_rounded,
                                                     size: 16,
-                                                    color: kDanger,
+                                                    color: context.sem.danger,
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Text(
-                                                    'Estornar pagamento',
+                                                    _l.fiRefund,
                                                     style: TextStyle(
-                                                      color: kText1,
+                                                      color:
+                                                          context.c.onSurface,
                                                       fontSize: 13,
                                                     ),
                                                   ),
@@ -2400,13 +2552,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                   Icon(
                                                     Icons.block_rounded,
                                                     size: 16,
-                                                    color: kWarning,
+                                                    color: context.sem.warning,
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Text(
-                                                    'Desconsiderar',
+                                                    _l.fiDismiss,
                                                     style: TextStyle(
-                                                      color: kText1,
+                                                      color:
+                                                          context.c.onSurface,
                                                       fontSize: 13,
                                                     ),
                                                   ),
@@ -2421,13 +2574,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                   Icon(
                                                     Icons.restore_rounded,
                                                     size: 16,
-                                                    color: kSuccess,
+                                                    color: context.sem.success,
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Text(
-                                                    'Restaurar cobrança',
+                                                    _l.fiRestoreCharge,
                                                     style: TextStyle(
-                                                      color: kText1,
+                                                      color:
+                                                          context.c.onSurface,
                                                       fontSize: 13,
                                                     ),
                                                   ),
@@ -2441,13 +2595,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                 Icon(
                                                   Icons.delete_outline_rounded,
                                                   size: 16,
-                                                  color: kDanger,
+                                                  color: context.sem.danger,
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Text(
-                                                  'Excluir cobrança',
+                                                  _l.fiDeleteCharge,
                                                   style: TextStyle(
-                                                    color: kDanger,
+                                                    color: context.sem.danger,
                                                     fontSize: 13,
                                                   ),
                                                 ),
@@ -2479,7 +2633,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                         vertical: 10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: kSuccess.withOpacity(0.08),
+                                        color: context.sem.success.withOpacity(
+                                          0.08,
+                                        ),
                                         borderRadius: const BorderRadius.only(
                                           bottomLeft: Radius.circular(12),
                                           bottomRight: Radius.circular(12),
@@ -2491,14 +2647,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                         children: [
                                           Icon(
                                             Icons.check_circle_outline_rounded,
-                                            color: kSuccess,
+                                            color: context.sem.success,
                                             size: 16,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            'Marcar como pago',
+                                            _l.fiMarkPaid,
                                             style: TextStyle(
-                                              color: kSuccess,
+                                              color: context.sem.success,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -2536,9 +2692,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kBg,
+          color: context.c.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
         child: Row(
           children: [
@@ -2546,10 +2702,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: kPrimary.withOpacity(0.12),
+                color: context.c.primary.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: kPrimary, size: 20),
+              child: Icon(icon, color: context.c.primary, size: 20),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -2559,46 +2715,94 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: kText1,
+                      color: context.c.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(subtitle, style: TextStyle(color: kText2, fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 14),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: context.c.onSurfaceVariant,
+              size: 14,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _met(String label, String value, Color color) => Container(
+  String _labelCobrancas(int n) => _l.raChargesCount(n);
+
+  Widget _met({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+    String? sub,
+  }) => Container(
     decoration: BoxDecoration(
-      color: kSurface,
+      color: context.c.surfaceContainer,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
+      border: Border.all(color: context.c.outline),
     ),
     padding: const EdgeInsets.all(12),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(height: 8),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(color: kText2, fontSize: 11),
-          textAlign: TextAlign.center,
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
+        if (sub != null) ...[
+          const SizedBox(height: 3),
+          Text(
+            sub,
+            style: TextStyle(
+              color: context.c.onSurfaceVariant,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     ),
   );

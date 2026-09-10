@@ -311,7 +311,7 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
       case 'Professor':
         context.go('/professor/dashboard');
       default:
-        context.go('/aluno/perfil');
+        context.go('/aluno/inicio');
     }
   }
 

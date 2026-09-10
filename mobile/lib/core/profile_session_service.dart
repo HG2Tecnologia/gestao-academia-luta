@@ -38,15 +38,24 @@ abstract class ProfileSessionService {
       }
     }
 
+    // Quando o vínculo atual não é encontrado na lista remota de perfis
+    // (ex.: aluno dependente cujo `usuarioId` não casa), NÃO sequestrar a
+    // sessão com a identidade do titular da conta (`remoto[...]`). Nesse caso
+    // preservamos o que já está salvo localmente e só atualizamos a lista de
+    // perfis. Só caímos em `remoto` quando não há sessão local (primeiro
+    // acesso).
     final id =
         selecionado?['usuarioId']?.toString() ??
+        local?.id ??
         remoto['usuarioId']?.toString() ??
         firebaseUser.uid;
     final academiaId =
         selecionado?['academiaId']?.toString() ??
+        local?.academiaId ??
         remoto['academiaId']?.toString();
     final perfil =
         selecionado?['perfil_nome']?.toString() ??
+        (selecionado == null ? local?.perfil : null) ??
         remoto['perfil']?.toString() ??
         'Aluno';
     final colecao =
@@ -64,11 +73,17 @@ abstract class ProfileSessionService {
         );
       }
     } else if (selecionado == null) {
-      final rawPermissoes = remoto['permissoes'];
-      if (rawPermissoes is Map) {
-        permissoes = rawPermissoes.map(
-          (key, value) => MapEntry(key.toString(), value == true),
-        );
+      // Sem vínculo correspondente: mantém as permissões locais se existirem;
+      // senão usa as do documento remoto (primeiro acesso).
+      if (local != null) {
+        permissoes = local.permissoes;
+      } else {
+        final rawPermissoes = remoto['permissoes'];
+        if (rawPermissoes is Map) {
+          permissoes = rawPermissoes.map(
+            (key, value) => MapEntry(key.toString(), value == true),
+          );
+        }
       }
     }
 
@@ -76,8 +91,8 @@ abstract class ProfileSessionService {
       id: id,
       nome:
           selecionado?['nome']?.toString() ??
+          (selecionado == null ? local?.nome : null) ??
           remoto['nome']?.toString() ??
-          local?.nome ??
           '',
       email: remoto['email']?.toString() ?? local?.email ?? '',
       perfil: perfil,

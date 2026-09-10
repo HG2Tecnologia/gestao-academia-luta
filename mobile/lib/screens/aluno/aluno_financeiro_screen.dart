@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
-import '../../core/drawer_helper.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/payment_request_service.dart';
 import '../../core/tab_refresh.dart';
@@ -34,7 +34,12 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   String? _alunoCpf;
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
-  static const _statusMap = {0: 'Pendente', 1: 'Pago', 2: 'Atrasado', 3: 'Previsto'};
+  static const _statusMap = {
+    0: 'Pendente',
+    1: 'Pago',
+    2: 'Atrasado',
+    3: 'Previsto',
+  };
 
   @override
   void initState() {
@@ -60,14 +65,22 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   }
 
   String _fmtTaxa() {
-    if (_taxaAtrasoTipo == 0) return '+${_taxaAtrasoValor.toStringAsFixed(1).replaceAll('.', ',')}%';
+    if (_taxaAtrasoTipo == 0)
+      return '+${_taxaAtrasoValor.toStringAsFixed(1).replaceAll('.', ',')}%';
     return '+R\$ ${_taxaAtrasoValor.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   Future<void> _load() async {
     try {
       final user = await AuthStorage.getUser();
-      if (user == null) { if (mounted) setState(() { _erro = true; _loading = false; }); return; }
+      if (user == null) {
+        if (mounted)
+          setState(() {
+            _erro = true;
+            _loading = false;
+          });
+        return;
+      }
       _academiaId = user.academiaId;
       final results = await Future.wait([
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
@@ -85,19 +98,26 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
       _alunoEmail = user.email;
       _alunoCpf = (alunoData?['cpf'] as String? ?? '').replaceAll(RegExp(r'\D'), '');
       if (_alunoCpf?.isEmpty ?? true) _alunoCpf = null;
-      if (mounted) setState(() {
-        _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
-        _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
-        _taxaAtrasoValor = (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
-      });
+      if (mounted)
+        setState(() {
+          _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
+          _taxaAtrasoTipo =
+              (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
+          _taxaAtrasoValor =
+              (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+        });
       final converted = list.map((p) {
         final statusRaw = p['status'];
-        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+        final statusInt = statusRaw is int
+            ? statusRaw
+            : int.tryParse(statusRaw.toString()) ?? 0;
         final statusStr = _statusMap[statusInt] ?? 'Pendente';
         return <String, dynamic>{
           ...p,
           'status': statusStr,
-          'dataVencimento': _fmtDate(p['data_vencimento'] ?? p['dataVencimento']),
+          'dataVencimento': _fmtDate(
+            p['data_vencimento'] ?? p['dataVencimento'],
+          ),
           'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
         };
       }).toList();
@@ -146,10 +166,25 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     } catch (_) {}
   }
 
+  String _statusLabel(String? s, AppLocalizations l) => switch (s) {
+    'Pago' => l.fiStPaid,
+    'Pendente' => l.fiStPending,
+    'Atrasado' => l.fiStOverdue,
+    'Previsto' => l.fiStForecast,
+    _ => s ?? '',
+  };
+  String _filtroLabel(String f, AppLocalizations l) => switch (f) {
+    'Todos' => l.fiTabAll,
+    'Atrasado' => l.fiTabOverdue,
+    'Pendente' => l.fiTabPending,
+    'Pago' => l.fiTabPaid,
+    _ => f,
+  };
+
   Color _statusCor(String? s) {
-    if (s == 'Pago') return kSuccess;
-    if (s == 'Pendente') return kWarning;
-    return kDanger;
+    if (s == 'Pago') return context.sem.success;
+    if (s == 'Pendente') return context.sem.warning;
+    return context.sem.danger;
   }
 
   IconData _statusIcon(String? s) {
@@ -241,8 +276,10 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     return _cobrancas.where((c) => c['status'] == _filtro).toList();
   }
 
-  int get _atrasadas => _cobrancas.where((c) => c['status'] == 'Atrasado').length;
-  int get _pendentes => _cobrancas.where((c) => c['status'] == 'Pendente').length;
+  int get _atrasadas =>
+      _cobrancas.where((c) => c['status'] == 'Atrasado').length;
+  int get _pendentes =>
+      _cobrancas.where((c) => c['status'] == 'Pendente').length;
   num get _totalPendente => _cobrancas
       .where((c) => c['status'] != 'Pago')
       .fold<num>(0, (sum, c) => sum + ((c['valor'] as num?) ?? 0));
@@ -250,158 +287,231 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(backgroundColor: kBg, body: Center(child: CircularProgressIndicator(color: kPrimary)));
+      return Scaffold(
+        backgroundColor: context.c.surface,
+        body: Center(
+          child: CircularProgressIndicator(color: context.c.primary),
+        ),
+      );
     }
     if (_erro && _cobrancas.isEmpty) {
-      return Scaffold(backgroundColor: kBg, body: SafeArea(child: ErroConexao(onRetry: () { setState(() { _loading = true; _erro = false; }); _load(); })));
+      return Scaffold(
+        backgroundColor: context.c.surface,
+        body: SafeArea(
+          child: ErroConexao(
+            onRetry: () {
+              setState(() {
+                _loading = true;
+                _erro = false;
+              });
+              _load();
+            },
+          ),
+        ),
+      );
     }
 
     final filtrados = _filtrados;
     final temPendencia = _atrasadas > 0 || _pendentes > 0;
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: SafeArea(
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-            // ── Header ────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-                child: Row(children: [
-                  GestureDetector(onTap: openAppDrawer, child: Icon(Icons.menu_rounded, color: kText1, size: 26)),
-                  const SizedBox(width: 14),
-                  Text('Financeiro', style: TextStyle(color: kText1, fontSize: 26, fontWeight: FontWeight.w900)),
-                ]),
+              // ── Header ────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  child: Text(
+                    context.l10n.navBilling,
+                    style: TextStyle(
+                      color: context.c.onSurface,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
               ),
-            ),
 
-            // ── Summary card ──────────────────────────────
-            if (_cobrancas.isNotEmpty)
+              // ── Summary card ──────────────────────────────
+              if (_cobrancas.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: temPendencia
+                              ? [
+                                  context.sem.danger.withOpacity(0.25),
+                                  context.sem.danger.withOpacity(0.08),
+                                ]
+                              : [
+                                  context.sem.success.withOpacity(0.25),
+                                  context.sem.success.withOpacity(0.08),
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: temPendencia
+                              ? context.sem.danger.withOpacity(0.4)
+                              : context.sem.success.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color:
+                                  (temPendencia
+                                          ? context.sem.danger
+                                          : context.sem.success)
+                                      .withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              temPendencia
+                                  ? Icons.account_balance_wallet_rounded
+                                  : Icons.verified_rounded,
+                              color: temPendencia
+                                  ? context.sem.danger
+                                  : context.sem.success,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  temPendencia
+                                      ? context.l10n.apOutstanding
+                                      : context.l10n.apAllPaid,
+                                  style: TextStyle(
+                                    color: temPendencia
+                                        ? context.sem.danger
+                                        : context.sem.success,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  temPendencia
+                                      ? context.l10n.apAmountToSettle(
+                                          _fmtMoeda(_totalPendente),
+                                        )
+                                      : context.l10n.apNoPendingNow,
+                                  style: TextStyle(
+                                    color: context.c.onSurfaceVariant,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (temPendencia)
+                            Column(
+                              children: [
+                                if (_atrasadas > 0)
+                                  _pillCount(
+                                    context.l10n.apOverdueCount(_atrasadas),
+                                    context.sem.danger,
+                                  ),
+                                if (_pendentes > 0) const SizedBox(height: 4),
+                                if (_pendentes > 0)
+                                  _pillCount(
+                                    context.l10n.apPendingCount(_pendentes),
+                                    context.sem.warning,
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ── Filter chips ──────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: temPendencia
-                            ? [kDanger.withOpacity(0.25), kDanger.withOpacity(0.08)]
-                            : [kSuccess.withOpacity(0.25), kSuccess.withOpacity(0.08)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: temPendencia ? kDanger.withOpacity(0.4) : kSuccess.withOpacity(0.4),
-                      ),
-                    ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: (temPendencia ? kDanger : kSuccess).withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            temPendencia ? Icons.account_balance_wallet_rounded : Icons.verified_rounded,
-                            color: temPendencia ? kDanger : kSuccess,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                temPendencia ? 'Em aberto' : 'Em dia!',
-                                style: TextStyle(
-                                  color: temPendencia ? kDanger : kSuccess,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
+                      children: _filtros.map((f) {
+                        final sel = _filtro == f;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _filtro = f),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: sel
+                                    ? context.c.primary
+                                    : context.c.surfaceContainer,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: sel
+                                      ? context.c.primary
+                                      : context.c.outline,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                temPendencia
-                                    ? '${_fmtMoeda(_totalPendente)} a regularizar'
-                                    : 'Sem pendências no momento',
-                                style: TextStyle(color: kText2, fontSize: 13),
+                              child: Text(
+                                _filtroLabel(f, context.l10n),
+                                style: TextStyle(
+                                  color: sel
+                                      ? Colors.white
+                                      : context.c.onSurfaceVariant,
+                                  fontSize: 13,
+                                  fontWeight: sel
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        if (temPendencia)
-                          Column(
-                            children: [
-                              if (_atrasadas > 0)
-                                _pillCount('$_atrasadas atrasada${_atrasadas > 1 ? 's' : ''}', kDanger),
-                              if (_pendentes > 0) const SizedBox(height: 4),
-                              if (_pendentes > 0)
-                                _pillCount('$_pendentes pendente${_pendentes > 1 ? 's' : ''}', kWarning),
-                            ],
-                          ),
-                      ],
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
               ),
 
-            // ── Filter chips ──────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _filtros.map((f) {
-                      final sel = _filtro == f;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _filtro = f),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: sel ? kPrimary : kSurface,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: sel ? kPrimary : kBorder),
-                            ),
-                            child: Text(f,
-                                style: TextStyle(
-                                  color: sel ? Colors.white : kText2,
-                                  fontSize: 13,
-                                  fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
-                                )),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+              // ── List ──────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  child: Text(
+                    context.l10n.apChargesUpper,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ── List ──────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text('COBRANÇAS',
-                    style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-              ),
-            ),
-
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
+              SliverList(
+                delegate: SliverChildBuilderDelegate((_, i) {
                   final c = filtrados[i];
                   final s = c['status'] as String?;
                   final cor = _statusCor(s);
@@ -411,9 +521,13 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: kSurface,
+                        color: context.c.surfaceContainer,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: atrasado ? kDanger.withOpacity(0.35) : kBorder),
+                        border: Border.all(
+                          color: atrasado
+                              ? context.sem.danger.withOpacity(0.35)
+                              : context.c.outline,
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -428,42 +542,94 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                                     color: cor.withOpacity(0.12),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(_statusIcon(s), color: cor, size: 20),
+                                  child: Icon(
+                                    _statusIcon(s),
+                                    color: cor,
+                                    size: 20,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(c['tipo'] ?? 'Cobrança',
-                                          style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-                                      if ((c['dataVencimento'] as String).isNotEmpty)
-                                        Text('Vencimento: ${c['dataVencimento']}',
-                                            style: TextStyle(color: kText2, fontSize: 12)),
+                                      Text(
+                                        c['tipo'] ??
+                                            context.l10n.apChargeFallback,
+                                        style: TextStyle(
+                                          color: context.c.onSurface,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if ((c['dataVencimento'] as String)
+                                          .isNotEmpty)
+                                        Text(
+                                          context.l10n.apDueDatePrefix(
+                                            c['dataVencimento'] as String,
+                                          ),
+                                          style: TextStyle(
+                                            color: context.c.onSurfaceVariant,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    if (atrasado && _taxaAtrasoAtiva && (c['valor'] as num?) != null) ...[
-                                      Text(_fmtMoeda((c['valor'] as num?)),
-                                          style: TextStyle(color: kText2, fontSize: 12, decoration: TextDecoration.lineThrough)),
-                                      Text(_fmtMoeda(_valorComTaxa(c['valor'] as num)),
-                                          style: TextStyle(color: kDanger, fontSize: 16, fontWeight: FontWeight.w800)),
+                                    if (atrasado &&
+                                        _taxaAtrasoAtiva &&
+                                        (c['valor'] as num?) != null) ...[
+                                      Text(
+                                        _fmtMoeda((c['valor'] as num?)),
+                                        style: TextStyle(
+                                          color: context.c.onSurfaceVariant,
+                                          fontSize: 12,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                      Text(
+                                        _fmtMoeda(
+                                          _valorComTaxa(c['valor'] as num),
+                                        ),
+                                        style: TextStyle(
+                                          color: context.sem.danger,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
                                     ] else
-                                      Text(_fmtMoeda(c['valor'] as num?),
-                                          style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w800)),
+                                      Text(
+                                        _fmtMoeda(c['valor'] as num?),
+                                        style: TextStyle(
+                                          color: context.c.onSurface,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
                                     Container(
                                       margin: const EdgeInsets.only(top: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: cor.withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
-                                        atrasado && _taxaAtrasoAtiva ? '${s ?? ''} ${_fmtTaxa()}' : s ?? '',
-                                        style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
+                                        atrasado && _taxaAtrasoAtiva
+                                            ? '${_statusLabel(s, context.l10n)} ${_fmtTaxa()}'
+                                            : _statusLabel(s, context.l10n),
+                                        style: TextStyle(
+                                          color: cor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -493,9 +659,12 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                             )
                           else if (atrasado)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
-                                color: kDanger.withOpacity(0.08),
+                                color: context.sem.danger.withOpacity(0.08),
                                 borderRadius: const BorderRadius.only(
                                   bottomLeft: Radius.circular(14),
                                   bottomRight: Radius.circular(14),
@@ -503,10 +672,19 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.phone_outlined, size: 14, color: kDanger),
+                                  Icon(
+                                    Icons.phone_outlined,
+                                    size: 14,
+                                    color: context.sem.danger,
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text('Entre em contato com a secretaria para regularizar.',
-                                      style: TextStyle(color: kDanger, fontSize: 12)),
+                                  Text(
+                                    context.l10n.apContactSecretary,
+                                    style: TextStyle(
+                                      color: context.sem.danger,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -514,41 +692,52 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                       ),
                     ),
                   );
-                },
-                childCount: filtrados.length,
+                }, childCount: filtrados.length),
               ),
-            ),
 
-            if (filtrados.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.receipt_long_rounded, color: kBorder, size: 56),
-                      const SizedBox(height: 16),
-                      Text('Nenhuma cobrança nessa categoria',
-                          style: TextStyle(color: kText2, fontSize: 14), textAlign: TextAlign.center),
-                    ],
+              if (filtrados.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          color: context.c.outline,
+                          size: 56,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          context.l10n.apNoChargesInCategory,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )
-            else
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
+                )
+              else
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
   Widget _pillCount(String text, Color cor) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: cor.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(text, style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: cor.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
+    ),
+  );
 }

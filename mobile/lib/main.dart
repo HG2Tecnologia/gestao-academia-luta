@@ -1,13 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/ad_service.dart';
-import 'core/constants.dart';
+import 'core/app_settings.dart';
 import 'core/push_service.dart';
+import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/entrada_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -39,11 +44,10 @@ import 'screens/professor/professor_shell.dart';
 import 'screens/professor/prof_dashboard_screen.dart';
 import 'screens/professor/prof_turmas_screen.dart';
 import 'screens/professor/prof_horarios_screen.dart';
-import 'screens/professor/prof_presenca_screen.dart';
-import 'screens/professor/prof_graduacao_screen.dart';
 import 'screens/professor/prof_perfil_screen.dart';
 import 'screens/professor/prof_ranking_screen.dart';
 import 'screens/aluno/aluno_shell.dart';
+import 'screens/aluno/aluno_home_screen.dart';
 import 'screens/aluno/aluno_perfil_screen.dart';
 import 'screens/aluno/aluno_horarios_screen.dart';
 import 'screens/aluno/aluno_presencas_screen.dart';
@@ -58,6 +62,7 @@ import 'screens/admin/admin_noticias_screen.dart';
 import 'screens/admin/grupos_familiares_screen.dart';
 import 'screens/admin/admin_pesquisa_screen.dart';
 import 'screens/admin/admin_pesquisa_templates_screen.dart';
+import 'screens/admin/admin_evasao_screen.dart';
 import 'screens/aluno/aluno_parq_screen.dart';
 
 final routerKey = GlobalKey<NavigatorState>();
@@ -68,9 +73,31 @@ final routerKey = GlobalKey<NavigatorState>();
 String? _contextoFrom(Object? extra) =>
     extra is Map ? extra['contexto'] as String? : null;
 
+/// Aponta o app para os emuladores locais do Firebase quando rodado com
+/// `--dart-define=USE_FIREBASE_EMULATOR=true`. Inerte em release (default
+/// false), então não afeta produção nem as lojas.
+const _kUseFirebaseEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR');
+
+Future<void> _conectarEmuladores() async {
+  // Android emulador enxerga a máquina host em 10.0.2.2; iOS/desktop em
+  // localhost. Pode sobrescrever com --dart-define=EMULATOR_HOST=<ip>.
+  const override = String.fromEnvironment('EMULATOR_HOST');
+  final host = override.isNotEmpty
+      ? override
+      : (defaultTargetPlatform == TargetPlatform.android
+            ? '10.0.2.2'
+            : 'localhost');
+  FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+  await FirebaseAuth.instance.useAuthEmulator(host, 9099);
+  FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+  debugPrint('🔧 Firebase apontado para emuladores em $host');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await loadAppSettings();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (_kUseFirebaseEmulator) await _conectarEmuladores();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await AdService.instance.init();
   runApp(const TatameApp());
@@ -85,10 +112,7 @@ final _router = GoRouter(
       path: '/alterar-senha',
       builder: (_, __) => const AlterarSenhaScreen(),
     ),
-    GoRoute(
-      path: '/boas-vindas',
-      builder: (_, __) => const EntradaScreen(),
-    ),
+    GoRoute(path: '/boas-vindas', builder: (_, __) => const EntradaScreen()),
     GoRoute(
       path: '/login',
       builder: (_, state) => LoginScreen(contexto: _contextoFrom(state.extra)),
@@ -117,6 +141,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/admin/grupos-familiares',
       builder: (_, __) => const AdminGruposFamiliaresScreen(),
+    ),
+    GoRoute(
+      path: '/admin/evasao',
+      builder: (_, __) => const AdminEvasaoScreen(),
     ),
     GoRoute(path: '/aluno/parq', builder: (_, __) => const AlunoParQScreen()),
     GoRoute(
@@ -206,6 +234,9 @@ final _router = GoRouter(
                   path: ':id',
                   builder: (_, state) => AdminTurmaDetalheScreen(
                     turmaId: state.pathParameters['id']!,
+                    initialTab: state.uri.queryParameters['tab'] == 'presenca'
+                        ? 1
+                        : 0,
                   ),
                 ),
               ],
@@ -255,7 +286,9 @@ final _router = GoRouter(
       ],
     ),
 
-    // Professor
+    // Professor — reaproveita as telas do admin (com professorMode) para Turmas
+    // e Alunos. Branches: 0 Início · 1 Turmas · 2 Alunos · 3 Horários ·
+    // 4 Rankings · 5 Perfil.
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => ProfessorShell(shell: shell),
       branches: [
@@ -272,6 +305,32 @@ final _router = GoRouter(
             GoRoute(
               path: '/professor/turmas',
               builder: (_, __) => const ProfTurmasScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => AdminTurmaDetalheScreen(
+                    turmaId: state.pathParameters['id']!,
+                    professorMode: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/professor/alunos',
+              builder: (_, __) => const AdminAlunosScreen(professorMode: true),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (_, state) => AdminAlunoDetalheScreen(
+                    alunoId: state.pathParameters['id']!,
+                    professorMode: true,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -296,22 +355,6 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/professor/presenca',
-              builder: (_, __) => const ProfPresencaScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/professor/graduacao',
-              builder: (_, __) => const ProfGraduacaoScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
               path: '/professor/rankings',
               builder: (_, __) => const ProfRankingScreen(),
             ),
@@ -328,21 +371,33 @@ final _router = GoRouter(
       ],
     ),
 
-    // Aluno
+    // Aluno — telas fora da casca (sem NavigationBar inferior)
+    GoRoute(
+      path: '/aluno/presencas',
+      builder: (_, s) =>
+          AlunoPresencasScreen(filtroInicial: s.uri.queryParameters['filtro']),
+    ),
+    GoRoute(
+      path: '/aluno/ranking',
+      builder: (_, __) => const AlunoRankingScreen(),
+      routes: [
+        GoRoute(
+          path: 'conquistas',
+          builder: (_, __) => const AlunoConquistasScreen(),
+        ),
+      ],
+    ),
+
+    // Aluno — casca com NavigationBar (Início, Aulas, Graduações,
+    // Financeiro, Perfil). A ordem das branches define o índice das abas.
     StatefulShellRoute.indexedStack(
       builder: (_, __, shell) => AlunoShell(shell: shell),
       branches: [
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/perfil',
-              builder: (_, __) => const AlunoPerfilScreen(),
-              routes: [
-                GoRoute(
-                  path: 'graduacoes',
-                  builder: (_, __) => const AlunoGraduacoesScreen(),
-                ),
-              ],
+              path: '/aluno/inicio',
+              builder: (_, __) => const AlunoHomeScreen(),
             ),
           ],
         ),
@@ -357,8 +412,8 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/presencas',
-              builder: (_, __) => const AlunoPresencasScreen(),
+              path: '/aluno/graduacoes',
+              builder: (_, __) => const AlunoGraduacoesScreen(),
             ),
           ],
         ),
@@ -373,14 +428,8 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/aluno/ranking',
-              builder: (_, __) => const AlunoRankingScreen(),
-              routes: [
-                GoRoute(
-                  path: 'conquistas',
-                  builder: (_, __) => const AlunoConquistasScreen(),
-                ),
-              ],
+              path: '/aluno/perfil',
+              builder: (_, __) => const AlunoPerfilScreen(),
             ),
           ],
         ),
@@ -394,43 +443,23 @@ class TatameApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Tatame',
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.dark(
-          primary: kPrimary,
-          surface: kSurface,
-          onSurface: kText1,
-          outline: kBorder,
-        ),
-        scaffoldBackgroundColor: kBg,
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: kSurface,
-          indicatorColor: kPrimary.withOpacity(0.2),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return TextStyle(
-                color: kPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              );
-            }
-            return TextStyle(color: kText2, fontSize: 11);
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return IconThemeData(color: kPrimary);
-            }
-            return IconThemeData(color: kText2);
-          }),
-        ),
-      ),
-      routerConfig: _router,
+    return ValueListenableBuilder<AppSettings>(
+      valueListenable: appSettings,
+      builder: (context, settings, _) {
+        return MaterialApp.router(
+          title: 'Tatame',
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: settings.locale,
+          localeListResolutionCallback: (deviceLocales, supported) =>
+              resolveLocale(deviceLocales, supported),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: settings.themeMode,
+          routerConfig: _router,
+        );
+      },
     );
   }
 }

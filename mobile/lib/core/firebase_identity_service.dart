@@ -44,23 +44,37 @@ class FirebaseIdentityService {
     return _asMap(_asMap(result.data)['account']);
   }
 
-  /// Admin/Secretaria redefine a senha de outro perfil da mesma academia.
-  /// Retorna a senha temporária gerada — ela só existe nesta resposta e
-  /// nunca é persistida em texto claro; deve ser exibida uma única vez.
-  Future<({String senha, String nome})> adminResetPassword({
+  /// Admin/Secretaria redefine (ou provisiona) a senha de acesso ao app de
+  /// outro perfil da mesma academia.
+  ///
+  /// O servidor aplica a MESMA senha temporária em todas as contas do
+  /// Firebase Auth alcançáveis pelo telefone/e-mail do cadastro (a pessoa pode
+  /// logar por qualquer um) e, se ainda não houver conta nenhuma, cria/vincula
+  /// uma. `motivo` só alimenta a auditoria: `redefinicao` (padrão),
+  /// `provisao_criacao` ou `provisao_edicao`.
+  ///
+  /// A senha só existe nesta resposta — nunca é persistida em texto claro e
+  /// deve ser exibida uma única vez. `loginHint` diz como a pessoa deve entrar
+  /// ("telefone (11) ...", "e-mail x@y.com").
+  Future<({String senha, String nome, String loginHint, int contas})>
+  adminResetPassword({
     required String academiaId,
     required String colecao,
     required String usuarioId,
+    String motivo = 'redefinicao',
   }) async {
     final result = await _functions.httpsCallable('adminResetPassword').call({
       'academiaId': academiaId,
       'colecao': colecao,
       'usuarioId': usuarioId,
+      'motivo': motivo,
     });
     final data = _asMap(result.data);
     return (
       senha: data['temporaryPassword'] as String? ?? '',
       nome: data['nome'] as String? ?? '',
+      loginHint: data['loginHint'] as String? ?? 'telefone ou e-mail cadastrado',
+      contas: (data['contas'] as num?)?.toInt() ?? 1,
     );
   }
 

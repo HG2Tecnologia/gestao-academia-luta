@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/tab_refresh.dart';
+import '../../core/theme/context_ext.dart';
 import '../../core/widgets.dart';
+import 'widgets/dashboard_widgets.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -46,15 +47,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _erro = false; });
+    setState(() {
+      _loading = true;
+      _erro = false;
+    });
     final user = await AuthStorage.getUser();
     final academiaId = user?.academiaId ?? '';
     if (academiaId.isEmpty) {
-      if (mounted) setState(() { _user = user; _loading = false; _erro = true; });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _loading = false;
+          _erro = true;
+        });
+      }
       return;
     }
     try {
-      // Load core data in parallel
       final results = await Future.wait([
         firestoreService.getDashboardResumo(academiaId),
         firestoreService.getModalidades(academiaId),
@@ -76,56 +85,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final aptosGrad = (results[6] as List).cast<Map<String, dynamic>>();
       final noticiasList = (results[7] as List).cast<Map<String, dynamic>>();
       final turmasList = (results[8] as List).cast<Map<String, dynamic>>();
-      final turmasAtivasCount = turmasList.where((t) => t['ativo'] == true).length;
+      final turmasAtivasCount = turmasList
+          .where((t) => t['ativo'] == true)
+          .length;
 
-      // Aniversariantes: alunos com data_nascimento no mês atual
-      final now = DateTime.now();
-      final aniversariantes = alunos.where((a) {
-        final dn = a['data_nascimento'] as String? ?? a['dataNascimento'] as String? ?? '';
-        if (dn.isEmpty) return false;
-        try {
-          final d = DateTime.parse(dn);
-          return d.month == now.month;
-        } catch (_) { return false; }
-      }).map((a) {
-        final dn = a['data_nascimento'] as String? ?? a['dataNascimento'] as String? ?? '';
-        int dia = 0;
-        try { dia = DateTime.parse(dn).day; } catch (_) {}
-        return {
-          'nome': a['nome'] ?? '',
-          'diaNascimento': dia,
-          'alunoId': a['id'] ?? '',
-        };
-      }).toList()
-        ..sort((x, y) => ((x['diaNascimento'] as int?) ?? 0).compareTo((y['diaNascimento'] as int?) ?? 0));
+      final hoje = DateTime.now();
+      final mesAtual = hoje.month;
+      final aniversariantes =
+          alunos
+              .map((a) {
+                final nasc =
+                    a['data_nascimento'] as String? ??
+                    a['dataNascimento'] as String? ??
+                    '';
+                if (nasc.isEmpty) return null;
+                DateTime? dt;
+                try {
+                  dt = DateTime.parse(nasc);
+                } catch (_) {
+                  return null;
+                }
+                if (dt.month != mesAtual) return null;
+                final nascStr =
+                    a['data_nascimento'] as String? ??
+                    a['dataNascimento'] as String? ??
+                    '';
+                final dia = nascStr.isNotEmpty
+                    ? (DateTime.tryParse(nascStr)?.day ?? 0)
+                    : 0;
+                return {
+                  'nome': a['nome'] ?? '',
+                  'diaNascimento': dia,
+                  'alunoId': a['id'] ?? '',
+                };
+              })
+              .whereType<Map<String, dynamic>>()
+              .toList()
+            ..sort(
+              (x, y) => ((x['diaNascimento'] as int?) ?? 0).compareTo(
+                (y['diaNascimento'] as int?) ?? 0,
+              ),
+            );
 
-      // Frequência últimos 7 dias: group presencas by date
-      final cutoff = now.subtract(const Duration(days: 7));
       final freqMap = <String, int>{};
       for (var i = 6; i >= 0; i--) {
-        final d = now.subtract(Duration(days: i));
-        final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        final d = hoje.subtract(Duration(days: i));
+        final key =
+            '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
         freqMap[key] = 0;
       }
       for (final p in presencas) {
-        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
-        if (dataStr.isEmpty) continue;
-        try {
-          final d = DateTime.parse(dataStr);
-          if (d.isAfter(cutoff)) {
-            final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-            freqMap[key] = (freqMap[key] ?? 0) + 1;
-          }
-        } catch (_) {}
+        final data =
+            p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        if (data.isEmpty) continue;
+        final key = data.length >= 10 ? data.substring(0, 10) : data;
+        if (freqMap.containsKey(key)) freqMap[key] = (freqMap[key] ?? 0) + 1;
       }
-      final frequencia = freqMap.entries.map((e) => {'data': e.key, 'total': e.value}).toList();
+      final frequencia = freqMap.entries
+          .map((e) => {'data': e.key, 'total': e.value})
+          .toList();
 
-      // Today's presences
-      final todayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final presencasHoje = freqMap[todayKey] ?? 0;
+      var presencasHoje = 0;
+      final keyHoje =
+          '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+      presencasHoje = freqMap[keyHoje] ?? 0;
 
-      // Active alunos & inadimplentes from dashData or compute
-      final totalAlunos = dashData['totalAlunos'] ??
+      final totalAlunos =
+          dashData['totalAlunos'] ??
           alunos.where((a) => a['ativo'] == true).length;
       final turmasAtivas = dashData['turmasAtivas'] ?? turmasAtivasCount;
       final alunosInadimplentes = dashData['alunosInadimplentes'];
@@ -135,7 +161,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'turmasAtivas': turmasAtivas,
         'presencasHoje': presencasHoje,
         'alunosInadimplentes': alunosInadimplentes,
-        ...dashData,
       };
 
       final profs = funcionarios.where((f) {
@@ -144,63 +169,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return cargo.contains('professor') || perfil.contains('professor');
       }).toList();
 
-      // Próximos de graduação: só entradas com dados enriquecidos (nomeAluno populado)
-      final proximosGrad = List<Map<String, dynamic>>.from(aptosGrad)
-          .where((a) => (a['nomeAluno'] as String? ?? '').isNotEmpty)
-          .toList();
-      proximosGrad.sort((a, b) {
-        final pa = (b['percentual'] as num?)?.toDouble() ?? 0;
-        final pb = (a['percentual'] as num?)?.toDouble() ?? 0;
-        return pa.compareTo(pb);
-      });
+      final proximosGrad =
+          aptosGrad
+              .where((a) => (a['nomeAluno'] as String? ?? '').isNotEmpty)
+              .toList()
+            ..sort((a, b) {
+              final pa = (b['percentual'] as num?)?.toDouble() ?? 0;
+              final pb = (a['percentual'] as num?)?.toDouble() ?? 0;
+              return pb.compareTo(pa);
+            });
 
-      // Alertas de evasão: alunos ativos sem presença há 7+ dias
-      final Map<String, DateTime> ultimaPresencaPorAluno = {};
-      final Map<String, int> presencas7DiasPorAluno = {};
-      final limite7 = now.subtract(const Duration(days: 7));
+      final ultimaPresencaPorAluno = <String, DateTime>{};
       for (final p in presencas) {
         final aId = p['aluno_id']?.toString() ?? '';
         if (aId.isEmpty) continue;
-        final dataStr = p['data'] as String? ?? p['data_presenca'] as String? ?? '';
-        if (dataStr.isEmpty) continue;
-        final dataPres = DateTime.tryParse(dataStr);
-        if (dataPres == null) continue;
+        final data =
+            p['data'] as String? ?? p['data_presenca'] as String? ?? '';
+        final dt = DateTime.tryParse(data);
+        if (dt == null) continue;
         final atual = ultimaPresencaPorAluno[aId];
-        if (atual == null || dataPres.isAfter(atual)) ultimaPresencaPorAluno[aId] = dataPres;
-        if (dataPres.isAfter(limite7)) {
-          presencas7DiasPorAluno[aId] = (presencas7DiasPorAluno[aId] ?? 0) + 1;
+        if (atual == null || dt.isAfter(atual)) {
+          ultimaPresencaPorAluno[aId] = dt;
         }
       }
       final alertas = <Map<String, dynamic>>[];
       for (final aluno in alunos.where((a) => a['ativo'] == true)) {
         final aId = aluno['id']?.toString() ?? '';
-        if (aId.isEmpty) continue;
         final ultima = ultimaPresencaPorAluno[aId];
-        if (ultima == null) continue; // nunca treinou → não é evasão
-        if ((presencas7DiasPorAluno[aId] ?? 0) >= 4) continue; // voltou com força
-        final dias = now.difference(ultima).inDays;
+        if (ultima == null) continue;
+        final dias = hoje.difference(ultima).inDays;
         if (dias >= 7) {
           alertas.add({
-            ...aluno,
+            'nome': aluno['nome'] ?? '',
+            'id': aId,
             'diasSemPresenca': dias,
             'nivelAlerta': dias >= 14 ? 'red' : 'yellow',
           });
         }
       }
-      alertas.sort((a, b) =>
-          ((b['diasSemPresenca'] as int?) ?? 0).compareTo((a['diasSemPresenca'] as int?) ?? 0));
+      alertas.sort(
+        (a, b) => ((b['diasSemPresenca'] as int?) ?? 0).compareTo(
+          (a['diasSemPresenca'] as int?) ?? 0,
+        ),
+      );
 
-      // Noticias: sort by publicada_em desc, take 5
-      final noticiasOrdered = List<Map<String, dynamic>>.from(noticiasList);
-      noticiasOrdered.sort((a, b) {
-        final da = a['publicada_em'] ?? a['publicadaEm'] ?? '';
-        final db = b['publicada_em'] ?? b['publicadaEm'] ?? '';
-        return db.toString().compareTo(da.toString());
-      });
-      final noticiasMapped = noticiasOrdered.take(5).map((n) => {
-        ...n,
-        'publicadaEm': n['publicada_em'] ?? n['publicadaEm'],
-      }).toList();
+      final noticiasMapped =
+          noticiasList
+              .map(
+                (n) => {
+                  ...n,
+                  'publicadaEm': n['publicada_em'] ?? n['publicadaEm'],
+                },
+              )
+              .toList()
+            ..sort((a, b) {
+              final da = a['publicada_em'] ?? a['publicadaEm'] ?? '';
+              final db = b['publicada_em'] ?? b['publicadaEm'] ?? '';
+              return db.toString().compareTo(da.toString());
+            });
 
       if (mounted) {
         setState(() {
@@ -220,7 +246,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (e) {
       // ignore: avoid_print
       print('[Dashboard._load] ERRO: $e');
-      if (mounted) setState(() { _user = user; _loading = false; _erro = true; _erroMsg = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _loading = false;
+          _erro = true;
+          _erroMsg = e.toString();
+        });
+      }
     }
   }
 
@@ -237,19 +270,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     if (_erro && _dash == null) {
       return Scaffold(
-        backgroundColor: kBg,
-        body: SafeArea(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          ErroConexao(onRetry: () { setState(() { _loading = true; _erro = false; _erroMsg = null; }); _load(); }),
-          if (_erroMsg != null) Padding(padding: const EdgeInsets.all(16), child: Text(_erroMsg!, style: const TextStyle(color: Colors.red, fontSize: 11), textAlign: TextAlign.center)),
-        ])),
+        body: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ErroConexao(
+                onRetry: () {
+                  setState(() {
+                    _loading = true;
+                    _erro = false;
+                    _erroMsg = null;
+                  });
+                  _load();
+                },
+              ),
+              if (_erroMsg != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    _erroMsg!,
+                    style: TextStyle(color: context.sem.danger, fontSize: 11),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: kBg,
       body: RefreshIndicator(
         onRefresh: _load,
-        color: kPrimary,
+        color: context.c.primary,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -272,8 +325,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
               SliverToBoxAdapter(child: _buildProximosGraduacao()),
-              if (_frequencia.isNotEmpty)
-                SliverToBoxAdapter(child: _buildFrequenciaChart()),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: WeeklyFrequencyChart(dados: _frequencia),
+                ),
+              ),
               if (_noticias.isNotEmpty)
                 SliverToBoxAdapter(child: _buildNoticias()),
               const SliverToBoxAdapter(child: AdBannerWidget()),
@@ -288,6 +345,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── PLANO STATUS ────────────────────────────────────────────────────────────
 
   Widget _buildPlanStatus() {
+    final l = context.l10n;
     final plan = PlanService.instance;
     if (plan.isPro) return const SizedBox.shrink();
 
@@ -309,26 +367,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF1A1200), kPrimary.withOpacity(0.35)],
+                colors: [
+                  context.isDark
+                      ? const Color(0xFF1A1200)
+                      : context.sem.goldContainer,
+                  context.c.primary.withValues(alpha: 0.35),
+                ],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kPrimary.withOpacity(0.45)),
-            ),
-            child: Row(children: [
-              Icon(Icons.hourglass_top_rounded, color: kPrimary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Trial gratuito ativo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                Text(days <= 1 ? 'Último dia do trial!' : '$days dias restantes', style: TextStyle(color: kText2, fontSize: 11)),
-              ])),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Ver planos', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              border: Border.all(
+                color: context.c.primary.withValues(alpha: 0.45),
               ),
-            ]),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.hourglass_top_rounded,
+                  color: context.sem.goldOnSurface,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.dashTrialActive,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        days <= 1
+                            ? l.dashTrialLastDay
+                            : l.dashTrialDaysLeft(days),
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.c.primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    l.dashSeePlans,
+                    style: TextStyle(
+                      color: context.c.onPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -342,30 +446,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: kSurface,
+            color: context.c.surfaceContainer,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kWarning.withOpacity(0.55)),
+            border: Border.all(
+              color: context.sem.warning.withValues(alpha: 0.55),
+            ),
           ),
-          child: Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: kWarning.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.lock_outline_rounded, color: kWarning, size: 19),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Plano Gratuito', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700)),
-              Text('Limite: 3 turmas · 10 alunos/turma · anúncios', style: TextStyle(color: kText2, fontSize: 11)),
-            ])),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
-                borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: context.sem.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: context.sem.warning,
+                  size: 19,
+                ),
               ),
-              child: const Text('Assinar PRO', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-            ),
-          ]),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.dashFreePlan,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      l.dashFreePlanLimits,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      context.c.primary,
+                      context.c.primary.withValues(alpha: 0.5),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l.dashSubscribePro,
+                  style: TextStyle(
+                    color: context.c.onPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -374,18 +523,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── HEADER ──────────────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
+    final l = context.l10n;
     final nome = _user?.nome ?? '';
     final primeiroNome = nome.split(' ').first;
     final initials = nome.isNotEmpty
-        ? nome.trim().split(' ').where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join()
+        ? nome
+              .trim()
+              .split(' ')
+              .where((p) => p.isNotEmpty)
+              .take(2)
+              .map((p) => p[0].toUpperCase())
+              .join()
         : 'A';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1200), Color(0xFF0A0A0A)],
+          colors: context.isDark
+              ? const [Color(0xFF1A1200), Color(0xFF0A0A0A)]
+              : [context.sem.goldContainer, context.c.surface],
         ),
       ),
       child: SafeArea(
@@ -394,37 +552,67 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 16, 24),
           child: Row(
             children: [
-              // Avatar
               Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [kPrimary, const Color(0xFF0A0A0A)],
+                    colors: [
+                      context.c.primary,
+                      context.c.primary.withValues(alpha: 0.35),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
-                  child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: context.c.onPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    primeiroNome.isEmpty ? 'Olá!' : 'Olá, $primeiroNome!',
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.1),
-                  ),
-                  const SizedBox(height: 2),
-                  Text('Visão geral da academia', style: TextStyle(color: kText2, fontSize: 12)),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      primeiroNome.isEmpty
+                          ? l.dashHello
+                          : l.dashHelloName(primeiroNome),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l.dashYourAcademyToday,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              // Menu
               GestureDetector(
                 onTap: openAppDrawer,
-                child: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+                child: Icon(
+                  Icons.menu_rounded,
+                  color: context.c.onSurface,
+                  size: 26,
+                ),
               ),
             ],
           ),
@@ -436,6 +624,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── MÉTRICAS ─────────────────────────────────────────────────────────────────
 
   Widget _buildMetrics() {
+    final l = context.l10n;
     final d = _dash ?? {};
     final alunos = '${d['totalAlunos'] ?? '—'}';
     final turmas = '${d['turmasAtivas'] ?? '—'}';
@@ -444,85 +633,117 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(children: [
-        // Linha principal — 2 cards grandes
-        Row(children: [
-          Expanded(child: _MetricCard(
-            label: 'Alunos ativos',
-            value: alunos,
-            icon: Icons.sports_martial_arts_rounded,
-            gradient: [const Color(0xFF6C3FFF), const Color(0xFF4F28C8)],
-            onTap: () => context.go('/admin/alunos'),
-          )),
-          const SizedBox(width: 12),
-          Expanded(child: _MetricCard(
-            label: 'Turmas ativas',
-            value: turmas,
-            icon: Icons.groups_rounded,
-            gradient: [const Color(0xFF0EA5E9), const Color(0xFF0369A1)],
-            onTap: () => context.go('/admin/turmas'),
-          )),
-        ]),
-        const SizedBox(height: 12),
-        // Linha secundária — 2 cards compactos
-        Row(children: [
-          Expanded(child: _MetricCardSmall(
-            label: 'Presenças hoje',
-            value: presencas,
-            icon: Icons.check_circle_rounded,
-            color: kSuccess,
-          )),
-          const SizedBox(width: 12),
-          Expanded(child: _MetricCardSmall(
-            label: 'Inadimplentes',
-            value: inadimplentes,
-            icon: Icons.warning_amber_rounded,
-            color: kDanger,
-            onTap: () => context.go('/admin/financeiro'),
-          )),
-        ]),
-      ]),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.sports_martial_arts_rounded,
+                  value: alunos,
+                  label: l.dashActiveStudents,
+                  tone: DashTone.gold,
+                  onTap: () => context.go('/admin/alunos'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.groups_rounded,
+                  value: turmas,
+                  label: l.dashActiveClasses,
+                  tone: DashTone.info,
+                  onTap: () => context.go('/admin/turmas'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.check_circle_rounded,
+                  value: presencas,
+                  label: l.dashAttendanceToday,
+                  tone: DashTone.success,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DashMetricCard(
+                  icon: Icons.warning_amber_rounded,
+                  value: inadimplentes,
+                  label: l.dashOverdueAccounts,
+                  tone: DashTone.danger,
+                  onTap: () => context.go('/admin/financeiro'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   // ─── AÇÕES RÁPIDAS ────────────────────────────────────────────────────────────
 
   Widget _buildQuickActions() {
-    final actions = [
-      (label: 'Novo aluno', icon: Icons.person_add_rounded, color: kPrimary, onTap: () => context.push('/admin/alunos/novo')),
-      (label: 'Nova turma', icon: Icons.groups_rounded, color: const Color(0xFF0EA5E9), onTap: () => context.push('/admin/turmas')),
-      (label: 'Presenças', icon: Icons.qr_code_scanner_rounded, color: kSuccess, onTap: () async {
-        if (PlanService.instance.showAds) {
-          final ok = await mostrarPaywall(context);
-          if (ok) { PlanService.instance.refresh(); setState(() {}); }
-          return;
-        }
-        if (mounted) context.push('/scan-qr');
-      }),
-      (label: 'Financeiro', icon: Icons.account_balance_wallet_rounded, color: kWarning, onTap: () => context.go('/admin/financeiro')),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Ações rápidas', style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: actions.map((a) => _QuickActionButton(
-            label: a.label,
-            icon: a.icon,
-            color: a.color,
-            onTap: a.onTap,
-          )).toList(),
+    final l = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DashSectionHeader(l.dashQuickActions),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              DashQuickAction(
+                icon: Icons.person_add_rounded,
+                label: l.dashNewStudent,
+                tone: DashTone.gold,
+                onTap: () => context.push('/admin/alunos/novo'),
+              ),
+              DashQuickAction(
+                icon: Icons.groups_rounded,
+                label: l.dashNewClass,
+                tone: DashTone.info,
+                onTap: () => context.push('/admin/turmas'),
+              ),
+              DashQuickAction(
+                icon: Icons.qr_code_scanner_rounded,
+                label: l.dashMarkAttendance,
+                tone: DashTone.success,
+                onTap: () async {
+                  if (PlanService.instance.showAds) {
+                    final ok = await mostrarPaywall(context);
+                    if (ok) {
+                      PlanService.instance.refresh();
+                      setState(() {});
+                    }
+                    return;
+                  }
+                  if (mounted) context.push('/scan-qr');
+                },
+              ),
+              DashQuickAction(
+                icon: Icons.account_balance_wallet_rounded,
+                label: l.navBilling,
+                tone: DashTone.warning,
+                onTap: () => context.go('/admin/financeiro'),
+              ),
+            ],
+          ),
         ),
-      ]),
+      ],
     );
   }
 
   // ─── ONBOARDING ───────────────────────────────────────────────────────────────
 
   Widget _buildOnboarding() {
+    final l = context.l10n;
     final d = _dash ?? {};
     final temTurma = ((d['turmasAtivas'] as num?)?.toInt() ?? 0) > 0;
     final temAluno = ((d['totalAlunos'] as num?)?.toInt() ?? 0) > 0;
@@ -530,8 +751,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final passos = [
       _OnboardingStep(
-        titulo: 'Crie uma modalidade',
-        descricao: 'Ex: Jiu-Jitsu, Muay Thai, Boxe.',
+        titulo: l.dashStepModality,
+        descricao: l.dashStepModalityDesc,
         feito: _temModalidades,
         icon: Icons.sports_martial_arts_rounded,
         onTap: () async {
@@ -545,8 +766,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Crie um plano de mensalidade',
-        descricao: 'Defina valores e periodicidade.',
+        titulo: l.dashStepPlan,
+        descricao: l.dashStepPlanDesc,
         feito: _temPlanos,
         icon: Icons.monetization_on_rounded,
         onTap: () async {
@@ -560,8 +781,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Cadastre um professor',
-        descricao: 'Turmas precisam de um professor responsável.',
+        titulo: l.dashStepInstructor,
+        descricao: l.dashStepInstructorDesc,
         feito: _temProfessores,
         icon: Icons.school_rounded,
         onTap: () async {
@@ -570,15 +791,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       ),
       _OnboardingStep(
-        titulo: 'Monte uma turma',
-        descricao: 'Agrupe alunos por modalidade e horário.',
+        titulo: l.dashStepClass,
+        descricao: l.dashStepClassDesc,
         feito: temTurma,
         icon: Icons.groups_rounded,
         onTap: () => context.push('/admin/turmas'),
       ),
       _OnboardingStep(
-        titulo: 'Cadastre seu primeiro aluno',
-        descricao: 'Adicione alunos e matricule nas turmas.',
+        titulo: l.dashStepFirstStudent,
+        descricao: l.dashStepFirstStudentDesc,
         feito: temAluno,
         icon: Icons.person_add_rounded,
         onTap: () => context.push('/admin/alunos/novo'),
@@ -592,71 +813,117 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kPrimary.withOpacity(0.3)),
+          border: Border.all(color: context.c.primary.withValues(alpha: 0.3)),
           boxShadow: [
-            BoxShadow(color: kPrimary.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: context.c.primary.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header do card
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [kPrimary, const Color(0xFF0A0A0A)]),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Primeiros passos', style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w800)),
-                Text('Configure sua academia em ordem', style: TextStyle(color: kText2, fontSize: 11)),
-              ])),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: kPrimary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('$feitos/${passos.length}', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w800)),
-              ),
-            ]),
-          ),
-          // Barra de progresso
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progresso,
-                backgroundColor: kBorder.withOpacity(0.4),
-                valueColor: AlwaysStoppedAnimation<Color>(kPrimary),
-                minHeight: 4,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          context.c.primary,
+                          context.c.primary.withValues(alpha: 0.4),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.rocket_launch_rounded,
+                      color: context.c.onPrimary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l.dashGettingStarted,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          l.dashGettingStartedSubtitle,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.c.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$feitos/${passos.length}',
+                      style: TextStyle(
+                        color: context.sem.goldOnSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const Divider(height: 1, color: Color(0xFF2D3748)),
-          // Passos
-          ...passos.asMap().entries.map((entry) {
-            final i = entry.key;
-            final p = entry.value;
-            final anterior = i > 0 ? passos[i - 1] : null;
-            final bloqueado = !p.feito && anterior != null && !anterior.feito;
-            final isLast = i == passos.length - 1;
-            return _buildPassoTile(p, bloqueado, isLast);
-          }),
-        ]),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progresso,
+                  backgroundColor: context.c.outline.withValues(alpha: 0.4),
+                  valueColor: AlwaysStoppedAnimation<Color>(context.c.primary),
+                  minHeight: 4,
+                ),
+              ),
+            ),
+            Divider(height: 1, color: context.c.outlineVariant),
+            ...passos.asMap().entries.map((entry) {
+              final i = entry.key;
+              final p = entry.value;
+              final anterior = i > 0 ? passos[i - 1] : null;
+              final bloqueado = !p.feito && anterior != null && !anterior.feito;
+              final isLast = i == passos.length - 1;
+              return _buildPassoTile(p, bloqueado, isLast);
+            }),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPassoTile(_OnboardingStep p, bool bloqueado, bool isLast) {
+    final feitoColor = context.sem.success;
+    final lockColor = context.c.onSurfaceVariant;
+    final goldColor = context.c.primary;
     return InkWell(
       onTap: (p.feito || bloqueado) ? null : p.onTap,
       borderRadius: isLast
@@ -664,58 +931,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           : BorderRadius.zero,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          // Step indicator
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: p.feito
-                  ? kSuccess.withOpacity(0.12)
-                  : bloqueado
-                      ? kBorder.withOpacity(0.2)
-                      : kPrimary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: p.feito
-                    ? kSuccess.withOpacity(0.4)
-                    : bloqueado
-                        ? kBorder.withOpacity(0.4)
-                        : kPrimary.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              p.feito ? Icons.check_rounded : p.icon,
-              size: 18,
-              color: p.feito ? kSuccess : bloqueado ? kText2 : kPrimary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              p.titulo,
-              style: TextStyle(
-                color: p.feito ? kText2 : bloqueado ? kText2 : kText1,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                decoration: p.feito ? TextDecoration.lineThrough : null,
-                decorationColor: kText2,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(p.descricao, style: TextStyle(color: kText2, fontSize: 11)),
-          ])),
-          if (!p.feito && !bloqueado)
+        child: Row(
+          children: [
             Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.arrow_forward_rounded, size: 15, color: kPrimary),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: p.feito
+                    ? feitoColor.withValues(alpha: 0.12)
+                    : bloqueado
+                    ? context.c.outline.withValues(alpha: 0.2)
+                    : goldColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: p.feito
+                      ? feitoColor.withValues(alpha: 0.4)
+                      : bloqueado
+                      ? context.c.outline.withValues(alpha: 0.4)
+                      : goldColor.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                p.feito ? Icons.check_rounded : p.icon,
+                size: 18,
+                color: p.feito
+                    ? feitoColor
+                    : bloqueado
+                    ? lockColor
+                    : context.sem.goldOnSurface,
+              ),
             ),
-          if (bloqueado)
-            Icon(Icons.lock_outline_rounded, size: 15, color: kText2.withOpacity(0.5)),
-        ]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.titulo,
+                    style: TextStyle(
+                      color: (p.feito || bloqueado)
+                          ? context.c.onSurfaceVariant
+                          : context.c.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      decoration: p.feito ? TextDecoration.lineThrough : null,
+                      decorationColor: context.c.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    p.descricao,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!p.feito && !bloqueado)
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: goldColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 15,
+                  color: context.sem.goldOnSurface,
+                ),
+              ),
+            if (bloqueado)
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 15,
+                color: lockColor.withValues(alpha: 0.5),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -723,104 +1019,155 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ALERTA DE EVASÃO ────────────────────────────────────────────────────────
 
   Widget _buildAlertaEvasao() {
-    final vermelhos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'red').length;
-    final amarelos = _alertasEvasao.where((a) => a['nivelAlerta'] == 'yellow').length;
-    final borderColor = vermelhos > 0 ? kDanger : kWarning;
-    final iconColor = vermelhos > 0 ? kDanger : kWarning;
+    final l = context.l10n;
+    final temVermelho = _alertasEvasao.any((a) => a['nivelAlerta'] == 'red');
+    final tone = temVermelho ? DashTone.danger : DashTone.warning;
+    final total = _alertasEvasao.length;
+    final visiveis = _alertasEvasao.take(5).toList();
+    final subtitulo = temVermelho
+        ? l.dashWatchRedSubtitle(total)
+        : l.dashWatchYellowSubtitle(total);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor.withOpacity(0.4)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.person_off_rounded, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Risco de evasão', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text(
-                [
-                  if (vermelhos > 0) '$vermelhos ausente${vermelhos > 1 ? 's' : ''} há 14+ dias',
-                  if (amarelos > 0) '$amarelos ausente${amarelos > 1 ? 's' : ''} há 7–13 dias',
-                ].join(' · '),
-                style: TextStyle(color: kText2, fontSize: 11),
-              ),
-            ])),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text('${_alertasEvasao.length}', style: TextStyle(color: iconColor, fontSize: 13, fontWeight: FontWeight.w800)),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          ..._alertasEvasao.take(8).map((a) {
-            final nome = a['nome']?.toString() ?? '';
-            final alunoId = a['id']?.toString() ?? '';
-            final dias = (a['diasSemPresenca'] as int?) ?? 0;
-            final isRed = a['nivelAlerta'] == 'red';
-            final cor = isRed ? kDanger : kWarning;
-            final initials = nome.trim().split(RegExp(r'\s+')).take(2)
-                .map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
-
-            return GestureDetector(
-              onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: DashCard(
+        tone: tone,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DashCardHeader(
+              icon: Icons.person_off_rounded,
+              title: l.dashAttendanceWatch,
+              subtitle: subtitulo,
+              tone: tone,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: cor.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: cor.withOpacity(0.2)),
+                  color: tone.color(context).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: cor.withOpacity(0.15),
-                    child: Text(
-                      initials.isEmpty ? '?' : initials,
-                      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                    child: Text(
-                      '$dias dias',
-                      style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.chevron_right_rounded, color: kText2, size: 16),
-                ]),
-              ),
-            );
-          }),
-          if (_alertasEvasao.length > 8)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Center(
                 child: Text(
-                  '+ ${_alertasEvasao.length - 8} alunos',
-                  style: TextStyle(color: kText2, fontSize: 12),
+                  '$total',
+                  style: TextStyle(
+                    color: tone.color(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
-        ]),
+            const SizedBox(height: 12),
+            ...visiveis.map((a) {
+              final nome = a['nome']?.toString() ?? '';
+              final alunoId = a['id']?.toString() ?? '';
+              final dias = (a['diasSemPresenca'] as int?) ?? 0;
+              final isRed = a['nivelAlerta'] == 'red';
+              final cor = isRed ? context.sem.danger : context.sem.warning;
+              final initials = nome
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .take(2)
+                  .map((w) => w.isNotEmpty ? w[0] : '')
+                  .join()
+                  .toUpperCase();
+
+              return GestureDetector(
+                onTap: alunoId.isNotEmpty
+                    ? () => context.push('/admin/alunos/$alunoId')
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cor.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: cor.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 15,
+                        backgroundColor: cor.withValues(alpha: 0.15),
+                        child: Text(
+                          initials.isEmpty ? '?' : initials,
+                          style: TextStyle(
+                            color: cor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          nome,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          l.dashDaysCount(dias),
+                          style: TextStyle(
+                            color: cor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            if (total > 0)
+              GestureDetector(
+                onTap: () => context.push('/admin/evasao'),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Center(
+                    child: Text(
+                      total > visiveis.length
+                          ? l.dashSeeAllStudents(total)
+                          : l.dashOpenListWhatsapp,
+                      style: TextStyle(
+                        color: context.sem.goldOnSurface,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -828,55 +1175,136 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── ANIVERSARIANTES ─────────────────────────────────────────────────────────
 
   Widget _buildAniversariantes() {
+    final l = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kWarning.withOpacity(0.3)),
+          border: Border.all(color: context.sem.warning.withValues(alpha: 0.3)),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: kWarning.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.cake_rounded, color: kWarning, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Aniversariantes', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text('Este mês', style: TextStyle(color: kText2, fontSize: 11)),
-            ])),
-            GestureDetector(
-              onTap: () => context.push('/admin/dashboard/aniversariantes'),
-              child: Text('Ver todos', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          ..._aniversariantes.take(5).map((a) {
-            final nome = a['nome']?.toString() ?? '';
-            final dia = a['diaNascimento'] as int? ?? 0;
-            final mes = DateTime.now().month;
-            final dataLabel = dia > 0
-                ? '${dia.toString().padLeft(2, '0')}/${mes.toString().padLeft(2, '0')}'
-                : '';
-            final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
-              child: Row(children: [
-                CircleAvatar(radius: 16, backgroundColor: kWarning.withOpacity(0.15),
-                  child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: kWarning, fontSize: 11, fontWeight: FontWeight.w800))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: context.sem.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.cake_rounded,
+                    color: context.sem.warning,
+                    size: 20,
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600))),
-                Text(dataLabel, style: TextStyle(color: kText2, fontSize: 12)),
-              ]),
-            );
-          }),
-        ]),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.dashBirthdays,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        l.dashThisMonth,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/admin/dashboard/aniversariantes'),
+                  child: Text(
+                    l.commonSeeAll,
+                    style: TextStyle(
+                      color: context.sem.goldOnSurface,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._aniversariantes.take(5).map((a) {
+              final nome = a['nome']?.toString() ?? '';
+              final dia = a['diaNascimento'] as int? ?? 0;
+              final mes = DateTime.now().month;
+              final dataLabel = dia > 0
+                  ? '${dia.toString().padLeft(2, '0')}/${mes.toString().padLeft(2, '0')}'
+                  : '';
+              final initials = nome
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .take(2)
+                  .map((w) => w.isNotEmpty ? w[0] : '')
+                  .join()
+                  .toUpperCase();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: context.c.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: context.c.outline),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: context.sem.warning.withValues(
+                        alpha: 0.15,
+                      ),
+                      child: Text(
+                        initials.isEmpty ? '?' : initials,
+                        style: TextStyle(
+                          color: context.sem.warning,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        nome,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      dataLabel,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -884,367 +1312,304 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── PRÓXIMOS DE GRADUAR ──────────────────────────────────────────────────────
 
   Widget _buildProximosGraduacao() {
+    final l = context.l10n;
+    final totalGrad = _proximosGraduacao.length;
+    final visiveis = _proximosGraduacao.take(3).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kPrimary.withOpacity(0.3)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.military_tech_rounded, color: kPrimary, size: 20),
+      child: DashCard(
+        tone: DashTone.gold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DashCardHeader(
+              icon: Icons.military_tech_rounded,
+              title: l.dashNearingPromotion,
+              subtitle: l.dashNearingPromotionSubtitle,
+              tone: DashTone.gold,
             ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Próximos de graduar', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text('Alunos próximos do mínimo de aulas', style: TextStyle(color: kText2, fontSize: 11)),
-            ])),
-          ]),
-          const SizedBox(height: 12),
-          if (_proximosGraduacao.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(children: [
-                Icon(Icons.check_circle_outline_rounded, color: kText2, size: 18),
-                const SizedBox(width: 8),
-                Text('Nenhum aluno próximo da graduação', style: TextStyle(color: kText2, fontSize: 13)),
-              ]),
-            )
-          else
-            ..._proximosGraduacao.take(8).map((a) {
-              final nome = a['nomeAluno']?.toString() ?? '';
-              final modalidade = a['nomeModalidade']?.toString() ?? '';
-              final total = (a['totalPresencas'] as num?)?.toInt() ?? 0;
-              final necessario = (a['presencasNecessarias'] as num?)?.toInt() ?? 1;
-              final jaApto = a['jaApto'] == true;
-              final pct = (a['percentual'] as num?)?.toInt() ?? 0;
-              final alunoId = a['alunoId']?.toString() ?? '';
-              final initials = nome.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
-
-              return GestureDetector(
-                onTap: alunoId.isNotEmpty ? () => context.push('/admin/alunos/$alunoId') : null,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: jaApto ? kSuccess.withOpacity(0.05) : kBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: jaApto ? kSuccess.withOpacity(0.3) : kBorder),
-                  ),
-                  child: Row(children: [
-                    CircleAvatar(radius: 16, backgroundColor: (jaApto ? kSuccess : kPrimary).withOpacity(0.15),
-                      child: Text(initials.isEmpty ? '?' : initials, style: TextStyle(color: jaApto ? kSuccess : kPrimary, fontSize: 11, fontWeight: FontWeight.w800))),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(nome, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text(modalidade, style: TextStyle(color: kText2, fontSize: 11)),
-                    ])),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text('$total/$necessario aulas', style: TextStyle(color: jaApto ? kSuccess : kText2, fontSize: 12, fontWeight: FontWeight.w700)),
-                      if (jaApto)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: kSuccess.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                          child: Text('Apto!', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w700)),
-                        )
-                      else
-                        Text('$pct%', style: TextStyle(color: kPrimary, fontSize: 11)),
-                    ]),
-                  ]),
-                ),
-              );
-            }),
-        ]),
-      ),
-    );
-  }
-
-  // ─── NOTÍCIAS (carrossel) ────────────────────────────────────────────────────
-
-  Widget _buildNoticias() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-        child: Row(children: [
-          Expanded(child: Text('NOTÍCIAS', style: TextStyle(color: kText2, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2))),
-          GestureDetector(
-            onTap: () => context.push('/admin/noticias'),
-            child: Text('Gerenciar', style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-          ),
-        ]),
-      ),
-      SizedBox(
-        height: 130,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _noticias.length,
-          itemBuilder: (_, i) {
-            final n = _noticias[i];
-            final titulo = n['titulo'] as String? ?? '';
-            final resumo = n['resumo'] as String? ?? '';
-            final publicadaEm = n['publicadaEm'] as String? ?? n['publicada_em'] as String?;
-            String dataLabel = '';
-            if (publicadaEm != null) {
-              try {
-                final dt = DateTime.parse(publicadaEm).toLocal();
-                dataLabel = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-              } catch (_) {}
-            }
-            return GestureDetector(
-              onTap: () => context.push('/admin/noticias'),
-              child: Container(
-                width: 240,
-                margin: EdgeInsets.only(right: i < _noticias.length - 1 ? 10 : 0),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: kSurface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kBorder),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(color: kPrimary.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.campaign_rounded, color: kPrimary, size: 15),
+            const SizedBox(height: 12),
+            if (_proximosGraduacao.isEmpty)
+              Row(
+                children: [
+                  Text(
+                    '0',
+                    style: TextStyle(
+                      color: context.c.onSurface,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
                     ),
-                    const Spacer(),
-                    if (dataLabel.isNotEmpty)
-                      Text(dataLabel, style: TextStyle(color: kText2, fontSize: 10)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  if (resumo.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(resumo, style: TextStyle(color: kText2, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ]),
-              ),
-            );
-          },
-        ),
-      ),
-    ]);
-  }
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      l.dashNoOneNearingPromotion,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              ...visiveis.map((a) {
+                final nome = a['nomeAluno']?.toString() ?? '';
+                final modalidade = a['nomeModalidade']?.toString() ?? '';
+                final total = (a['totalPresencas'] as num?)?.toInt() ?? 0;
+                final necessario =
+                    (a['presencasNecessarias'] as num?)?.toInt() ?? 1;
+                final jaApto = a['jaApto'] == true;
+                final pct = (a['percentual'] as num?)?.toInt() ?? 0;
+                final alunoId = a['alunoId']?.toString() ?? '';
+                final initials = nome
+                    .trim()
+                    .split(RegExp(r'\s+'))
+                    .take(2)
+                    .map((w) => w.isNotEmpty ? w[0] : '')
+                    .join()
+                    .toUpperCase();
 
-  // ─── GRÁFICO DE FREQUÊNCIA ────────────────────────────────────────────────────
-
-  Widget _buildFrequenciaChart() {
-    final maxVal = _frequencia.fold<int>(1, (m, e) {
-      final v = (e['total'] as num?)?.toInt() ?? 0;
-      return v > m ? v : m;
-    });
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder.withOpacity(0.5)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Frequência semanal', style: TextStyle(color: kText1, fontSize: 14, fontWeight: FontWeight.w700)),
-              Text('Últimos 7 dias', style: TextStyle(color: kText2, fontSize: 11)),
-            ]),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: kSuccess.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: kSuccess.withOpacity(0.2)),
-              ),
-              child: Row(children: [
-                Icon(Icons.trending_up_rounded, color: kSuccess, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  '${_frequencia.fold(0, (s, e) => s + ((e['total'] as num?)?.toInt() ?? 0))} total',
-                  style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ]),
-            ),
-          ]),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: _frequencia.asMap().entries.map((entry) {
-                final item = entry.value;
-                final val = (item['total'] as num?)?.toInt() ?? 0;
-                final ratio = maxVal > 0 ? val / maxVal : 0.0;
-                final data = (item['data'] as String? ?? '').split('-');
-                final dia = data.length == 3 ? data[2] : '?';
-                final mes = data.length == 3 ? data[1] : '';
-                final isMax = val == maxVal && val > 0;
-
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                return GestureDetector(
+                  onTap: alunoId.isNotEmpty
+                      ? () => context.push('/admin/alunos/$alunoId')
+                      : null,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: jaApto
+                          ? context.sem.success.withValues(alpha: 0.05)
+                          : context.c.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: jaApto
+                            ? context.sem.success.withValues(alpha: 0.3)
+                            : context.c.outline,
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        if (val > 0)
-                          Text(
-                            '$val',
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor:
+                              (jaApto ? context.sem.success : context.c.primary)
+                                  .withValues(alpha: 0.15),
+                          child: Text(
+                            initials.isEmpty ? '?' : initials,
                             style: TextStyle(
-                              color: isMax ? kPrimary : kText2,
-                              fontSize: 10,
-                              fontWeight: isMax ? FontWeight.w700 : FontWeight.normal,
-                            ),
-                          ),
-                        const SizedBox(height: 3),
-                        Flexible(
-                          child: FractionallySizedBox(
-                            heightFactor: ratio.clamp(0.04, 1.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: isMax
-                                      ? [kPrimary, kPrimary.withOpacity(0.6)]
-                                      : [kPrimary.withOpacity(0.5), kPrimary.withOpacity(0.2)],
-                                ),
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                              ),
+                              color: jaApto
+                                  ? context.sem.success
+                                  : context.sem.goldOnSurface,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text('$dia', style: TextStyle(color: kText1, fontSize: 10, fontWeight: FontWeight.w600)),
-                        Text(mes.isNotEmpty ? '/$mes' : '', style: TextStyle(color: kText2, fontSize: 8)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                nome,
+                                style: TextStyle(
+                                  color: context.c.onSurface,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                modalidade,
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              l.dashClassesProgress(total, necessario),
+                              style: TextStyle(
+                                color: jaApto
+                                    ? context.sem.success
+                                    : context.c.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (jaApto)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: context.sem.success.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  l.dashEligible,
+                                  style: TextStyle(
+                                    color: context.sem.success,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              )
+                            else
+                              Text(
+                                '$pct%',
+                                style: TextStyle(
+                                  color: context.sem.goldOnSurface,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
                 );
-              }).toList(),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-// ─── Widgets auxiliares ───────────────────────────────────────────────────────
-
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final List<Color> gradient;
-  final VoidCallback? onTap;
-
-  const _MetricCard({required this.label, required this.value, required this.icon, required this.gradient, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradient,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
+              }),
+              if (totalGrad > visiveis.length)
+                GestureDetector(
+                  onTap: () => context.go('/admin/alunos'),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Center(
+                      child: Text(
+                        l.dashSeeAllStudents(totalGrad),
+                        style: TextStyle(
+                          color: context.sem.goldOnSurface,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: Colors.white.withOpacity(0.85), size: 24),
-          const SizedBox(height: 12),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1)),
-          const SizedBox(height: 4),
-          Row(children: [
-            Expanded(child: Text(label, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500))),
-            if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withOpacity(0.5), size: 11),
-          ]),
-        ]),
       ),
     );
   }
-}
 
-class _MetricCardSmall extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
+  // ─── NOTÍCIAS ────────────────────────────────────────────────────────────────
 
-  const _MetricCardSmall({required this.label, required this.value, required this.icon, required this.color, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25)),
+  Widget _buildNoticias() {
+    final l = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DashSectionHeader(
+          l.dashLatestNews,
+          trailingLabel: l.commonSeeAllFem,
+          onTrailingTap: () => context.push('/admin/noticias'),
         ),
-        child: Row(children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
-            Text(label, style: TextStyle(color: kText2, fontSize: 10)),
-          ])),
-          if (onTap != null) Icon(Icons.arrow_forward_ios_rounded, color: kText2, size: 11),
-        ]),
-      ),
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickActionButton({required this.label, required this.icon, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.25)),
-          ),
-          child: Icon(icon, color: color, size: 26),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: TextStyle(color: kText2, fontSize: 10, fontWeight: FontWeight.w500)),
-      ]),
+        ..._noticias.take(2).map((n) {
+          final titulo = n['titulo'] as String? ?? '';
+          final resumo = n['resumo'] as String? ?? '';
+          final publicadaEm =
+              n['publicadaEm'] as String? ?? n['publicada_em'] as String?;
+          String dataLabel = '';
+          if (publicadaEm != null) {
+            try {
+              final dt = DateTime.parse(publicadaEm).toLocal();
+              dataLabel =
+                  '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+            } catch (_) {}
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: GestureDetector(
+              onTap: () => context.push('/admin/noticias'),
+              behavior: HitTestBehavior.opaque,
+              child: DashCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: context.c.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.campaign_rounded,
+                        color: context.sem.goldOnSurface,
+                        size: 17,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  titulo,
+                                  style: TextStyle(
+                                    color: context.c.onSurface,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (dataLabel.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  dataLabel,
+                                  style: TextStyle(
+                                    color: context.c.onSurfaceVariant,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (resumo.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              resumo,
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 11.5,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -1293,16 +1658,21 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _erro = null; });
+    final erroMsg = context.l10n.commonSaveError;
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     try {
       await firestoreService.addModalidade(widget.academiaId, {
         'nome': _nomeCtrl.text.trim(),
-        if (_descCtrl.text.trim().isNotEmpty) 'descricao': _descCtrl.text.trim(),
+        if (_descCtrl.text.trim().isNotEmpty)
+          'descricao': _descCtrl.text.trim(),
         'ativo': true,
       });
       if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      setState(() => _erro = 'Erro ao salvar: $e');
+    } catch (_) {
+      setState(() => _erro = erroMsg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1310,59 +1680,134 @@ class _ModalidadeSheetState extends State<_ModalidadeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
-      decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
       child: Form(
         key: _formKey,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Text('Nova modalidade', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-          Text('Ex: Jiu-Jitsu, Muay Thai, Boxe, Luta Livre', style: TextStyle(color: kText2, fontSize: 12)),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _nomeCtrl,
-            autofocus: true,
-            style: TextStyle(color: kText1),
-            decoration: _dec('Nome da modalidade', Icons.sports_martial_arts_rounded),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _descCtrl,
-            style: TextStyle(color: kText1),
-            decoration: _dec('Descrição (opcional)', Icons.notes_rounded),
-          ),
-          if (_erro != null) ...[
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.c.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l.dashNewModalityTitle,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              l.dashNewModalityHint,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nomeCtrl,
+              autofocus: true,
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.dashModalityNameField,
+                Icons.sports_martial_arts_rounded,
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? l.commonRequiredField
+                  : null,
+            ),
             const SizedBox(height: 10),
-            Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+            TextFormField(
+              controller: _descCtrl,
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.commonDescriptionOptional,
+                Icons.notes_rounded,
+              ),
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _erro!,
+                style: TextStyle(color: context.sem.danger, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _loading ? null : _salvar,
+              style: FilledButton.styleFrom(
+                backgroundColor: context.c.primary,
+                foregroundColor: context.c.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _loading
+                  ? SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.c.onPrimary,
+                      ),
+                    )
+                  : Text(
+                      l.dashCreateModality,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+            ),
           ],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _loading ? null : _salvar,
-            style: FilledButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: _loading
-                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Criar modalidade', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ]),
+        ),
       ),
     );
   }
 
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2),
-    prefixIcon: Icon(icon, color: kText2, size: 20),
+    hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+    prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 20),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surfaceContainerLow,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.outline),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.outline),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.primary),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.sem.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.sem.danger),
+    ),
   );
 }
 
@@ -1396,20 +1841,27 @@ class _PlanoSheetState extends State<_PlanoSheet> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _erro = null; });
+    final erroMsg = context.l10n.commonSaveError;
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     try {
       final valor = double.tryParse(_valorCtrl.text.replaceAll(',', '.')) ?? 0;
-      final matricula = double.tryParse(_matriculaCtrl.text.replaceAll(',', '.'));
+      final matricula = double.tryParse(
+        _matriculaCtrl.text.replaceAll(',', '.'),
+      );
       await firestoreService.addPlano(widget.academiaId, {
         'nome': _nomeCtrl.text.trim(),
-        if (_descCtrl.text.trim().isNotEmpty) 'descricao': _descCtrl.text.trim(),
+        if (_descCtrl.text.trim().isNotEmpty)
+          'descricao': _descCtrl.text.trim(),
         'valor_mensal': valor,
         if (matricula != null && matricula > 0) 'taxa_matricula': matricula,
         'ativo': true,
       });
       if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      setState(() => _erro = 'Erro ao salvar: $e');
+    } catch (_) {
+      setState(() => _erro = erroMsg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1417,78 +1869,160 @@ class _PlanoSheetState extends State<_PlanoSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Container(
-      decoration: BoxDecoration(color: kSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
       child: Form(
         key: _formKey,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: kBorder, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Text('Novo plano de mensalidade', style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800)),
-          Text('Defina o valor que seus alunos pagarão.', style: TextStyle(color: kText2, fontSize: 12)),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _nomeCtrl,
-            autofocus: true,
-            style: TextStyle(color: kText1),
-            decoration: _dec('Nome do plano (ex: Mensal, Trimestral)', Icons.label_rounded),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _valorCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: TextStyle(color: kText1),
-            decoration: _dec('Valor mensal (R\$)', Icons.monetization_on_rounded),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Obrigatório';
-              final n = double.tryParse(v.replaceAll(',', '.'));
-              if (n == null || n <= 0) return 'Informe um valor válido';
-              return null;
-            },
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _matriculaCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: TextStyle(color: kText1),
-            decoration: _dec('Taxa de matrícula (opcional)', Icons.receipt_long_rounded),
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _descCtrl,
-            style: TextStyle(color: kText1),
-            decoration: _dec('Descrição (opcional)', Icons.notes_rounded),
-          ),
-          if (_erro != null) ...[
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.c.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l.dashNewPlanTitle,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              l.dashNewPlanSubtitle,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nomeCtrl,
+              autofocus: true,
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(l.dashPlanNameField, Icons.label_rounded),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? l.commonRequiredField
+                  : null,
+            ),
             const SizedBox(height: 10),
-            Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+            TextFormField(
+              controller: _valorCtrl,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.dashPlanMonthlyValueField,
+                Icons.monetization_on_rounded,
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return l.commonRequiredField;
+                final n = double.tryParse(v.replaceAll(',', '.'));
+                if (n == null || n <= 0) return l.commonEnterValidValue;
+                return null;
+              },
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _matriculaCtrl,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.dashPlanEnrollmentFeeField,
+                Icons.receipt_long_rounded,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _descCtrl,
+              style: TextStyle(color: context.c.onSurface),
+              decoration: _dec(
+                l.commonDescriptionOptional,
+                Icons.notes_rounded,
+              ),
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _erro!,
+                style: TextStyle(color: context.sem.danger, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _loading ? null : _salvar,
+              style: FilledButton.styleFrom(
+                backgroundColor: context.c.primary,
+                foregroundColor: context.c.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _loading
+                  ? SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.c.onPrimary,
+                      ),
+                    )
+                  : Text(
+                      l.dashCreatePlan,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+            ),
           ],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _loading ? null : _salvar,
-            style: FilledButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: _loading
-                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Criar plano', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ]),
+        ),
       ),
     );
   }
 
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: kText2),
-    prefixIcon: Icon(icon, color: kText2, size: 20),
+    hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+    prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 20),
     filled: true,
-    fillColor: kBg,
+    fillColor: context.c.surfaceContainerLow,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
-    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.outline),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.outline),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.c.primary),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.sem.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: context.sem.danger),
+    ),
   );
 }

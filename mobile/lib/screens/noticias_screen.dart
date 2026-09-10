@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/auth_storage.dart';
-import '../core/constants.dart';
+import '../core/theme/context_ext.dart';
+import '../l10n/app_localizations.dart';
 import '../core/firestore_service.dart';
+import '../core/whats_new_service.dart';
 
 class NoticiasScreen extends StatefulWidget {
   const NoticiasScreen({super.key});
@@ -38,7 +40,10 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
       final user = await AuthStorage.getUser();
       final academiaId = user?.academiaId ?? '';
       if (academiaId.isEmpty) return;
-      final dados = await firestoreService.getNoticias(academiaId, publicadasOnly: true);
+      final dados = await firestoreService.getNoticias(
+        academiaId,
+        publicadasOnly: true,
+      );
       dados.sort((a, b) {
         final aDate = a['publicada_em'] as String? ?? '';
         final bDate = b['publicada_em'] as String? ?? '';
@@ -56,29 +61,40 @@ class _NoticiasScreenState extends State<NoticiasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
-        foregroundColor: kText1,
-        title:
-            const Text('Notícias', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
+        title: Text(
+          AppLocalizations.of(context).menuNews,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _carregar,
-              child: _items.isEmpty
-                  ? const Center(
-                      child: Text('Nenhuma notícia publicada ainda.',
-                          style: TextStyle(color: kText2)))
-                  : ListView.builder(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        return _NoticiaCard(noticia: _items[index]);
-                      },
-                    ),
+              child: ListView.builder(
+                controller: _scrollCtrl,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.isEmpty ? 2 : _items.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) return const ReleaseNotesNewsCard();
+                  if (_items.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 48),
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.of(context).newsNonePublished,
+                          style: TextStyle(color: context.c.onSurfaceVariant),
+                        ),
+                      ),
+                    );
+                  }
+                  return _NoticiaCard(noticia: _items[index - 1]);
+                },
+              ),
             ),
     );
   }
@@ -104,50 +120,82 @@ class _NoticiaCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => _NoticiaDetalheScreen(noticia: noticia))),
+        context,
+        MaterialPageRoute(
+          builder: (_) => _NoticiaDetalheScreen(noticia: noticia),
+        ),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: kSurface,
+          color: context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: context.c.outline),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (imagem != null && imagem.isNotEmpty) _ImagemNoticia(base64: imagem),
+            if (imagem != null && imagem.isNotEmpty)
+              _ImagemNoticia(base64: imagem),
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(titulo,
-                      style: TextStyle(
-                          color: kText1,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          height: 1.3)),
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      color: context.c.onSurface,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(resumo,
-                      style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    resumo,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       if (autorNome != null) ...[
-                        Icon(Icons.person_outline_rounded, size: 13, color: kText2),
+                        Icon(
+                          Icons.person_outline_rounded,
+                          size: 13,
+                          color: context.c.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
-                        Text(autorNome, style: TextStyle(color: kText2, fontSize: 11)),
+                        Text(
+                          autorNome,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
                         const SizedBox(width: 10),
                       ],
                       if (data != null) ...[
-                        Icon(Icons.schedule_rounded, size: 13, color: kText2),
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 13,
+                          color: context.c.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                            '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
-                            style: TextStyle(color: kText2, fontSize: 11)),
+                          '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -202,12 +250,15 @@ class _NoticiaDetalheScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-          backgroundColor: kSurface,
-          foregroundColor: kText1,
-          title: const Text('Notícia',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
+        backgroundColor: context.c.surfaceContainer,
+        foregroundColor: context.c.onSurface,
+        title: Text(
+          AppLocalizations.of(context).newsDetailTitle,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -219,32 +270,62 @@ class _NoticiaDetalheScreen extends StatelessWidget {
                 child: _ImagemNoticia(base64: imagem),
               ),
             if (imagem != null && imagem.isNotEmpty) const SizedBox(height: 16),
-            Text(titulo,
-                style: TextStyle(
-                    color: kText1, fontSize: 22, fontWeight: FontWeight.w900, height: 1.3)),
+            Text(
+              titulo,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                height: 1.3,
+              ),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 if (autorNome != null) ...[
-                  Icon(Icons.person_outline_rounded, size: 14, color: kText2),
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 14,
+                    color: context.c.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 4),
-                  Text(autorNome, style: TextStyle(color: kText2, fontSize: 12)),
+                  Text(
+                    autorNome,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                 ],
                 if (data != null) ...[
-                  Icon(Icons.schedule_rounded, size: 14, color: kText2),
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 14,
+                    color: context.c.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 4),
                   Text(
-                      '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
-                      style: TextStyle(color: kText2, fontSize: 12)),
+                    '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
             const SizedBox(height: 16),
-            Container(height: 1, color: kBorder),
+            Container(height: 1, color: context.c.outline),
             const SizedBox(height: 16),
-            Text(conteudo ?? resumo,
-                style: TextStyle(color: kText1, fontSize: 15, height: 1.7)),
+            Text(
+              conteudo ?? resumo,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 15,
+                height: 1.7,
+              ),
+            ),
           ],
         ),
       ),

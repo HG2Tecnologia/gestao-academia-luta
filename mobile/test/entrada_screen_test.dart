@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tatame/l10n/app_localizations.dart';
 import 'package:tatame/screens/auth/entrada_screen.dart';
 
 void main() {
@@ -24,7 +26,19 @@ void main() {
   testWidgets('mostra os dois cards de entrada (aluno e academia)', (
     tester,
   ) async {
-    await tester.pumpWidget(MaterialApp.router(routerConfig: buildRouter()));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: buildRouter(),
+        locale: const Locale('pt'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Sou Aluno ou Responsável'), findsOneWidget);
@@ -34,7 +48,19 @@ void main() {
   testWidgets('card de aluno navega para /login com contexto aluno', (
     tester,
   ) async {
-    await tester.pumpWidget(MaterialApp.router(routerConfig: buildRouter()));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: buildRouter(),
+        locale: const Locale('pt'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sou Aluno ou Responsável'));
@@ -46,7 +72,19 @@ void main() {
   testWidgets('card de academia navega para /login com contexto academia', (
     tester,
   ) async {
-    await tester.pumpWidget(MaterialApp.router(routerConfig: buildRouter()));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: buildRouter(),
+        locale: const Locale('pt'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sou uma Academia'));
