@@ -1360,6 +1360,22 @@
   },
   "apContactSecretary": "Contact the front desk to settle it.",
   "apNoChargesInCategory": "No charges in this category",
+  "apNoChargesThisMonth": "No charges in {month}",
+  "@apNoChargesThisMonth": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
+  "apTotalOpenAllMonths": "{amount} outstanding in total",
+  "@apTotalOpenAllMonths": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "apViewAllOverdue": "View all overdue",
+  "apAllOverdueTitle": "Overdue charges",
+  "apPrevMonth": "Previous month",
+  "apNextMonth": "Next month",
   "apAttendanceTitle": "Attendance",
   "apTrainingHistory": "Your training history",
   "apTotalWorkouts": "Total sessions",

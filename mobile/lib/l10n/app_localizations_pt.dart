@@ -3757,6 +3757,28 @@ class AppLocalizationsPt extends AppLocalizations {
   String get apNoChargesInCategory => 'Nenhuma cobrança nessa categoria';
 
   @override
+  String apNoChargesThisMonth(String month) {
+    return 'Nenhuma cobrança em $month';
+  }
+
+  @override
+  String apTotalOpenAllMonths(String amount) {
+    return '$amount em aberto no total';
+  }
+
+  @override
+  String get apViewAllOverdue => 'Ver todas as atrasadas';
+
+  @override
+  String get apAllOverdueTitle => 'Mensalidades atrasadas';
+
+  @override
+  String get apPrevMonth => 'Mês anterior';
+
+  @override
+  String get apNextMonth => 'Próximo mês';
+
+  @override
   String get apAttendanceTitle => 'Presenças';
 
   @override

@@ -1890,6 +1890,22 @@
   },
   "apContactSecretary": "Entre em contato com a secretaria para regularizar.",
   "apNoChargesInCategory": "Nenhuma cobrança nessa categoria",
+  "apNoChargesThisMonth": "Nenhuma cobrança em {month}",
+  "@apNoChargesThisMonth": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
+  "apTotalOpenAllMonths": "{amount} em aberto no total",
+  "@apTotalOpenAllMonths": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "apViewAllOverdue": "Ver todas as atrasadas",
+  "apAllOverdueTitle": "Mensalidades atrasadas",
+  "apPrevMonth": "Mês anterior",
+  "apNextMonth": "Próximo mês",
   "apAttendanceTitle": "Presenças",
   "apTrainingHistory": "Seu histórico de treinos",
   "apTotalWorkouts": "Total de treinos",

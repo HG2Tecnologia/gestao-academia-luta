@@ -10,6 +10,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
+import '../../core/pagamento_status.dart';
 import '../../core/tab_refresh.dart';
 
 class AdminFinanceiroScreen extends StatefulWidget {
@@ -181,22 +182,20 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Convert status for display; compute effective status (Atrasado if pending+overdue)
       final cobrancasComStatus = doMes.map((p) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int
-            ? statusRaw
-            : int.tryParse(statusRaw.toString()) ?? 0;
-        String statusStr = _statusMap[statusInt] ?? 'Pendente';
-        final venc = p['data_vencimento'] as String? ?? '';
-        DateTime? vencDt;
-        try {
-          vencDt = DateTime.parse(venc);
-        } catch (_) {}
-        // Override Pendente → Atrasado if past due date
-        if ((statusStr == 'Pendente' || statusStr == 'Previsto') &&
-            vencDt != null &&
-            DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
-          statusStr = 'Atrasado';
-        }
+        // Status efetivo: fonte única compartilhada com o app do aluno
+        // (Pendente/Previsto vencido → Atrasado; Pago/Desconsiderado intactos).
+        final stEf = pagamentoStatusEfetivo(
+          rawStatus: p['status'],
+          dataVencimento: p['data_vencimento'],
+          hoje: hoje,
+        );
+        final statusStr = switch (stEf) {
+          PagamentoStatus.pago => 'Pago',
+          PagamentoStatus.atrasado => 'Atrasado',
+          PagamentoStatus.previsto => 'Previsto',
+          PagamentoStatus.desconsiderado => 'Desconsiderado',
+          PagamentoStatus.pendente => 'Pendente',
+        };
         final rawNome =
             (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
                 .toString();
@@ -265,6 +264,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         _mes = 12;
         _ano--;
       }
+    });
+    _load();
+  }
+
+  void _irParaMesAtual() {
+    final now = DateTime.now();
+    if (_ano == now.year && _mes == now.month) return;
+    setState(() {
+      _ano = now.year;
+      _mes = now.month;
     });
     _load();
   }
@@ -2153,25 +2162,50 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
-                          Column(
-                            children: [
-                              Text(
-                                '${_mesCurto(_mes)} $_ano',
-                                style: TextStyle(
-                                  color: context.c.onSurface,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              if (isAtual)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: isAtual ? null : _irParaMesAtual,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Text(
-                                  _l.fiCurrentMonth,
+                                  '${_mesCurto(_mes)} $_ano',
                                   style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 11,
+                                    color: context.c.onSurface,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                            ],
+                                if (isAtual)
+                                  Text(
+                                    _l.fiCurrentMonth,
+                                    style: TextStyle(
+                                      color: context.c.primary,
+                                      fontSize: 11,
+                                    ),
+                                  )
+                                else
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.today_rounded,
+                                        size: 12,
+                                        color: context.c.primary,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        _l.tdToday,
+                                        style: TextStyle(
+                                          color: context.c.primary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
                           ),
                           IconButton(
                             // Financeiro automático gera a competência atual
@@ -2197,7 +2231,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 1.55,
+                      childAspectRatio: 2.0,
                       children: [
                         _met(
                           label: _l.raReceived,
@@ -2757,52 +2791,68 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     ),
     padding: const EdgeInsets.all(12),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 16),
+        // linha de cima: ícone à esquerda · valor à direita
+        Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              height: 1,
+        // linha de baixo: rótulo à esquerda · nº de cobranças à direita
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+            if (sub != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                sub,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        if (sub != null) ...[
-          const SizedBox(height: 3),
-          Text(
-            sub,
-            style: TextStyle(
-              color: context.c.onSurfaceVariant,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ],
     ),
   );

@@ -6674,6 +6674,42 @@ abstract class AppLocalizations {
   /// **'Nenhuma cobrança nessa categoria'**
   String get apNoChargesInCategory;
 
+  /// No description provided for @apNoChargesThisMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma cobrança em {month}'**
+  String apNoChargesThisMonth(String month);
+
+  /// No description provided for @apTotalOpenAllMonths.
+  ///
+  /// In pt, this message translates to:
+  /// **'{amount} em aberto no total'**
+  String apTotalOpenAllMonths(String amount);
+
+  /// No description provided for @apViewAllOverdue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver todas as atrasadas'**
+  String get apViewAllOverdue;
+
+  /// No description provided for @apAllOverdueTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mensalidades atrasadas'**
+  String get apAllOverdueTitle;
+
+  /// No description provided for @apPrevMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mês anterior'**
+  String get apPrevMonth;
+
+  /// No description provided for @apNextMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Próximo mês'**
+  String get apNextMonth;
+
   /// No description provided for @apAttendanceTitle.
   ///
   /// In pt, this message translates to:

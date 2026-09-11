@@ -3755,6 +3755,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apNoChargesInCategory => 'No charges in this category';
 
   @override
+  String apNoChargesThisMonth(String month) {
+    return 'No charges in $month';
+  }
+
+  @override
+  String apTotalOpenAllMonths(String amount) {
+    return '$amount outstanding in total';
+  }
+
+  @override
+  String get apViewAllOverdue => 'View all overdue';
+
+  @override
+  String get apAllOverdueTitle => 'Overdue charges';
+
+  @override
+  String get apPrevMonth => 'Previous month';
+
+  @override
+  String get apNextMonth => 'Next month';
+
+  @override
   String get apAttendanceTitle => 'Attendance';
 
   @override
