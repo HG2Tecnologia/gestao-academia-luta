@@ -588,6 +588,41 @@
   "fiNewCharge": "New charge",
   "fiCurrentMonth": "Current month",
   "fiBackToCurrentMonth": "Back to current month",
+  "fiMoreActions": "More",
+  "fiCleanupRetroactive": "Clean up backdated",
+  "fiCleanupRetroactiveTitle": "Clean up backdated charges",
+  "fiCleanupRetroactiveExplain": "Dismisses (does not delete) every pending or overdue charge due BEFORE the chosen month, for ALL students. Already-paid charges are never affected, and none of this counts as revenue.",
+  "fiCleanupRetroactiveCutoffLabel": "Keep charges from",
+  "fiCleanupRetroactiveConfirmTitle": "Confirm cleanup?",
+  "fiCleanupRetroactiveConfirmBody": "This will dismiss, all at once, every student's pending charges before {mes}. It can't be undone in bulk — only one at a time, manually. Are you sure?",
+  "@fiCleanupRetroactiveConfirmBody": {
+    "placeholders": {
+      "mes": {"type": "String"}
+    }
+  },
+  "fiCleanupRetroactiveButton": "Dismiss backdated charges",
+  "fiCleanupRetroactiveSuccess": "{n} backdated charge(s) dismissed.",
+  "@fiCleanupRetroactiveSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "fiCleanupRetroactiveError": "Couldn't clean up backdated charges. Please try again.",
+  "fiMergeDuplicates": "Fix duplicates",
+  "fiMergeDuplicatesTitle": "Fix duplicate monthly charges",
+  "fiMergeDuplicatesExplain": "Scans every month for a student with more than one monthly charge for the same period. When it's unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.",
+  "fiMergeDuplicatesConfirmTitle": "Fix duplicates now?",
+  "fiMergeDuplicatesConfirmBody": "This will automatically dismiss duplicate monthly charges for every student in this school, keeping one per student/month. It can't be undone in bulk — only one at a time, manually. Continue?",
+  "fiMergeDuplicatesButton": "Fix duplicates",
+  "fiMergeDuplicatesSuccess": "{grupos} group(s) with duplicates · {resolvidas} fixed automatically · {manual} left for manual review.",
+  "@fiMergeDuplicatesSuccess": {
+    "placeholders": {
+      "grupos": {"type": "int"},
+      "resolvidas": {"type": "int"},
+      "manual": {"type": "int"}
+    }
+  },
+  "fiMergeDuplicatesError": "Couldn't fix the duplicate monthly charges. Please try again.",
   "fiNoCharges": "No charges.",
   "fiChargesCount": "Charges · {count}",
   "fiTabAll": "All",

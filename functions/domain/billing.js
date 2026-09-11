@@ -35,10 +35,56 @@ function monthlyChargeDocumentId(studentId, periodValue) {
   return `mensalidade__${studentId}__${period}`;
 }
 
+/**
+ * Decide, dentro de um grupo de cobranças duplicadas (mesmo aluno + mesma
+ * competência), qual documento manter e quais desconsiderar — pura, sem
+ * Firestore, pra poder testar sem emulador.
+ *
+ * `docs`: lista de `{ id, status, criadoEmMillis }` (status: 0 Pendente,
+ * 1 Pago, 3 Previsto, 4 Desconsiderado — já filtrados para excluir os
+ * Desconsiderado e docs que não são mensalidade antes de chamar).
+ *
+ * Regra: se exatamente um está Pago, ele fica (nunca se apaga receita já
+ * recebida). Se nenhum está pago, fica o de ID determinístico
+ * (`mensalidade__...`, o caminho oficial) ou, na falta desse, o mais antigo.
+ * Se DOIS OU MAIS estão pagos, o grupo é ambíguo — `ignorar: true`, nada é
+ * decidido, fica pra revisão manual (não dá pra saber sozinho qual pagamento
+ * é o espúrio sem apagar receita real).
+ */
+function resolveDuplicateGroup(docs) {
+  if (docs.length < 2) {
+    return { manterId: docs[0]?.id ?? null, desconsiderarIds: [], ignorar: false };
+  }
+
+  const pagos = docs.filter((d) => d.status === 1);
+  if (pagos.length > 1) {
+    return { manterId: null, desconsiderarIds: [], ignorar: true };
+  }
+
+  let manter;
+  if (pagos.length === 1) {
+    manter = pagos[0];
+  } else {
+    const determinista = docs.find((d) => d.id.startsWith("mensalidade__"));
+    if (determinista) {
+      manter = determinista;
+    } else {
+      manter = [...docs].sort((a, b) => (a.criadoEmMillis ?? 0) - (b.criadoEmMillis ?? 0))[0];
+    }
+  }
+
+  return {
+    manterId: manter.id,
+    desconsiderarIds: docs.filter((d) => d.id !== manter.id).map((d) => d.id),
+    ignorar: false,
+  };
+}
+
 module.exports = {
   addBillingMonths,
   dueDateForPeriod,
   monthlyChargeDocumentId,
   parseBillingPeriod,
   resolveChargeStatus,
+  resolveDuplicateGroup,
 };

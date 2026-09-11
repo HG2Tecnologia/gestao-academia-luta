@@ -10,6 +10,7 @@ const {
   dueDateForPeriod,
   monthlyChargeDocumentId,
   parseBillingPeriod,
+  resolveDuplicateGroup,
 } = require("./domain/billing");
 
 const db = admin.firestore();
@@ -157,4 +158,201 @@ exports.gerarMensalidadesAutomaticas = onSchedule(
   },
 );
 
-exports._test = { ensureChargesForPeriodCore, loadFinanceAuthority };
+/**
+ * Desconsidera (nunca exclui, nunca marca como paga) toda cobrança com
+ * competência ANTERIOR a `periodValue` — usado para "limpar" pendências
+ * retroativas geradas por engano (ex.: bug de geração de mensalidade para
+ * meses em que o aluno nem estava com o plano ativo). Cobrança já paga
+ * (status 1) ou já desconsiderada (status 4) nunca é tocada — preserva
+ * histórico de receita e é idempotente para reprocessamento.
+ */
+async function disregardChargesBeforePeriodCore(academiaId, periodValue) {
+  const period = parseBillingPeriod(periodValue).value;
+
+  const snap = await db
+    .collection("academias")
+    .doc(academiaId)
+    .collection("pagamentos")
+    .where("mes_referencia", "<", period)
+    .get();
+
+  let desconsideradas = 0;
+  let ignoradas = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400; // margem sob o limite de 500 do Firestore
+
+  for (const doc of snap.docs) {
+    const status = doc.data().status;
+    if (status === 1 || status === 4) {
+      ignoradas++;
+      continue;
+    }
+    batch.update(doc.ref, {
+      status: 4,
+      desconsiderado_em: FieldValue.serverTimestamp(),
+      desconsiderado_motivo: "limpeza_retroativa",
+    });
+    desconsideradas++;
+    opsNoBatch++;
+    if (opsNoBatch >= TAMANHO_LOTE) {
+      await batch.commit();
+      batch = db.batch();
+      opsNoBatch = 0;
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { period, desconsideradas, ignoradas };
+}
+
+exports.disregardChargesBeforePeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de limpar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  const periodValue = String(request.data?.period ?? "").trim();
+  if (!academiaId || !periodValue) {
+    throw new HttpsError("invalid-argument", "Informe a academia e a competência de corte (YYYY-MM).");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  let result;
+  try {
+    result = await disregardChargesBeforePeriodCore(academiaId, periodValue);
+  } catch (error) {
+    if (error instanceof TypeError) throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+
+  logger.info("Cobranças retroativas desconsideradas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
+function mesReferenciaEfetiva(pagamento) {
+  const direto = String(pagamento.mes_referencia ?? "").trim();
+  if (/^\d{4}-\d{2}$/.test(direto)) return direto;
+  const venc = String(pagamento.data_vencimento ?? "");
+  const match = /^(\d{4}-\d{2})/.exec(venc);
+  return match ? match[1] : null;
+}
+
+// Mensalidade "de verdade" — o que pode duplicar por engano. Cobrança avulsa
+// (`tipo` como "Taxa de Matrícula") ou taxa de graduação (`tipo` numérico)
+// legitimamente coexiste com a mensalidade no mesmo mês; nunca é considerada
+// duplicata. Documentos antigos, gerados pelo caminho ad-hoc já removido do
+// app (sem `tipo` nenhum), são tratados como mensalidade — é exatamente o
+// formato do bug que gerou as duplicatas reais em produção.
+function eMensalidade(pagamento) {
+  const tipo = pagamento.tipo;
+  return tipo === undefined || tipo === null || tipo === "Mensalidade";
+}
+
+/**
+ * Acha grupos de mensalidade duplicada (mesmo aluno + mesma competência, mais
+ * de um documento ativo) e resolve automaticamente os casos inequívocos,
+ * mantendo sempre UM documento por aluno/mês e desconsiderando (nunca
+ * excluindo, nunca marcando como paga) os demais:
+ *
+ *  * Se exatamente um dos duplicados está `Pago`, esse é o que fica — os
+ *    outros (nunca pagos de verdade) viram Desconsiderado.
+ *  * Se nenhum está pago, fica o de ID determinístico
+ *    (`mensalidade__{aluno}__{mês}`, o gerado pelo caminho oficial) ou, na
+ *    falta desse, o mais antigo — os demais viram Desconsiderado.
+ *  * Se DOIS OU MAIS estão `Pago`, o grupo é ignorado (fica para revisão
+ *    manual) — decidir sozinho ali apagaria receita já recebida de verdade,
+ *    o que exige critério humano, não automação.
+ */
+async function mergeDuplicateChargesCore(academiaId) {
+  const snap = await db.collection("academias").doc(academiaId).collection("pagamentos").get();
+
+  const grupos = new Map(); // "alunoId|mes" -> [{ref, data}]
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (data.status === 4) continue; // já desconsiderada: não conta pra duplicidade
+    if (!eMensalidade(data)) continue;
+    const alunoId = String(data.aluno_id ?? "").trim();
+    const mes = mesReferenciaEfetiva(data);
+    if (!alunoId || !mes) continue;
+    const chave = `${alunoId}|${mes}`;
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push({ ref: doc.ref, data });
+  }
+
+  let gruposComDuplicata = 0;
+  let resolvidasAutomaticamente = 0;
+  let ignoradasRevisaoManual = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400;
+
+  for (const docs of grupos.values()) {
+    if (docs.length < 2) continue;
+    gruposComDuplicata++;
+
+    const refPorId = new Map(docs.map((d) => [d.ref.id, d.ref]));
+    const decisao = resolveDuplicateGroup(
+      docs.map((d) => ({
+        id: d.ref.id,
+        status: d.data.status,
+        criadoEmMillis: d.data.criado_em?.toMillis?.() ?? 0,
+      })),
+    );
+
+    if (decisao.ignorar) {
+      ignoradasRevisaoManual++;
+      continue;
+    }
+
+    for (const id of decisao.desconsiderarIds) {
+      batch.update(refPorId.get(id), {
+        status: 4,
+        desconsiderado_em: FieldValue.serverTimestamp(),
+        desconsiderado_motivo: "duplicata_mensalidade",
+      });
+      resolvidasAutomaticamente++;
+      opsNoBatch++;
+      if (opsNoBatch >= TAMANHO_LOTE) {
+        await batch.commit();
+        batch = db.batch();
+        opsNoBatch = 0;
+      }
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { gruposComDuplicata, resolvidasAutomaticamente, ignoradasRevisaoManual };
+}
+
+exports.mergeDuplicateCharges = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de corrigir duplicatas.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await mergeDuplicateChargesCore(academiaId);
+
+  logger.info("Mensalidades duplicadas corrigidas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
+exports._test = {
+  ensureChargesForPeriodCore,
+  disregardChargesBeforePeriodCore,
+  mergeDuplicateChargesCore,
+  loadFinanceAuthority,
+};

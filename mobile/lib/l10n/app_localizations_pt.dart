@@ -2007,6 +2007,71 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiBackToCurrentMonth => 'Voltar ao mês atual';
 
   @override
+  String get fiMoreActions => 'Mais';
+
+  @override
+  String get fiCleanupRetroactive => 'Limpar retroativas';
+
+  @override
+  String get fiCleanupRetroactiveTitle => 'Limpar cobranças retroativas';
+
+  @override
+  String get fiCleanupRetroactiveExplain =>
+      'Desconsidera (não exclui) toda cobrança pendente ou atrasada com vencimento ANTES do mês escolhido, de TODOS os alunos. Cobranças já pagas nunca são afetadas e nada disso conta como valor recebido.';
+
+  @override
+  String get fiCleanupRetroactiveCutoffLabel => 'Manter cobranças a partir de';
+
+  @override
+  String get fiCleanupRetroactiveConfirmTitle => 'Confirmar limpeza?';
+
+  @override
+  String fiCleanupRetroactiveConfirmBody(String mes) {
+    return 'Essa ação vai desconsiderar de uma vez as pendências de todos os alunos anteriores a $mes. Não pode ser desfeita em massa — só uma por uma, manualmente. Tem certeza?';
+  }
+
+  @override
+  String get fiCleanupRetroactiveButton => 'Desconsiderar retroativas';
+
+  @override
+  String fiCleanupRetroactiveSuccess(int n) {
+    return '$n cobrança(s) retroativa(s) desconsiderada(s).';
+  }
+
+  @override
+  String get fiCleanupRetroactiveError =>
+      'Não foi possível limpar as cobranças retroativas. Tente novamente.';
+
+  @override
+  String get fiMergeDuplicates => 'Corrigir duplicadas';
+
+  @override
+  String get fiMergeDuplicatesTitle => 'Corrigir mensalidades duplicadas';
+
+  @override
+  String get fiMergeDuplicatesExplain =>
+      'Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.';
+
+  @override
+  String get fiMergeDuplicatesConfirmTitle => 'Corrigir duplicadas agora?';
+
+  @override
+  String get fiMergeDuplicatesConfirmBody =>
+      'Isso vai desconsiderar automaticamente as mensalidades duplicadas de todos os alunos desta academia, mantendo uma por aluno/mês. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?';
+
+  @override
+  String get fiMergeDuplicatesButton => 'Corrigir duplicadas';
+
+  @override
+  String fiMergeDuplicatesSuccess(int grupos, int resolvidas, int manual) {
+    return '$grupos grupo(s) com duplicata · $resolvidas corrigida(s) automaticamente · $manual para revisão manual.';
+  }
+
+  @override
+  String get fiMergeDuplicatesError =>
+      'Não foi possível corrigir as mensalidades duplicadas. Tente novamente.';
+
+  @override
   String get fiNoCharges => 'Nenhuma cobrança.';
 
   @override

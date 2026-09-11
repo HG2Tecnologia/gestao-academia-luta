@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/graduacao_service.dart';
@@ -1097,12 +1098,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         color: context.c.primary,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _l.sdCreateGroup,
-                        style: TextStyle(
-                          color: context.c.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          _l.sdCreateGroup,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.c.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -1130,12 +1134,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         color: context.c.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _l.sdLinkExisting,
-                        style: TextStyle(
-                          color: context.c.onSurfaceVariant,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          _l.sdLinkExisting,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -4043,7 +4050,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                   'ativo': a['ativo'] == true,
                                 },
                               );
-                              // Auto-gerar cobrança se plano foi definido pela primeira vez
+                              // Auto-gerar cobrança se plano foi definido pela
+                              // primeira vez — sempre pelo mesmo caminho
+                              // idempotente server-side (mesmo ID
+                              // determinístico usado pelo Financeiro e pelo
+                              // agendamento automático). Nunca gerar aqui por
+                              // conta própria com outro esquema de ID: isso
+                              // já causou cobrança duplicada (2 documentos
+                              // para o mesmo aluno/mês) quando o gerador
+                              // automático rodava depois e não reconhecia o
+                              // documento criado por aqui.
                               final diaVencInt = int.tryParse(
                                 diaVencCtrl.text.trim(),
                               );
@@ -4052,14 +4068,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                   planoIdAntes == null &&
                                   diaVencInt != null) {
                                 try {
-                                  await firestoreService
-                                      .gerarPagamentoMesSeNecessario(
-                                        _academiaId!,
-                                        widget.alunoId,
-                                        nomeCtrl.text.trim(),
-                                        planoIdSel!,
-                                        diaVencInt,
-                                      );
+                                  final agora = DateTime.now();
+                                  final periodoAtual =
+                                      '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
+                                  await financeService.ensureChargesForPeriod(
+                                    academiaId: _academiaId!,
+                                    period: periodoAtual,
+                                  );
                                 } catch (_) {}
                               }
                               if (ctx.mounted) {

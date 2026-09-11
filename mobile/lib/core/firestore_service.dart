@@ -1062,6 +1062,13 @@ class FirestoreService {
   }
 
   /// Gera pagamento do mês corrente para o aluno se não existir ainda.
+  ///
+  /// NÃO USAR em telas novas: o ID gerado aqui é aleatório e não é
+  /// reconhecido pelo gerador idempotente do servidor
+  /// (`FinanceService.ensureChargesForPeriod`, ID determinístico
+  /// `mensalidade__{alunoId}__{periodo}`) — usar os dois caminhos juntos
+  /// já causou cobrança duplicada em produção. Mantido só por compatibilidade
+  /// histórica; sem chamadores no app atualmente.
   Future<void> gerarPagamentoMesSeNecessario(
     String academiaId,
     String alunoId,

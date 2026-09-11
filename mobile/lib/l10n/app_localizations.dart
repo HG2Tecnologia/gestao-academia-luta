@@ -3632,6 +3632,114 @@ abstract class AppLocalizations {
   /// **'Voltar ao mês atual'**
   String get fiBackToCurrentMonth;
 
+  /// No description provided for @fiMoreActions.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mais'**
+  String get fiMoreActions;
+
+  /// No description provided for @fiCleanupRetroactive.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar retroativas'**
+  String get fiCleanupRetroactive;
+
+  /// No description provided for @fiCleanupRetroactiveTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças retroativas'**
+  String get fiCleanupRetroactiveTitle;
+
+  /// No description provided for @fiCleanupRetroactiveExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desconsidera (não exclui) toda cobrança pendente ou atrasada com vencimento ANTES do mês escolhido, de TODOS os alunos. Cobranças já pagas nunca são afetadas e nada disso conta como valor recebido.'**
+  String get fiCleanupRetroactiveExplain;
+
+  /// No description provided for @fiCleanupRetroactiveCutoffLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manter cobranças a partir de'**
+  String get fiCleanupRetroactiveCutoffLabel;
+
+  /// No description provided for @fiCleanupRetroactiveConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar limpeza?'**
+  String get fiCleanupRetroactiveConfirmTitle;
+
+  /// No description provided for @fiCleanupRetroactiveConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa ação vai desconsiderar de uma vez as pendências de todos os alunos anteriores a {mes}. Não pode ser desfeita em massa — só uma por uma, manualmente. Tem certeza?'**
+  String fiCleanupRetroactiveConfirmBody(String mes);
+
+  /// No description provided for @fiCleanupRetroactiveButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desconsiderar retroativas'**
+  String get fiCleanupRetroactiveButton;
+
+  /// No description provided for @fiCleanupRetroactiveSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} cobrança(s) retroativa(s) desconsiderada(s).'**
+  String fiCleanupRetroactiveSuccess(int n);
+
+  /// No description provided for @fiCleanupRetroactiveError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível limpar as cobranças retroativas. Tente novamente.'**
+  String get fiCleanupRetroactiveError;
+
+  /// No description provided for @fiMergeDuplicates.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas'**
+  String get fiMergeDuplicates;
+
+  /// No description provided for @fiMergeDuplicatesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir mensalidades duplicadas'**
+  String get fiMergeDuplicatesTitle;
+
+  /// No description provided for @fiMergeDuplicatesExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.'**
+  String get fiMergeDuplicatesExplain;
+
+  /// No description provided for @fiMergeDuplicatesConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas agora?'**
+  String get fiMergeDuplicatesConfirmTitle;
+
+  /// No description provided for @fiMergeDuplicatesConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Isso vai desconsiderar automaticamente as mensalidades duplicadas de todos os alunos desta academia, mantendo uma por aluno/mês. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?'**
+  String get fiMergeDuplicatesConfirmBody;
+
+  /// No description provided for @fiMergeDuplicatesButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas'**
+  String get fiMergeDuplicatesButton;
+
+  /// No description provided for @fiMergeDuplicatesSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{grupos} grupo(s) com duplicata · {resolvidas} corrigida(s) automaticamente · {manual} para revisão manual.'**
+  String fiMergeDuplicatesSuccess(int grupos, int resolvidas, int manual);
+
+  /// No description provided for @fiMergeDuplicatesError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível corrigir as mensalidades duplicadas. Tente novamente.'**
+  String get fiMergeDuplicatesError;
+
   /// No description provided for @fiNoCharges.
   ///
   /// In pt, this message translates to:

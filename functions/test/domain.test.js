@@ -16,6 +16,7 @@ const {
   dueDateForPeriod,
   monthlyChargeDocumentId,
   resolveChargeStatus,
+  resolveDuplicateGroup,
 } = require("../domain/billing");
 
 function fixture(name) {
@@ -53,6 +54,63 @@ test("financeiro: id mensal é determinístico", () => {
     monthlyChargeDocumentId("student-a", "2026-09"),
     "mensalidade__student-a__2026-09",
   );
+});
+
+test("financeiro: grupo sem duplicata (0 ou 1 doc) não decide nada", () => {
+  assert.deepEqual(resolveDuplicateGroup([]), { manterId: null, desconsiderarIds: [], ignorar: false });
+  assert.deepEqual(resolveDuplicateGroup([{ id: "a", status: 0, criadoEmMillis: 1 }]), {
+    manterId: "a",
+    desconsiderarIds: [],
+    ignorar: false,
+  });
+});
+
+test("financeiro: duplicata com uma paga mantém a paga, desconsidera o resto", () => {
+  const decisao = resolveDuplicateGroup([
+    { id: "aleatorio-1", status: 0, criadoEmMillis: 100 },
+    { id: "aleatorio-2", status: 1, criadoEmMillis: 200 },
+  ]);
+  assert.equal(decisao.manterId, "aleatorio-2");
+  assert.deepEqual(decisao.desconsiderarIds, ["aleatorio-1"]);
+  assert.equal(decisao.ignorar, false);
+});
+
+test("financeiro: duplicata sem nenhuma paga prefere o ID determinístico", () => {
+  const decisao = resolveDuplicateGroup([
+    { id: "aleatorio-1", status: 0, criadoEmMillis: 100 },
+    { id: "mensalidade__aluno-1__2026-09", status: 0, criadoEmMillis: 200 },
+  ]);
+  assert.equal(decisao.manterId, "mensalidade__aluno-1__2026-09");
+  assert.deepEqual(decisao.desconsiderarIds, ["aleatorio-1"]);
+});
+
+test("financeiro: duplicata sem paga nem ID determinístico mantém o mais antigo", () => {
+  const decisao = resolveDuplicateGroup([
+    { id: "criado-depois", status: 0, criadoEmMillis: 200 },
+    { id: "criado-primeiro", status: 3, criadoEmMillis: 100 },
+  ]);
+  assert.equal(decisao.manterId, "criado-primeiro");
+  assert.deepEqual(decisao.desconsiderarIds, ["criado-depois"]);
+});
+
+test("financeiro: duas pagas é ambíguo — não decide nada, fica pra revisão manual", () => {
+  const decisao = resolveDuplicateGroup([
+    { id: "pago-1", status: 1, criadoEmMillis: 100 },
+    { id: "pago-2", status: 1, criadoEmMillis: 200 },
+  ]);
+  assert.equal(decisao.ignorar, true);
+  assert.equal(decisao.manterId, null);
+  assert.deepEqual(decisao.desconsiderarIds, []);
+});
+
+test("financeiro: três duplicadas, uma paga — as outras duas somem", () => {
+  const decisao = resolveDuplicateGroup([
+    { id: "a", status: 0, criadoEmMillis: 100 },
+    { id: "b", status: 1, criadoEmMillis: 200 },
+    { id: "c", status: 3, criadoEmMillis: 300 },
+  ]);
+  assert.equal(decisao.manterId, "b");
+  assert.deepEqual(decisao.desconsiderarIds.sort(), ["a", "c"]);
 });
 
 test("identidade: telefone aceita email sintético canônico e legado", () => {

@@ -222,13 +222,38 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         ),
       );
 
-  int get _atrasadasGeral => _atrasadasTodas.length;
-  int get _pendentesGeral =>
-      _cobrancas.where((c) => c['status'] == 'Pendente').length;
+  /// Competência (`YYYY-MM`) de hoje de verdade — independe do mês que está
+  /// sendo navegado na tela (`_mesRefSel`).
+  String get _mesRefHoje {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+  }
 
-  /// Total em aberto somando TODOS os meses (pendente + atrasado).
+  int get _atrasadasGeral => _atrasadasTodas.length;
+
+  // "Pendente" de um mês FUTURO (ex.: cobrança já gerada com antecedência
+  // para daqui a 3 meses) não é uma pendência ATUAL — não venceu, não é o
+  // mês corrente, não deveria assustar o aluno com "Em aberto" hoje. Só
+  // conta aqui o que já é (ou está prestes a ser, no mês corrente) uma
+  // cobrança de verdade: mês atual ou anterior. Atrasado sempre conta, de
+  // qualquer mês, porque por definição já venceu.
+  int get _pendentesGeral => _cobrancas
+      .where(
+        (c) =>
+            c['status'] == 'Pendente' &&
+            ((c['mesRef'] as String?) ?? '').compareTo(_mesRefHoje) <= 0,
+      )
+      .length;
+
+  /// Total em aberto (pendente do mês atual/passado + atrasado de qualquer
+  /// mês) — nunca inclui pendência de mês futuro (ver [_pendentesGeral]).
   num get _totalEmAberto => _cobrancas
-      .where((c) => c['status'] == 'Pendente' || c['status'] == 'Atrasado')
+      .where(
+        (c) =>
+            c['status'] == 'Atrasado' ||
+            (c['status'] == 'Pendente' &&
+                ((c['mesRef'] as String?) ?? '').compareTo(_mesRefHoje) <= 0),
+      )
       .fold<num>(0, (sum, c) => sum + ((c['valor'] as num?) ?? 0));
 
   bool get _temPendencia => _atrasadasGeral > 0 || _pendentesGeral > 0;

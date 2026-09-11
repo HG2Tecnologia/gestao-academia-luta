@@ -142,3 +142,208 @@ test("chamar de novo para a mesma competência é idempotente — não duplica n
     assert.equal(cobranca.data().data_pagamento, "2026-09-10");
   });
 });
+
+test("desconsidera cobranças retroativas anteriores ao corte, sem tocar em pagas nem já desconsideradas", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-a/pagamentos");
+    // pendente antes do corte — deve virar Desconsiderado (4).
+    await pagamentos.doc("retro-pendente").set({
+      aluno_id: "aluno-1",
+      status: 0,
+      mes_referencia: "2025-12",
+      data_vencimento: "2025-12-15",
+      valor: 150,
+    });
+    // atrasada antes do corte — também deve virar Desconsiderado (4).
+    await pagamentos.doc("retro-atrasada").set({
+      aluno_id: "aluno-1",
+      status: 0,
+      mes_referencia: "2026-01",
+      data_vencimento: "2026-01-15",
+      valor: 150,
+    });
+    // já paga antes do corte — NUNCA deve ser tocada.
+    await pagamentos.doc("retro-paga").set({
+      aluno_id: "aluno-1",
+      status: 1,
+      mes_referencia: "2026-02",
+      data_vencimento: "2026-02-15",
+      valor: 150,
+    });
+    // já desconsiderada antes do corte — permanece como está.
+    await pagamentos.doc("retro-ja-desc").set({
+      aluno_id: "aluno-1",
+      status: 4,
+      mes_referencia: "2026-03",
+      data_vencimento: "2026-03-15",
+      valor: 150,
+    });
+    // dentro/depois do corte — nunca deve ser tocada.
+    await pagamentos.doc("dentro-do-corte").set({
+      aluno_id: "aluno-1",
+      status: 0,
+      mes_referencia: "2026-09",
+      data_vencimento: "2026-09-15",
+      valor: 150,
+    });
+  });
+
+  const functions = getFunctions(app);
+  const limpar = httpsCallable(functions, "disregardChargesBeforePeriod");
+  const resultado = await limpar({ academiaId: "academy-a", period: "2026-04" });
+
+  assert.equal(resultado.data.ok, true);
+  assert.equal(resultado.data.desconsideradas, 2);
+  assert.equal(resultado.data.ignoradas, 2);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-a/pagamentos");
+    assert.equal((await pagamentos.doc("retro-pendente").get()).data().status, 4);
+    assert.equal((await pagamentos.doc("retro-atrasada").get()).data().status, 4);
+    assert.equal((await pagamentos.doc("retro-paga").get()).data().status, 1, "paga não pode virar desconsiderada");
+    assert.equal((await pagamentos.doc("retro-ja-desc").get()).data().status, 4);
+    assert.equal((await pagamentos.doc("dentro-do-corte").get()).data().status, 0, "fora do intervalo de corte não deve mudar");
+  });
+});
+
+test("corrige mensalidade duplicada (mesmo aluno + mesmo mês) preservando a paga", async () => {
+  // Academia própria, isolada das demais — evita que os documentos de
+  // pagamento criados pelos testes anteriores (que também usam "aluno-1" em
+  // "2026-09") sejam pegos sem querer como duplicata aqui.
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const firestore = ctx.firestore();
+    await firestore.doc("academias/academy-b").set({ nome: "Academia B" });
+    await firestore.doc("academias/academy-b/funcionarios/admin-b").set({
+      nome: "Admin B",
+      perfil: "Admin",
+      ativo: true,
+    });
+
+    const pagamentos = firestore.collection("academias/academy-b/pagamentos");
+
+    // Grupo A: uma paga + uma pendente no mesmo mês — fica só a paga.
+    await pagamentos.doc("dup-a-pago").set({
+      aluno_id: "aluno-x",
+      status: 1,
+      tipo: "Mensalidade",
+      mes_referencia: "2026-05",
+      data_vencimento: "2026-05-10",
+      valor: 150,
+    });
+    await pagamentos.doc("dup-a-pendente").set({
+      aluno_id: "aluno-x",
+      status: 0,
+      // Sem `tipo` — exatamente o formato do bug real (caminho ad-hoc antigo).
+      mes_referencia: "2026-05",
+      data_vencimento: "2026-05-10",
+      valor: 150,
+    });
+    // Cobrança avulsa do mesmo aluno, mesmo mês — nunca é "duplicata" de
+    // mensalidade, tem que ficar de fora inteiramente.
+    await pagamentos.doc("avulsa-mesmo-mes").set({
+      aluno_id: "aluno-x",
+      status: 0,
+      tipo: "Taxa de Matrícula",
+      mes_referencia: "2026-05",
+      data_vencimento: "2026-05-20",
+      valor: 80,
+    });
+
+    // Grupo B: duas pendentes, nenhuma paga — fica a de ID determinístico.
+    await pagamentos.doc("mensalidade__aluno-y__2026-06").set({
+      aluno_id: "aluno-y",
+      status: 0,
+      tipo: "Mensalidade",
+      mes_referencia: "2026-06",
+      data_vencimento: "2026-06-10",
+      valor: 150,
+      origem: "auto",
+    });
+    await pagamentos.doc("dup-b-manual").set({
+      aluno_id: "aluno-y",
+      status: 0,
+      mes_referencia: "2026-06",
+      data_vencimento: "2026-06-10",
+      valor: 150,
+    });
+
+    // Grupo C: DUAS pagas — ambíguo, tem que ficar intocado (revisão manual).
+    await pagamentos.doc("dup-c-pago1").set({
+      aluno_id: "aluno-z",
+      status: 1,
+      mes_referencia: "2026-07",
+      data_vencimento: "2026-07-10",
+      valor: 150,
+    });
+    await pagamentos.doc("dup-c-pago2").set({
+      aluno_id: "aluno-z",
+      status: 1,
+      mes_referencia: "2026-07",
+      data_vencimento: "2026-07-10",
+      valor: 150,
+    });
+
+    // Controle: um aluno sem duplicata nenhuma — nunca deve ser tocado.
+    await pagamentos.doc("sem-duplicata").set({
+      aluno_id: "aluno-w",
+      status: 0,
+      mes_referencia: "2026-08",
+      data_vencimento: "2026-08-10",
+      valor: 150,
+    });
+  });
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-b-finance@sensei.app", "SenhaFixtureAdmin1");
+  await environment.withSecurityRulesDisabled((ctx) =>
+    ctx
+      .firestore()
+      .doc(`usuariosFirebase/${auth.currentUser.uid}`)
+      .set({
+        schemaVersion: 2,
+        profile_refs: [
+          {
+            key: "academy-b|funcionarios|admin-b",
+            academiaId: "academy-b",
+            colecao: "funcionarios",
+            usuarioId: "admin-b",
+            perfil_nome: "Admin",
+            nome: "Admin B",
+          },
+        ],
+      }),
+  );
+
+  const functions = getFunctions(app);
+  const corrigir = httpsCallable(functions, "mergeDuplicateCharges");
+  const resultado = await corrigir({ academiaId: "academy-b" });
+
+  assert.equal(resultado.data.ok, true);
+  assert.equal(resultado.data.gruposComDuplicata, 3, "grupos A, B e C têm mais de um documento ativo");
+  assert.equal(resultado.data.resolvidasAutomaticamente, 2, "uma resolução no grupo A e uma no B");
+  assert.equal(resultado.data.ignoradasRevisaoManual, 1, "grupo C (duas pagas) fica pra revisão humana");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-b/pagamentos");
+
+    assert.equal((await pagamentos.doc("dup-a-pago").get()).data().status, 1, "a paga nunca é tocada");
+    assert.equal((await pagamentos.doc("dup-a-pendente").get()).data().status, 4, "a pendente duplicada vira desconsiderada");
+    assert.equal(
+      (await pagamentos.doc("avulsa-mesmo-mes").get()).data().status,
+      0,
+      "cobrança avulsa nunca é tratada como duplicata de mensalidade",
+    );
+
+    assert.equal(
+      (await pagamentos.doc("mensalidade__aluno-y__2026-06").get()).data().status,
+      0,
+      "o ID determinístico é o que fica quando ninguém pagou ainda",
+    );
+    assert.equal((await pagamentos.doc("dup-b-manual").get()).data().status, 4);
+
+    assert.equal((await pagamentos.doc("dup-c-pago1").get()).data().status, 1, "ambíguo: nada é tocado");
+    assert.equal((await pagamentos.doc("dup-c-pago2").get()).data().status, 1, "ambíguo: nada é tocado");
+
+    assert.equal((await pagamentos.doc("sem-duplicata").get()).data().status, 0);
+  });
+});

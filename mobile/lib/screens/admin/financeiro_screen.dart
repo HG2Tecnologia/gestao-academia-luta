@@ -105,11 +105,23 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Garantia server-side: nunca gera mensalidade só no cliente. Falha
       // de rede/permite aqui não trava a tela — só mostra o que já existe.
-      final periodo = '$_ano-${_mes.toString().padLeft(2, '0')}';
+      //
+      // IMPORTANTE: só dispara para a competência REAL de hoje, nunca para o
+      // mês que está sendo navegado/visualizado (_ano/_mes). O agendamento
+      // diário (`gerarMensalidadesAutomaticas`) já cobre o mês atual e o
+      // seguinte para todas as academias; isto aqui é só uma rede de
+      // segurança extra caso ele ainda não tenha rodado hoje. Se disparasse
+      // para o mês navegado, bastaria o admin rolar o histórico para meses
+      // passados (ou futuros) para gerar cobrança retroativa/antecipada para
+      // TODOS os alunos ativos com plano — inclusive os que nem estavam
+      // matriculados naquela época. Bug real já relatado por cliente.
+      final agora = DateTime.now();
+      final periodoHoje =
+          '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
       try {
-        await FinanceService.ensureChargesForPeriod(
+        await financeService.ensureChargesForPeriod(
           academiaId: _academiaId!,
-          period: periodo,
+          period: periodoHoje,
         );
       } catch (_) {}
 
@@ -695,6 +707,223 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final msg = Uri.encodeComponent(_l.fiWhatsappGreeting(nome));
     final url = Uri.parse('https://wa.me/$ddi?text=$msg');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Corrige mensalidade duplicada (mesmo aluno + mesma competência) —
+  /// resquício do bug em que dois caminhos diferentes geravam a cobrança do
+  /// mês com IDs diferentes. Resolve sozinho os casos inequívocos; grupo com
+  /// 2+ pagas fica de fora, para revisão manual.
+  Future<void> _abrirCorrigirDuplicatas() async {
+    if (_academiaId == null) return;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiMergeDuplicatesTitle),
+        content: Text(_l.fiMergeDuplicatesExplain),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiMergeDuplicatesButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final confirmadoDeVerdade = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiMergeDuplicatesConfirmTitle),
+        content: Text(_l.fiMergeDuplicatesConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiMergeDuplicatesButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmadoDeVerdade != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.mergeDuplicateCharges(
+        academiaId: _academiaId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiMergeDuplicatesSuccess(
+              resultado.gruposComDuplicata,
+              resultado.resolvidasAutomaticamente,
+              resultado.ignoradasRevisaoManual,
+            ),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiMergeDuplicatesError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Ferramenta de "limpeza" — desconsidera em massa toda pendência/atraso
+  /// com vencimento anterior ao mês escolhido, de todos os alunos. Corrige o
+  /// acúmulo de cobrança retroativa (ex.: bug de geração de mensalidade para
+  /// meses anteriores ao cadastro do plano). Nunca toca em cobrança já paga.
+  Future<void> _abrirLimpezaRetroativa() async {
+    if (_academiaId == null) return;
+
+    int ano = _ano;
+    int mes = _mes;
+    final locale = Localizations.localeOf(context).toString();
+
+    String mesLabel(int a, int m) {
+      final s = DateFormat.yMMMM(locale).format(DateTime(a, m));
+      return s.isEmpty ? '$m/$a' : s[0].toUpperCase() + s.substring(1);
+    }
+
+    final corte = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: Text(_l.fiCleanupRetroactiveTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _l.fiCleanupRetroactiveExplain,
+                style: TextStyle(color: context.c.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _l.fiCleanupRetroactiveCutoffLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () => setModal(() {
+                      mes--;
+                      if (mes < 1) {
+                        mes = 12;
+                        ano--;
+                      }
+                    }),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  SizedBox(
+                    width: 160,
+                    child: Text(
+                      mesLabel(ano, mes),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setModal(() {
+                      mes++;
+                      if (mes > 12) {
+                        mes = 1;
+                        ano++;
+                      }
+                    }),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(_l.commonCancel),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: context.sem.danger,
+              ),
+              onPressed: () => Navigator.pop(
+                ctx,
+                '$ano-${mes.toString().padLeft(2, '0')}',
+              ),
+              child: Text(_l.fiCleanupRetroactiveButton),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (corte == null || !mounted) return;
+
+    final confirmMesLabel = mesLabel(ano, mes);
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanupRetroactiveConfirmTitle),
+        content: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanupRetroactiveButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.disregardChargesBeforePeriod(
+        academiaId: _academiaId!,
+        period: corte,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiCleanupRetroactiveError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _abrirModalCobrancas() async {
@@ -1314,7 +1543,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       // cobrança já existente na competência.
                                       final periodo =
                                           '$_ano-${_mes.toString().padLeft(2, '0')}';
-                                      await FinanceService.ensureChargesForPeriod(
+                                      await financeService.ensureChargesForPeriod(
                                         academiaId: _academiaId!,
                                         period: periodo,
                                       );
@@ -2065,30 +2294,105 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: _abrirModalCobrancas,
-                                icon: Icon(
-                                  Icons.receipt_long_rounded,
-                                  size: 16,
-                                  color: context.c.primary,
-                                ),
-                                label: Text(
-                                  _l.fiGenerateCharges,
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                              // "Gerar cobranças" e "Limpar retroativas" são
+                              // ações menos frequentes (ferramentas, não
+                              // navegação do dia a dia) — agrupadas num só
+                              // menu pra não empurrar "Contas"/"Relatório"
+                              // pra fora da tela e exigir rolar pro lado só
+                              // pra achar o botão de gerar cobrança. Rótulo
+                              // "Mais" + ícone de "⋮" (em vez de só um
+                              // ícone com setinha) deixa claro que é um menu
+                              // pra abrir, não um botão de ação direta.
+                              PopupMenuButton<VoidCallback>(
+                                tooltip: _l.fiMoreActions,
+                                onSelected: (acao) => acao(),
+                                itemBuilder: (ctx) => [
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirModalCobrancas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.receipt_long_rounded,
+                                          size: 18,
+                                          color: context.c.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiGenerateCharges,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  backgroundColor: context.c.primary
-                                      .withOpacity(0.10),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirLimpezaRetroativa,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.cleaning_services_rounded,
+                                          size: 18,
+                                          color: context.sem.danger,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiCleanupRetroactive,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirCorrigirDuplicatas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.merge_type_rounded,
+                                          size: 18,
+                                          color: context.sem.warning,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiMergeDuplicates,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                    horizontal: 10,
+                                    vertical: 7,
                                   ),
-                                  shape: RoundedRectangleBorder(
+                                  decoration: BoxDecoration(
+                                    color: context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: context.c.outline),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.more_vert_rounded,
+                                        color: context.c.onSurfaceVariant,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        _l.fiMoreActions,
+                                        style: TextStyle(
+                                          color: context.c.onSurfaceVariant,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

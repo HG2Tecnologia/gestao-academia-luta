@@ -55,6 +55,19 @@ class _Fixture {
   Map<String, dynamic> get pendenteAtual =>
       _doc(id: 'p4', status: 0, venc: hoje, plano: 'PlanoAtual');
 
+  late final String tresMesesAFrente = _iso(
+    DateTime(now.year, now.month + 3, 10),
+  );
+
+  /// Pendente de um mês FUTURO (gerada com antecedência) — não é uma
+  /// pendência de hoje, não devia contar no "Em aberto".
+  Map<String, dynamic> get pendenteFutura =>
+      _doc(id: 'p5', status: 0, venc: tresMesesAFrente, plano: 'PlanoFuturo');
+
+  /// Paga do mês atual — usada nos cenários "tudo em dia".
+  Map<String, dynamic> get pagaAtual =>
+      _doc(id: 'p6', status: 1, venc: hoje, plano: 'PlanoAtualPago');
+
   List<Map<String, dynamic>> get todas =>
       [desconsiderada, atrasada, paga, pendenteAtual];
 }
@@ -222,4 +235,29 @@ void main() {
     expect(find.text(l10n.apAllPaid), findsOneWidget);
     expect(find.text(l10n.apViewAllOverdue), findsNothing);
   });
+
+  testWidgets(
+    'pendência de mês FUTURO (gerada com antecedência) não dispara "Em aberto"',
+    (tester) async {
+      // Cenário real relatado: mês atual e todos os anteriores quitados, mas
+      // já existe uma mensalidade Pendente lá na frente (ex.: 3 meses à
+      // frente). Isso não é uma pendência de HOJE — não devia acender alerta
+      // nenhum nem somar no total em aberto.
+      final f = _Fixture(DateTime.now());
+      await _pump(tester, [f.pagaAtual, f.paga, f.pendenteFutura]);
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('pt'));
+
+      expect(find.text(l10n.apAllPaid), findsOneWidget);
+      expect(find.text(l10n.apViewAllOverdue), findsNothing);
+
+      // A cobrança futura continua existindo — só não conta como pendência
+      // de agora. Navegando até o mês dela, ela aparece normalmente.
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byTooltip(l10n.apNextMonth));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('PlanoFuturo'), findsOneWidget);
+    },
+  );
 }

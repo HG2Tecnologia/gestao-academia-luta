@@ -989,6 +989,41 @@
   "fiNewCharge": "Nova cobrança",
   "fiCurrentMonth": "Mês atual",
   "fiBackToCurrentMonth": "Voltar ao mês atual",
+  "fiMoreActions": "Mais",
+  "fiCleanupRetroactive": "Limpar retroativas",
+  "fiCleanupRetroactiveTitle": "Limpar cobranças retroativas",
+  "fiCleanupRetroactiveExplain": "Desconsidera (não exclui) toda cobrança pendente ou atrasada com vencimento ANTES do mês escolhido, de TODOS os alunos. Cobranças já pagas nunca são afetadas e nada disso conta como valor recebido.",
+  "fiCleanupRetroactiveCutoffLabel": "Manter cobranças a partir de",
+  "fiCleanupRetroactiveConfirmTitle": "Confirmar limpeza?",
+  "fiCleanupRetroactiveConfirmBody": "Essa ação vai desconsiderar de uma vez as pendências de todos os alunos anteriores a {mes}. Não pode ser desfeita em massa — só uma por uma, manualmente. Tem certeza?",
+  "@fiCleanupRetroactiveConfirmBody": {
+    "placeholders": {
+      "mes": {"type": "String"}
+    }
+  },
+  "fiCleanupRetroactiveButton": "Desconsiderar retroativas",
+  "fiCleanupRetroactiveSuccess": "{n} cobrança(s) retroativa(s) desconsiderada(s).",
+  "@fiCleanupRetroactiveSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "fiCleanupRetroactiveError": "Não foi possível limpar as cobranças retroativas. Tente novamente.",
+  "fiMergeDuplicates": "Corrigir duplicadas",
+  "fiMergeDuplicatesTitle": "Corrigir mensalidades duplicadas",
+  "fiMergeDuplicatesExplain": "Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.",
+  "fiMergeDuplicatesConfirmTitle": "Corrigir duplicadas agora?",
+  "fiMergeDuplicatesConfirmBody": "Isso vai desconsiderar automaticamente as mensalidades duplicadas de todos os alunos desta academia, mantendo uma por aluno/mês. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?",
+  "fiMergeDuplicatesButton": "Corrigir duplicadas",
+  "fiMergeDuplicatesSuccess": "{grupos} grupo(s) com duplicata · {resolvidas} corrigida(s) automaticamente · {manual} para revisão manual.",
+  "@fiMergeDuplicatesSuccess": {
+    "placeholders": {
+      "grupos": {"type": "int"},
+      "resolvidas": {"type": "int"},
+      "manual": {"type": "int"}
+    }
+  },
+  "fiMergeDuplicatesError": "Não foi possível corrigir as mensalidades duplicadas. Tente novamente.",
   "fiNoCharges": "Nenhuma cobrança.",
   "fiChargesCount": "Cobranças · {count}",
   "@fiChargesCount": {

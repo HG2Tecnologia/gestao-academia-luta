@@ -25,6 +25,8 @@ exports.arquivarTurma = turmaFunctions.arquivarTurma;
 const financeFunctions = require("./finance-functions");
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
+exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePeriod;
+exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
 
 const DIAS_ANTECEDENCIA = 3;
 

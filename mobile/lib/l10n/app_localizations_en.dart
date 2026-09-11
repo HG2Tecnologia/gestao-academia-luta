@@ -2007,6 +2007,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiBackToCurrentMonth => 'Back to current month';
 
   @override
+  String get fiMoreActions => 'More';
+
+  @override
+  String get fiCleanupRetroactive => 'Clean up backdated';
+
+  @override
+  String get fiCleanupRetroactiveTitle => 'Clean up backdated charges';
+
+  @override
+  String get fiCleanupRetroactiveExplain =>
+      'Dismisses (does not delete) every pending or overdue charge due BEFORE the chosen month, for ALL students. Already-paid charges are never affected, and none of this counts as revenue.';
+
+  @override
+  String get fiCleanupRetroactiveCutoffLabel => 'Keep charges from';
+
+  @override
+  String get fiCleanupRetroactiveConfirmTitle => 'Confirm cleanup?';
+
+  @override
+  String fiCleanupRetroactiveConfirmBody(String mes) {
+    return 'This will dismiss, all at once, every student\'s pending charges before $mes. It can\'t be undone in bulk — only one at a time, manually. Are you sure?';
+  }
+
+  @override
+  String get fiCleanupRetroactiveButton => 'Dismiss backdated charges';
+
+  @override
+  String fiCleanupRetroactiveSuccess(int n) {
+    return '$n backdated charge(s) dismissed.';
+  }
+
+  @override
+  String get fiCleanupRetroactiveError =>
+      'Couldn\'t clean up backdated charges. Please try again.';
+
+  @override
+  String get fiMergeDuplicates => 'Fix duplicates';
+
+  @override
+  String get fiMergeDuplicatesTitle => 'Fix duplicate monthly charges';
+
+  @override
+  String get fiMergeDuplicatesExplain =>
+      'Scans every month for a student with more than one monthly charge for the same period. When it\'s unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.';
+
+  @override
+  String get fiMergeDuplicatesConfirmTitle => 'Fix duplicates now?';
+
+  @override
+  String get fiMergeDuplicatesConfirmBody =>
+      'This will automatically dismiss duplicate monthly charges for every student in this school, keeping one per student/month. It can\'t be undone in bulk — only one at a time, manually. Continue?';
+
+  @override
+  String get fiMergeDuplicatesButton => 'Fix duplicates';
+
+  @override
+  String fiMergeDuplicatesSuccess(int grupos, int resolvidas, int manual) {
+    return '$grupos group(s) with duplicates · $resolvidas fixed automatically · $manual left for manual review.';
+  }
+
+  @override
+  String get fiMergeDuplicatesError =>
+      'Couldn\'t fix the duplicate monthly charges. Please try again.';
+
+  @override
   String get fiNoCharges => 'No charges.';
 
   @override
