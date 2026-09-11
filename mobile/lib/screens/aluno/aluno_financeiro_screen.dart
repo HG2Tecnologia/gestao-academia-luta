@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
-import '../../core/pagamento_status.dart';
+import '../../core/financeiro_resumo.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
@@ -61,15 +61,6 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     return '+R\$ ${_taxaAtrasoValor.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
-  /// Converte o enum de status para a string canônica usada na UI.
-  String _stStr(PagamentoStatus s) => switch (s) {
-    PagamentoStatus.pago => 'Pago',
-    PagamentoStatus.atrasado => 'Atrasado',
-    PagamentoStatus.previsto => 'Previsto',
-    PagamentoStatus.desconsiderado => 'Desconsiderado',
-    PagamentoStatus.pendente => 'Pendente',
-  };
-
   Future<void> _load() async {
     try {
       final user = await AuthStorage.getUser();
@@ -95,15 +86,14 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
           _taxaAtrasoValor =
               (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
         });
-      final converted = list.map((p) {
-        final st = pagamentoStatusEfetivo(
-          rawStatus: p['status'],
-          dataVencimento: p['data_vencimento'] ?? p['dataVencimento'],
-        );
+      // Fonte única (financeiro_resumo.dart): mesmo status efetivo e mesmo
+      // mês de referência usados pelos testes e pela tela da academia.
+      final converted = montarCobrancasAluno(list).map((c) {
+        final p = c.raw;
         return <String, dynamic>{
           ...p,
-          'status': _stStr(st),
-          'mesRef': pagamentoMesReferencia(p),
+          'status': c.status,
+          'mesRef': c.mesRef,
           'dataVencimento': _fmtDate(
             p['data_vencimento'] ?? p['dataVencimento'],
           ),
@@ -459,84 +449,97 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.c.surfaceContainer,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.c.outline),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => _mudarMes(-1),
-                          tooltip: context.l10n.apPrevMonth,
-                          icon: Icon(
-                            Icons.chevron_left_rounded,
-                            color: context.c.onSurface,
-                          ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
                         ),
-                        Expanded(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _ehMesAtual ? null : _irParaMesAtual,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _mesLabel(_ano, _mes),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: context.c.onSurface,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
+                        decoration: BoxDecoration(
+                          color: context.c.surfaceContainer,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: context.c.outline),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => _mudarMes(-1),
+                              tooltip: context.l10n.apPrevMonth,
+                              icon: Icon(
+                                Icons.chevron_left_rounded,
+                                color: context.c.onSurface,
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _mesLabel(_ano, _mes),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  if (_ehMesAtual)
+                                    Text(
+                                      context.l10n.fiCurrentMonth,
+                                      style: TextStyle(
+                                        color: context.c.primary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => _mudarMes(1),
+                              tooltip: context.l10n.apNextMonth,
+                              icon: Icon(
+                                Icons.chevron_right_rounded,
+                                color: context.c.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!_ehMesAtual)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _irParaMesAtual,
+                              icon: const Icon(
+                                Icons.keyboard_return_rounded,
+                                size: 16,
+                              ),
+                              label: Text(context.l10n.fiBackToCurrentMonth),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: context.c.primary,
+                                side: BorderSide(
+                                  color: context.c.primary.withValues(
+                                    alpha: 0.4,
                                   ),
                                 ),
-                                if (_ehMesAtual)
-                                  Text(
-                                    context.l10n.fiCurrentMonth,
-                                    style: TextStyle(
-                                      color: context.c.primary,
-                                      fontSize: 11,
-                                    ),
-                                  )
-                                else
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.today_rounded,
-                                        size: 12,
-                                        color: context.c.primary,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        context.l10n.tdToday,
-                                        style: TextStyle(
-                                          color: context.c.primary,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => _mudarMes(1),
-                          tooltip: context.l10n.apNextMonth,
-                          icon: Icon(
-                            Icons.chevron_right_rounded,
-                            color: context.c.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),

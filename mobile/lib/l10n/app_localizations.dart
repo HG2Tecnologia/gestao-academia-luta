@@ -3626,6 +3626,12 @@ abstract class AppLocalizations {
   /// **'Mês atual'**
   String get fiCurrentMonth;
 
+  /// No description provided for @fiBackToCurrentMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Voltar ao mês atual'**
+  String get fiBackToCurrentMonth;
+
   /// No description provided for @fiNoCharges.
   ///
   /// In pt, this message translates to:

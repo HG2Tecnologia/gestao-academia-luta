@@ -9,6 +9,7 @@ import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/finance_service.dart';
+import '../../core/financeiro_resumo.dart';
 import '../../core/firestore_service.dart';
 import '../../core/pagamento_status.dart';
 import '../../core/tab_refresh.dart';
@@ -140,45 +141,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         }
       }).toList();
 
-      // Compute resumo client-side (exclude desconsiderado)
-      double recebido = 0, pendente = 0, atrasado = 0;
-      int recebidoQtd = 0, pendenteQtd = 0, atrasadoQtd = 0;
-      final Set<String> inadimplentesSet = {};
-
-      for (final p in todos) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int
-            ? statusRaw
-            : int.tryParse(statusRaw.toString()) ?? 0;
-        final statusStr = _statusMap[statusInt] ?? 'Pendente';
-        if (statusStr == 'Desconsiderado') continue;
-        final valorPago = (p['valor_pago'] as num?)?.toDouble();
-        final valor = valorPago ?? (p['valor'] as num? ?? 0).toDouble();
-        final venc = p['data_vencimento'] as String? ?? '';
-        DateTime? vencDt;
-        try {
-          vencDt = DateTime.parse(venc);
-        } catch (_) {}
-
-        if (statusStr == 'Pago') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
-            recebido += valor;
-            recebidoQtd++;
-          }
-        } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
-            pendente += valor;
-            pendenteQtd++;
-          }
-          if (vencDt != null &&
-              DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
-            atrasado += valor;
-            atrasadoQtd++;
-            final alunoId = p['aluno_id']?.toString() ?? '';
-            if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
-          }
-        }
-      }
+      // Resumo client-side — fonte única compartilhada com os testes
+      // (financeiro_resumo.dart). Ignora Desconsiderado por completo.
+      final resumo = resumoFinanceiroAcademia(
+        todos,
+        ano: _ano,
+        mes: _mes,
+        hoje: hoje,
+      );
 
       // Convert status for display; compute effective status (Atrasado if pending+overdue)
       final cobrancasComStatus = doMes.map((p) {
@@ -213,15 +183,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       if (mounted) {
         setState(() {
-          _resumo = {
-            'totalRecebidoMes': recebido,
-            'totalPendenteMes': pendente,
-            'totalAtrasado': atrasado,
-            'alunosInadimplentes': inadimplentesSet.length,
-            'qtdRecebido': recebidoQtd,
-            'qtdPendente': pendenteQtd,
-            'qtdAtrasado': atrasadoQtd,
-          };
+          _resumo = resumo.toMap();
           _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
         });
       }
@@ -2140,87 +2102,100 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.c.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.c.outline),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: () => _navMes(-1),
-                            icon: Icon(
-                              Icons.chevron_left,
-                              color: context.c.onSurface,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: isAtual ? null : _irParaMesAtual,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${_mesCurto(_mes)} $_ano',
-                                  style: TextStyle(
-                                    color: context.c.onSurface,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
+                          decoration: BoxDecoration(
+                            color: context.c.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.c.outline),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                onPressed: () => _navMes(-1),
+                                icon: Icon(
+                                  Icons.chevron_left,
+                                  color: context.c.onSurface,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${_mesCurto(_mes)} $_ano',
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  if (isAtual)
+                                    Text(
+                                      _l.fiCurrentMonth,
+                                      style: TextStyle(
+                                        color: context.c.primary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              IconButton(
+                                // Financeiro automático gera a competência
+                                // atual + a próxima (Fase 7) — não faz sentido
+                                // travar a navegação no mês atual.
+                                onPressed: () => _navMes(1),
+                                icon: Icon(
+                                  Icons.chevron_right,
+                                  color: context.c.onSurface,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!isAtual)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _irParaMesAtual,
+                                icon: const Icon(
+                                  Icons.keyboard_return_rounded,
+                                  size: 16,
+                                ),
+                                label: Text(_l.fiBackToCurrentMonth),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: context.c.primary,
+                                  side: BorderSide(
+                                    color: context.c.primary.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                if (isAtual)
-                                  Text(
-                                    _l.fiCurrentMonth,
-                                    style: TextStyle(
-                                      color: context.c.primary,
-                                      fontSize: 11,
-                                    ),
-                                  )
-                                else
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.today_rounded,
-                                        size: 12,
-                                        color: context.c.primary,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        _l.tdToday,
-                                        style: TextStyle(
-                                          color: context.c.primary,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
-                          IconButton(
-                            // Financeiro automático gera a competência atual
-                            // + a próxima (Fase 7) — não faz sentido travar
-                            // a navegação exatamente no mês atual.
-                            onPressed: () => _navMes(1),
-                            icon: Icon(
-                              Icons.chevron_right,
-                              color: context.c.onSurface,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),

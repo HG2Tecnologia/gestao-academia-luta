@@ -587,6 +587,7 @@
   "fiGenerateCharge": "Generate charge",
   "fiNewCharge": "New charge",
   "fiCurrentMonth": "Current month",
+  "fiBackToCurrentMonth": "Back to current month",
   "fiNoCharges": "No charges.",
   "fiChargesCount": "Charges · {count}",
   "fiTabAll": "All",

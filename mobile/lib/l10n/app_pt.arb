@@ -988,6 +988,7 @@
   "fiGenerateCharge": "Gerar cobrança",
   "fiNewCharge": "Nova cobrança",
   "fiCurrentMonth": "Mês atual",
+  "fiBackToCurrentMonth": "Voltar ao mês atual",
   "fiNoCharges": "Nenhuma cobrança.",
   "fiChargesCount": "Cobranças · {count}",
   "@fiChargesCount": {

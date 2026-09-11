@@ -2004,6 +2004,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiCurrentMonth => 'Mês atual';
 
   @override
+  String get fiBackToCurrentMonth => 'Voltar ao mês atual';
+
+  @override
   String get fiNoCharges => 'Nenhuma cobrança.';
 
   @override
