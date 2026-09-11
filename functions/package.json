@@ -10,6 +10,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js",
+    "test:payment": "node --test test/asaas-payment.test.js",
     "emu": "firebase emulators:start --project sensei-manager-d64c0 --only functions,firestore,auth",
     "seed:emu": "FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 node scripts/seed-emulador-acesso.js",
     "test:rules": "firebase emulators:exec --project sensei-manager-test --only firestore,auth \"node --test test/firestore.rules.test.js\"",

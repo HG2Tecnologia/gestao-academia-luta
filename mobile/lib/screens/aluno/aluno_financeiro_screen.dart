@@ -648,7 +648,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                                   icon: const Icon(Icons.payment_rounded, size: 16),
                                   label: const Text('Pagar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: kPrimary,
+                                    backgroundColor: context.c.primary,
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 10),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

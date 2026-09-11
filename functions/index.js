@@ -30,6 +30,8 @@ const financeFunctions = require('./finance-functions');
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
 
+const { processWebhookEvent, sincronizarPagamentosAcademia } = require('./asaas-payment-logic');
+
 // ── Secrets Asaas ────────────────────────────────────────────────────────────
 const ASAAS_API_KEY = defineSecret('ASAAS_API_KEY');
 const ASAAS_WEBHOOK_TOKEN = defineSecret('ASAAS_WEBHOOK_TOKEN');
@@ -293,74 +295,11 @@ exports.webhookAsaas = onRequest(
     }
 
     const { event, payment } = req.body || {};
-    const ref = payment?.externalReference || '';
-    const parts = ref.split(':');
-
-    if (parts.length !== 2) {
-      res.status(200).send('OK');
-      return;
+    try {
+      await processWebhookEvent({ event, payment }, db, messaging);
+    } catch (err) {
+      logger.error('webhookAsaas: erro ao processar evento', err);
     }
-
-    const [academiaId, pagamentoId] = parts;
-    const pagRef = db.doc(`academias/${academiaId}/pagamentos/${pagamentoId}`);
-
-    if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
-      const pagSnap = await pagRef.get().catch(() => null);
-      await pagRef.update({
-        status: 1,
-        asaasStatus: 'RECEIVED',
-        pago_em: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch(() => {});
-
-      // Push notification para admins/secretaria da academia
-      try {
-        const valor = payment?.value;
-        const descricao = payment?.description || 'Mensalidade';
-        const valorFmt = valor != null
-          ? `R$ ${Number(valor).toFixed(2).replace('.', ',')}`
-          : '';
-        const bt = payment?.billingType || 'PIX';
-        const metodoLabel = bt === 'BOLETO' ? 'Boleto' : bt === 'CREDIT_CARD' ? 'Cartão' : 'PIX';
-
-        const funcionariosSnap = await db
-          .collection('academias').doc(academiaId)
-          .collection('funcionarios')
-          .where('perfil', 'in', ['Admin', 'Secretaria'])
-          .get();
-
-        const tokens = [];
-        funcionariosSnap.forEach((f) => {
-          const d = f.data();
-          if (Array.isArray(d.fcm_tokens)) tokens.push(...d.fcm_tokens);
-        });
-
-        // Salva notificação no Firestore
-        await db.collection('academias').doc(academiaId).collection('notificacoes').add({
-          titulo: `Pagamento recebido${valorFmt ? ` — ${valorFmt}` : ''}`,
-          mensagem: `${metodoLabel}: ${descricao}`,
-          tipo: 'sucesso',
-          lida: false,
-          chave_dedup: `pago-${pagamentoId}`,
-          criado_em: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        if (tokens.length > 0) {
-          await messaging.sendEachForMulticast({
-            tokens,
-            notification: {
-              title: `Pagamento ${metodoLabel} recebido${valorFmt ? ` — ${valorFmt}` : ''}`,
-              body: descricao,
-            },
-            data: { tipo: `pagamento_${bt.toLowerCase()}`, academiaId, pagamentoId },
-          });
-        }
-      } catch (err) {
-        logger.error('Erro ao enviar push de pagamento', err);
-      }
-    } else if (event === 'PAYMENT_OVERDUE') {
-      await pagRef.update({ status: 2, asaasStatus: 'OVERDUE' }).catch(() => {});
-    }
-
     res.status(200).send('OK');
   }
 );
@@ -646,125 +585,10 @@ exports.processarAdminReq = onDocumentCreated(
 );
 
 async function _sincronizarPagamentos(academiaId, alunoId) {
-  const cfgSnap = await db.doc(`academias/${academiaId}/integracoes/asaas`).get();
-  const cfgData = cfgSnap.data();
-  // Exige apenas subcontaId — não bloqueia por status (pode ser PENDENTE após reconfiguração).
-  if (!cfgSnap.exists || !cfgData?.subcontaId) {
-    logger.info(`sincronizar: config ausente ou sem subcontaId para ${academiaId}`);
-    return { sincronizados: 0 };
-  }
-
-  const { subcontaId } = cfgData;
-  let walletId = cfgData.walletId || null;
-
-  // Usa master key + walletId correto (campo walletId ≠ id da conta Asaas).
-  if (!walletId) {
-    try {
-      const masterClient = asaasHttp(ASAAS_API_KEY.value());
-      const accRes = await masterClient.get(`/accounts/${subcontaId}`);
-      walletId = accRes.data?.walletId || null;
-      if (walletId) {
-        await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ walletId });
-        logger.info(`sincronizar: walletId obtido e salvo para ${academiaId}`);
-      }
-    } catch (e) {
-      logger.warn(`sincronizar: não foi possível obter walletId: ${e.message}`);
-    }
-  }
-
-  const client = asaasHttp(ASAAS_API_KEY.value(), walletId);
-  logger.info(`sincronizar: usando master+walletId=${walletId ? 'ok' : 'null'} para ${academiaId}`);
-
-  // Filtra apenas por asaasStatus (índice simples — automático no Firestore).
-  // O filtro por aluno_id é feito em JS para evitar índice composto.
-  const snap = await db.collection(`academias/${academiaId}/pagamentos`)
-    .where('asaasStatus', '==', 'PENDING')
-    .get();
-
-  logger.info(`sincronizar: ${snap.size} pagamentos PENDING para ${academiaId}${alunoId ? ` / aluno ${alunoId}` : ''}`);
-  let sincronizados = 0;
-
-  for (const doc of snap.docs) {
-    const pag = doc.data();
-    if (!pag.asaasChargeId) continue;
-    if (alunoId && pag.aluno_id !== alunoId) continue;
-    try {
-      let asaasStatus;
-      let foundChargeId = pag.asaasChargeId;
-
-      // Tentativa 1: busca direta pelo chargeId armazenado
-      try {
-        const r = await client.get(`/payments/${pag.asaasChargeId}`);
-        asaasStatus = r.data.status;
-        logger.info(`sincronizar: charge ${pag.asaasChargeId} → status Asaas: ${asaasStatus}`);
-      } catch (e) {
-        // Tentativa 2: fallback por externalReference (cobre casos onde o chargeId armazenado
-        // não bate com o charge que foi efetivamente pago — ex: usuário gerou múltiplos PIX)
-        const httpStatus = e.response?.status;
-        logger.warn(`sincronizar: chargeId ${pag.asaasChargeId} retornou HTTP ${httpStatus}, tentando externalReference`);
-        const externalRef = `${academiaId}:${doc.id}`;
-        let allPayments = [];
-        try {
-          const searchR = await client.get(`/payments?externalReference=${encodeURIComponent(externalRef)}&limit=20`);
-          allPayments = searchR.data?.data || [];
-        } catch (_) {}
-        logger.info(`sincronizar: externalReference "${externalRef}" → ${allPayments.length} charges encontrados`);
-
-        // Tentativa 3: tenta master sem walletId como último recurso
-        // (charges criados na conta master por wallet header inválido ficam invisíveis à subconta)
-        if (allPayments.length === 0) {
-          logger.warn(`sincronizar: tentando lookup sem wallet para chargeId ${pag.asaasChargeId}`);
-          const masterClient = asaasHttp(ASAAS_API_KEY.value());
-          try {
-            const r3 = await masterClient.get(`/payments/${pag.asaasChargeId}`);
-            asaasStatus = r3.data.status;
-            logger.info(`sincronizar: charge encontrado via master sem wallet: ${pag.asaasChargeId} → ${asaasStatus}`);
-          } catch (_) {
-            // Também tenta externalReference sem wallet
-            try {
-              const sr3 = await masterClient.get(`/payments?externalReference=${encodeURIComponent(externalRef)}&limit=20`);
-              allPayments = sr3.data?.data || [];
-              logger.info(`sincronizar: externalRef sem wallet → ${allPayments.length} charges encontrados`);
-            } catch (_) {}
-          }
-        }
-
-        if (!asaasStatus) {
-          // Prefere o mais recente que esteja confirmado
-          const confirmed = allPayments.find(p => p.status === 'RECEIVED' || p.status === 'CONFIRMED');
-          if (confirmed) {
-            asaasStatus = confirmed.status;
-            foundChargeId = confirmed.id;
-            logger.info(`sincronizar: charge confirmado via externalRef: ${foundChargeId} → ${asaasStatus}`);
-          } else if (allPayments.length > 0) {
-            asaasStatus = allPayments[0].status;
-            foundChargeId = allPayments[0].id;
-            logger.info(`sincronizar: charge mais recente via externalRef: ${foundChargeId} → ${asaasStatus}`);
-          } else {
-            logger.warn(`sincronizar: nenhum charge encontrado para externalRef "${externalRef}"`);
-            continue;
-          }
-        }
-      }
-
-      if (asaasStatus === 'RECEIVED' || asaasStatus === 'CONFIRMED') {
-        await doc.ref.update({
-          status: 1,
-          asaasStatus: 'RECEIVED',
-          asaasChargeId: foundChargeId,
-          pago_em: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        sincronizados++;
-      } else if (asaasStatus === 'OVERDUE') {
-        await doc.ref.update({ status: 2, asaasStatus: 'OVERDUE' });
-      }
-    } catch (e) {
-      logger.error(`sincronizar: erro ao processar doc ${doc.id}:`, e.response?.status, e.response?.data || e.message);
-    }
-  }
-
-  logger.info(`sincronizar: ${sincronizados} pagamento(s) atualizados para ${academiaId}`);
-  return { sincronizados };
+  const makeClient = (walletId) => asaasHttp(ASAAS_API_KEY.value(), walletId);
+  const result = await sincronizarPagamentosAcademia(academiaId, alunoId, db, makeClient);
+  logger.info(`sincronizar: ${result.sincronizados} pagamento(s) atualizados para ${academiaId}`);
+  return result;
 }
 
 async function _criarSubconta(academiaId) {
@@ -1090,6 +914,48 @@ exports.checarVencimentosContasAcademia = onSchedule(
   async () => {
     await processarVencimentosContasAcademia();
   },
+);
+
+// ── sincronizarPagamentosGlobal ───────────────────────────────────────────────
+// Fallback para quando o webhook do Asaas falha ou fica pausado.
+// Roda a cada hora e sincroniza todos os pagamentos PENDING de todas as
+// academias que têm integração Asaas ativa.
+exports.sincronizarPagamentosGlobal = onSchedule(
+  {
+    schedule: 'every 1 hours',
+    timeZone: 'America/Sao_Paulo',
+    secrets: [ASAAS_API_KEY],
+    timeoutSeconds: 540,
+    memory: '256MiB',
+  },
+  async () => {
+    const integracoesSnap = await db.collectionGroup('integracoes')
+      .where('subcontaId', '!=', null)
+      .get();
+
+    if (integracoesSnap.empty) {
+      logger.info('sincronizarPagamentosGlobal: nenhuma academia com integração Asaas.');
+      return;
+    }
+
+    const academiaIds = [...new Set(
+      integracoesSnap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean)
+    )];
+
+    logger.info(`sincronizarPagamentosGlobal: verificando ${academiaIds.length} academia(s).`);
+
+    let totalSincronizados = 0;
+    for (const academiaId of academiaIds) {
+      try {
+        const result = await _sincronizarPagamentos(academiaId, null);
+        totalSincronizados += result.sincronizados;
+      } catch (e) {
+        logger.error(`sincronizarPagamentosGlobal: erro na academia ${academiaId}:`, e.message);
+      }
+    }
+
+    logger.info(`sincronizarPagamentosGlobal: concluído — ${totalSincronizados} pagamento(s) atualizados.`);
+  }
 );
 
 exports.testarVencimentosContasAcademia = onRequest(async (req, res) => {

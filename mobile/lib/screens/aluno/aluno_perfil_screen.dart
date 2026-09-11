@@ -762,12 +762,12 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
 
     InputDecoration fieldDeco(String label, IconData icon) => InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: kText2, fontSize: 13),
-      prefixIcon: Icon(icon, color: kText2, size: 18),
-      filled: true, fillColor: kBg,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
+      labelStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+      prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 18),
+      filled: true, fillColor: context.c.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.outline)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.outline)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.primary, width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
 
@@ -908,13 +908,13 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: cpfCtrl,
-                style: TextStyle(color: kText1),
+                style: TextStyle(color: context.c.onSurface),
                 keyboardType: TextInputType.number,
                 inputFormatters: [CpfInputFormatter()],
                 decoration: fieldDeco('CPF (necessário para pagamentos)', Icons.fingerprint_rounded),
               ),
               const SizedBox(height: 6),
-              Text('Necessário para gerar PIX, Boleto e Cartão.', style: TextStyle(color: kText2, fontSize: 11)),
+              Text('Necessário para gerar PIX, Boleto e Cartão.', style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11)),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

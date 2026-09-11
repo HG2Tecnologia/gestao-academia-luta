@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -37,6 +38,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   final _cnpjCtrl = TextEditingController();
   final _msgEvasaoCtrl = TextEditingController();
   final _taxaAtrasoValorCtrl = TextEditingController();
+  final _cepCtrl = TextEditingController();
+  final _logradouroCtrl = TextEditingController();
+  final _numeroCtrl = TextEditingController();
+  final _complementoCtrl = TextEditingController();
+  final _bairroCtrl = TextEditingController();
+  final _cidadeCtrl = TextEditingController();
+  final _estadoCtrl = TextEditingController();
 
   bool _loading = true;
   bool _salvando = false;
@@ -64,6 +72,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     _cnpjCtrl.dispose();
     _msgEvasaoCtrl.dispose();
     _taxaAtrasoValorCtrl.dispose();
+    _cepCtrl.dispose();
+    _logradouroCtrl.dispose();
+    _numeroCtrl.dispose();
+    _complementoCtrl.dispose();
+    _bairroCtrl.dispose();
+    _cidadeCtrl.dispose();
+    _estadoCtrl.dispose();
     super.dispose();
   }
 
@@ -96,6 +111,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           ((dados['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0)
               .toStringAsFixed(2)
               .replaceAll('.', ',');
+      _cepCtrl.text = dados['cep'] as String? ?? '';
+      _logradouroCtrl.text = dados['logradouro'] as String? ?? '';
+      _numeroCtrl.text = dados['numero'] as String? ?? '';
+      _complementoCtrl.text = dados['complemento'] as String? ?? '';
+      _bairroCtrl.text = dados['bairro'] as String? ?? '';
+      _cidadeCtrl.text = dados['cidade'] as String? ?? '';
+      _estadoCtrl.text = dados['estado'] as String? ?? '';
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -128,6 +150,13 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'taxa_atraso_tipo': _taxaAtrasoTipo,
     'taxa_atraso_valor':
         double.tryParse(_taxaAtrasoValorCtrl.text.replaceAll(',', '.')) ?? 0.0,
+    'cep': _cepCtrl.text.trim().isEmpty ? null : _cepCtrl.text.trim(),
+    'logradouro': _logradouroCtrl.text.trim().isEmpty ? null : _logradouroCtrl.text.trim(),
+    'numero': _numeroCtrl.text.trim().isEmpty ? null : _numeroCtrl.text.trim(),
+    'complemento': _complementoCtrl.text.trim().isEmpty ? null : _complementoCtrl.text.trim(),
+    'bairro': _bairroCtrl.text.trim().isEmpty ? null : _bairroCtrl.text.trim(),
+    'cidade': _cidadeCtrl.text.trim().isEmpty ? null : _cidadeCtrl.text.trim(),
+    'estado': _estadoCtrl.text.trim().isEmpty ? null : _estadoCtrl.text.trim(),
   };
 
   /// Grava o documento completo da academia (mesma chamada que o antigo botão
@@ -195,6 +224,33 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           _cnpjCtrl.text = m['cnpj']!;
           final ok = await _persistirTudo();
           if (ok) _snack(_l.cfgInfoSaved);
+          return ok;
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _abrirEndereco() async {
+    await _sheet<void>(
+      _EnderecoSheet(
+        cep: _cepCtrl.text,
+        logradouro: _logradouroCtrl.text,
+        numero: _numeroCtrl.text,
+        complemento: _complementoCtrl.text,
+        bairro: _bairroCtrl.text,
+        cidade: _cidadeCtrl.text,
+        estado: _estadoCtrl.text,
+        onSalvar: (m) async {
+          _cepCtrl.text = m['cep'] ?? '';
+          _logradouroCtrl.text = m['logradouro'] ?? '';
+          _numeroCtrl.text = m['numero'] ?? '';
+          _complementoCtrl.text = m['complemento'] ?? '';
+          _bairroCtrl.text = m['bairro'] ?? '';
+          _cidadeCtrl.text = m['cidade'] ?? '';
+          _estadoCtrl.text = m['estado'] ?? '';
+          final ok = await _persistirTudo();
+          if (ok) _snack('Endereço salvo');
           return ok;
         },
       ),
@@ -460,6 +516,14 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           titulo: _l.cfgGeneralInfo,
                           subtitulo: _l.cfgGeneralInfoSub,
                           onTap: _abrirInfoGerais,
+                        ),
+                        _NavRow(
+                          icon: Icons.location_on_rounded,
+                          titulo: 'Endereço',
+                          subtitulo: _cepCtrl.text.isNotEmpty
+                              ? '${_logradouroCtrl.text}, ${_numeroCtrl.text} · ${_cidadeCtrl.text}/${_estadoCtrl.text}'
+                              : 'CEP, logradouro e cidade da academia',
+                          onTap: _abrirEndereco,
                         ),
                       ],
                     ),
@@ -1170,6 +1234,235 @@ class _InfoGeraisSheetState extends State<_InfoGeraisSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Sheet: Endereço ─────────────────────────────────────────────────────
+
+class _EnderecoSheet extends StatefulWidget {
+  const _EnderecoSheet({
+    required this.cep,
+    required this.logradouro,
+    required this.numero,
+    required this.complemento,
+    required this.bairro,
+    required this.cidade,
+    required this.estado,
+    required this.onSalvar,
+  });
+  final String cep, logradouro, numero, complemento, bairro, cidade, estado;
+  final Future<bool> Function(Map<String, String>) onSalvar;
+
+  @override
+  State<_EnderecoSheet> createState() => _EnderecoSheetState();
+}
+
+class _EnderecoSheetState extends State<_EnderecoSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final _cep = TextEditingController(text: widget.cep);
+  late final _logradouro = TextEditingController(text: widget.logradouro);
+  late final _numero = TextEditingController(text: widget.numero);
+  late final _complemento = TextEditingController(text: widget.complemento);
+  late final _bairro = TextEditingController(text: widget.bairro);
+  late final _cidade = TextEditingController(text: widget.cidade);
+  late final _estado = TextEditingController(text: widget.estado);
+  bool _buscandoCep = false;
+  String? _cepErro;
+
+  @override
+  void dispose() {
+    _cep.dispose();
+    _logradouro.dispose();
+    _numero.dispose();
+    _complemento.dispose();
+    _bairro.dispose();
+    _cidade.dispose();
+    _estado.dispose();
+    super.dispose();
+  }
+
+  Future<void> _buscarCep() async {
+    final cepLimpo = _cep.text.replaceAll(RegExp(r'\D'), '');
+    if (cepLimpo.length != 8) {
+      setState(() => _cepErro = 'Digite um CEP com 8 dígitos');
+      return;
+    }
+    setState(() { _buscandoCep = true; _cepErro = null; });
+    try {
+      final dio = Dio();
+      final r = await dio.get('https://viacep.com.br/ws/$cepLimpo/json/');
+      final data = r.data as Map<String, dynamic>?;
+      if (data == null || data['erro'] == true) {
+        setState(() => _cepErro = 'CEP não encontrado');
+      } else {
+        setState(() {
+          _logradouro.text = data['logradouro'] as String? ?? '';
+          _bairro.text = data['bairro'] as String? ?? '';
+          _cidade.text = data['localidade'] as String? ?? '';
+          _estado.text = data['uf'] as String? ?? '';
+          _cepErro = null;
+        });
+        // Move foco para número após preencher
+        FocusScope.of(context).nextFocus();
+      }
+    } catch (_) {
+      setState(() => _cepErro = 'Erro ao buscar CEP. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _buscandoCep = false);
+    }
+  }
+
+  InputDecoration _deco(String label, IconData icon, {bool readOnly = false}) =>
+      InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+        prefixIcon: Icon(icon, color: context.c.onSurfaceVariant, size: 18),
+        filled: true,
+        fillColor: readOnly
+            ? context.c.surfaceContainer.withValues(alpha: 0.5)
+            : context.c.surfaceContainer,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.outline)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.outline)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.c.primary, width: 1.5)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetScaffold(
+      titulo: 'Endereço',
+      descricao: 'Digite o CEP para preencher automaticamente.',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // CEP + botão buscar
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _cep,
+                    keyboardType: TextInputType.number,
+                    maxLength: 9,
+                    inputFormatters: [_CepInputFormatter()],
+                    style: TextStyle(color: context.c.onSurface, fontSize: 14),
+                    decoration: _deco('CEP', Icons.pin_drop_rounded).copyWith(
+                      counterText: '',
+                      errorText: _cepErro,
+                    ),
+                    onFieldSubmitted: (_) => _buscarCep(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _buscandoCep ? null : _buscarCep,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.c.primary,
+                      foregroundColor: context.c.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: _buscandoCep
+                        ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: context.c.onPrimary))
+                        : const Text('Buscar'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _logradouro,
+              style: TextStyle(color: context.c.onSurface, fontSize: 14),
+              decoration: _deco('Logradouro', Icons.signpost_rounded),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: TextFormField(
+                    controller: _numero,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 14),
+                    decoration: _deco('Número', Icons.tag_rounded),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: _complemento,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 14),
+                    decoration: _deco('Complemento', Icons.apartment_rounded),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _bairro,
+              style: TextStyle(color: context.c.onSurface, fontSize: 14),
+              decoration: _deco('Bairro', Icons.map_rounded),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _cidade,
+                    readOnly: true,
+                    style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
+                    decoration: _deco('Cidade', Icons.location_city_rounded, readOnly: true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 80,
+                  child: TextFormField(
+                    controller: _estado,
+                    readOnly: true,
+                    style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
+                    decoration: _deco('UF', Icons.flag_rounded, readOnly: true),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SheetSaveButton(
+              label: 'Salvar endereço',
+              onSalvar: () => widget.onSalvar({
+                'cep': _cep.text.trim(),
+                'logradouro': _logradouro.text.trim(),
+                'numero': _numero.text.trim(),
+                'complemento': _complemento.text.trim(),
+                'bairro': _bairro.text.trim(),
+                'cidade': _cidade.text.trim(),
+                'estado': _estado.text.trim(),
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CepInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old, TextEditingValue next) {
+    final digits = next.text.replaceAll(RegExp(r'\D'), '');
+    final buf = StringBuffer();
+    for (int i = 0; i < digits.length && i < 8; i++) {
+      if (i == 5) buf.write('-');
+      buf.write(digits[i]);
+    }
+    final formatted = buf.toString();
+    return next.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
