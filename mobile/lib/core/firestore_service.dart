@@ -14,7 +14,10 @@ class CheckinBloqueadoException implements Exception {
 /// Substitui todas as chamadas de API REST ao backend Render.
 /// Todos os dados vêm diretamente do Firebase Firestore.
 class FirestoreService {
-  final _db = FirebaseFirestore.instance;
+  // `late` — só toca no Firebase de verdade quando algum método é chamado.
+  // Isso permite criar uma subclasse fake em teste (que sobrescreve todos os
+  // métodos usados pela tela sob teste) sem precisar inicializar o Firebase.
+  late final _db = FirebaseFirestore.instance;
 
   CollectionReference _col(String academiaId, String sub) =>
       _db.collection('academias').doc(academiaId).collection(sub);
@@ -1813,5 +1816,7 @@ class FirestoreService {
   }
 }
 
-/// Instância global (singleton simples)
-final firestoreService = FirestoreService();
+/// Instância global (singleton simples). Não é `final` de propósito: em teste,
+/// um `FakeFirestoreService` é atribuído aqui antes de montar a tela e
+/// restaurado depois — nunca reatribuído em código de produção.
+FirestoreService firestoreService = FirestoreService();

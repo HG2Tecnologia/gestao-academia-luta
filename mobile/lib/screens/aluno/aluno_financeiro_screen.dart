@@ -923,11 +923,13 @@ class _CobrancaCard extends StatelessWidget {
                     color: context.sem.danger,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    context.l10n.apContactSecretary,
-                    style: TextStyle(
-                      color: context.sem.danger,
-                      fontSize: 12,
+                  Expanded(
+                    child: Text(
+                      context.l10n.apContactSecretary,
+                      style: TextStyle(
+                        color: context.sem.danger,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
