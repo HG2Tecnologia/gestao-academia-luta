@@ -51,6 +51,15 @@ class FakeFirestoreService extends FirestoreService {
       academia;
 
   @override
+  Future<List<Map<String, dynamic>>> getAlunos(
+    String academiaId, {
+    bool ativosOnly = false,
+  }) async {
+    if (!ativosOnly) return alunos;
+    return alunos.where((a) => a['ativo'] == true).toList();
+  }
+
+  @override
   Future<Map<String, dynamic>?> getAluno(String academiaId, String id) async {
     try {
       return alunos.firstWhere((a) => a['id']?.toString() == id);

@@ -26,6 +26,24 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   List<Map<String, dynamic>> _todosAlunos = [];
   bool _loading = true;
   bool _erro = false;
+  bool _ordemAZ = true;
+
+  List<Map<String, dynamic>> _ordenarNome(List<Map<String, dynamic>> src) {
+    final l = List<Map<String, dynamic>>.from(src);
+    int cmp(Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (a['nome'] as String? ?? '').toLowerCase().compareTo(
+          (b['nome'] as String? ?? '').toLowerCase(),
+        );
+    l.sort(_ordemAZ ? cmp : (a, b) => cmp(b, a));
+    return l;
+  }
+
+  void _alternarOrdem() {
+    setState(() {
+      _ordemAZ = !_ordemAZ;
+      _alunos = _ordenarNome(_alunos);
+    });
+  }
 
   @override
   void initState() {
@@ -45,19 +63,16 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
 
   void _filtrar(String q) {
     if (!mounted) return;
-    if (q.isEmpty) {
-      setState(() => _alunos = _todosAlunos);
-    } else {
-      setState(
-        () => _alunos = _todosAlunos
-            .where(
-              (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
-                q.toLowerCase(),
-              ),
-            )
-            .toList(),
-      );
-    }
+    final base = q.isEmpty
+        ? _todosAlunos
+        : _todosAlunos
+              .where(
+                (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
+                  q.toLowerCase(),
+                ),
+              )
+              .toList();
+    setState(() => _alunos = _ordenarNome(base));
   }
 
   Future<void> _load(String q) async {
@@ -112,17 +127,18 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
       }
 
       if (mounted) {
+        final base = q.isEmpty
+            ? todos
+            : todos
+                  .where(
+                    (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
+                      q.toLowerCase(),
+                    ),
+                  )
+                  .toList();
         setState(() {
           _todosAlunos = todos;
-          _alunos = q.isEmpty
-              ? todos
-              : todos
-                    .where(
-                      (a) => (a['nome'] as String? ?? '')
-                          .toLowerCase()
-                          .contains(q.toLowerCase()),
-                    )
-                    .toList();
+          _alunos = _ordenarNome(base);
         });
       }
     } catch (_) {
@@ -214,35 +230,62 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _ctrl,
-                style: TextStyle(color: context.c.onSurface),
-                decoration: InputDecoration(
-                  hintText: l.studentsSearchHint,
-                  hintStyle: TextStyle(color: context.c.onSurfaceVariant),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: context.c.onSurfaceVariant,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      style: TextStyle(color: context.c.onSurface),
+                      decoration: InputDecoration(
+                        hintText: l.studentsSearchHint,
+                        hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: context.c.onSurfaceVariant,
+                        ),
+                        filled: true,
+                        fillColor: context.c.surfaceContainer,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.primary),
+                        ),
+                      ),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: context.c.surfaceContainer,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: context.c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.c.outline),
+                    ),
+                    child: IconButton(
+                      onPressed: _alternarOrdem,
+                      tooltip: _ordemAZ ? l.sortNameDesc : l.sortNameAsc,
+                      icon: Icon(
+                        _ordemAZ
+                            ? Icons.arrow_downward_rounded
+                            : Icons.arrow_upward_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 20,
+                      ),
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.outline),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.outline),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.primary),
-                  ),
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 12),

@@ -102,6 +102,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   bool _podeReordenar = false;
   bool _reordenando = false;
   bool _salvandoOrdem = false;
+
+  // Ordenação da aba Presença — independente da aba Alunos: uma pessoa pode
+  // querer ver os alunos da turma em ordem alfabética, mas filtrar quem já
+  // presenciou por outro critério (ex.: mais faltoso primeiro).
+  _OrdAlunos _ordenacaoPresenca = _OrdAlunos.nomeAsc;
   String? _turmaModalidadeId;
 
   bool _loading = true;
@@ -491,11 +496,17 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
 
   int _presencasDe(Map<String, dynamic> a) => _presencaCount[_idDe(a)] ?? 0;
 
-  List<Map<String, dynamic>> _ordenar(List<Map<String, dynamic>> src) {
+  List<Map<String, dynamic>> _ordenar(List<Map<String, dynamic>> src) =>
+      _ordenarPor(_ordenacao, src);
+
+  List<Map<String, dynamic>> _ordenarPor(
+    _OrdAlunos criterio,
+    List<Map<String, dynamic>> src,
+  ) {
     final l = List<Map<String, dynamic>>.from(src);
     int tie(int c, Map<String, dynamic> a, Map<String, dynamic> b) =>
         c != 0 ? c : _cmpNome(a, b);
-    switch (_ordenacao) {
+    switch (criterio) {
       case _OrdAlunos.manual:
         l.sort((a, b) => tie(_pesoManual(a).compareTo(_pesoManual(b)), a, b));
       case _OrdAlunos.nomeAsc:
@@ -611,6 +622,75 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   },
                 ),
               ],
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Igual a [_abrirMenuOrdenacao], mas para o critério próprio da aba
+  /// Presença (_ordenacaoPresenca) — sem a opção de reordenar por arrastar,
+  /// que é só da aba Alunos.
+  void _abrirMenuOrdenacaoPresenca() {
+    final opcoes = <_OrdAlunos>[
+      if (_temOrdemManual) _OrdAlunos.manual,
+      _OrdAlunos.nomeAsc,
+      _OrdAlunos.nomeDesc,
+      _OrdAlunos.graduacaoDesc,
+      _OrdAlunos.graduacaoAsc,
+      _OrdAlunos.matriculaAntiga,
+      _OrdAlunos.matriculaNova,
+      _OrdAlunos.presencasDesc,
+      _OrdAlunos.presencasAsc,
+    ];
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.c.surfaceContainer,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 14),
+              Text(
+                _l.tdSortStudents,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              for (final o in opcoes)
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    _ordenacaoPresenca == o
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: _ordenacaoPresenca == o
+                        ? context.c.primary
+                        : context.c.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  title: Text(
+                    _ordLabel(o, _l),
+                    style: TextStyle(
+                      color: context.c.onSurface,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _ordenacaoPresenca = o);
+                  },
+                ),
               const SizedBox(height: 8),
             ],
           ),
@@ -1645,17 +1725,23 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
 
   // ── ABA PRESENÇA ──────────────────────────────────────
 
+  // Critério de ordenação PRÓPRIO desta aba (_ordenacaoPresenca) —
+  // independente do que estiver selecionado na aba Alunos: uma pessoa pode
+  // querer ver os alunos da turma em ordem alfabética ali, e aqui filtrar
+  // quem já presenciou por outro critério (ex.: mais faltoso primeiro).
   List<Map<String, dynamic>> get _alunosPresFiltrados {
     final q = _presCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _alunos;
-    return _alunos
-        .where(
-          (a) => (a['nomeAluno'] ?? a['nome_aluno'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(q),
-        )
-        .toList();
+    final base = q.isEmpty
+        ? _alunos
+        : _alunos
+              .where(
+                (a) => (a['nomeAluno'] ?? a['nome_aluno'] ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .contains(q),
+              )
+              .toList();
+    return _ordenarPor(_ordenacaoPresenca, base);
   }
 
   Widget _miniStatPresenca({
@@ -1912,6 +1998,61 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             ],
           ),
         ),
+        if (_alunos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Material(
+              color: context.c.surfaceContainer,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: _abrirMenuOrdenacaoPresenca,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.c.outline),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.swap_vert_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _l.tdSortPrefix,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _ordLabel(_ordenacaoPresenca, _l),
+                          style: TextStyle(
+                            color: context.c.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        color: context.c.primary,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (_loadingPresenca)
           const Expanded(child: Center(child: CircularProgressIndicator()))
         else
