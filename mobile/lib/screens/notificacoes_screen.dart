@@ -79,10 +79,19 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
     } catch (_) {}
   }
 
-  // Note: single notification delete not available in firestoreService; remove locally only
-  void _excluirLocal(String id) {
-    if (mounted)
-      setState(() => _notifs.removeWhere((n) => n['id'].toString() == id));
+  Future<void> _excluir(String id) async {
+    if (_academiaId == null) return;
+    final idx = _notifs.indexWhere((n) => n['id'].toString() == id);
+    final removida = idx >= 0 ? _notifs[idx] : null;
+    if (mounted) setState(() => _notifs.removeWhere((n) => n['id'].toString() == id));
+    try {
+      await firestoreService.deleteNotificacao(_academiaId!, id);
+    } catch (_) {
+      // Falhou no servidor: devolve pra lista pra não perder a notificação.
+      if (mounted && removida != null) {
+        setState(() => _notifs.insert(idx.clamp(0, _notifs.length), removida));
+      }
+    }
   }
 
   /// Ao tocar numa notificação já lida (ou depois de marcar como lida): abre
@@ -236,7 +245,7 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
                                 color: context.sem.danger,
                               ),
                             ),
-                            onDismissed: (_) => _excluirLocal(id),
+                            onDismissed: (_) => _excluir(id),
                             child: GestureDetector(
                               onTap: () async {
                                 if (!lida) await _marcarLida(id);

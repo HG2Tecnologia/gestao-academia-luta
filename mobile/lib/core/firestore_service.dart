@@ -1274,6 +1274,9 @@ class FirestoreService {
   Future<void> marcarNotificacaoLida(String academiaId, String id) =>
       _doc(academiaId, 'notificacoes', id).update({'lida': true});
 
+  Future<void> deleteNotificacao(String academiaId, String id) =>
+      _doc(academiaId, 'notificacoes', id).delete();
+
   // ─── CONTAS DA ACADEMIA (luz, água, aluguel etc.) ─────────────────────────
 
   Future<List<Map<String, dynamic>>> getContasAcademia(
