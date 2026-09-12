@@ -14,6 +14,7 @@ const {
 const {
   addBillingMonths,
   dueDateForPeriod,
+  monthLabelPtBr,
   monthlyChargeDocumentId,
   resolveChargeStatus,
   resolveDuplicateGroup,
@@ -205,6 +206,12 @@ test("provisionamento: 2ª chamada com confirmarSobrescrita ignora o bloqueio", 
     }),
     "sobrescrever",
   );
+});
+
+test("financeiro: rótulo de mês em português usado nas notificações", () => {
+  assert.equal(monthLabelPtBr("2026-10"), "outubro/2026");
+  assert.equal(monthLabelPtBr("2026-01"), "janeiro/2026");
+  assert.equal(monthLabelPtBr("2026-12"), "dezembro/2026");
 });
 
 test("provisionamento: 2ª chamada com apenasVincular nunca sobrescreve, mesmo sem conflito", () => {

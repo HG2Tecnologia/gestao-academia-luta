@@ -1219,12 +1219,43 @@ class FirestoreService {
 
   // ─── NOTIFICAÇÕES ──────────────────────────────────────────────────────────
 
+  /// Feed da ACADEMIA (conta vencida, solicitação de senha etc.) — nunca
+  /// inclui notificações PESSOAIS de aluno (essas têm `aluno_id` e só
+  /// aparecem no sino dele, via [getNotificacoesAluno]).
   Future<List<Map<String, dynamic>>> getNotificacoes(String academiaId) async {
     final snap = await _col(
       academiaId,
       'notificacoes',
     ).orderBy('criado_em', descending: true).limit(50).get();
-    return snap.docs.map(_convertDoc).toList();
+    return snap.docs
+        .map(_convertDoc)
+        .where((n) => n['aluno_id'] == null)
+        .toList();
+  }
+
+  /// Notificações PESSOAIS de um aluno (cobrança gerada, graduação) — nunca
+  /// inclui as da academia (essas não têm `aluno_id`). Sem `orderBy` na query
+  /// de propósito (evita exigir índice composto novo); ordena no cliente.
+  Future<List<Map<String, dynamic>>> getNotificacoesAluno(
+    String academiaId,
+    String alunoId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'notificacoes',
+    ).where('aluno_id', isEqualTo: alunoId).limit(50).get();
+    // `_convertDoc` já converte Timestamp -> String ISO8601.
+    final list = snap.docs.map(_convertDoc).toList();
+    list.sort((a, b) {
+      final da =
+          DateTime.tryParse(a['criado_em']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final dbb =
+          DateTime.tryParse(b['criado_em']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return dbb.compareTo(da);
+    });
+    return list;
   }
 
   Future<String> addNotificacao(

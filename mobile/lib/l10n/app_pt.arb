@@ -241,6 +241,8 @@
   "changePwConfirmLabel": "Confirmar nova senha",
   "changePwConfirmHint": "Repita a nova senha",
   "changePwMustBeDifferent": "A nova senha deve ser diferente da atual",
+  "changePwErrMinLength": "Mínimo 6 caracteres",
+  "changePwErrMismatch": "As senhas não coincidem",
   "changePwSuccess": "Senha alterada com sucesso!",
   "changePwErrWrongCurrent": "Senha atual incorreta.",
   "changePwErrWeak": "A nova senha é muito fraca.",
@@ -274,6 +276,14 @@
   "fpSentTitle": "E-mail enviado!",
   "fpSentBody": "Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.",
   "fpBackToLogin": "Voltar ao login",
+
+  "fpAlunoSubtitle": "Informe seu telefone ou e-mail cadastrado. Sua academia vai receber um aviso e gerar uma nova senha para você.",
+  "fpIdentifierLabel": "Telefone ou e-mail",
+  "fpIdentifierHint": "(11) 99999-0000 ou seu@email.com",
+  "fpErrInvalidIdentifier": "Informe um telefone ou e-mail válido.",
+  "fpAlunoSendButton": "Enviar solicitação",
+  "fpRequestSentTitle": "Solicitação enviada!",
+  "fpRequestSentBody": "Se encontrarmos seu cadastro, sua academia foi avisada e vai gerar uma nova senha de acesso para você em breve.",
 
   "resetPwDialogTitle": "Redefinir senha de {nome}?",
   "@resetPwDialogTitle": {
@@ -347,6 +357,17 @@
   "statusInactive": "Inativo",
   "studentsFilterLabel": "Filtrar por situação",
   "studentsFilterAll": "Todos",
+
+  "notifTitle": "Notificações",
+  "notifUnreadCount": "{count, plural, one{1 não lida} other{{count} não lidas}}",
+  "@notifUnreadCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notifMarkAllRead": "Marcar todas",
+  "notifEmptyTitle": "Nenhuma notificação",
+  "notifEmptySubtitle": "Você está em dia com tudo!",
   "finUpToDate": "Em dia",
   "finPending": "Pendente",
   "finOverdue": "Inadimplente",

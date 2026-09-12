@@ -15,6 +15,10 @@ exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
 const adminFunctions = require("./admin-functions");
 exports.adminResetPassword = adminFunctions.adminResetPassword;
 exports.checkContatoCompartilhado = adminFunctions.checkContatoCompartilhado;
+exports.requestPasswordReset = adminFunctions.requestPasswordReset;
+
+const notificationTriggers = require("./notification-triggers");
+exports.onGraduacaoCriada = notificationTriggers.onGraduacaoCriada;
 exports.completeMandatoryPasswordChange = adminFunctions.completeMandatoryPasswordChange;
 
 const graduacaoFunctions = require("./graduacao-functions");

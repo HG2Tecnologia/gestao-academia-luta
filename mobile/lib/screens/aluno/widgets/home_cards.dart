@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/context_ext.dart';
+import '../../notificacoes_screen.dart';
 import 'aluno_widgets.dart';
 
 /// Cabeçalho da Home: avatar + saudação + ação de notificações.
@@ -13,6 +14,11 @@ class StudentHeader extends StatelessWidget {
   final VoidCallback? onAvatar;
   final Widget? profileSwitcher;
 
+  /// Quando `true`, mostra o sino com contador (`SinoNotificacoes`) em vez do
+  /// ícone simples — `onNotificacoes` é ignorado nesse caso (o sino já cuida
+  /// da navegação sozinho).
+  final bool usarSinoNotificacoes;
+
   const StudentHeader({
     super.key,
     required this.primeiroNome,
@@ -21,6 +27,7 @@ class StudentHeader extends StatelessWidget {
     this.onNotificacoes,
     this.onAvatar,
     this.profileSwitcher,
+    this.usarSinoNotificacoes = false,
   });
 
   @override
@@ -64,7 +71,9 @@ class StudentHeader extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           profileSwitcher!,
         ],
-        if (onNotificacoes != null)
+        if (usarSinoNotificacoes)
+          const SinoNotificacoes()
+        else if (onNotificacoes != null)
           IconButton(
             onPressed: onNotificacoes,
             visualDensity: VisualDensity.compact,

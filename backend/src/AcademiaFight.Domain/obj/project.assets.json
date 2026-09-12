@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
+      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
       "projectName": "AcademiaFight.Domain",
-      "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
+      "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj",
       "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
-      "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/",
+      "outputPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"

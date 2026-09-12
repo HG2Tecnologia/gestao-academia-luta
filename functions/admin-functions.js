@@ -15,6 +15,7 @@ const {
   decidirAcaoContasCompartilhadas,
 } = require("./domain/access-provisioning");
 const { findProfiles, upsertAccount } = require("./account-functions");
+const { buildSolicitacaoSenhaMensagem } = require("./domain/notifications");
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -455,6 +456,76 @@ exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, asyn
         acesso_senha_temporaria_por: FieldValue.delete(),
       }, { merge: true })
       .catch(() => {});
+  }));
+
+  return { ok: true };
+});
+
+/**
+ * Fluxo novo de "esqueci minha senha" do aluno: em vez de mandar e-mail (que
+ * nunca chega pra quem loga por telefone, via e-mail sintético @sensei.app),
+ * vira uma SOLICITAÇÃO que aparece no sino de notificações da academia. A
+ * academia clica, cai na ficha do aluno e usa "Redefinir senha" (já existe).
+ *
+ * Pública de propósito (sem `request.auth`) — a pessoa ainda não tem sessão
+ * nesse ponto, igual a `discoverAccessProfiles`. Nunca revela se o telefone/
+ * e-mail existe: sempre responde `{ ok: true }`.
+ */
+exports.requestPasswordReset = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  const identifier = String(request.data?.identifier ?? "").trim();
+  if (!identifier) return { ok: true };
+
+  let profiles = [];
+  try {
+    ({ profiles } = await findProfiles(identifier));
+  } catch (error) {
+    // Identificador não reconhecido (nem telefone nem e-mail válido) — não
+    // é erro do ponto de vista de quem chamou, só não há o que notificar.
+    if (error.code === "invalid-argument") return { ok: true };
+    throw error;
+  }
+
+  // Só o público que hoje usa esse fluxo (login "aluno"): perfis de aluno na
+  // coleção `usuarios`. Autoatendimento de Admin/Secretaria/Professor fica de
+  // fora por ora — continuam com o link por e-mail já existente.
+  const alunos = profiles.filter(
+    (p) => p.colecao === "usuarios" && p.perfil_nome === "Aluno",
+  );
+  if (alunos.length === 0) return { ok: true };
+
+  // Telefone/e-mail compartilhado por mais de um aluno (irmãos usando o
+  // telefone dos pais, por exemplo) — agrupa numa única notificação por
+  // academia em vez de uma por aluno, senão a academia via 3 alertas
+  // separados pro mesmo pedido.
+  const porAcademia = new Map();
+  for (const perfil of alunos) {
+    if (!porAcademia.has(perfil.academiaId)) porAcademia.set(perfil.academiaId, []);
+    porAcademia.get(perfil.academiaId).push(perfil);
+  }
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const identifierSafe = identifier.replace(/[^A-Za-z0-9_.@-]/g, "_");
+  await Promise.all([...porAcademia.entries()].map(async ([academiaId, perfis]) => {
+    const ref = db
+      .collection("academias").doc(academiaId)
+      .collection("notificacoes").doc(`senha_${identifierSafe}_${hojeStr}`);
+    // ID determinístico por dia (por academia + identificador): se a pessoa
+    // clicar várias vezes, não reabre/duplica a notificação nem desfaz um
+    // "já li" que a academia já tenha dado — só a primeira solicitação do
+    // dia gera o alerta.
+    const existente = await ref.get();
+    if (existente.exists) return;
+    await ref.set({
+      titulo: "Solicitação de nova senha",
+      mensagem: buildSolicitacaoSenhaMensagem(perfis.map((p) => p.nome)),
+      tipo: "solicitacao_senha",
+      colecao: "usuarios",
+      ...(perfis.length === 1
+        ? { usuario_id: perfis[0].usuarioId }
+        : { usuario_ids: perfis.map((p) => p.usuarioId) }),
+      lida: false,
+      criado_em: FieldValue.serverTimestamp(),
+    });
   }));
 
   return { ok: true };

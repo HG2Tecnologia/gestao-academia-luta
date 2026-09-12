@@ -9,6 +9,7 @@ import '../../core/plan_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/widgets.dart';
+import '../notificacoes_screen.dart';
 import 'widgets/dashboard_widgets.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -606,6 +607,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
               ),
+              const SinoNotificacoes(),
+              const SizedBox(width: 10),
               GestureDetector(
                 onTap: openAppDrawer,
                 child: Icon(

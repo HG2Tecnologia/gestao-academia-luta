@@ -361,7 +361,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 primeiroNome: primeiro,
                 fotoBase64: foto,
                 profileSwitcher: _profileSwitcher(),
-                onNotificacoes: () => context.push('/noticias'),
+                usarSinoNotificacoes: true,
                 onAvatar: () => context.go('/aluno/perfil'),
               ),
               const SizedBox(height: AppSpacing.lg),

@@ -19,7 +19,9 @@ class FakeFirestoreService extends FirestoreService {
     this.matriculas = const [],
     this.turmas = const [],
     this.planos = const [],
-  }) : alunos = List.of(alunos);
+    List<Map<String, dynamic>> notificacoes = const [],
+  }) : alunos = List.of(alunos),
+       notificacoes = List.of(notificacoes);
 
   List<Map<String, dynamic>> pagamentos;
   Map<String, dynamic> academia;
@@ -32,6 +34,10 @@ class FakeFirestoreService extends FirestoreService {
   List<Map<String, dynamic>> matriculas;
   List<Map<String, dynamic>> turmas;
   List<Map<String, dynamic>> planos;
+  List<Map<String, dynamic>> notificacoes;
+
+  /// Toda chamada a [marcarNotificacaoLida], na ordem.
+  final List<String> marcarNotificacaoLidaCalls = [];
 
   /// Toda chamada a [updateAluno] recebida, na ordem — para o teste poder
   /// afirmar o que foi (ou não) persistido.
@@ -147,5 +153,28 @@ class FakeFirestoreService extends FirestoreService {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getNotificacoes(String academiaId) async =>
+      notificacoes.where((n) => n['aluno_id'] == null).toList();
+
+  @override
+  Future<List<Map<String, dynamic>>> getNotificacoesAluno(
+    String academiaId,
+    String alunoId,
+  ) async =>
+      notificacoes.where((n) => n['aluno_id']?.toString() == alunoId).toList();
+
+  @override
+  Future<void> marcarNotificacaoLida(String academiaId, String id) async {
+    marcarNotificacaoLidaCalls.add(id);
+    final idx = notificacoes.indexWhere((n) => n['id']?.toString() == id);
+    if (idx != -1) notificacoes[idx] = {...notificacoes[idx], 'lida': true};
+  }
+
+  @override
+  Future<void> marcarTodasNotificacoesLidas(String academiaId) async {
+    notificacoes = notificacoes.map((n) => {...n, 'lida': true}).toList();
   }
 }

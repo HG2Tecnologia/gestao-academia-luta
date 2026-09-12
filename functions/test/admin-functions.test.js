@@ -511,3 +511,122 @@ test("secretaria sem a permissão granular não pode redefinir senha", async () 
     },
   );
 });
+
+test("requestPasswordReset: sem sessão, cria uma solicitação pro sino da academia", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/aluno-solicitante").set({
+      nome: "Aluno Solicitante",
+      perfil: 3,
+      ativo: true,
+      telefone: "(21) 97000-0009",
+      telefone_digits: "21970000009",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  const resultado = await solicitar({ identifier: "21970000009" });
+  assert.equal(resultado.data.ok, true);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const notif = await ctx
+      .firestore()
+      .doc("academias/academy-a/notificacoes/senha_21970000009_" + new Date().toISOString().slice(0, 10))
+      .get();
+    assert.equal(notif.exists, true);
+    assert.equal(notif.data().tipo, "solicitacao_senha");
+    assert.equal(notif.data().usuario_id, "aluno-solicitante");
+    assert.equal(notif.data().mensagem, "Aluno Solicitante pediu para redefinir a senha de acesso ao app.");
+    assert.equal(notif.data().lida, false);
+  });
+});
+
+test("requestPasswordReset: identificador sem cadastro nenhum não quebra e não vaza nada", async () => {
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  const resultado = await solicitar({ identifier: "21999999999" });
+  assert.equal(resultado.data.ok, true);
+});
+
+test("requestPasswordReset: chamar duas vezes no mesmo dia não duplica nem reabre a notificação", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/aluno-repete").set({
+      nome: "Aluno Repete",
+      perfil: 3,
+      ativo: true,
+      telefone: "(21) 97000-0010",
+      telefone_digits: "21970000010",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  await solicitar({ identifier: "21970000010" });
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_21970000010_${hojeStr}`)
+      .update({ lida: true });
+  });
+
+  await solicitar({ identifier: "21970000010" });
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const notif = await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_21970000010_${hojeStr}`)
+      .get();
+    // Continua "lida": a segunda chamada não reabriu a notificação.
+    assert.equal(notif.data().lida, true);
+  });
+});
+
+test("requestPasswordReset: telefone compartilhado por vários alunos vira UMA notificação combinada", async () => {
+  // Bug reportado: 3 irmãos com o mesmo telefone geravam 3 notificações
+  // separadas na academia. Agora vira uma só, com os nomes combinados.
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/irmao-a").set({
+      nome: "Júlia Muniz", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-b").set({
+      nome: "Fernando Alonso", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-c").set({
+      nome: "Henrique Muniz", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  await solicitar({ identifier: "29999900089" });
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const col = await ctx.firestore().collection("academias/academy-a/notificacoes").get();
+    const solicitacoes = col.docs.filter((d) => d.data().tipo === "solicitacao_senha");
+    assert.equal(solicitacoes.length, 1);
+
+    const notif = await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_29999900089_${hojeStr}`)
+      .get();
+    assert.equal(notif.exists, true);
+    assert.equal(notif.data().usuario_id, undefined);
+    assert.deepEqual(
+      [...notif.data().usuario_ids].sort(),
+      ["irmao-a", "irmao-b", "irmao-c"].sort(),
+    );
+    assert.equal(
+      notif.data().mensagem,
+      "Os alunos Júlia Muniz, Fernando Alonso e Henrique Muniz pediram para redefinir a senha de acesso ao app.",
+    );
+  });
+});

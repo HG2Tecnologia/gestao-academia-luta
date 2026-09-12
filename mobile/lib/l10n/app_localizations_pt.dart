@@ -602,6 +602,12 @@ class AppLocalizationsPt extends AppLocalizations {
       'A nova senha deve ser diferente da atual';
 
   @override
+  String get changePwErrMinLength => 'Mínimo 6 caracteres';
+
+  @override
+  String get changePwErrMismatch => 'As senhas não coincidem';
+
+  @override
   String get changePwSuccess => 'Senha alterada com sucesso!';
 
   @override
@@ -685,6 +691,29 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get fpBackToLogin => 'Voltar ao login';
+
+  @override
+  String get fpAlunoSubtitle =>
+      'Informe seu telefone ou e-mail cadastrado. Sua academia vai receber um aviso e gerar uma nova senha para você.';
+
+  @override
+  String get fpIdentifierLabel => 'Telefone ou e-mail';
+
+  @override
+  String get fpIdentifierHint => '(11) 99999-0000 ou seu@email.com';
+
+  @override
+  String get fpErrInvalidIdentifier => 'Informe um telefone ou e-mail válido.';
+
+  @override
+  String get fpAlunoSendButton => 'Enviar solicitação';
+
+  @override
+  String get fpRequestSentTitle => 'Solicitação enviada!';
+
+  @override
+  String get fpRequestSentBody =>
+      'Se encontrarmos seu cadastro, sua academia foi avisada e vai gerar uma nova senha de acesso para você em breve.';
 
   @override
   String resetPwDialogTitle(String nome) {
@@ -809,6 +838,29 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get studentsFilterAll => 'Todos';
+
+  @override
+  String get notifTitle => 'Notificações';
+
+  @override
+  String notifUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count não lidas',
+      one: '1 não lida',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notifMarkAllRead => 'Marcar todas';
+
+  @override
+  String get notifEmptyTitle => 'Nenhuma notificação';
+
+  @override
+  String get notifEmptySubtitle => 'Você está em dia com tudo!';
 
   @override
   String get finUpToDate => 'Em dia';

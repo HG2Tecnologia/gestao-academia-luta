@@ -1148,6 +1148,18 @@ abstract class AppLocalizations {
   /// **'A nova senha deve ser diferente da atual'**
   String get changePwMustBeDifferent;
 
+  /// No description provided for @changePwErrMinLength.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mínimo 6 caracteres'**
+  String get changePwErrMinLength;
+
+  /// No description provided for @changePwErrMismatch.
+  ///
+  /// In pt, this message translates to:
+  /// **'As senhas não coincidem'**
+  String get changePwErrMismatch;
+
   /// No description provided for @changePwSuccess.
   ///
   /// In pt, this message translates to:
@@ -1303,6 +1315,48 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Voltar ao login'**
   String get fpBackToLogin;
+
+  /// No description provided for @fpAlunoSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe seu telefone ou e-mail cadastrado. Sua academia vai receber um aviso e gerar uma nova senha para você.'**
+  String get fpAlunoSubtitle;
+
+  /// No description provided for @fpIdentifierLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Telefone ou e-mail'**
+  String get fpIdentifierLabel;
+
+  /// No description provided for @fpIdentifierHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'(11) 99999-0000 ou seu@email.com'**
+  String get fpIdentifierHint;
+
+  /// No description provided for @fpErrInvalidIdentifier.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um telefone ou e-mail válido.'**
+  String get fpErrInvalidIdentifier;
+
+  /// No description provided for @fpAlunoSendButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar solicitação'**
+  String get fpAlunoSendButton;
+
+  /// No description provided for @fpRequestSentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Solicitação enviada!'**
+  String get fpRequestSentTitle;
+
+  /// No description provided for @fpRequestSentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se encontrarmos seu cadastro, sua academia foi avisada e vai gerar uma nova senha de acesso para você em breve.'**
+  String get fpRequestSentBody;
 
   /// No description provided for @resetPwDialogTitle.
   ///
@@ -1501,6 +1555,36 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Todos'**
   String get studentsFilterAll;
+
+  /// No description provided for @notifTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Notificações'**
+  String get notifTitle;
+
+  /// No description provided for @notifUnreadCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 não lida} other{{count} não lidas}}'**
+  String notifUnreadCount(int count);
+
+  /// No description provided for @notifMarkAllRead.
+  ///
+  /// In pt, this message translates to:
+  /// **'Marcar todas'**
+  String get notifMarkAllRead;
+
+  /// No description provided for @notifEmptyTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma notificação'**
+  String get notifEmptyTitle;
+
+  /// No description provided for @notifEmptySubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você está em dia com tudo!'**
+  String get notifEmptySubtitle;
 
   /// No description provided for @finUpToDate.
   ///

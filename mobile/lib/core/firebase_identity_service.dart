@@ -154,6 +154,17 @@ class FirebaseIdentityService {
     );
   }
 
+  /// Novo fluxo de "esqueci minha senha" do aluno: em vez de mandar e-mail
+  /// (que não chega pra quem loga por telefone), vira uma solicitação que
+  /// aparece no sino de notificações da academia. Pública/sem sessão — a
+  /// pessoa ainda não está logada nesse ponto. Sempre "funciona" do ponto de
+  /// vista do cliente, exista ou não o cadastro (não vaza existência).
+  Future<void> requestPasswordReset({required String identifier}) async {
+    await _functions.httpsCallable('requestPasswordReset').call({
+      'identifier': identifier,
+    });
+  }
+
   static Map<String, dynamic> _asMap(Object? value) {
     if (value is! Map) return <String, dynamic>{};
     return value.map((key, item) => MapEntry(key.toString(), item));

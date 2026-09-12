@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/firebase_identity_service.dart';
 import '../../core/theme/context_ext.dart';
+import '../../core/widgets.dart';
 import '../../l10n/app_localizations.dart';
 
 class EsqueciSenhaScreen extends StatefulWidget {
@@ -15,12 +17,14 @@ class EsqueciSenhaScreen extends StatefulWidget {
 }
 
 class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
-  final _emailCtrl = TextEditingController();
+  final _campoCtrl = TextEditingController();
   bool _loading = false;
   bool _enviado = false;
   String? _erro;
 
   static final _emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+
+  bool get _ehAluno => widget.contexto == 'aluno';
 
   void _voltarLogin() {
     final contexto = widget.contexto;
@@ -31,9 +35,51 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
     }
   }
 
-  Future<void> _enviar() async {
+  /// Fluxo do aluno/responsável: aceita telefone OU e-mail e vira uma
+  /// solicitação que aparece no sino de notificações da academia (em vez de
+  /// mandar e-mail, que nunca chega pra quem loga por telefone via e-mail
+  /// sintético `@sensei.app`).
+  Future<void> _enviarSolicitacao() async {
     final l = context.l10n;
-    final email = _emailCtrl.text.trim().toLowerCase();
+    final identifier = _campoCtrl.text.trim();
+    final digits = identifier.replaceAll(RegExp(r'\D'), '');
+    final pareceEmail = identifier.contains('@');
+    if (identifier.isEmpty ||
+        (pareceEmail && !_emailRegex.hasMatch(identifier.toLowerCase())) ||
+        (!pareceEmail && digits.length < 10)) {
+      setState(() => _erro = l.fpErrInvalidIdentifier);
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
+    try {
+      await firebaseIdentityService.requestPasswordReset(
+        identifier: pareceEmail ? identifier.toLowerCase() : digits,
+      );
+      if (mounted) {
+        setState(() {
+          _enviado = true;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _erro = l.fpErrUnexpected;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  /// Fluxo de academia/funcionário: mantido como sempre foi (link por e-mail
+  /// via Firebase Auth) — esse público usa e-mail real com mais frequência e
+  /// não faz parte do pedido de solicitação-pela-academia.
+  Future<void> _enviarLinkEmail() async {
+    final l = context.l10n;
+    final email = _campoCtrl.text.trim().toLowerCase();
     if (email.isEmpty || !_emailRegex.hasMatch(email)) {
       setState(() => _erro = l.fpErrInvalidEmail);
       return;
@@ -45,21 +91,23 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
     try {
       await FirebaseAuth.instance.setLanguageCode('pt-BR');
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _enviado = true;
           _loading = false;
         });
+      }
     } on FirebaseAuthException catch (e) {
       String msg;
       switch (e.code) {
         case 'user-not-found':
           // Por segurança, não revelamos se o email existe
-          if (mounted)
+          if (mounted) {
             setState(() {
               _enviado = true;
               _loading = false;
             });
+          }
           return;
         case 'invalid-email':
           msg = l.fpErrInvalidEmail;
@@ -68,23 +116,25 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         default:
           msg = l.fpErrGeneric;
       }
-      if (mounted)
+      if (mounted) {
         setState(() {
           _erro = msg;
           _loading = false;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _erro = l.fpErrUnexpected;
           _loading = false;
         });
+      }
     }
   }
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _campoCtrl.dispose();
     super.dispose();
   }
 
@@ -127,12 +177,12 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          l.fpSubtitle,
+          _ehAluno ? l.fpAlunoSubtitle : l.fpSubtitle,
           style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
         ),
         const SizedBox(height: 32),
         Text(
-          l.fpEmailLabel,
+          _ehAluno ? l.fpIdentifierLabel : l.fpEmailLabel,
           style: TextStyle(
             color: context.c.onSurfaceVariant,
             fontSize: 12,
@@ -141,15 +191,20 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ),
         const SizedBox(height: 6),
         TextField(
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
+          controller: _campoCtrl,
+          keyboardType: _ehAluno
+              ? TextInputType.text
+              : TextInputType.emailAddress,
+          inputFormatters: _ehAluno
+              ? [SmartPhoneOrEmailInputFormatter()]
+              : null,
           autofocus: true,
           style: TextStyle(color: context.c.onSurface, fontSize: 15),
           decoration: InputDecoration(
-            hintText: l.fpEmailHint,
+            hintText: _ehAluno ? l.fpIdentifierHint : l.fpEmailHint,
             hintStyle: TextStyle(color: context.c.onSurfaceVariant),
             prefixIcon: Icon(
-              Icons.mail_outline,
+              _ehAluno ? Icons.person_outline : Icons.mail_outline,
               color: context.c.onSurfaceVariant,
               size: 20,
             ),
@@ -189,7 +244,9 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ],
         const SizedBox(height: 28),
         FilledButton(
-          onPressed: _loading ? null : _enviar,
+          onPressed: _loading
+              ? null
+              : (_ehAluno ? _enviarSolicitacao : _enviarLinkEmail),
           style: FilledButton.styleFrom(
             backgroundColor: context.c.primary,
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -207,7 +264,7 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
                   ),
                 )
               : Text(
-                  l.fpSendButton,
+                  _ehAluno ? l.fpAlunoSendButton : l.fpSendButton,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -231,7 +288,9 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.mark_email_read_outlined,
+              _ehAluno
+                  ? Icons.notifications_active_outlined
+                  : Icons.mark_email_read_outlined,
               color: context.sem.success,
               size: 48,
             ),
@@ -239,7 +298,7 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ),
         const SizedBox(height: 28),
         Text(
-          l.fpSentTitle,
+          _ehAluno ? l.fpRequestSentTitle : l.fpSentTitle,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: context.c.onSurface,
@@ -249,7 +308,7 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          l.fpSentBody,
+          _ehAluno ? l.fpRequestSentBody : l.fpSentBody,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: context.c.onSurfaceVariant,

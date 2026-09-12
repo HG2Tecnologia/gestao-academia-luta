@@ -39,5 +39,17 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # O macOS (Sequoia+) marca arquivos baixados pela rede (inclusive os pods
+    # baixados pelo CocoaPods) com o atributo `com.apple.provenance`, que não
+    # pode ser removido via xattr e faz o `codesign` recusar assinar os
+    # frameworks no build de simulador ("resource fork ... not allowed").
+    # Frameworks individuais dos Pods não precisam de assinatura própria —
+    # só o app final embarcado precisa — então desligamos a exigência só
+    # pro simulador, sem afetar build de dispositivo/release.
+    target.build_configurations.each do |config|
+      config.build_settings['CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]'] = 'NO'
+      config.build_settings['CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]'] = 'NO'
+    end
   end
 end

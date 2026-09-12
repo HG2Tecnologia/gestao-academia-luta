@@ -35,6 +35,17 @@ function monthlyChargeDocumentId(studentId, periodValue) {
   return `mensalidade__${studentId}__${period}`;
 }
 
+const MONTH_LABELS_PT_BR = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/** "2026-10" -> "outubro/2026" — usado em mensagens de notificação. */
+function monthLabelPtBr(periodValue) {
+  const { year, month } = parseBillingPeriod(periodValue);
+  return `${MONTH_LABELS_PT_BR[month - 1]}/${year}`;
+}
+
 /**
  * Decide, dentro de um grupo de cobranças duplicadas (mesmo aluno + mesma
  * competência), qual documento manter e quais desconsiderar — pura, sem
@@ -83,6 +94,7 @@ function resolveDuplicateGroup(docs) {
 module.exports = {
   addBillingMonths,
   dueDateForPeriod,
+  monthLabelPtBr,
   monthlyChargeDocumentId,
   parseBillingPeriod,
   resolveChargeStatus,

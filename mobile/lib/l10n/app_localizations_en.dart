@@ -599,6 +599,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'The new password must be different from the current one';
 
   @override
+  String get changePwErrMinLength => 'Minimum 6 characters';
+
+  @override
+  String get changePwErrMismatch => 'Passwords don\'t match';
+
+  @override
   String get changePwSuccess => 'Password changed successfully!';
 
   @override
@@ -683,6 +689,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fpBackToLogin => 'Back to login';
+
+  @override
+  String get fpAlunoSubtitle =>
+      'Enter your registered phone or email. Your gym will get an alert and generate a new password for you.';
+
+  @override
+  String get fpIdentifierLabel => 'Phone or email';
+
+  @override
+  String get fpIdentifierHint => '(11) 99999-0000 or you@email.com';
+
+  @override
+  String get fpErrInvalidIdentifier => 'Enter a valid phone number or email.';
+
+  @override
+  String get fpAlunoSendButton => 'Send request';
+
+  @override
+  String get fpRequestSentTitle => 'Request sent!';
+
+  @override
+  String get fpRequestSentBody =>
+      'If we find your record, your gym has been notified and will generate a new access password for you shortly.';
 
   @override
   String resetPwDialogTitle(String nome) {
@@ -807,6 +836,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get studentsFilterAll => 'All';
+
+  @override
+  String get notifTitle => 'Notifications';
+
+  @override
+  String notifUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread',
+      one: '1 unread',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notifMarkAllRead => 'Mark all';
+
+  @override
+  String get notifEmptyTitle => 'No notifications';
+
+  @override
+  String get notifEmptySubtitle => 'You\'re all caught up!';
 
   @override
   String get finUpToDate => 'Up to date';

@@ -8,6 +8,7 @@ const { FieldValue } = require("firebase-admin/firestore");
 const {
   addBillingMonths,
   dueDateForPeriod,
+  monthLabelPtBr,
   monthlyChargeDocumentId,
   parseBillingPeriod,
   resolveDuplicateGroup,
@@ -91,8 +92,25 @@ async function ensureChargesForPeriodCore(academiaId, periodValue) {
       return true;
     });
 
-    if (criado) criadas++;
-    else ignoradas++;
+    if (criado) {
+      criadas++;
+      // ID determinístico = idempotente: se a function rodar de novo pra
+      // mesma competência, não duplica a notificação (mesma garantia da
+      // própria cobrança, que usa `chargeId` como ID do doc).
+      await db
+        .collection("academias").doc(academiaId)
+        .collection("notificacoes").doc(`cobranca_${chargeId}`)
+        .set({
+          titulo: "Nova mensalidade gerada",
+          mensagem: `Sua mensalidade de ${monthLabelPtBr(period)} (R$ ${valor.toFixed(2).replace(".", ",")}) já está disponível.`,
+          tipo: "cobranca_gerada",
+          aluno_id: alunoId,
+          lida: false,
+          criado_em: FieldValue.serverTimestamp(),
+        });
+    } else {
+      ignoradas++;
+    }
   }
 
   return { period, criadas, ignoradas };

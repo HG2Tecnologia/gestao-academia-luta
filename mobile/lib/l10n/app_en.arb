@@ -175,6 +175,8 @@
   "changePwConfirmLabel": "Confirm new password",
   "changePwConfirmHint": "Repeat the new password",
   "changePwMustBeDifferent": "The new password must be different from the current one",
+  "changePwErrMinLength": "Minimum 6 characters",
+  "changePwErrMismatch": "Passwords don't match",
   "changePwSuccess": "Password changed successfully!",
   "changePwErrWrongCurrent": "Current password is incorrect.",
   "changePwErrWeak": "The new password is too weak.",
@@ -206,6 +208,14 @@
   "fpSentTitle": "Email sent!",
   "fpSentBody": "Check your inbox (and spam folder). Click the link you received to create your new password.",
   "fpBackToLogin": "Back to login",
+
+  "fpAlunoSubtitle": "Enter your registered phone or email. Your gym will get an alert and generate a new password for you.",
+  "fpIdentifierLabel": "Phone or email",
+  "fpIdentifierHint": "(11) 99999-0000 or you@email.com",
+  "fpErrInvalidIdentifier": "Enter a valid phone number or email.",
+  "fpAlunoSendButton": "Send request",
+  "fpRequestSentTitle": "Request sent!",
+  "fpRequestSentBody": "If we find your record, your gym has been notified and will generate a new access password for you shortly.",
 
   "resetPwDialogTitle": "Reset {nome}'s password?",
   "@resetPwDialogTitle": {
@@ -279,6 +289,17 @@
   "statusInactive": "Inactive",
   "studentsFilterLabel": "Filter by status",
   "studentsFilterAll": "All",
+
+  "notifTitle": "Notifications",
+  "notifUnreadCount": "{count, plural, one{1 unread} other{{count} unread}}",
+  "@notifUnreadCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notifMarkAllRead": "Mark all",
+  "notifEmptyTitle": "No notifications",
+  "notifEmptySubtitle": "You're all caught up!",
   "finUpToDate": "Up to date",
   "finPending": "Pending",
   "finOverdue": "Overdue",

@@ -2,9 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'constants.dart';
 
+/// Formata como telefone brasileiro `(XX) XXXXX-XXXX` enquanto o texto for só
+/// dígitos; some da frente quando detecta letra/@ (usuário digitando e-mail).
+/// Usado em campos que aceitam telefone OU e-mail no mesmo input.
+class SmartPhoneOrEmailInputFormatter extends TextInputFormatter {
+  static final _onlyDigits = RegExp(r'\D');
+  static final _hasLetter = RegExp(r'[a-zA-Z@]');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue old,
+    TextEditingValue next,
+  ) {
+    final text = next.text;
+    if (text.isEmpty) return next;
+    if (_hasLetter.hasMatch(text)) return next;
+
+    final raw = text.replaceAll(_onlyDigits, '');
+    final digits = raw.length > 11 ? raw.substring(0, 11) : raw;
+
+    final buf = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i == 0) buf.write('(');
+      if (i == 2) buf.write(') ');
+      if (digits.length == 11 && i == 7) buf.write('-');
+      if (digits.length <= 10 && i == 6) buf.write('-');
+      buf.write(digits[i]);
+    }
+
+    final formatted = buf.toString();
+    return next.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class CpfInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
     final limited = digits.length > 11 ? digits.substring(0, 11) : digits;
     final buf = StringBuffer();
@@ -125,7 +164,11 @@ class ErroConexao extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               mensagem ?? 'Sem conexão',
-              style: TextStyle(color: kText1, fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: kText1,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
@@ -142,8 +185,13 @@ class ErroConexao extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: kPrimary,
                 side: BorderSide(color: kPrimary.withOpacity(0.5)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],
@@ -158,7 +206,12 @@ class ListaVazia extends StatelessWidget {
   final String titulo;
   final String? subtitulo;
 
-  const ListaVazia({super.key, required this.icon, required this.titulo, this.subtitulo});
+  const ListaVazia({
+    super.key,
+    required this.icon,
+    required this.titulo,
+    this.subtitulo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -170,10 +223,22 @@ class ListaVazia extends StatelessWidget {
           children: [
             Icon(icon, color: kBorder, size: 64),
             const SizedBox(height: 16),
-            Text(titulo, style: TextStyle(color: kText2, fontSize: 14, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+            Text(
+              titulo,
+              style: TextStyle(
+                color: kText2,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
             if (subtitulo != null) ...[
               const SizedBox(height: 6),
-              Text(subtitulo!, style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 12), textAlign: TextAlign.center),
+              Text(
+                subtitulo!,
+                style: TextStyle(color: kText2.withOpacity(0.6), fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
             ],
           ],
         ),
