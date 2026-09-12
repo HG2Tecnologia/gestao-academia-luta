@@ -179,12 +179,106 @@
   "changePwErrWrongCurrent": "Current password is incorrect.",
   "changePwErrWeak": "The new password is too weak.",
   "changePwErrGeneric": "Couldn't change the password. Please try again.",
+
+  "tsoTitle": "Set your permanent password",
+  "tsoSubtitle": "Your gym generated a temporary password for you. Before continuing, set a permanent password that only you know.",
+  "tsoNewPasswordHint": "New password",
+  "tsoConfirmPasswordHint": "Confirm the new password",
+  "tsoConfirmButton": "Save and continue",
+  "tsoErrSessionExpired": "Session expired.",
+  "tsoErrRequiresRecentLogin": "For security, sign out and sign back in with the temporary password before changing it.",
+  "tsoErrGeneric": "Error setting the new password ({codigo}).",
+  "@tsoErrGeneric": {
+    "placeholders": { "codigo": { "type": "String" } }
+  },
+  "tsoErrUnexpected": "Unexpected error. Please try again.",
+
+  "fpTitle": "Forgot my password",
+  "fpHeading": "Recover access",
+  "fpSubtitle": "Enter your email and we'll send you a link to create a new password.",
+  "fpEmailLabel": "Email",
+  "fpEmailHint": "you@email.com",
+  "fpErrInvalidEmail": "Enter a valid email.",
+  "fpErrTooManyRequests": "Too many attempts. Please wait a few minutes.",
+  "fpErrGeneric": "Error sending email. Please try again.",
+  "fpErrUnexpected": "Unexpected error. Please try again.",
+  "fpSendButton": "Send recovery link",
+  "fpSentTitle": "Email sent!",
+  "fpSentBody": "Check your inbox (and spam folder). Click the link you received to create your new password.",
+  "fpBackToLogin": "Back to login",
+
+  "resetPwDialogTitle": "Reset {nome}'s password?",
+  "@resetPwDialogTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "resetPwDialogBody": "A new temporary password will be generated and this person's current session will be ended. They'll need to use the temporary password to sign in and set a permanent one.",
+  "resetPwDialogConfirm": "Reset",
+  "resetPwErrReset": "Couldn't reset the password: {erro}",
+  "@resetPwErrReset": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+  "resetPwErrProvision": "Couldn't generate access: {erro}",
+  "@resetPwErrProvision": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+
+  "conflictDialogTitle": "This phone or email is already in use",
+  "conflictDialogBody": "There's already another registration with the same phone/email as {nome}, and that person has already signed in and set their own password.\n\n• Keep current password: {nome} will sign in with the same password that person already set — nothing changes for whoever already uses the app.\n• Generate new temporary password: replaces access for everyone using that phone/email. Whoever already had their own password will need to set it again on their next login.",
+  "@conflictDialogBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "conflictDialogKeepCurrent": "Keep current password",
+  "conflictDialogGenerateNew": "Generate new temporary",
+  "linkedDialogTitle": "Linked",
+  "linkedDialogBody": "{nome} will access the app with {comoEntrar} and the password already set by whoever uses this contact. No new password was generated.",
+  "@linkedDialogBody": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" }
+    }
+  },
+
+  "tempPwTitle": "{nome}'s temporary password",
+  "@tempPwTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwHint": "Copy or share it now. You can also see this password on the student's profile (App Access) until they sign in for the first time.",
+  "tempPwExplainTitle": "Explain to {nome}:",
+  "@tempPwExplainTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwStep1": "Open the app and tap \"I'm a student or guardian\".",
+  "tempPwStep2": "Enter {comoEntrar} + this temporary password.",
+  "@tempPwStep2": {
+    "placeholders": { "comoEntrar": { "type": "String" } }
+  },
+  "tempPwStep3": "The app asks them to set a permanent password — done, no \"first access\" needed.",
+  "tempPwCopy": "Copy",
+  "tempPwShare": "Share",
+  "tempPwCopied": "Password copied.",
+  "tempPwShareText": "Sensei Manager — {nome}'s access\nSign in with {comoEntrar} and the temporary password: {senha}\nThe app will ask you to set your permanent password.",
+  "@tempPwShareText": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" },
+      "senha": { "type": "String" }
+    }
+  },
+  "tempPwBoxTitle": "Temporary password — hasn't signed in for the first time yet",
+  "tempPwBoxViewSend": "View / send",
+  "tempPwLoginHintFallback": "the registered phone or email",
+  "tempPwLoginHintWith": "the {loginHint}",
+  "@tempPwLoginHintWith": {
+    "placeholders": { "loginHint": { "type": "String" } }
+  },
   "studentsSearchHint": "Search students...",
   "studentsEmpty": "No students found.",
   "studentsLoadError": "Couldn't load students.",
   "studentNoBelt": "No belt yet",
   "statusActive": "Active",
   "statusInactive": "Inactive",
+  "studentsFilterLabel": "Filter by status",
+  "studentsFilterAll": "All",
   "finUpToDate": "Up to date",
   "finPending": "Pending",
   "finOverdue": "Overdue",

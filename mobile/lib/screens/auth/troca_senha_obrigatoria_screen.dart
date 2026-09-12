@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
-import '../../core/constants.dart';
 import '../../core/firebase_identity_service.dart';
+import '../../core/theme/context_ext.dart';
 
 /// Exibida quando um Admin/Secretaria redefiniu a senha desta conta
 /// (`must_change_password == true`). Bloqueia a navegação — sem botão de
@@ -35,13 +35,14 @@ class _TrocaSenhaObrigatoriaScreenState
 
   Future<void> _concluir() async {
     if (!_formKey.currentState!.validate()) return;
+    final l = context.l10n;
     setState(() {
       _salvando = true;
       _erro = null;
     });
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Sessão expirada.');
+      if (user == null) throw Exception(l.tsoErrSessionExpired);
 
       await user.updatePassword(_novaCtrl.text);
       await firebaseIdentityService.completeMandatoryPasswordChange();
@@ -78,12 +79,12 @@ class _TrocaSenhaObrigatoriaScreenState
       if (!mounted) return;
       setState(() {
         _erro = e.code == 'requires-recent-login'
-            ? 'Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.'
-            : 'Erro ao definir a nova senha (${e.code}).';
+            ? l.tsoErrRequiresRecentLogin
+            : l.tsoErrGeneric(e.code);
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _erro = 'Erro inesperado. Tente novamente.');
+      setState(() => _erro = l.tsoErrUnexpected);
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -91,10 +92,11 @@ class _TrocaSenhaObrigatoriaScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: context.c.surface,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -109,54 +111,62 @@ class _TrocaSenhaObrigatoriaScreenState
                       height: 56,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: kPrimary.withValues(alpha: 0.14),
+                        color: context.c.primary.withValues(alpha: 0.14),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.lock_reset_rounded,
-                        color: kPrimary,
+                        color: context.c.primary,
                         size: 28,
                       ),
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Defina sua senha definitiva',
+                      l.tsoTitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: kText1,
+                        color: context.c.onSurface,
                         fontSize: 19,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Sua academia gerou uma senha temporária para você. '
-                      'Antes de continuar, defina uma senha definitiva que só você conhece.',
+                      l.tsoSubtitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: kText2, fontSize: 13, height: 1.4),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     _SenhaField(
                       controller: _novaCtrl,
-                      hint: 'Nova senha',
+                      hint: l.tsoNewPasswordHint,
                       ocultar: _ocultarNova,
-                      onToggle: () => setState(() => _ocultarNova = !_ocultarNova),
+                      onToggle: () =>
+                          setState(() => _ocultarNova = !_ocultarNova),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Obrigatório';
-                        if (v.length < 6) return 'Mínimo 6 caracteres';
+                        if (v == null || v.isEmpty)
+                          return l.commonRequiredField;
+                        if (v.length < 6) return l.commonMinChars(6);
                         return null;
                       },
                     ),
                     const SizedBox(height: 14),
                     _SenhaField(
                       controller: _confirmarCtrl,
-                      hint: 'Confirme a nova senha',
+                      hint: l.tsoConfirmPasswordHint,
                       ocultar: _ocultarConfirmar,
-                      onToggle: () =>
-                          setState(() => _ocultarConfirmar = !_ocultarConfirmar),
+                      onToggle: () => setState(
+                        () => _ocultarConfirmar = !_ocultarConfirmar,
+                      ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Obrigatório';
-                        if (v != _novaCtrl.text) return 'As senhas não coincidem';
+                        if (v == null || v.isEmpty)
+                          return l.commonRequiredField;
+                        if (v != _novaCtrl.text)
+                          return l.commonPasswordsDontMatch;
                         return null;
                       },
                     ),
@@ -165,12 +175,15 @@ class _TrocaSenhaObrigatoriaScreenState
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kDanger.withValues(alpha: 0.12),
+                          color: context.sem.danger.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           _erro!,
-                          style: TextStyle(color: kDanger, fontSize: 13),
+                          style: TextStyle(
+                            color: context.sem.danger,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -178,7 +191,7 @@ class _TrocaSenhaObrigatoriaScreenState
                     FilledButton(
                       onPressed: _salvando ? null : _concluir,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kPrimary,
+                        backgroundColor: context.c.primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -193,9 +206,9 @@ class _TrocaSenhaObrigatoriaScreenState
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Salvar e continuar',
-                              style: TextStyle(
+                          : Text(
+                              l.tsoConfirmButton,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -233,37 +246,44 @@ class _SenhaField extends StatelessWidget {
       controller: controller,
       obscureText: ocultar,
       validator: validator,
-      style: TextStyle(color: kText1, fontSize: 15),
+      style: TextStyle(color: context.c.onSurface, fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: kText2),
-        prefixIcon: Icon(Icons.lock_outline_rounded, color: kText2, size: 20),
+        hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+        prefixIcon: Icon(
+          Icons.lock_outline_rounded,
+          color: context.c.onSurfaceVariant,
+          size: 20,
+        ),
         suffixIcon: IconButton(
           onPressed: onToggle,
           icon: Icon(
             ocultar ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: kText2,
+            color: context.c.onSurfaceVariant,
             size: 18,
           ),
         ),
         filled: true,
-        fillColor: kSurface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: context.c.surfaceContainer,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kBorder),
+          borderSide: BorderSide(color: context.c.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kPrimary),
+          borderSide: BorderSide(color: context.c.primary),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: kDanger),
+          borderSide: BorderSide(color: context.sem.danger),
         ),
       ),
     );

@@ -18,6 +18,7 @@ const {
   resolveChargeStatus,
   resolveDuplicateGroup,
 } = require("../domain/billing");
+const { decidirAcaoContasCompartilhadas } = require("../domain/access-provisioning");
 
 function fixture(name) {
   const file = path.join(__dirname, "..", "..", "test-fixtures", "domain", name);
@@ -163,4 +164,64 @@ test("identidade: reconhece papéis legados sem transformar aluno em admin", () 
   assert.equal(profileRole("usuarios", { perfil: 0, perfil_nome: "Aluno" }), "Aluno");
   assert.equal(profileRole("usuarios", { perfil: 99 }), null);
   assert.equal(profileRole("funcionarios", {}), "Professor");
+});
+
+// Bug reportado: cadastrar um aluno novo com o mesmo telefone/e-mail de outro
+// aluno que já tinha definido a própria senha derrubava o acesso de ambos
+// (a senha temporária nova sobrescrevia a conta Auth compartilhada). A
+// correção só entra em ação no provisionamento automático (criação/edição),
+// nunca num clique explícito em "Redefinir senha".
+test("provisionamento: sobrescreve normalmente quando ninguém do grupo já tem senha própria", () => {
+  assert.equal(
+    decidirAcaoContasCompartilhadas({ motivo: "provisao_criacao", algumJaDefiniuSenha: false }),
+    "sobrescrever",
+  );
+});
+
+test("provisionamento: bloqueia e devolve pro cliente quando já existe senha própria definida", () => {
+  assert.equal(
+    decidirAcaoContasCompartilhadas({ motivo: "provisao_criacao", algumJaDefiniuSenha: true }),
+    "bloquear",
+  );
+  assert.equal(
+    decidirAcaoContasCompartilhadas({ motivo: "provisao_edicao", algumJaDefiniuSenha: true }),
+    "bloquear",
+  );
+});
+
+test("provisionamento: redefinição explícita nunca bloqueia, mesmo com senha própria definida", () => {
+  assert.equal(
+    decidirAcaoContasCompartilhadas({ motivo: "redefinicao", algumJaDefiniuSenha: true }),
+    "sobrescrever",
+  );
+});
+
+test("provisionamento: 2ª chamada com confirmarSobrescrita ignora o bloqueio", () => {
+  assert.equal(
+    decidirAcaoContasCompartilhadas({
+      motivo: "provisao_criacao",
+      algumJaDefiniuSenha: true,
+      confirmarSobrescrita: true,
+    }),
+    "sobrescrever",
+  );
+});
+
+test("provisionamento: 2ª chamada com apenasVincular nunca sobrescreve, mesmo sem conflito", () => {
+  assert.equal(
+    decidirAcaoContasCompartilhadas({
+      motivo: "provisao_criacao",
+      algumJaDefiniuSenha: false,
+      apenasVincular: true,
+    }),
+    "vincular_sem_senha",
+  );
+  assert.equal(
+    decidirAcaoContasCompartilhadas({
+      motivo: "provisao_criacao",
+      algumJaDefiniuSenha: true,
+      apenasVincular: true,
+    }),
+    "vincular_sem_senha",
+  );
 });

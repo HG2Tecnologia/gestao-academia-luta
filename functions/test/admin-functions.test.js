@@ -311,6 +311,180 @@ test("provisão vincula ao irmão que já tem conta no mesmo telefone", async ()
   await signInWithEmailAndPassword(auth, "5521970000003@sensei.app", senha);
 });
 
+test("provisão bloqueia quando outro aluno com mesmo telefone já definiu a própria senha", async () => {
+  // Bug reportado: cadastrar um aluno novo reaproveitando o telefone/e-mail de
+  // outro que já tinha passado pelo primeiro acesso derrubava a senha desse
+  // outro sem avisar. Agora o provisionamento automático (criação/edição)
+  // bloqueia e devolve pro cliente decidir, em vez de sobrescrever direto.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-conflito@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000004@sensei.app", "SenhaPropriaJaDefinida1");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-1").set({
+      nome: "Existente 1", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0004", telefone_digits: "21970000004",
+      firebaseUid: uidExistente,
+    });
+    // Já concluiu o primeiro acesso — tem senha própria definida.
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-1", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-1", perfil_nome: "Aluno", nome: "Existente 1" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-mesmo-telefone").set({
+      nome: "Novo Mesmo Telefone", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0004", telefone_digits: "21970000004",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-conflito@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  await assert.rejects(
+    () => resetar({
+      academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-mesmo-telefone", motivo: "provisao_criacao",
+    }),
+    (error) => {
+      assert.equal(error.code, "functions/failed-precondition");
+      assert.equal(error.details?.code, "senha_ja_definida");
+      return true;
+    },
+  );
+
+  // A senha de quem já tinha definido a própria continua valendo.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000004@sensei.app", "SenhaPropriaJaDefinida1");
+});
+
+test("provisão com apenasVincular não mexe na senha existente, só vincula o novo perfil", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-vincular@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000005@sensei.app", "SenhaPropriaJaDefinida2");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-2").set({
+      nome: "Existente 2", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0005", telefone_digits: "21970000005",
+      firebaseUid: uidExistente,
+    });
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-2", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-2", perfil_nome: "Aluno", nome: "Existente 2" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-vinculado").set({
+      nome: "Novo Vinculado", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0005", telefone_digits: "21970000005",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-vincular@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-vinculado",
+    motivo: "provisao_criacao", apenasVincular: true,
+  });
+  assert.equal(resultado.data.vinculadoSemSenha, true);
+  assert.equal(resultado.data.temporaryPassword, "");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const doc = await ctx.firestore().doc("academias/academy-a/usuarios/novo-vinculado").get();
+    assert.equal(doc.data().firebaseUid, uidExistente);
+    // A flag de troca obrigatória não foi mexida.
+    const acc = await ctx.firestore().doc(`usuariosFirebase/${uidExistente}`).get();
+    assert.equal(acc.data().must_change_password, false);
+  });
+
+  // A senha antiga continua valendo — nada foi sobrescrito.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000005@sensei.app", "SenhaPropriaJaDefinida2");
+});
+
+test("provisão com confirmarSobrescrita segue sobrescrevendo mesmo com senha já definida", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-sobrescrever@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000006@sensei.app", "SenhaPropriaJaDefinida3");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-3").set({
+      nome: "Existente 3", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0006", telefone_digits: "21970000006",
+      firebaseUid: uidExistente,
+    });
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-3", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-3", perfil_nome: "Aluno", nome: "Existente 3" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-sobrescreve").set({
+      nome: "Novo Sobrescreve", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0006", telefone_digits: "21970000006",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-sobrescrever@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-sobrescreve",
+    motivo: "provisao_criacao", confirmarSobrescrita: true,
+  });
+  assert.equal(resultado.data.vinculadoSemSenha, false);
+  assert.ok(resultado.data.temporaryPassword.length >= 6);
+
+  // A senha antiga deixou de valer; a nova sim.
+  await signOut(auth);
+  await assert.rejects(() => signInWithEmailAndPassword(auth, "5521970000006@sensei.app", "SenhaPropriaJaDefinida3"));
+  await signInWithEmailAndPassword(auth, "5521970000006@sensei.app", resultado.data.temporaryPassword);
+});
+
 test("secretaria sem a permissão granular não pode redefinir senha", async () => {
   await environment.withSecurityRulesDisabled((ctx) => seed(ctx, { secretariaPodeRedefinir: false }));
 

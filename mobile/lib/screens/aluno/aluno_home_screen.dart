@@ -4,6 +4,7 @@ import '../../core/auth_storage.dart';
 import '../../core/firestore_service.dart';
 import '../../core/frequencia_treino.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/pagamento_status.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/app_tokens.dart';
@@ -245,14 +246,26 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     return set;
   }
 
+  // Mesma regra do financeiro do aluno (aluno_financeiro_screen.dart): uma
+  // pendência de mês FUTURO (cobrança já gerada com antecedência) não é uma
+  // pendência ATUAL — não deve acender o alerta na Home. Só conta pendência
+  // (ou atraso) do mês corrente ou anterior.
   FinanceiroStatus _statusFinanceiro(List<Map<String, dynamic>> pagamentos) {
     if (pagamentos.isEmpty) return FinanceiroStatus.semCobrancas;
+    final now = DateTime.now();
+    final mesRefHoje =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     var temPendente = false;
     for (final p in pagamentos) {
-      final raw = p['status'];
-      final s = raw is int ? raw : int.tryParse('$raw') ?? 0;
-      if (s == 2) return FinanceiroStatus.atrasado; // 2 = Atrasado
-      if (s == 0) temPendente = true; // 0 = Pendente
+      final status = pagamentoStatusEfetivo(
+        rawStatus: p['status'],
+        dataVencimento: p['data_vencimento'] ?? p['dataVencimento'],
+      );
+      if (!pagamentoEhPendenciaAberta(status)) continue;
+      if (status == PagamentoStatus.atrasado) return FinanceiroStatus.atrasado;
+      if (pagamentoMesReferencia(p).compareTo(mesRefHoje) <= 0) {
+        temPendente = true;
+      }
     }
     return temPendente ? FinanceiroStatus.pendente : FinanceiroStatus.emDia;
   }

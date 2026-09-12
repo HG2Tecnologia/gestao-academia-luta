@@ -14,6 +14,7 @@ import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/pagamento_status.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
@@ -961,17 +962,21 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     );
   }
 
+  // Mesma regra do financeiro do aluno: `Pago`/`Desconsiderado` nunca contam,
+  // e uma pendência de mês FUTURO (cobrança já gerada com antecedência) não é
+  // "em atraso" hoje — só conta pendência/atraso do mês corrente ou anterior.
   bool get _temMensalidadeAtrasada {
+    final now = DateTime.now();
+    final mesRefHoje =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     for (final p in _pagamentos) {
-      final rawStatus = p['status'];
-      final status = rawStatus is int
-          ? rawStatus
-          : int.tryParse(rawStatus?.toString() ?? '');
-      if (status == 2) return true;
-      if (status == 1) continue;
-      final rawVenc = p['data_vencimento'] ?? p['dataVencimento'];
-      final venc = rawVenc is String ? DateTime.tryParse(rawVenc) : null;
-      if (venc != null && venc.isBefore(DateTime.now())) return true;
+      final status = pagamentoStatusEfetivo(
+        rawStatus: p['status'],
+        dataVencimento: p['data_vencimento'] ?? p['dataVencimento'],
+      );
+      if (!pagamentoEhPendenciaAberta(status)) continue;
+      if (status == PagamentoStatus.atrasado) return true;
+      if (pagamentoMesReferencia(p).compareTo(mesRefHoje) <= 0) return true;
     }
     return false;
   }

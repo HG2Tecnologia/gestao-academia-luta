@@ -614,6 +614,179 @@ class AppLocalizationsPt extends AppLocalizations {
   String get changePwErrGeneric => 'Erro ao alterar senha. Tente novamente.';
 
   @override
+  String get tsoTitle => 'Defina sua senha definitiva';
+
+  @override
+  String get tsoSubtitle =>
+      'Sua academia gerou uma senha temporária para você. Antes de continuar, defina uma senha definitiva que só você conhece.';
+
+  @override
+  String get tsoNewPasswordHint => 'Nova senha';
+
+  @override
+  String get tsoConfirmPasswordHint => 'Confirme a nova senha';
+
+  @override
+  String get tsoConfirmButton => 'Salvar e continuar';
+
+  @override
+  String get tsoErrSessionExpired => 'Sessão expirada.';
+
+  @override
+  String get tsoErrRequiresRecentLogin =>
+      'Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.';
+
+  @override
+  String tsoErrGeneric(String codigo) {
+    return 'Erro ao definir a nova senha ($codigo).';
+  }
+
+  @override
+  String get tsoErrUnexpected => 'Erro inesperado. Tente novamente.';
+
+  @override
+  String get fpTitle => 'Esqueci minha senha';
+
+  @override
+  String get fpHeading => 'Recuperar acesso';
+
+  @override
+  String get fpSubtitle =>
+      'Informe seu e-mail e enviaremos um link para você criar uma nova senha.';
+
+  @override
+  String get fpEmailLabel => 'E-mail';
+
+  @override
+  String get fpEmailHint => 'seu@email.com';
+
+  @override
+  String get fpErrInvalidEmail => 'Informe um e-mail válido.';
+
+  @override
+  String get fpErrTooManyRequests =>
+      'Muitas tentativas. Aguarde alguns minutos.';
+
+  @override
+  String get fpErrGeneric => 'Erro ao enviar e-mail. Tente novamente.';
+
+  @override
+  String get fpErrUnexpected => 'Erro inesperado. Tente novamente.';
+
+  @override
+  String get fpSendButton => 'Enviar link de recuperação';
+
+  @override
+  String get fpSentTitle => 'E-mail enviado!';
+
+  @override
+  String get fpSentBody =>
+      'Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.';
+
+  @override
+  String get fpBackToLogin => 'Voltar ao login';
+
+  @override
+  String resetPwDialogTitle(String nome) {
+    return 'Redefinir senha de $nome?';
+  }
+
+  @override
+  String get resetPwDialogBody =>
+      'Uma nova senha temporária será gerada e a sessão atual dessa pessoa será encerrada. Ela precisará usar a senha temporária para entrar e trocar por uma senha definitiva.';
+
+  @override
+  String get resetPwDialogConfirm => 'Redefinir';
+
+  @override
+  String resetPwErrReset(String erro) {
+    return 'Não foi possível redefinir a senha: $erro';
+  }
+
+  @override
+  String resetPwErrProvision(String erro) {
+    return 'Não foi possível gerar a senha de acesso: $erro';
+  }
+
+  @override
+  String get conflictDialogTitle => 'Esse telefone ou e-mail já está em uso';
+
+  @override
+  String conflictDialogBody(String nome) {
+    return 'Já existe outro cadastro com o mesmo telefone/e-mail de $nome, e essa pessoa já entrou no app e definiu a própria senha.\n\n• Manter a senha atual: $nome vai acessar com a mesma senha que essa pessoa já definiu — nada muda para quem já usa o app.\n• Gerar nova senha temporária: substitui o acesso de todo mundo que usa esse telefone/e-mail. Quem já tinha senha própria vai precisar defini-la de novo no próximo login.';
+  }
+
+  @override
+  String get conflictDialogKeepCurrent => 'Manter senha atual';
+
+  @override
+  String get conflictDialogGenerateNew => 'Gerar nova temporária';
+
+  @override
+  String get linkedDialogTitle => 'Vinculado';
+
+  @override
+  String linkedDialogBody(String nome, String comoEntrar) {
+    return '$nome vai acessar o app com $comoEntrar e a senha que já foi definida por quem usa esse contato. Nenhuma senha nova foi gerada.';
+  }
+
+  @override
+  String tempPwTitle(String nome) {
+    return 'Senha temporária de $nome';
+  }
+
+  @override
+  String get tempPwHint =>
+      'Copie ou compartilhe agora. Você também vê esta senha na ficha do aluno (Acesso ao App) até ele entrar pela primeira vez.';
+
+  @override
+  String tempPwExplainTitle(String nome) {
+    return 'Explique para $nome:';
+  }
+
+  @override
+  String get tempPwStep1 =>
+      'Abrir o app e tocar em \"Sou aluno ou responsável\".';
+
+  @override
+  String tempPwStep2(String comoEntrar) {
+    return 'Digitar $comoEntrar + esta senha temporária.';
+  }
+
+  @override
+  String get tempPwStep3 =>
+      'O app pede para criar a senha definitiva — pronto, sem \"primeiro acesso\".';
+
+  @override
+  String get tempPwCopy => 'Copiar';
+
+  @override
+  String get tempPwShare => 'Compartilhar';
+
+  @override
+  String get tempPwCopied => 'Senha copiada.';
+
+  @override
+  String tempPwShareText(String nome, String comoEntrar, String senha) {
+    return 'Sensei Manager — acesso de $nome\nEntre no app com $comoEntrar e a senha temporária: $senha\nO app vai pedir para você criar a sua senha definitiva.';
+  }
+
+  @override
+  String get tempPwBoxTitle =>
+      'Senha temporária — ainda não entrou pela 1ª vez';
+
+  @override
+  String get tempPwBoxViewSend => 'Ver / enviar';
+
+  @override
+  String get tempPwLoginHintFallback => 'o telefone ou e-mail cadastrado';
+
+  @override
+  String tempPwLoginHintWith(String loginHint) {
+    return 'o $loginHint';
+  }
+
+  @override
   String get studentsSearchHint => 'Buscar aluno...';
 
   @override
@@ -630,6 +803,12 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get statusInactive => 'Inativo';
+
+  @override
+  String get studentsFilterLabel => 'Filtrar por situação';
+
+  @override
+  String get studentsFilterAll => 'Todos';
 
   @override
   String get finUpToDate => 'Em dia';

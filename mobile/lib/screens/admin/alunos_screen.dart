@@ -20,6 +20,8 @@ class AdminAlunosScreen extends StatefulWidget {
   State<AdminAlunosScreen> createState() => _AdminAlunosScreenState();
 }
 
+enum _FiltroStatus { todos, ativos, inativos }
+
 class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   final _ctrl = TextEditingController();
   List<Map<String, dynamic>> _alunos = [];
@@ -27,6 +29,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   bool _loading = true;
   bool _erro = false;
   bool _ordemAZ = true;
+  _FiltroStatus _filtroStatus = _FiltroStatus.todos;
 
   List<Map<String, dynamic>> _ordenarNome(List<Map<String, dynamic>> src) {
     final l = List<Map<String, dynamic>>.from(src);
@@ -38,10 +41,48 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
     return l;
   }
 
+  List<Map<String, dynamic>> _aplicarFiltroStatus(
+    List<Map<String, dynamic>> src,
+  ) {
+    switch (_filtroStatus) {
+      case _FiltroStatus.ativos:
+        return src.where((a) => a['ativo'] == true).toList();
+      case _FiltroStatus.inativos:
+        return src.where((a) => a['ativo'] != true).toList();
+      case _FiltroStatus.todos:
+        return src;
+    }
+  }
+
+  /// Recalcula a lista exibida a partir de `_todosAlunos`: filtro de situação
+  /// (Ativos/Inativos/Todos) → busca por nome → ordenação A-Z/Z-A. Usado tanto
+  /// ao digitar na busca quanto ao trocar o filtro de situação, pra nenhum dos
+  /// dois pisar no outro.
+  List<Map<String, dynamic>> _recalcular(String q) {
+    final porStatus = _aplicarFiltroStatus(_todosAlunos);
+    final base = q.isEmpty
+        ? porStatus
+        : porStatus
+              .where(
+                (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
+                  q.toLowerCase(),
+                ),
+              )
+              .toList();
+    return _ordenarNome(base);
+  }
+
   void _alternarOrdem() {
     setState(() {
       _ordemAZ = !_ordemAZ;
       _alunos = _ordenarNome(_alunos);
+    });
+  }
+
+  void _alterarFiltroStatus(_FiltroStatus filtro) {
+    setState(() {
+      _filtroStatus = filtro;
+      _alunos = _recalcular(_ctrl.text);
     });
   }
 
@@ -63,16 +104,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
 
   void _filtrar(String q) {
     if (!mounted) return;
-    final base = q.isEmpty
-        ? _todosAlunos
-        : _todosAlunos
-              .where(
-                (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
-                  q.toLowerCase(),
-                ),
-              )
-              .toList();
-    setState(() => _alunos = _ordenarNome(base));
+    setState(() => _alunos = _recalcular(q));
   }
 
   Future<void> _load(String q) async {
@@ -127,18 +159,9 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
       }
 
       if (mounted) {
-        final base = q.isEmpty
-            ? todos
-            : todos
-                  .where(
-                    (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
-                      q.toLowerCase(),
-                    ),
-                  )
-                  .toList();
         setState(() {
           _todosAlunos = todos;
-          _alunos = _ordenarNome(base);
+          _alunos = _recalcular(q);
         });
       }
     } catch (_) {
@@ -262,6 +285,48 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                           borderSide: BorderSide(color: context.c.primary),
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: context.c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _filtroStatus == _FiltroStatus.todos
+                            ? context.c.outline
+                            : context.c.primary,
+                      ),
+                    ),
+                    child: PopupMenuButton<_FiltroStatus>(
+                      tooltip: l.studentsFilterLabel,
+                      onSelected: _alterarFiltroStatus,
+                      icon: Icon(
+                        Icons.filter_list_rounded,
+                        color: _filtroStatus == _FiltroStatus.todos
+                            ? context.c.onSurfaceVariant
+                            : context.c.primary,
+                        size: 20,
+                      ),
+                      itemBuilder: (_) => [
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.todos,
+                          checked: _filtroStatus == _FiltroStatus.todos,
+                          child: Text(l.studentsFilterAll),
+                        ),
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.ativos,
+                          checked: _filtroStatus == _FiltroStatus.ativos,
+                          child: Text(l.statusActive),
+                        ),
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.inativos,
+                          checked: _filtroStatus == _FiltroStatus.inativos,
+                          child: Text(l.statusInactive),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),

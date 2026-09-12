@@ -143,9 +143,11 @@ class _EntradaCard extends StatelessWidget {
                     children: [
                       Text(
                         titulo,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: context.c.onSurface,
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

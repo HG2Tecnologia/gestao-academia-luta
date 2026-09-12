@@ -245,12 +245,108 @@
   "changePwErrWrongCurrent": "Senha atual incorreta.",
   "changePwErrWeak": "A nova senha é muito fraca.",
   "changePwErrGeneric": "Erro ao alterar senha. Tente novamente.",
+
+  "tsoTitle": "Defina sua senha definitiva",
+  "tsoSubtitle": "Sua academia gerou uma senha temporária para você. Antes de continuar, defina uma senha definitiva que só você conhece.",
+  "tsoNewPasswordHint": "Nova senha",
+  "tsoConfirmPasswordHint": "Confirme a nova senha",
+  "tsoConfirmButton": "Salvar e continuar",
+  "tsoErrSessionExpired": "Sessão expirada.",
+  "tsoErrRequiresRecentLogin": "Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.",
+  "tsoErrGeneric": "Erro ao definir a nova senha ({codigo}).",
+  "@tsoErrGeneric": {
+    "placeholders": {
+      "codigo": { "type": "String" }
+    }
+  },
+  "tsoErrUnexpected": "Erro inesperado. Tente novamente.",
+
+  "fpTitle": "Esqueci minha senha",
+  "fpHeading": "Recuperar acesso",
+  "fpSubtitle": "Informe seu e-mail e enviaremos um link para você criar uma nova senha.",
+  "fpEmailLabel": "E-mail",
+  "fpEmailHint": "seu@email.com",
+  "fpErrInvalidEmail": "Informe um e-mail válido.",
+  "fpErrTooManyRequests": "Muitas tentativas. Aguarde alguns minutos.",
+  "fpErrGeneric": "Erro ao enviar e-mail. Tente novamente.",
+  "fpErrUnexpected": "Erro inesperado. Tente novamente.",
+  "fpSendButton": "Enviar link de recuperação",
+  "fpSentTitle": "E-mail enviado!",
+  "fpSentBody": "Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.",
+  "fpBackToLogin": "Voltar ao login",
+
+  "resetPwDialogTitle": "Redefinir senha de {nome}?",
+  "@resetPwDialogTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "resetPwDialogBody": "Uma nova senha temporária será gerada e a sessão atual dessa pessoa será encerrada. Ela precisará usar a senha temporária para entrar e trocar por uma senha definitiva.",
+  "resetPwDialogConfirm": "Redefinir",
+  "resetPwErrReset": "Não foi possível redefinir a senha: {erro}",
+  "@resetPwErrReset": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+  "resetPwErrProvision": "Não foi possível gerar a senha de acesso: {erro}",
+  "@resetPwErrProvision": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+
+  "conflictDialogTitle": "Esse telefone ou e-mail já está em uso",
+  "conflictDialogBody": "Já existe outro cadastro com o mesmo telefone/e-mail de {nome}, e essa pessoa já entrou no app e definiu a própria senha.\n\n• Manter a senha atual: {nome} vai acessar com a mesma senha que essa pessoa já definiu — nada muda para quem já usa o app.\n• Gerar nova senha temporária: substitui o acesso de todo mundo que usa esse telefone/e-mail. Quem já tinha senha própria vai precisar defini-la de novo no próximo login.",
+  "@conflictDialogBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "conflictDialogKeepCurrent": "Manter senha atual",
+  "conflictDialogGenerateNew": "Gerar nova temporária",
+  "linkedDialogTitle": "Vinculado",
+  "linkedDialogBody": "{nome} vai acessar o app com {comoEntrar} e a senha que já foi definida por quem usa esse contato. Nenhuma senha nova foi gerada.",
+  "@linkedDialogBody": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" }
+    }
+  },
+
+  "tempPwTitle": "Senha temporária de {nome}",
+  "@tempPwTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwHint": "Copie ou compartilhe agora. Você também vê esta senha na ficha do aluno (Acesso ao App) até ele entrar pela primeira vez.",
+  "tempPwExplainTitle": "Explique para {nome}:",
+  "@tempPwExplainTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwStep1": "Abrir o app e tocar em \"Sou aluno ou responsável\".",
+  "tempPwStep2": "Digitar {comoEntrar} + esta senha temporária.",
+  "@tempPwStep2": {
+    "placeholders": { "comoEntrar": { "type": "String" } }
+  },
+  "tempPwStep3": "O app pede para criar a senha definitiva — pronto, sem \"primeiro acesso\".",
+  "tempPwCopy": "Copiar",
+  "tempPwShare": "Compartilhar",
+  "tempPwCopied": "Senha copiada.",
+  "tempPwShareText": "Sensei Manager — acesso de {nome}\nEntre no app com {comoEntrar} e a senha temporária: {senha}\nO app vai pedir para você criar a sua senha definitiva.",
+  "@tempPwShareText": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" },
+      "senha": { "type": "String" }
+    }
+  },
+  "tempPwBoxTitle": "Senha temporária — ainda não entrou pela 1ª vez",
+  "tempPwBoxViewSend": "Ver / enviar",
+  "tempPwLoginHintFallback": "o telefone ou e-mail cadastrado",
+  "tempPwLoginHintWith": "o {loginHint}",
+  "@tempPwLoginHintWith": {
+    "placeholders": { "loginHint": { "type": "String" } }
+  },
   "studentsSearchHint": "Buscar aluno...",
   "studentsEmpty": "Nenhum aluno encontrado.",
   "studentsLoadError": "Não foi possível carregar os alunos.",
   "studentNoBelt": "Sem graduação",
   "statusActive": "Ativo",
   "statusInactive": "Inativo",
+  "studentsFilterLabel": "Filtrar por situação",
+  "studentsFilterAll": "Todos",
   "finUpToDate": "Em dia",
   "finPending": "Pendente",
   "finOverdue": "Inadimplente",

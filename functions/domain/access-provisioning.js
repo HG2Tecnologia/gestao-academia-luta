@@ -75,9 +75,36 @@ function loginHint({ realEmail, phoneCanonical }, rawTelefone) {
   return "telefone ou e-mail cadastrado";
 }
 
+/**
+ * Decide o que fazer quando o provisionamento automático de acesso (criação
+ * ou edição de aluno) encontra OUTRAS contas Auth já existentes para o mesmo
+ * telefone/e-mail. Nunca entra em jogo para `motivo === 'redefinicao'` — um
+ * clique explícito da academia em "Redefinir senha" sobre um perfil
+ * específico já é uma decisão intencional, não um efeito colateral de cadastro.
+ *
+ * - `apenasVincular` / `confirmarSobrescrita`: a academia já escolheu o que
+ *   fazer numa segunda chamada (depois do diálogo de conflito) — respeita.
+ * - `algumJaDefiniuSenha`: alguma das contas encontradas já teve o primeiro
+ *   acesso completo (a pessoa definiu a própria senha) — bloqueia e devolve
+ *   pro cliente perguntar, em vez de sobrescrever essa senha sem avisar.
+ * - Fora isso (ninguém ainda definiu senha própria), sobrescreve como sempre.
+ */
+function decidirAcaoContasCompartilhadas({
+  motivo,
+  confirmarSobrescrita = false,
+  apenasVincular = false,
+  algumJaDefiniuSenha = false,
+}) {
+  if (apenasVincular) return "vincular_sem_senha";
+  if (motivo === "redefinicao" || confirmarSobrescrita) return "sobrescrever";
+  if (algumJaDefiniuSenha) return "bloquear";
+  return "sobrescrever";
+}
+
 module.exports = {
   loginIdentifiers,
   primaryLoginEmail,
   identityForAuthEmail,
   loginHint,
+  decidirAcaoContasCompartilhadas,
 };

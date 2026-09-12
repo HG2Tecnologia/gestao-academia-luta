@@ -748,31 +748,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                    // Botão "Acessando o app pela primeira vez" removido: com
+                    // o fluxo novo, a academia sempre gera a senha temporária
+                    // do aluno no cadastro — não existe mais "primeiro acesso"
+                    // autoatendido sem essa senha.
                     const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: () => context.push(
-                        '/primeiro-acesso',
-                        extra: {'contexto': widget.contexto},
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: context.c.primary,
-                        side: BorderSide(
-                          color: context.c.primary.withValues(alpha: 0.4),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        _l.authFirstTimeUsingApp,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     OutlinedButton(
                       onPressed: () => context.push(
                         '/esqueci-senha',

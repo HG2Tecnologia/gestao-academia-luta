@@ -1172,6 +1172,288 @@ abstract class AppLocalizations {
   /// **'Erro ao alterar senha. Tente novamente.'**
   String get changePwErrGeneric;
 
+  /// No description provided for @tsoTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Defina sua senha definitiva'**
+  String get tsoTitle;
+
+  /// No description provided for @tsoSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua academia gerou uma senha temporária para você. Antes de continuar, defina uma senha definitiva que só você conhece.'**
+  String get tsoSubtitle;
+
+  /// No description provided for @tsoNewPasswordHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova senha'**
+  String get tsoNewPasswordHint;
+
+  /// No description provided for @tsoConfirmPasswordHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirme a nova senha'**
+  String get tsoConfirmPasswordHint;
+
+  /// No description provided for @tsoConfirmButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salvar e continuar'**
+  String get tsoConfirmButton;
+
+  /// No description provided for @tsoErrSessionExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sessão expirada.'**
+  String get tsoErrSessionExpired;
+
+  /// No description provided for @tsoErrRequiresRecentLogin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.'**
+  String get tsoErrRequiresRecentLogin;
+
+  /// No description provided for @tsoErrGeneric.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro ao definir a nova senha ({codigo}).'**
+  String tsoErrGeneric(String codigo);
+
+  /// No description provided for @tsoErrUnexpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro inesperado. Tente novamente.'**
+  String get tsoErrUnexpected;
+
+  /// No description provided for @fpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esqueci minha senha'**
+  String get fpTitle;
+
+  /// No description provided for @fpHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Recuperar acesso'**
+  String get fpHeading;
+
+  /// No description provided for @fpSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe seu e-mail e enviaremos um link para você criar uma nova senha.'**
+  String get fpSubtitle;
+
+  /// No description provided for @fpEmailLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'E-mail'**
+  String get fpEmailLabel;
+
+  /// No description provided for @fpEmailHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'seu@email.com'**
+  String get fpEmailHint;
+
+  /// No description provided for @fpErrInvalidEmail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um e-mail válido.'**
+  String get fpErrInvalidEmail;
+
+  /// No description provided for @fpErrTooManyRequests.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muitas tentativas. Aguarde alguns minutos.'**
+  String get fpErrTooManyRequests;
+
+  /// No description provided for @fpErrGeneric.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro ao enviar e-mail. Tente novamente.'**
+  String get fpErrGeneric;
+
+  /// No description provided for @fpErrUnexpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro inesperado. Tente novamente.'**
+  String get fpErrUnexpected;
+
+  /// No description provided for @fpSendButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar link de recuperação'**
+  String get fpSendButton;
+
+  /// No description provided for @fpSentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'E-mail enviado!'**
+  String get fpSentTitle;
+
+  /// No description provided for @fpSentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.'**
+  String get fpSentBody;
+
+  /// No description provided for @fpBackToLogin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Voltar ao login'**
+  String get fpBackToLogin;
+
+  /// No description provided for @resetPwDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Redefinir senha de {nome}?'**
+  String resetPwDialogTitle(String nome);
+
+  /// No description provided for @resetPwDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Uma nova senha temporária será gerada e a sessão atual dessa pessoa será encerrada. Ela precisará usar a senha temporária para entrar e trocar por uma senha definitiva.'**
+  String get resetPwDialogBody;
+
+  /// No description provided for @resetPwDialogConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Redefinir'**
+  String get resetPwDialogConfirm;
+
+  /// No description provided for @resetPwErrReset.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível redefinir a senha: {erro}'**
+  String resetPwErrReset(String erro);
+
+  /// No description provided for @resetPwErrProvision.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível gerar a senha de acesso: {erro}'**
+  String resetPwErrProvision(String erro);
+
+  /// No description provided for @conflictDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esse telefone ou e-mail já está em uso'**
+  String get conflictDialogTitle;
+
+  /// No description provided for @conflictDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Já existe outro cadastro com o mesmo telefone/e-mail de {nome}, e essa pessoa já entrou no app e definiu a própria senha.\n\n• Manter a senha atual: {nome} vai acessar com a mesma senha que essa pessoa já definiu — nada muda para quem já usa o app.\n• Gerar nova senha temporária: substitui o acesso de todo mundo que usa esse telefone/e-mail. Quem já tinha senha própria vai precisar defini-la de novo no próximo login.'**
+  String conflictDialogBody(String nome);
+
+  /// No description provided for @conflictDialogKeepCurrent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manter senha atual'**
+  String get conflictDialogKeepCurrent;
+
+  /// No description provided for @conflictDialogGenerateNew.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar nova temporária'**
+  String get conflictDialogGenerateNew;
+
+  /// No description provided for @linkedDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vinculado'**
+  String get linkedDialogTitle;
+
+  /// No description provided for @linkedDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{nome} vai acessar o app com {comoEntrar} e a senha que já foi definida por quem usa esse contato. Nenhuma senha nova foi gerada.'**
+  String linkedDialogBody(String nome, String comoEntrar);
+
+  /// No description provided for @tempPwTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha temporária de {nome}'**
+  String tempPwTitle(String nome);
+
+  /// No description provided for @tempPwHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copie ou compartilhe agora. Você também vê esta senha na ficha do aluno (Acesso ao App) até ele entrar pela primeira vez.'**
+  String get tempPwHint;
+
+  /// No description provided for @tempPwExplainTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Explique para {nome}:'**
+  String tempPwExplainTitle(String nome);
+
+  /// No description provided for @tempPwStep1.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrir o app e tocar em \"Sou aluno ou responsável\".'**
+  String get tempPwStep1;
+
+  /// No description provided for @tempPwStep2.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digitar {comoEntrar} + esta senha temporária.'**
+  String tempPwStep2(String comoEntrar);
+
+  /// No description provided for @tempPwStep3.
+  ///
+  /// In pt, this message translates to:
+  /// **'O app pede para criar a senha definitiva — pronto, sem \"primeiro acesso\".'**
+  String get tempPwStep3;
+
+  /// No description provided for @tempPwCopy.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copiar'**
+  String get tempPwCopy;
+
+  /// No description provided for @tempPwShare.
+  ///
+  /// In pt, this message translates to:
+  /// **'Compartilhar'**
+  String get tempPwShare;
+
+  /// No description provided for @tempPwCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha copiada.'**
+  String get tempPwCopied;
+
+  /// No description provided for @tempPwShareText.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sensei Manager — acesso de {nome}\nEntre no app com {comoEntrar} e a senha temporária: {senha}\nO app vai pedir para você criar a sua senha definitiva.'**
+  String tempPwShareText(String nome, String comoEntrar, String senha);
+
+  /// No description provided for @tempPwBoxTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha temporária — ainda não entrou pela 1ª vez'**
+  String get tempPwBoxTitle;
+
+  /// No description provided for @tempPwBoxViewSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver / enviar'**
+  String get tempPwBoxViewSend;
+
+  /// No description provided for @tempPwLoginHintFallback.
+  ///
+  /// In pt, this message translates to:
+  /// **'o telefone ou e-mail cadastrado'**
+  String get tempPwLoginHintFallback;
+
+  /// No description provided for @tempPwLoginHintWith.
+  ///
+  /// In pt, this message translates to:
+  /// **'o {loginHint}'**
+  String tempPwLoginHintWith(String loginHint);
+
   /// No description provided for @studentsSearchHint.
   ///
   /// In pt, this message translates to:
@@ -1207,6 +1489,18 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Inativo'**
   String get statusInactive;
+
+  /// No description provided for @studentsFilterLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Filtrar por situação'**
+  String get studentsFilterLabel;
+
+  /// No description provided for @studentsFilterAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todos'**
+  String get studentsFilterAll;
 
   /// No description provided for @finUpToDate.
   ///

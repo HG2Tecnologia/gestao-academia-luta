@@ -227,11 +227,11 @@ class StudentQuickActionCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: context.c.onSurface,
-                    fontSize: 14,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

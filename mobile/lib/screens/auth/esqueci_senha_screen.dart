@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants.dart';
+import '../../core/theme/context_ext.dart';
+import '../../l10n/app_localizations.dart';
 
 class EsqueciSenhaScreen extends StatefulWidget {
   /// 'aluno' ou 'academia'; propagado de volta ao login ao concluir/voltar.
@@ -31,33 +32,53 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
   }
 
   Future<void> _enviar() async {
+    final l = context.l10n;
     final email = _emailCtrl.text.trim().toLowerCase();
     if (email.isEmpty || !_emailRegex.hasMatch(email)) {
-      setState(() => _erro = 'Informe um e-mail válido.');
+      setState(() => _erro = l.fpErrInvalidEmail);
       return;
     }
-    setState(() { _loading = true; _erro = null; });
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     try {
       await FirebaseAuth.instance.setLanguageCode('pt-BR');
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      if (mounted) setState(() { _enviado = true; _loading = false; });
+      if (mounted)
+        setState(() {
+          _enviado = true;
+          _loading = false;
+        });
     } on FirebaseAuthException catch (e) {
       String msg;
       switch (e.code) {
         case 'user-not-found':
           // Por segurança, não revelamos se o email existe
-          if (mounted) setState(() { _enviado = true; _loading = false; });
+          if (mounted)
+            setState(() {
+              _enviado = true;
+              _loading = false;
+            });
           return;
         case 'invalid-email':
-          msg = 'E-mail inválido.';
+          msg = l.fpErrInvalidEmail;
         case 'too-many-requests':
-          msg = 'Muitas tentativas. Aguarde alguns minutos.';
+          msg = l.fpErrTooManyRequests;
         default:
-          msg = 'Erro ao enviar e-mail. Tente novamente.';
+          msg = l.fpErrGeneric;
       }
-      if (mounted) setState(() { _erro = msg; _loading = false; });
+      if (mounted)
+        setState(() {
+          _erro = msg;
+          _loading = false;
+        });
     } catch (_) {
-      if (mounted) setState(() { _erro = 'Erro inesperado. Tente novamente.'; _loading = false; });
+      if (mounted)
+        setState(() {
+          _erro = l.fpErrUnexpected;
+          _loading = false;
+        });
     }
   }
 
@@ -69,12 +90,13 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kBg,
-        foregroundColor: kText1,
-        title: const Text('Esqueci minha senha'),
+        backgroundColor: context.c.surface,
+        foregroundColor: context.c.onSurface,
+        title: Text(l.fpTitle),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -84,42 +106,71 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: _enviado ? _buildSucesso() : _buildForm(),
+          child: _enviado ? _buildSucesso(l) : _buildForm(l),
         ),
       ),
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(AppLocalizations l) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        Text('Recuperar acesso',
-            style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800)),
+        Text(
+          l.fpHeading,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
-          'Informe seu e-mail e enviaremos um link para você criar uma nova senha.',
-          style: TextStyle(color: kText2, fontSize: 14),
+          l.fpSubtitle,
+          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
         ),
         const SizedBox(height: 32),
-        Text('E-mail', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          l.fpEmailLabel,
+          style: TextStyle(
+            color: context.c.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
           autofocus: true,
-          style: TextStyle(color: kText1, fontSize: 15),
+          style: TextStyle(color: context.c.onSurface, fontSize: 15),
           decoration: InputDecoration(
-            hintText: 'seu@email.com',
-            hintStyle: TextStyle(color: kText2),
-            prefixIcon: Icon(Icons.mail_outline, color: kText2, size: 20),
+            hintText: l.fpEmailHint,
+            hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+            prefixIcon: Icon(
+              Icons.mail_outline,
+              color: context.c.onSurfaceVariant,
+              size: 20,
+            ),
             filled: true,
-            fillColor: kSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary)),
+            fillColor: context.c.surfaceContainer,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.c.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.c.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: context.c.primary),
+            ),
           ),
         ),
         if (_erro != null) ...[
@@ -127,29 +178,47 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: kDanger.withValues(alpha: 0.12),
+              color: context.sem.danger.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+            child: Text(
+              _erro!,
+              style: TextStyle(color: context.sem.danger, fontSize: 13),
+            ),
           ),
         ],
         const SizedBox(height: 28),
         FilledButton(
           onPressed: _loading ? null : _enviar,
           style: FilledButton.styleFrom(
-            backgroundColor: kPrimary,
+            backgroundColor: context.c.primary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _loading
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Enviar link de recuperação', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  l.fpSendButton,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildSucesso() {
+  Widget _buildSucesso(AppLocalizations l) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -158,33 +227,50 @@ class _EsqueciSenhaScreenState extends State<EsqueciSenhaScreen> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: kSuccess.withValues(alpha: 0.12),
+              color: context.sem.success.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.mark_email_read_outlined, color: kSuccess, size: 48),
+            child: Icon(
+              Icons.mark_email_read_outlined,
+              color: context.sem.success,
+              size: 48,
+            ),
           ),
         ),
         const SizedBox(height: 28),
         Text(
-          'E-mail enviado!',
+          l.fpSentTitle,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kText1, fontSize: 22, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 12),
         Text(
-          'Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.',
+          l.fpSentBody,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kText2, fontSize: 14, height: 1.5),
+          style: TextStyle(
+            color: context.c.onSurfaceVariant,
+            fontSize: 14,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 40),
         FilledButton(
           onPressed: _voltarLogin,
           style: FilledButton.styleFrom(
-            backgroundColor: kPrimary,
+            backgroundColor: context.c.primary,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: const Text('Voltar ao login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          child: Text(
+            l.fpBackToLogin,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
