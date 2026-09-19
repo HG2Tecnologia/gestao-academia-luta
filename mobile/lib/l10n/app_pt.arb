@@ -397,6 +397,7 @@
   "sdNoGraduation": "Nenhuma graduação",
   "sdLevelXp": "Nível / XP",
   "sdPlanSection": "Plano",
+  "sdPlanByModalitySection": "Planos por modalidade",
   "sdNoPlan": "Nenhum plano vinculado.",
   "sdMonthlyValue": "Valor mensal",
   "sdDueDate": "Vencimento",
@@ -667,6 +668,18 @@
     }
   },
   "sdStatusChangeError": "Erro ao alterar status.",
+  "sdDeleteAlunoAction": "Excluir aluno",
+  "sdDeleteAlunoConfirmTitle": "Excluir {name}?",
+  "@sdDeleteAlunoConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdDeleteAlunoConfirmBody": "Essa ação é definitiva: remove matrículas, mensalidades, presenças, graduações e notificações desse aluno. Não pode ser desfeita. Se o telefone/e-mail for compartilhado com outro aluno, o acesso do outro não é afetado.",
+  "sdDeleteAlunoSuccess": "Aluno excluído.",
+  "sdDeleteAlunoError": "Não foi possível excluir o aluno.",
   "sdAllowAccessConfirm": "Liberar o acesso ao app de {name}?",
   "@sdAllowAccessConfirm": {
     "placeholders": {
@@ -1413,6 +1426,37 @@
   "plnNewTitle": "Novo Plano",
   "plnNameField": "Nome do plano *",
   "plnMonthlyValueField": "Valor mensal (R$) *",
+  "plnModalityField": "Modalidade (cobrança por modalidade)",
+  "plnModalityNone": "Nenhuma (plano genérico)",
+  "plnWeeklyLimitField": "Limite de dias por semana (opcional)",
+  "apmTitle": "Planos por modalidade",
+  "apmNewTitle": "Nova matrícula por modalidade",
+  "apmEditTitle": "Editar matrícula",
+  "apmModalityField": "Modalidade",
+  "apmPlanField": "Plano",
+  "apmDueDayField": "Dia de vencimento (1-28)",
+  "apmSelectRequired": "Selecione a modalidade e o plano.",
+  "apmInvalidDueDay": "Informe um dia de vencimento entre 1 e 28.",
+  "apmSaveError": "Não foi possível salvar. Tente novamente.",
+  "apmCreateBtn": "Adicionar",
+  "apmEndTitle": "Encerrar matrícula?",
+  "apmEndBody": "Para de gerar cobrança de {modalidade} para este aluno. O histórico de cobranças já geradas não é apagado.",
+  "@apmEndBody": {
+    "placeholders": {
+      "modalidade": {
+        "type": "Object"
+      }
+    }
+  },
+  "apmFeatureDisabled": "Cobrança por modalidade não está ativada para esta academia. Ative em Configurações > Financeiro para usar planos independentes por modalidade.",
+  "apmEmpty": "{nome} ainda não tem nenhuma modalidade com plano próprio cadastrada.",
+  "@apmEmpty": {
+    "placeholders": {
+      "nome": {
+        "type": "Object"
+      }
+    }
+  },
   "plnNameRequired": "Nome é obrigatório.",
   "plnInvalidValue": "Informe um valor mensal válido.",
   "plnUpdated": "Plano atualizado!",
@@ -1724,6 +1768,20 @@
   "cfgConfigFee": "Configurar taxa",
   "cfgFeePercentSub": "Percentual sobre cobranças vencidas",
   "cfgFeeFixedSub": "Valor fixo em cobranças vencidas",
+  "cfgBillingByModality": "Cobrança por modalidade",
+  "cfgBillingByModalitySub": "Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)",
+  "cfgWeeklyLimit": "Limite de dias por semana",
+  "cfgWeeklyLimitSub": "O que fazer quando o aluno excede os dias de treino do plano dele",
+  "cfgWeeklyLimitDesc": "Alguns planos limitam quantos dias por semana o aluno pode treinar (ex.: plano de 2x/semana). Escolha o que acontece quando ele tenta um check-in além do limite.",
+  "cfgWeeklyLimitModeOff": "Desativado",
+  "cfgWeeklyLimitModeOffSub": "Não controla limite de dias por semana",
+  "cfgWeeklyLimitModeWarn": "Avisar",
+  "cfgWeeklyLimitModeWarnSub": "Deixa fazer check-in, mas avisa que passou do limite do plano",
+  "cfgWeeklyLimitModeBlock": "Bloquear",
+  "cfgWeeklyLimitModeBlockSub": "Impede o check-in ao atingir o limite semanal do plano",
+  "cfgWeeklyLimitSaved": "Limite de dias por semana salvo.",
+  "cfgAutoAbsence": "Falta automática após 24h",
+  "cfgAutoAbsenceSub": "Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).",
   "cfgGradSection": "Graduações e Modalidades",
   "cfgGradSub": "Configure faixas, graduações e modalidades.",
   "cfgBeltsSub": "Cadastrar e editar graduações por modalidade",
@@ -2337,5 +2395,15 @@
   "rnClassesTitle": "Turmas e graduações",
   "rnClassesDesc": "Graduações lançadas por engano podem ser corrigidas sem refazer o histórico, e excluir uma turma não apaga mais alunos, presenças ou registros.",
   "rnBillingTitle": "Financeiro automático",
-  "rnBillingDesc": "As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado."
+  "rnBillingDesc": "As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.",
+  "rnDeleteStudentTitle": "Excluir aluno definitivamente",
+  "rnDeleteStudentDesc": "Agora dá para excluir um aluno de vez: matrículas, mensalidades, presenças e histórico saem junto, sem afetar irmãos que compartilham o mesmo telefone ou e-mail.",
+  "rnBillingByModalityTitle": "Cobrança por modalidade",
+  "rnBillingByModalityDesc": "Quem ativar nas configurações pode cobrar cada modalidade separadamente — por exemplo, jiu-jitsu e judô com valores e vencimentos independentes.",
+  "rnWeeklyLimitTitle": "Limite de dias por semana",
+  "rnWeeklyLimitDesc": "Planos com limite de treinos por semana agora podem avisar ou bloquear o check-in do aluno ao ultrapassar a cota, e isso já entra na conta de faltas.",
+  "rnAutoAbsenceTitle": "Falta automática configurável",
+  "rnAutoAbsenceDesc": "Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.",
+  "rnAbsenceFixTitle": "Correção nas faltas",
+  "rnAbsenceFixDesc": "Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados."
 }

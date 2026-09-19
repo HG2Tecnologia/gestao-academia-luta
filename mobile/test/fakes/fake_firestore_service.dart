@@ -19,6 +19,8 @@ class FakeFirestoreService extends FirestoreService {
     this.matriculas = const [],
     this.turmas = const [],
     this.planos = const [],
+    this.modalidades = const [],
+    this.planosModalidade = const [],
     List<Map<String, dynamic>> notificacoes = const [],
   }) : alunos = List.of(alunos),
        notificacoes = List.of(notificacoes);
@@ -34,6 +36,8 @@ class FakeFirestoreService extends FirestoreService {
   List<Map<String, dynamic>> matriculas;
   List<Map<String, dynamic>> turmas;
   List<Map<String, dynamic>> planos;
+  List<Map<String, dynamic>> modalidades;
+  List<Map<String, dynamic>> planosModalidade;
   List<Map<String, dynamic>> notificacoes;
 
   /// Toda chamada a [marcarNotificacaoLida], na ordem.
@@ -154,6 +158,16 @@ class FakeFirestoreService extends FirestoreService {
       return null;
     }
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> getModalidades(String academiaId) async =>
+      modalidades;
+
+  @override
+  Future<List<Map<String, dynamic>>> getPlanosModalidadeDoAluno(
+    String academiaId,
+    String alunoId,
+  ) async => planosModalidade.where((m) => m['aluno_id'] == alunoId).toList();
 
   @override
   Future<List<Map<String, dynamic>>> getNotificacoes(String academiaId) async =>

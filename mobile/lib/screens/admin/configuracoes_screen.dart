@@ -49,6 +49,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   int _pesquisaXpRecompensa = 50;
   bool _taxaAtrasoAtiva = false;
   int _taxaAtrasoTipo = 0; // 0=percentual, 1=fixo
+  bool _cobrancaPorModalidadeAtiva = false;
+  // 'off' | 'aviso' | 'bloqueio'
+  String _limiteDiasSemanaModo = 'off';
+  bool _faltaAutomaticaAtiva = true;
 
   @override
   void initState() {
@@ -96,6 +100,11 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           ((dados['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0)
               .toStringAsFixed(2)
               .replaceAll('.', ',');
+      _cobrancaPorModalidadeAtiva =
+          dados['cobranca_por_modalidade_ativa'] as bool? ?? false;
+      _limiteDiasSemanaModo =
+          dados['limite_dias_semana_modo'] as String? ?? 'off';
+      _faltaAutomaticaAtiva = dados['falta_automatica_ativa'] as bool? ?? true;
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -128,6 +137,9 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'taxa_atraso_tipo': _taxaAtrasoTipo,
     'taxa_atraso_valor':
         double.tryParse(_taxaAtrasoValorCtrl.text.replaceAll(',', '.')) ?? 0.0,
+    'cobranca_por_modalidade_ativa': _cobrancaPorModalidadeAtiva,
+    'limite_dias_semana_modo': _limiteDiasSemanaModo,
+    'falta_automatica_ativa': _faltaAutomaticaAtiva,
   };
 
   /// Grava o documento completo da academia (mesma chamada que o antigo botão
@@ -258,6 +270,21 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           _carenciaDias = dias;
           final ok = await _persistirTudo();
           if (ok) _snack(_l.cfgGraceSaved);
+          return ok;
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _abrirLimiteDiasSemana() async {
+    await _sheet<void>(
+      _LimiteDiasSemanaSheet(
+        inicial: _limiteDiasSemanaModo,
+        onSalvar: (modo) async {
+          _limiteDiasSemanaModo = modo;
+          final ok = await _persistirTudo();
+          if (ok) _snack(_l.cfgWeeklyLimitSaved);
           return ok;
         },
       ),
@@ -497,6 +524,18 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirCarencia,
                           ),
+                        _SwitchRow(
+                          icon: Icons.event_busy_rounded,
+                          titulo: _l.cfgAutoAbsence,
+                          subtitulo: _l.cfgAutoAbsenceSub,
+                          valor: _faltaAutomaticaAtiva,
+                          onChanged: (v) => _toggle(
+                            _l.cfgAutoAbsence,
+                            _faltaAutomaticaAtiva,
+                            (x) => _faltaAutomaticaAtiva = x,
+                            v,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -569,6 +608,36 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirTaxaAtraso,
                           ),
+                        _SwitchRow(
+                          icon: Icons.category_rounded,
+                          titulo: _l.cfgBillingByModality,
+                          subtitulo: _l.cfgBillingByModalitySub,
+                          valor: _cobrancaPorModalidadeAtiva,
+                          onChanged: (v) => _toggle(
+                            _l.cfgBillingByModality,
+                            _cobrancaPorModalidadeAtiva,
+                            (x) => _cobrancaPorModalidadeAtiva = x,
+                            v,
+                          ),
+                        ),
+                        _NavRow(
+                          icon: Icons.event_repeat_rounded,
+                          titulo: _l.cfgWeeklyLimit,
+                          subtitulo: _l.cfgWeeklyLimitSub,
+                          trailing: Text(
+                            switch (_limiteDiasSemanaModo) {
+                              'aviso' => _l.cfgWeeklyLimitModeWarn,
+                              'bloqueio' => _l.cfgWeeklyLimitModeBlock,
+                              _ => _l.cfgWeeklyLimitModeOff,
+                            },
+                            style: TextStyle(
+                              color: context.c.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          onTap: _abrirLimiteDiasSemana,
+                        ),
                       ],
                     ),
                   ),
@@ -1626,6 +1695,81 @@ class _CarenciaSheetState extends State<_CarenciaSheet> {
           _SheetSaveButton(
             label: _l.commonSave,
             onSalvar: () => widget.onSalvar(_dias),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sheet: Limite de dias de treino por semana ───────────────────────────
+
+class _LimiteDiasSemanaSheet extends StatefulWidget {
+  const _LimiteDiasSemanaSheet({required this.inicial, required this.onSalvar});
+  final String inicial;
+  final Future<bool> Function(String) onSalvar;
+
+  @override
+  State<_LimiteDiasSemanaSheet> createState() => _LimiteDiasSemanaSheetState();
+}
+
+class _LimiteDiasSemanaSheetState extends State<_LimiteDiasSemanaSheet> {
+  AppLocalizations get _l => context.l10n;
+  late String _modo = widget.inicial;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetScaffold(
+      titulo: _l.cfgWeeklyLimit,
+      descricao: _l.cfgWeeklyLimitDesc,
+      child: Column(
+        children: [
+          RadioListTile<String>(
+            value: 'off',
+            groupValue: _modo,
+            onChanged: (v) => setState(() => _modo = v!),
+            activeColor: context.c.primary,
+            title: Text(
+              _l.cfgWeeklyLimitModeOff,
+              style: TextStyle(color: context.c.onSurface, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              _l.cfgWeeklyLimitModeOffSub,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+            ),
+          ),
+          RadioListTile<String>(
+            value: 'aviso',
+            groupValue: _modo,
+            onChanged: (v) => setState(() => _modo = v!),
+            activeColor: context.c.primary,
+            title: Text(
+              _l.cfgWeeklyLimitModeWarn,
+              style: TextStyle(color: context.c.onSurface, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              _l.cfgWeeklyLimitModeWarnSub,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+            ),
+          ),
+          RadioListTile<String>(
+            value: 'bloqueio',
+            groupValue: _modo,
+            onChanged: (v) => setState(() => _modo = v!),
+            activeColor: context.c.primary,
+            title: Text(
+              _l.cfgWeeklyLimitModeBlock,
+              style: TextStyle(color: context.c.onSurface, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              _l.cfgWeeklyLimitModeBlockSub,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SheetSaveButton(
+            label: _l.commonSave,
+            onSalvar: () => widget.onSalvar(_modo),
           ),
         ],
       ),

@@ -931,6 +931,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get sdPlanSection => 'Plano';
 
   @override
+  String get sdPlanByModalitySection => 'Planos por modalidade';
+
+  @override
   String get sdNoPlan => 'Nenhum plano vinculado.';
 
   @override
@@ -1493,6 +1496,24 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get sdStatusChangeError => 'Erro ao alterar status.';
+
+  @override
+  String get sdDeleteAlunoAction => 'Excluir aluno';
+
+  @override
+  String sdDeleteAlunoConfirmTitle(Object name) {
+    return 'Excluir $name?';
+  }
+
+  @override
+  String get sdDeleteAlunoConfirmBody =>
+      'Essa ação é definitiva: remove matrículas, mensalidades, presenças, graduações e notificações desse aluno. Não pode ser desfeita. Se o telefone/e-mail for compartilhado com outro aluno, o acesso do outro não é afetado.';
+
+  @override
+  String get sdDeleteAlunoSuccess => 'Aluno excluído.';
+
+  @override
+  String get sdDeleteAlunoError => 'Não foi possível excluir o aluno.';
 
   @override
   String sdAllowAccessConfirm(Object name) {
@@ -2791,6 +2812,62 @@ class AppLocalizationsPt extends AppLocalizations {
   String get plnMonthlyValueField => 'Valor mensal (R\$) *';
 
   @override
+  String get plnModalityField => 'Modalidade (cobrança por modalidade)';
+
+  @override
+  String get plnModalityNone => 'Nenhuma (plano genérico)';
+
+  @override
+  String get plnWeeklyLimitField => 'Limite de dias por semana (opcional)';
+
+  @override
+  String get apmTitle => 'Planos por modalidade';
+
+  @override
+  String get apmNewTitle => 'Nova matrícula por modalidade';
+
+  @override
+  String get apmEditTitle => 'Editar matrícula';
+
+  @override
+  String get apmModalityField => 'Modalidade';
+
+  @override
+  String get apmPlanField => 'Plano';
+
+  @override
+  String get apmDueDayField => 'Dia de vencimento (1-28)';
+
+  @override
+  String get apmSelectRequired => 'Selecione a modalidade e o plano.';
+
+  @override
+  String get apmInvalidDueDay => 'Informe um dia de vencimento entre 1 e 28.';
+
+  @override
+  String get apmSaveError => 'Não foi possível salvar. Tente novamente.';
+
+  @override
+  String get apmCreateBtn => 'Adicionar';
+
+  @override
+  String get apmEndTitle => 'Encerrar matrícula?';
+
+  @override
+  String apmEndBody(Object modalidade) {
+    return 'Para de gerar cobrança de $modalidade para este aluno. O histórico de cobranças já geradas não é apagado.';
+  }
+
+  @override
+  String get apmFeatureDisabled =>
+      'Cobrança por modalidade não está ativada para esta academia. Ative em Configurações > Financeiro para usar planos independentes por modalidade.';
+
+  @override
+  String apmEmpty(Object nome) {
+    return '$nome ainda não tem nenhuma modalidade com plano próprio cadastrada.';
+  }
+
+  @override
   String get plnNameRequired => 'Nome é obrigatório.';
 
   @override
@@ -3401,6 +3478,55 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cfgFeeFixedSub => 'Valor fixo em cobranças vencidas';
+
+  @override
+  String get cfgBillingByModality => 'Cobrança por modalidade';
+
+  @override
+  String get cfgBillingByModalitySub =>
+      'Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)';
+
+  @override
+  String get cfgWeeklyLimit => 'Limite de dias por semana';
+
+  @override
+  String get cfgWeeklyLimitSub =>
+      'O que fazer quando o aluno excede os dias de treino do plano dele';
+
+  @override
+  String get cfgWeeklyLimitDesc =>
+      'Alguns planos limitam quantos dias por semana o aluno pode treinar (ex.: plano de 2x/semana). Escolha o que acontece quando ele tenta um check-in além do limite.';
+
+  @override
+  String get cfgWeeklyLimitModeOff => 'Desativado';
+
+  @override
+  String get cfgWeeklyLimitModeOffSub =>
+      'Não controla limite de dias por semana';
+
+  @override
+  String get cfgWeeklyLimitModeWarn => 'Avisar';
+
+  @override
+  String get cfgWeeklyLimitModeWarnSub =>
+      'Deixa fazer check-in, mas avisa que passou do limite do plano';
+
+  @override
+  String get cfgWeeklyLimitModeBlock => 'Bloquear';
+
+  @override
+  String get cfgWeeklyLimitModeBlockSub =>
+      'Impede o check-in ao atingir o limite semanal do plano';
+
+  @override
+  String get cfgWeeklyLimitSaved => 'Limite de dias por semana salvo.';
+
+  @override
+  String get cfgAutoAbsence => 'Falta automática após 24h';
+
+  @override
+  String get cfgAutoAbsenceSub =>
+      'Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).';
 
   @override
   String get cfgGradSection => 'Graduações e Modalidades';
@@ -4685,4 +4811,39 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get rnBillingDesc =>
       'As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.';
+
+  @override
+  String get rnDeleteStudentTitle => 'Excluir aluno definitivamente';
+
+  @override
+  String get rnDeleteStudentDesc =>
+      'Agora dá para excluir um aluno de vez: matrículas, mensalidades, presenças e histórico saem junto, sem afetar irmãos que compartilham o mesmo telefone ou e-mail.';
+
+  @override
+  String get rnBillingByModalityTitle => 'Cobrança por modalidade';
+
+  @override
+  String get rnBillingByModalityDesc =>
+      'Quem ativar nas configurações pode cobrar cada modalidade separadamente — por exemplo, jiu-jitsu e judô com valores e vencimentos independentes.';
+
+  @override
+  String get rnWeeklyLimitTitle => 'Limite de dias por semana';
+
+  @override
+  String get rnWeeklyLimitDesc =>
+      'Planos com limite de treinos por semana agora podem avisar ou bloquear o check-in do aluno ao ultrapassar a cota, e isso já entra na conta de faltas.';
+
+  @override
+  String get rnAutoAbsenceTitle => 'Falta automática configurável';
+
+  @override
+  String get rnAutoAbsenceDesc =>
+      'Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.';
+
+  @override
+  String get rnAbsenceFixTitle => 'Correção nas faltas';
+
+  @override
+  String get rnAbsenceFixDesc =>
+      'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.';
 }

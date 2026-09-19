@@ -97,6 +97,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         firestoreService
             .getNoticias(academiaId)
             .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getAcademia(academiaId).catchError((_) => null),
       ]);
 
       final aluno = results[0] as Map<String, dynamic>?;
@@ -107,6 +108,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       final presencas = (results[5] as List).cast<Map<String, dynamic>>();
       final pagamentos = (results[6] as List).cast<Map<String, dynamic>>();
       final noticias = (results[7] as List).cast<Map<String, dynamic>>();
+      final academiaDoc = results[8] as Map<String, dynamic>?;
+      final faltaAutomaticaAtiva =
+          academiaDoc?['falta_automatica_ativa'] as bool? ?? true;
 
       final faixasPorId =
           montarFaixasAtuaisPorAluno(graduacoes)[user.id] ?? const {};
@@ -121,6 +125,14 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         for (final t in turmas)
           t['id'].toString(): (t['nome'] ?? '').toString(),
       };
+
+      Map<String, int> limitesPorTurma = const {};
+      try {
+        limitesPorTurma = await firestoreService.getLimitesDiasSemanaPorTurma(
+          academiaId,
+          matriculas,
+        );
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() {
@@ -138,6 +150,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           presencas: presencas,
           matriculas: matriculas,
           horarios: horarios,
+          limitesPorTurma: limitesPorTurma,
+          contabilizarFaltaAutomatica: faltaAutomaticaAtiva,
         );
         _presencasAno = freq.totalPresencas;
         _faltasAno = freq.totalFaltas;

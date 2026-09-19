@@ -15,6 +15,8 @@ class AdminPlanosScreen extends StatefulWidget {
 class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
   AppLocalizations get _l => context.l10n;
   List<Map<String, dynamic>> _planos = [];
+  List<Map<String, dynamic>> _modalidades = [];
+  bool _cobrancaPorModalidadeAtiva = false;
   String? _academiaId;
   bool _loading = true;
   String? _erro;
@@ -34,8 +36,25 @@ class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId;
       if (_academiaId == null) throw Exception('Academia não identificada');
-      final planos = await firestoreService.getPlanos(_academiaId!);
-      if (mounted) setState(() => _planos = planos);
+      final results = await Future.wait([
+        firestoreService.getPlanos(_academiaId!),
+        firestoreService.getAcademia(_academiaId!),
+        firestoreService.getModalidades(_academiaId!),
+      ]);
+      final planos = (results[0] as List).cast<Map<String, dynamic>>();
+      final academia = results[1] as Map<String, dynamic>?;
+      final modalidades = (results[2] as List)
+          .cast<Map<String, dynamic>>()
+          .where((m) => m['ativo'] == true)
+          .toList();
+      if (mounted) {
+        setState(() {
+          _planos = planos;
+          _cobrancaPorModalidadeAtiva =
+              academia?['cobranca_por_modalidade_ativa'] as bool? ?? false;
+          _modalidades = modalidades;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _erro = _l.plnLoadError);
     } finally {
@@ -55,6 +74,14 @@ class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
     final descCtrl = TextEditingController(
       text: plano?['descricao']?.toString() ?? '',
     );
+    final limiteDiasCtrl = TextEditingController(
+      text: (plano?['limite_dias_semana'] as num?)?.toInt().toString() ?? '',
+    );
+    String? modalidadeId = plano?['modalidade_id']?.toString();
+    if (modalidadeId != null &&
+        !_modalidades.any((m) => m['id'] == modalidadeId)) {
+      modalidadeId = null; // modalidade excluída depois — não quebra o form.
+    }
     bool salvando = false;
     String? erro;
     final isEdit = plano != null;
@@ -117,6 +144,49 @@ class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
                   TextInputType.multiline,
                   maxLines: 3,
                 ),
+                if (_cobrancaPorModalidadeAtiva) ...[
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String?>(
+                    initialValue: modalidadeId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      hintText: _l.plnModalityField,
+                      hintStyle: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: context.c.surface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: context.c.outline),
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(_l.plnModalityNone),
+                      ),
+                      for (final m in _modalidades)
+                        DropdownMenuItem<String?>(
+                          value: m['id'] as String,
+                          child: Text(m['nome']?.toString() ?? ''),
+                        ),
+                    ],
+                    onChanged: (v) => setModal(() => modalidadeId = v),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                _campo(
+                  limiteDiasCtrl,
+                  _l.plnWeeklyLimitField,
+                  TextInputType.number,
+                  formatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
                 if (erro != null) ...[
                   const SizedBox(height: 10),
                   Container(
@@ -158,12 +228,20 @@ class _AdminPlanosScreenState extends State<AdminPlanosScreen> {
                               erro = null;
                             });
                             try {
+                              final limiteDias = int.tryParse(
+                                limiteDiasCtrl.text.trim(),
+                              );
                               final data = {
                                 'nome': nome,
                                 'valor_mensal': valor,
                                 'descricao': descCtrl.text.trim().isEmpty
                                     ? null
                                     : descCtrl.text.trim(),
+                                'modalidade_id': modalidadeId,
+                                'limite_dias_semana':
+                                    limiteDias != null && limiteDias > 0
+                                    ? limiteDias
+                                    : null,
                               };
                               if (isEdit) {
                                 await firestoreService.updatePlano(

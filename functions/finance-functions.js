@@ -8,6 +8,7 @@ const { FieldValue } = require("firebase-admin/firestore");
 const {
   addBillingMonths,
   dueDateForPeriod,
+  modalityChargeDocumentId,
   monthLabelPtBr,
   monthlyChargeDocumentId,
   parseBillingPeriod,
@@ -45,16 +46,45 @@ async function loadFinanceAuthority(callerUid, academiaId) {
  * criação é condicionada, dentro de uma transação, à ausência prévia do
  * documento. Chamar de novo para a mesma competência é sempre seguro.
  */
-async function ensureChargesForPeriodCore(academiaId, periodValue) {
-  const period = parseBillingPeriod(periodValue).value;
+/**
+ * Cria (se ainda não existir) o doc de cobrança em `pagamentos` + a
+ * notificação correspondente, dentro de uma transação — mesmo mecanismo de
+ * idempotência pros dois modos de cobrança (`chargeId` determinístico).
+ */
+async function criarCobrancaSeNecessario(academiaId, chargeId, chargeData) {
+  const chargeRef = db.collection("academias").doc(academiaId).collection("pagamentos").doc(chargeId);
 
-  const [alunosSnap, planosSnap] = await Promise.all([
-    db.collection("academias").doc(academiaId).collection("usuarios").where("ativo", "==", true).get(),
-    db.collection("academias").doc(academiaId).collection("planos").get(),
-  ]);
+  const criado = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(chargeRef);
+    if (snapshot.exists) return false;
+    transaction.create(chargeRef, { id: chargeId, ...chargeData });
+    return true;
+  });
 
-  const planosPorId = new Map();
-  for (const doc of planosSnap.docs) planosPorId.set(doc.id, doc.data());
+  if (criado) {
+    await db
+      .collection("academias").doc(academiaId)
+      .collection("notificacoes").doc(`cobranca_${chargeId}`)
+      .set({
+        titulo: "Nova mensalidade gerada",
+        mensagem: `Sua mensalidade de ${monthLabelPtBr(chargeData.mes_referencia)} (R$ ${Number(chargeData.valor).toFixed(2).replace(".", ",")}) já está disponível.`,
+        tipo: "cobranca_gerada",
+        aluno_id: chargeData.aluno_id,
+        lida: false,
+        criado_em: FieldValue.serverTimestamp(),
+      });
+  }
+  return criado;
+}
+
+/**
+ * Modelo legado: 1 plano escalar por aluno (`aluno.plano_id`), 1 cobrança
+ * por mês. Continua sendo o único caminho pra qualquer academia que não
+ * tenha ativado `cobranca_por_modalidade_ativa` — nada aqui muda.
+ */
+async function ensureChargesLegado(academiaId, period, alunosSnap) {
+  const planosSnap = await db.collection("academias").doc(academiaId).collection("planos").get();
+  const planosPorId = new Map(planosSnap.docs.map((doc) => [doc.id, doc.data()]));
 
   let criadas = 0;
   let ignoradas = 0;
@@ -70,50 +100,97 @@ async function ensureChargesForPeriodCore(academiaId, periodValue) {
     const diaVencimento = Number.isInteger(aluno.dia_vencimento) ? aluno.dia_vencimento : DEFAULT_DUE_DAY;
     const valor = Number(plano.valor_mensal ?? 0);
     const chargeId = monthlyChargeDocumentId(alunoId, period);
-    const chargeRef = db.collection("academias").doc(academiaId).collection("pagamentos").doc(chargeId);
 
-    const criado = await db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(chargeRef);
-      if (snapshot.exists) return false;
-      transaction.create(chargeRef, {
-        id: chargeId,
-        aluno_id: alunoId,
-        aluno_nome: aluno.nome || "",
-        plano_id: planoId,
-        plano_nome: plano.nome || "",
-        tipo: "Mensalidade",
-        valor,
-        data_vencimento: dueDateForPeriod(period, diaVencimento),
-        status: 0,
-        mes_referencia: period,
-        origem: "auto",
-        criado_em: FieldValue.serverTimestamp(),
-      });
-      return true;
+    const criado = await criarCobrancaSeNecessario(academiaId, chargeId, {
+      aluno_id: alunoId,
+      aluno_nome: aluno.nome || "",
+      plano_id: planoId,
+      plano_nome: plano.nome || "",
+      tipo: "Mensalidade",
+      valor,
+      data_vencimento: dueDateForPeriod(period, diaVencimento),
+      status: 0,
+      mes_referencia: period,
+      origem: "auto",
+      criado_em: FieldValue.serverTimestamp(),
     });
-
-    if (criado) {
-      criadas++;
-      // ID determinístico = idempotente: se a function rodar de novo pra
-      // mesma competência, não duplica a notificação (mesma garantia da
-      // própria cobrança, que usa `chargeId` como ID do doc).
-      await db
-        .collection("academias").doc(academiaId)
-        .collection("notificacoes").doc(`cobranca_${chargeId}`)
-        .set({
-          titulo: "Nova mensalidade gerada",
-          mensagem: `Sua mensalidade de ${monthLabelPtBr(period)} (R$ ${valor.toFixed(2).replace(".", ",")}) já está disponível.`,
-          tipo: "cobranca_gerada",
-          aluno_id: alunoId,
-          lida: false,
-          criado_em: FieldValue.serverTimestamp(),
-        });
-    } else {
-      ignoradas++;
-    }
+    criado ? criadas++ : ignoradas++;
   }
 
-  return { period, criadas, ignoradas };
+  return { criadas, ignoradas };
+}
+
+/**
+ * Modelo opt-in (`cobranca_por_modalidade_ativa == true`): 1 cobrança por
+ * modalidade matriculada em `planos_modalidade`, cada uma com seu próprio
+ * plano/valor/vencimento — nunca lê `aluno.plano_id` nesse modo, pra não
+ * gerar cobrança duplicada combinando os dois modelos.
+ */
+async function ensureChargesPorModalidade(academiaId, period, alunosSnap) {
+  const alunosPorId = new Map(alunosSnap.docs.map((doc) => [doc.id, doc.data()]));
+
+  const [planosSnap, planosModalidadeSnap] = await Promise.all([
+    db.collection("academias").doc(academiaId).collection("planos").get(),
+    db.collection("academias").doc(academiaId).collection("planos_modalidade")
+      .where("ativo", "==", true).get(),
+  ]);
+  const planosPorId = new Map(planosSnap.docs.map((doc) => [doc.id, doc.data()]));
+
+  let criadas = 0;
+  let ignoradas = 0;
+
+  for (const doc of planosModalidadeSnap.docs) {
+    const matricula = doc.data();
+    const alunoId = String(matricula.aluno_id ?? "").trim();
+    const modalidadeId = String(matricula.modalidade_id ?? "").trim();
+    const planoId = String(matricula.plano_id ?? "").trim();
+    if (!alunoId || !modalidadeId || !planoId) continue;
+
+    const aluno = alunosPorId.get(alunoId);
+    if (!aluno) continue; // aluno inativo/inexistente: não cobra.
+    const plano = planosPorId.get(planoId);
+    if (!plano) continue;
+
+    const diaVencimento = Number.isInteger(matricula.dia_vencimento)
+      ? matricula.dia_vencimento
+      : DEFAULT_DUE_DAY;
+    const valor = Number(plano.valor_mensal ?? 0);
+    const chargeId = modalityChargeDocumentId(alunoId, modalidadeId, period);
+
+    const criado = await criarCobrancaSeNecessario(academiaId, chargeId, {
+      aluno_id: alunoId,
+      aluno_nome: aluno.nome || "",
+      modalidade_id: modalidadeId,
+      plano_id: planoId,
+      plano_nome: plano.nome || "",
+      tipo: "Mensalidade",
+      valor,
+      data_vencimento: dueDateForPeriod(period, diaVencimento),
+      status: 0,
+      mes_referencia: period,
+      origem: "auto",
+      criado_em: FieldValue.serverTimestamp(),
+    });
+    criado ? criadas++ : ignoradas++;
+  }
+
+  return { criadas, ignoradas };
+}
+
+async function ensureChargesForPeriodCore(academiaId, periodValue) {
+  const period = parseBillingPeriod(periodValue).value;
+
+  const [academiaSnap, alunosSnap] = await Promise.all([
+    db.collection("academias").doc(academiaId).get(),
+    db.collection("academias").doc(academiaId).collection("usuarios").where("ativo", "==", true).get(),
+  ]);
+
+  const cobrancaPorModalidadeAtiva = academiaSnap.data()?.cobranca_por_modalidade_ativa === true;
+  const resultado = cobrancaPorModalidadeAtiva
+    ? await ensureChargesPorModalidade(academiaId, period, alunosSnap)
+    : await ensureChargesLegado(academiaId, period, alunosSnap);
+
+  return { period, ...resultado };
 }
 
 exports.ensureChargesForPeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
@@ -289,7 +366,7 @@ function eMensalidade(pagamento) {
 async function mergeDuplicateChargesCore(academiaId) {
   const snap = await db.collection("academias").doc(academiaId).collection("pagamentos").get();
 
-  const grupos = new Map(); // "alunoId|mes" -> [{ref, data}]
+  const grupos = new Map(); // "alunoId|mes[|modalidadeId]" -> [{ref, data}]
   for (const doc of snap.docs) {
     const data = doc.data();
     if (data.status === 4) continue; // já desconsiderada: não conta pra duplicidade
@@ -297,7 +374,12 @@ async function mergeDuplicateChargesCore(academiaId) {
     const alunoId = String(data.aluno_id ?? "").trim();
     const mes = mesReferenciaEfetiva(data);
     if (!alunoId || !mes) continue;
-    const chave = `${alunoId}|${mes}`;
+    // Com cobrança por modalidade ativa, o mesmo aluno pode ter várias
+    // cobranças legítimas no mesmo mês (uma por modalidade) — sem o segmento
+    // de modalidade na chave, elas seriam tratadas como duplicata uma da
+    // outra e uma delas seria desconsiderada por engano.
+    const modalidadeId = String(data.modalidade_id ?? "").trim();
+    const chave = modalidadeId ? `${alunoId}|${mes}|${modalidadeId}` : `${alunoId}|${mes}`;
     if (!grupos.has(chave)) grupos.set(chave, []);
     grupos.get(chave).push({ ref: doc.ref, data });
   }

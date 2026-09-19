@@ -930,6 +930,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sdPlanSection => 'Plan';
 
   @override
+  String get sdPlanByModalitySection => 'Plans by discipline';
+
+  @override
   String get sdNoPlan => 'No plan linked.';
 
   @override
@@ -1493,6 +1496,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdStatusChangeError => 'Error changing the status.';
+
+  @override
+  String get sdDeleteAlunoAction => 'Delete student';
+
+  @override
+  String sdDeleteAlunoConfirmTitle(Object name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get sdDeleteAlunoConfirmBody =>
+      'This is permanent: it removes this student\'s enrollments, payments, attendance, graduations and notifications. It cannot be undone. If the phone/email is shared with another student, the other student\'s access is not affected.';
+
+  @override
+  String get sdDeleteAlunoSuccess => 'Student deleted.';
+
+  @override
+  String get sdDeleteAlunoError => 'Couldn\'t delete the student.';
 
   @override
   String sdAllowAccessConfirm(Object name) {
@@ -2790,6 +2811,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plnMonthlyValueField => 'Monthly amount (R\$) *';
 
   @override
+  String get plnModalityField => 'Discipline (billing by discipline)';
+
+  @override
+  String get plnModalityNone => 'None (generic plan)';
+
+  @override
+  String get plnWeeklyLimitField => 'Weekly training-day limit (optional)';
+
+  @override
+  String get apmTitle => 'Plans by discipline';
+
+  @override
+  String get apmNewTitle => 'New discipline enrollment';
+
+  @override
+  String get apmEditTitle => 'Edit enrollment';
+
+  @override
+  String get apmModalityField => 'Discipline';
+
+  @override
+  String get apmPlanField => 'Plan';
+
+  @override
+  String get apmDueDayField => 'Due day (1-28)';
+
+  @override
+  String get apmSelectRequired => 'Select the discipline and the plan.';
+
+  @override
+  String get apmInvalidDueDay => 'Enter a due day between 1 and 28.';
+
+  @override
+  String get apmSaveError => 'Couldn\'t save. Please try again.';
+
+  @override
+  String get apmCreateBtn => 'Add';
+
+  @override
+  String get apmEndTitle => 'End enrollment?';
+
+  @override
+  String apmEndBody(Object modalidade) {
+    return 'Stops billing $modalidade for this student. Charges already generated are not deleted.';
+  }
+
+  @override
+  String get apmFeatureDisabled =>
+      'Billing by discipline is not enabled for this school. Enable it in Settings > Finance to use independent plans per discipline.';
+
+  @override
+  String apmEmpty(Object nome) {
+    return '$nome doesn\'t have any discipline with its own plan yet.';
+  }
+
+  @override
   String get plnNameRequired => 'Name is required.';
 
   @override
@@ -3400,6 +3477,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cfgFeeFixedSub => 'Fixed amount on overdue charges';
+
+  @override
+  String get cfgBillingByModality => 'Billing by discipline';
+
+  @override
+  String get cfgBillingByModalitySub =>
+      'Allows independent plans and monthly fees per discipline (e.g. jiu-jitsu and judo billed separately)';
+
+  @override
+  String get cfgWeeklyLimit => 'Weekly training-day limit';
+
+  @override
+  String get cfgWeeklyLimitSub =>
+      'What happens when a student exceeds their plan\'s weekly training days';
+
+  @override
+  String get cfgWeeklyLimitDesc =>
+      'Some plans limit how many days per week a student can train (e.g. a 2x/week plan). Choose what happens when they try to check in beyond that limit.';
+
+  @override
+  String get cfgWeeklyLimitModeOff => 'Off';
+
+  @override
+  String get cfgWeeklyLimitModeOffSub =>
+      'Doesn\'t enforce a weekly training-day limit';
+
+  @override
+  String get cfgWeeklyLimitModeWarn => 'Warn';
+
+  @override
+  String get cfgWeeklyLimitModeWarnSub =>
+      'Allows check-in but warns that the plan\'s limit was exceeded';
+
+  @override
+  String get cfgWeeklyLimitModeBlock => 'Block';
+
+  @override
+  String get cfgWeeklyLimitModeBlockSub =>
+      'Prevents check-in once the plan\'s weekly limit is reached';
+
+  @override
+  String get cfgWeeklyLimitSaved => 'Weekly training-day limit saved.';
+
+  @override
+  String get cfgAutoAbsence => 'Automatic absence after 24h';
+
+  @override
+  String get cfgAutoAbsenceSub =>
+      'On: the app automatically marks a student absent if no attendance was recorded within 24h of class, and it stays in the student\'s attendance history. Off: the app never infers absence on its own — it\'s up to the instructor to mark attendance; if they don\'t, that day simply doesn\'t show up in the student\'s history (neither as present nor absent).';
 
   @override
   String get cfgGradSection => 'Belts and Disciplines';
@@ -4681,4 +4807,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rnBillingDesc =>
       'Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned.';
+
+  @override
+  String get rnDeleteStudentTitle => 'Permanently delete a student';
+
+  @override
+  String get rnDeleteStudentDesc =>
+      'You can now delete a student for good: enrollments, charges, attendance and history go with them, without affecting siblings who share the same phone or email.';
+
+  @override
+  String get rnBillingByModalityTitle => 'Billing per discipline';
+
+  @override
+  String get rnBillingByModalityDesc =>
+      'Academies that turn it on in settings can charge each discipline separately — for example, jiu-jitsu and judo with independent prices and due dates.';
+
+  @override
+  String get rnWeeklyLimitTitle => 'Weekly training limit';
+
+  @override
+  String get rnWeeklyLimitDesc =>
+      'Plans with a weekly training limit can now warn or block check-in once a student goes over the quota, and this is already reflected in absence counts.';
+
+  @override
+  String get rnAutoAbsenceTitle => 'Configurable automatic absence';
+
+  @override
+  String get rnAutoAbsenceDesc =>
+      'You can turn off the automatic 24h-after-class absence marking in settings, keeping history to only what the coach marks by hand.';
+
+  @override
+  String get rnAbsenceFixTitle => 'Absence calculation fix';
+
+  @override
+  String get rnAbsenceFixDesc =>
+      'Absences are no longer counted on days a class doesn\'t train — the calculation now follows the actual registered schedule.';
 }

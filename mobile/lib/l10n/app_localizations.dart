@@ -1718,6 +1718,12 @@ abstract class AppLocalizations {
   /// **'Plano'**
   String get sdPlanSection;
 
+  /// No description provided for @sdPlanByModalitySection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos por modalidade'**
+  String get sdPlanByModalitySection;
+
   /// No description provided for @sdNoPlan.
   ///
   /// In pt, this message translates to:
@@ -2731,6 +2737,36 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao alterar status.'**
   String get sdStatusChangeError;
+
+  /// No description provided for @sdDeleteAlunoAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir aluno'**
+  String get sdDeleteAlunoAction;
+
+  /// No description provided for @sdDeleteAlunoConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir {name}?'**
+  String sdDeleteAlunoConfirmTitle(Object name);
+
+  /// No description provided for @sdDeleteAlunoConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa ação é definitiva: remove matrículas, mensalidades, presenças, graduações e notificações desse aluno. Não pode ser desfeita. Se o telefone/e-mail for compartilhado com outro aluno, o acesso do outro não é afetado.'**
+  String get sdDeleteAlunoConfirmBody;
+
+  /// No description provided for @sdDeleteAlunoSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aluno excluído.'**
+  String get sdDeleteAlunoSuccess;
+
+  /// No description provided for @sdDeleteAlunoError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível excluir o aluno.'**
+  String get sdDeleteAlunoError;
 
   /// No description provided for @sdAllowAccessConfirm.
   ///
@@ -4976,6 +5012,108 @@ abstract class AppLocalizations {
   /// **'Valor mensal (R\$) *'**
   String get plnMonthlyValueField;
 
+  /// No description provided for @plnModalityField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade (cobrança por modalidade)'**
+  String get plnModalityField;
+
+  /// No description provided for @plnModalityNone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma (plano genérico)'**
+  String get plnModalityNone;
+
+  /// No description provided for @plnWeeklyLimitField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana (opcional)'**
+  String get plnWeeklyLimitField;
+
+  /// No description provided for @apmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos por modalidade'**
+  String get apmTitle;
+
+  /// No description provided for @apmNewTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova matrícula por modalidade'**
+  String get apmNewTitle;
+
+  /// No description provided for @apmEditTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Editar matrícula'**
+  String get apmEditTitle;
+
+  /// No description provided for @apmModalityField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade'**
+  String get apmModalityField;
+
+  /// No description provided for @apmPlanField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Plano'**
+  String get apmPlanField;
+
+  /// No description provided for @apmDueDayField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dia de vencimento (1-28)'**
+  String get apmDueDayField;
+
+  /// No description provided for @apmSelectRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione a modalidade e o plano.'**
+  String get apmSelectRequired;
+
+  /// No description provided for @apmInvalidDueDay.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um dia de vencimento entre 1 e 28.'**
+  String get apmInvalidDueDay;
+
+  /// No description provided for @apmSaveError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível salvar. Tente novamente.'**
+  String get apmSaveError;
+
+  /// No description provided for @apmCreateBtn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionar'**
+  String get apmCreateBtn;
+
+  /// No description provided for @apmEndTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Encerrar matrícula?'**
+  String get apmEndTitle;
+
+  /// No description provided for @apmEndBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para de gerar cobrança de {modalidade} para este aluno. O histórico de cobranças já geradas não é apagado.'**
+  String apmEndBody(Object modalidade);
+
+  /// No description provided for @apmFeatureDisabled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade não está ativada para esta academia. Ative em Configurações > Financeiro para usar planos independentes por modalidade.'**
+  String get apmFeatureDisabled;
+
+  /// No description provided for @apmEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'{nome} ainda não tem nenhuma modalidade com plano próprio cadastrada.'**
+  String apmEmpty(Object nome);
+
   /// No description provided for @plnNameRequired.
   ///
   /// In pt, this message translates to:
@@ -6043,6 +6181,90 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Valor fixo em cobranças vencidas'**
   String get cfgFeeFixedSub;
+
+  /// No description provided for @cfgBillingByModality.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade'**
+  String get cfgBillingByModality;
+
+  /// No description provided for @cfgBillingByModalitySub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)'**
+  String get cfgBillingByModalitySub;
+
+  /// No description provided for @cfgWeeklyLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana'**
+  String get cfgWeeklyLimit;
+
+  /// No description provided for @cfgWeeklyLimitSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'O que fazer quando o aluno excede os dias de treino do plano dele'**
+  String get cfgWeeklyLimitSub;
+
+  /// No description provided for @cfgWeeklyLimitDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alguns planos limitam quantos dias por semana o aluno pode treinar (ex.: plano de 2x/semana). Escolha o que acontece quando ele tenta um check-in além do limite.'**
+  String get cfgWeeklyLimitDesc;
+
+  /// No description provided for @cfgWeeklyLimitModeOff.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desativado'**
+  String get cfgWeeklyLimitModeOff;
+
+  /// No description provided for @cfgWeeklyLimitModeOffSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não controla limite de dias por semana'**
+  String get cfgWeeklyLimitModeOffSub;
+
+  /// No description provided for @cfgWeeklyLimitModeWarn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisar'**
+  String get cfgWeeklyLimitModeWarn;
+
+  /// No description provided for @cfgWeeklyLimitModeWarnSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Deixa fazer check-in, mas avisa que passou do limite do plano'**
+  String get cfgWeeklyLimitModeWarnSub;
+
+  /// No description provided for @cfgWeeklyLimitModeBlock.
+  ///
+  /// In pt, this message translates to:
+  /// **'Bloquear'**
+  String get cfgWeeklyLimitModeBlock;
+
+  /// No description provided for @cfgWeeklyLimitModeBlockSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Impede o check-in ao atingir o limite semanal do plano'**
+  String get cfgWeeklyLimitModeBlockSub;
+
+  /// No description provided for @cfgWeeklyLimitSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana salvo.'**
+  String get cfgWeeklyLimitSaved;
+
+  /// No description provided for @cfgAutoAbsence.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falta automática após 24h'**
+  String get cfgAutoAbsence;
+
+  /// No description provided for @cfgAutoAbsenceSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).'**
+  String get cfgAutoAbsenceSub;
 
   /// No description provided for @cfgGradSection.
   ///
@@ -8293,6 +8515,66 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.'**
   String get rnBillingDesc;
+
+  /// No description provided for @rnDeleteStudentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir aluno definitivamente'**
+  String get rnDeleteStudentTitle;
+
+  /// No description provided for @rnDeleteStudentDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora dá para excluir um aluno de vez: matrículas, mensalidades, presenças e histórico saem junto, sem afetar irmãos que compartilham o mesmo telefone ou e-mail.'**
+  String get rnDeleteStudentDesc;
+
+  /// No description provided for @rnBillingByModalityTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade'**
+  String get rnBillingByModalityTitle;
+
+  /// No description provided for @rnBillingByModalityDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações pode cobrar cada modalidade separadamente — por exemplo, jiu-jitsu e judô com valores e vencimentos independentes.'**
+  String get rnBillingByModalityDesc;
+
+  /// No description provided for @rnWeeklyLimitTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana'**
+  String get rnWeeklyLimitTitle;
+
+  /// No description provided for @rnWeeklyLimitDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos com limite de treinos por semana agora podem avisar ou bloquear o check-in do aluno ao ultrapassar a cota, e isso já entra na conta de faltas.'**
+  String get rnWeeklyLimitDesc;
+
+  /// No description provided for @rnAutoAbsenceTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falta automática configurável'**
+  String get rnAutoAbsenceTitle;
+
+  /// No description provided for @rnAutoAbsenceDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.'**
+  String get rnAutoAbsenceDesc;
+
+  /// No description provided for @rnAbsenceFixTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Correção nas faltas'**
+  String get rnAbsenceFixTitle;
+
+  /// No description provided for @rnAbsenceFixDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.'**
+  String get rnAbsenceFixDesc;
 }
 
 class _AppLocalizationsDelegate

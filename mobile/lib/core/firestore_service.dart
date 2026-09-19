@@ -11,6 +11,12 @@ class CheckinBloqueadoException implements Exception {
   String toString() => mensagem;
 }
 
+class _LimiteDiasSemanaResultado {
+  const _LimiteDiasSemanaResultado({required this.modo, required this.mensagem});
+  final String modo;
+  final String mensagem;
+}
+
 /// Substitui todas as chamadas de API REST ao backend Render.
 /// Todos os dados vêm diretamente do Firebase Firestore.
 class FirestoreService {
@@ -851,9 +857,36 @@ class FirestoreService {
     final bloqueio = await motivoBloqueioCheckin(academiaId, alunoId);
     if (bloqueio != null) throw CheckinBloqueadoException(bloqueio);
 
+    var presenca = data;
+    // Alguns check-ins (ex.: professor escaneando o QR do aluno) só gravam
+    // horario_id. Sem turma_id o cálculo de frequência não sabe pra qual
+    // turma essa presença conta — resolve aqui, no único funil de escrita,
+    // pra cobrir todos os pontos de check-in de uma vez.
+    var turmaId = data['turma_id']?.toString() ?? '';
+    final horarioId = data['horario_id']?.toString() ?? '';
+    if (turmaId.isEmpty && horarioId.isNotEmpty) {
+      final horarioDoc = await _doc(academiaId, 'horarios', horarioId).get();
+      final horarioTurmaId =
+          (horarioDoc.data() as Map<String, dynamic>?)?['turma_id']
+              ?.toString();
+      if (horarioTurmaId != null && horarioTurmaId.isNotEmpty) {
+        turmaId = horarioTurmaId;
+        presenca = {...data, 'turma_id': horarioTurmaId};
+      }
+    }
+
+    // Config opt-in da academia (padrão 'off' = sem custo extra de leitura
+    // pra quem não usa): só bloqueia check-in por limite semanal do plano
+    // quando o modo é explicitamente 'bloqueio'. Modo 'aviso' é decisão da
+    // UI (ver [avisoLimiteDiasSemana]), nunca impede o check-in aqui.
+    final limite = await _verificarLimiteDiasSemana(academiaId, alunoId, turmaId);
+    if (limite != null && limite.modo == 'bloqueio') {
+      throw CheckinBloqueadoException(limite.mensagem);
+    }
+
     final ref = _col(academiaId, 'presencas').doc();
     await ref.set({
-      ...data,
+      ...presenca,
       'id': ref.id,
       'criado_em': FieldValue.serverTimestamp(),
     });
@@ -918,6 +951,212 @@ class FirestoreService {
       }
     }
     return null;
+  }
+
+  /// Resultado da verificação de limite semanal do plano: `modo` vem da
+  /// config da academia (`limite_dias_semana_modo`) — quem chama decide o
+  /// que fazer com isso ('bloqueio' impede o check-in, 'aviso' só informa).
+  Future<_LimiteDiasSemanaResultado?> _verificarLimiteDiasSemana(
+    String academiaId,
+    String alunoId,
+    String turmaId,
+  ) async {
+    if (turmaId.isEmpty) return null;
+
+    final academiaDoc = await _db.collection('academias').doc(academiaId).get();
+    final academia = academiaDoc.data() as Map<String, dynamic>? ?? {};
+    final modo = academia['limite_dias_semana_modo'] as String? ?? 'off';
+    if (modo == 'off') return null; // custo zero pra quem não usa a feature.
+
+    final turmaDoc = await _doc(academiaId, 'turmas', turmaId).get();
+    final turmaData = turmaDoc.data() as Map<String, dynamic>? ?? {};
+    final modalidadeId =
+        (turmaData['modalidadeId'] ?? turmaData['modalidade_id'])?.toString();
+    final cobrancaPorModalidade = academia['cobranca_por_modalidade_ativa'] == true;
+
+    Map<String, dynamic>? plano;
+    if (cobrancaPorModalidade && modalidadeId != null && modalidadeId.isNotEmpty) {
+      final matriculaSnap = await _col(academiaId, 'planos_modalidade')
+          .where('aluno_id', isEqualTo: alunoId)
+          .where('modalidade_id', isEqualTo: modalidadeId)
+          .where('ativo', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (matriculaSnap.docs.isEmpty) return null;
+      final planoId =
+          (matriculaSnap.docs.first.data() as Map<String, dynamic>)['plano_id']
+              ?.toString();
+      if (planoId == null || planoId.isEmpty) return null;
+      plano = await getPlano(academiaId, planoId);
+    } else {
+      final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
+      final planoId =
+          (alunoDoc.data() as Map<String, dynamic>?)?['plano_id']?.toString();
+      if (planoId == null || planoId.isEmpty) return null;
+      plano = await getPlano(academiaId, planoId);
+    }
+
+    final limite = (plano?['limite_dias_semana'] as num?)?.toInt();
+    if (limite == null || limite <= 0) return null;
+
+    final agora = DateTime.now();
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    // weekday: 1=segunda..7=domingo -> volta pra segunda-feira da semana.
+    final inicioSemana = hoje.subtract(Duration(days: hoje.weekday - 1));
+    String fmt(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    final presencasSnap = await _col(academiaId, 'presencas')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('data', isGreaterThanOrEqualTo: fmt(inicioSemana))
+        .where('data', isLessThanOrEqualTo: fmt(hoje))
+        .get();
+
+    Set<String> diasContados;
+    if (modalidadeId == null || modalidadeId.isEmpty) {
+      // Modelo legado (1 plano só): toda presença da semana conta.
+      diasContados = {
+        for (final doc in presencasSnap.docs)
+          (doc.data() as Map<String, dynamic>)['data']?.toString() ?? '',
+      }..removeWhere((d) => d.isEmpty);
+    } else {
+      // Multi-modalidade: só conta presença de turma da MESMA modalidade,
+      // pra não misturar o limite de jiujitsu com o de judô, por exemplo.
+      final turmaIds = {
+        for (final doc in presencasSnap.docs)
+          (doc.data() as Map<String, dynamic>)['turma_id']?.toString() ?? '',
+      }..removeWhere((id) => id.isEmpty);
+      final modalidadePorTurma = <String, String?>{};
+      for (var i = 0; i < turmaIds.length; i += 30) {
+        final chunk = turmaIds.toList().sublist(
+          i,
+          (i + 30).clamp(0, turmaIds.length),
+        );
+        if (chunk.isEmpty) continue;
+        final turmasSnap = await _col(
+          academiaId,
+          'turmas',
+        ).where(FieldPath.documentId, whereIn: chunk).get();
+        for (final t in turmasSnap.docs) {
+          final td = t.data() as Map<String, dynamic>;
+          modalidadePorTurma[t.id] =
+              (td['modalidadeId'] ?? td['modalidade_id'])?.toString();
+        }
+      }
+      diasContados = {
+        for (final doc in presencasSnap.docs)
+          if (modalidadePorTurma[(doc.data() as Map<String, dynamic>)['turma_id']
+                  ?.toString() ??
+              ''] ==
+              modalidadeId)
+            (doc.data() as Map<String, dynamic>)['data']?.toString() ?? '',
+      }..removeWhere((d) => d.isEmpty);
+    }
+
+    if (diasContados.length < limite) return null;
+    return _LimiteDiasSemanaResultado(
+      modo: modo,
+      mensagem:
+          'Limite semanal do plano atingido ($limite dia${limite == 1 ? '' : 's'}/semana). '
+          'Procure a secretaria da academia.',
+    );
+  }
+
+  /// Monta `turmaId -> limite semanal de dias` do plano aplicável a cada
+  /// turma em que o aluno está matriculado — usado por [calcularFrequencia]
+  /// (em `frequencia_treino.dart`) pra não gerar falta em dia que o plano do
+  /// aluno não cobre. Mapa vazio (custo: só a leitura da academia) quando a
+  /// academia não usa a feature ou nenhum plano tem limite configurado —
+  /// zero impacto pra quem não usa.
+  Future<Map<String, int>> getLimitesDiasSemanaPorTurma(
+    String academiaId,
+    List<Map<String, dynamic>> matriculasAtivas,
+  ) async {
+    final academiaDoc = await _db.collection('academias').doc(academiaId).get();
+    final academia = academiaDoc.data() as Map<String, dynamic>? ?? {};
+    final cobrancaPorModalidade = academia['cobranca_por_modalidade_ativa'] == true;
+
+    final turmaIds = {
+      for (final m in matriculasAtivas) (m['turma_id'] ?? '').toString(),
+    }..removeWhere((id) => id.isEmpty);
+    if (turmaIds.isEmpty) return {};
+
+    final alunoId = matriculasAtivas.first['aluno_id']?.toString() ?? '';
+    final limites = <String, int>{};
+
+    if (!cobrancaPorModalidade) {
+      // Modelo legado: 1 plano só, vale pra toda turma matriculada.
+      if (alunoId.isEmpty) return {};
+      final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
+      final planoId =
+          (alunoDoc.data() as Map<String, dynamic>?)?['plano_id']?.toString();
+      if (planoId == null || planoId.isEmpty) return {};
+      final plano = await getPlano(academiaId, planoId);
+      final limite = (plano?['limite_dias_semana'] as num?)?.toInt();
+      if (limite == null || limite <= 0) return {};
+      for (final turmaId in turmaIds) {
+        limites[turmaId] = limite;
+      }
+      return limites;
+    }
+
+    // Multi-modalidade: cada turma pode ter um plano/limite diferente,
+    // dependendo da modalidade dela.
+    final turmasSnap = await _col(
+      academiaId,
+      'turmas',
+    ).where(FieldPath.documentId, whereIn: turmaIds.toList()).get();
+    final modalidadePorTurma = <String, String?>{
+      for (final t in turmasSnap.docs)
+        t.id: ((t.data() as Map<String, dynamic>)['modalidadeId'] ??
+                (t.data() as Map<String, dynamic>)['modalidade_id'])
+            ?.toString(),
+    };
+
+    final planosModalidadeSnap = await _col(academiaId, 'planos_modalidade')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('ativo', isEqualTo: true)
+        .get();
+    final planoIdPorModalidade = <String, String>{
+      for (final doc in planosModalidadeSnap.docs)
+        (doc.data() as Map<String, dynamic>)['modalidade_id']?.toString() ??
+            '': (doc.data() as Map<String, dynamic>)['plano_id']?.toString() ??
+            '',
+    }..removeWhere((k, v) => k.isEmpty || v.isEmpty);
+
+    final planoIds = planoIdPorModalidade.values.toSet();
+    final limitePorPlano = <String, int>{};
+    for (final planoId in planoIds) {
+      final plano = await getPlano(academiaId, planoId);
+      final limite = (plano?['limite_dias_semana'] as num?)?.toInt();
+      if (limite != null && limite > 0) limitePorPlano[planoId] = limite;
+    }
+
+    for (final turmaId in turmaIds) {
+      final modalidadeId = modalidadePorTurma[turmaId];
+      final planoId = planoIdPorModalidade[modalidadeId];
+      final limite = limitePorPlano[planoId];
+      if (limite != null) limites[turmaId] = limite;
+    }
+    return limites;
+  }
+
+  /// Versão não-bloqueante de [_verificarLimiteDiasSemana]: telas de
+  /// check-in chamam isto ANTES de registrar a presença pra exibir um aviso
+  /// (modo 'aviso') sem impedir o check-in — o bloqueio de verdade (modo
+  /// 'bloqueio') já acontece dentro de [addPresenca].
+  Future<String?> avisoLimiteDiasSemana(
+    String academiaId,
+    String alunoId,
+    String turmaId,
+  ) async {
+    final resultado = await _verificarLimiteDiasSemana(
+      academiaId,
+      alunoId,
+      turmaId,
+    );
+    if (resultado == null || resultado.modo != 'aviso') return null;
+    return resultado.mensagem;
   }
 
   /// Retorna os aluno_ids que já têm presença registrada para turmaId+data.
@@ -1173,6 +1412,57 @@ class FirestoreService {
   Future<void> deletePlano(String academiaId, String id) => _doc(
     academiaId,
     'planos',
+    id,
+  ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+
+  // ─── PLANOS POR MODALIDADE (opt-in via academia.cobranca_por_modalidade_ativa) ─
+  //
+  // Um doc por (aluno, modalidade): {aluno_id, modalidade_id, plano_id,
+  // dia_vencimento, ativo}. Nunca usado se a academia não tiver ativado a
+  // flag — o modelo legado (aluno.plano_id escalar) continua sendo o único
+  // caminho nesse caso.
+
+  Future<List<Map<String, dynamic>>> getPlanosModalidadeDoAluno(
+    String academiaId,
+    String alunoId,
+  ) async {
+    final snap = await _col(academiaId, 'planos_modalidade')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('ativo', isEqualTo: true)
+        .get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
+  Future<String> addPlanoModalidade(
+    String academiaId,
+    Map<String, dynamic> data,
+  ) async {
+    final ref = _col(academiaId, 'planos_modalidade').doc();
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'ativo': true,
+      'criado_em': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  Future<void> updatePlanoModalidade(
+    String academiaId,
+    String id,
+    Map<String, dynamic> data,
+  ) => _doc(
+    academiaId,
+    'planos_modalidade',
+    id,
+  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+
+  /// Encerra a matrícula naquela modalidade (soft delete, mesmo padrão de
+  /// `deletePlano`) — para de gerar cobrança dali em diante, sem apagar o
+  /// histórico de cobranças já geradas.
+  Future<void> deletePlanoModalidade(String academiaId, String id) => _doc(
+    academiaId,
+    'planos_modalidade',
     id,
   ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
 

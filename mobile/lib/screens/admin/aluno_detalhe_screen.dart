@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'aluno_planos_modalidade_screen.dart';
+import '../../core/aluno_service.dart';
 import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
@@ -49,6 +51,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, dynamic>? _grupoFamiliar;
   List<Map<String, dynamic>> _membrosGrupo = [];
   Map<String, dynamic>? _plano;
+  bool _cobrancaPorModalidadeAtiva = false;
+  List<Map<String, dynamic>> _planosModalidade = [];
+  List<Map<String, dynamic>> _modalidadesPorId = [];
   String? _meId;
   String? _academiaId;
   StoredUser? _callerUser;
@@ -108,6 +113,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ativasOnly: false,
         ),
         firestoreService.getTurmas(academiaId),
+        firestoreService.getAcademia(academiaId),
+        firestoreService.getPlanosModalidadeDoAluno(academiaId, widget.alunoId),
+        firestoreService.getModalidades(academiaId),
+        firestoreService.getPlanos(academiaId),
       ]);
 
       final alunoRaw = results[0] as Map<String, dynamic>?;
@@ -119,6 +128,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final faixas = (results[5] as List).cast<Map<String, dynamic>>();
       final matriculas = (results[6] as List).cast<Map<String, dynamic>>();
       final todasTurmas = (results[7] as List).cast<Map<String, dynamic>>();
+      final academiaDoc = results[8] as Map<String, dynamic>?;
+      final planosModalidadeDoAluno = (results[9] as List)
+          .cast<Map<String, dynamic>>();
+      final modalidadesLista = (results[10] as List)
+          .cast<Map<String, dynamic>>();
+      final todosPlanos = (results[11] as List).cast<Map<String, dynamic>>();
+      final planosPorId = <String, Map<String, dynamic>>{
+        for (final p in todosPlanos) p['id'].toString(): p,
+      };
 
       // Modo professor: só pode abrir alunos das turmas dele (salvo
       // "ver todas as turmas").
@@ -303,6 +321,17 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         } catch (_) {}
       }
 
+      final planosModalidadeEnriquecidos = planosModalidadeDoAluno
+          .map((m) {
+            final plano = planosPorId[m['plano_id']?.toString() ?? ''];
+            return <String, dynamic>{
+              ...m,
+              'planoNome': plano?['nome'] ?? '',
+              'valorMensal': plano?['valor_mensal'],
+            };
+          })
+          .toList();
+
       if (mounted)
         setState(() {
           _aluno = aluno;
@@ -314,6 +343,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           _faixasPorModalidade = faixasMod;
           _graduacoes = List.of(enrichedGraduacoes)
             ..sort(compararGraduacoesCronologicamente);
+          _cobrancaPorModalidadeAtiva =
+              academiaDoc?['cobranca_por_modalidade_ativa'] as bool? ?? false;
+          _planosModalidade = planosModalidadeEnriquecidos;
+          _modalidadesPorId = modalidadesLista;
         });
     } catch (_) {
       if (mounted) setState(() => _erro = _l.sdLoadError);
@@ -374,6 +407,85 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Exclusão definitiva do aluno (Cloud Function `excluirAluno`): apaga
+  /// matrículas, mensalidades, presenças, graduações e notificações, e
+  /// desvincula só este aluno de uma conta de acesso compartilhada (mesmo
+  /// telefone/e-mail de outro aluno), sem afetar o outro.
+  Future<void> _excluirAluno() async {
+    final academiaId = _academiaId;
+    final a = _aluno;
+    if (academiaId == null || a == null) return;
+    final nome = a['nome']?.toString() ?? '';
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              _l.sdDeleteAlunoConfirmTitle(nome),
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Text(
+              _l.sdDeleteAlunoConfirmBody,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  _l.commonDelete,
+                  style: TextStyle(color: context.sem.danger, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok || !mounted) return;
+
+    // Ver comentário equivalente em turma_detalhe_screen.dart._excluirTurma:
+    // captura o Navigator raiz ANTES do showDialog, pra fechar o loading sem
+    // fechar a própria tela quando ela está num Navigator aninhado.
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await AlunoService.excluirAluno(academiaId: academiaId, alunoId: widget.alunoId);
+      rootNavigator.pop();
+      if (!mounted) return;
+      Navigator.of(context).pop(); // volta pra lista — o aluno não existe mais
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_l.sdDeleteAlunoSuccess),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      rootNavigator.pop();
+      String msg = _l.sdDeleteAlunoError;
+      if (e is FirebaseFunctionsException) msg = e.message ?? msg;
+      messenger.showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: context.sem.danger, behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -1800,13 +1912,81 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   // ── Plano ─────────────────────────────────────────────
 
   Widget _buildPlanoCard(Map<String, dynamic> a) {
+    // Cobrança por modalidade ativa: o campo único "Plano" (legado) deixa de
+    // ser cobrado de verdade (o financeiro ignora `plano_id` nesse modo — ver
+    // `ensureChargesPorModalidade`), então mostrar o valor antigo aqui só
+    // confundiria o admin. Mostra a lista de matrículas por modalidade em
+    // vez disso.
+    if (_cobrancaPorModalidadeAtiva) {
+      return _buildCard([
+        Row(
+          children: [
+            Expanded(child: _sectionTitle(_l.sdPlanByModalitySection)),
+            if (!_pm)
+              GestureDetector(
+                onTap: _abrirPlanosModalidade,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.edit_rounded,
+                    color: context.c.primary,
+                    size: 16,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_planosModalidade.isEmpty)
+          Text(
+            _l.sdNoPlan,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+          )
+        else
+          for (final m in _planosModalidade) ...[
+            _row(
+              _modalidadesPorId.firstWhere(
+                    (mod) => mod['id'] == m['modalidade_id'],
+                    orElse: () => const {},
+                  )['nome']
+                      as String? ??
+                  '',
+              m['planoNome']?.toString() ?? '',
+            ),
+            if (m['valorMensal'] != null)
+              _row(
+                _l.sdMonthlyValue,
+                'R\$ ${(m['valorMensal'] as num).toDouble().toStringAsFixed(2).replaceAll('.', ',')}',
+              ),
+            if (m['dia_vencimento'] != null)
+              _row(_l.sdDueDate, _l.sdEveryDayN(m['dia_vencimento'])),
+            if (m != _planosModalidade.last) const Divider(height: 20),
+          ],
+      ]);
+    }
+
     final planoNome = _plano?['nome'] as String? ?? a['planoNome'] as String?;
     final valorMensal = (_plano?['valor_mensal'] as num?)?.toDouble();
     final diaVenc = a['diaVencimento'];
 
     if (planoNome == null && valorMensal == null && diaVenc == null) {
       return _buildCard([
-        _sectionTitle(_l.sdPlanSection),
+        Row(
+          children: [
+            Expanded(child: _sectionTitle(_l.sdPlanSection)),
+            if (!_pm)
+              GestureDetector(
+                onTap: _abrirPlanosModalidade,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.category_outlined,
+                    color: context.c.onSurfaceVariant,
+                    size: 18,
+                  ),
+                ),
+              ),
+          ],
+        ),
         Text(
           _l.sdNoPlan,
           style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
@@ -1818,6 +1998,18 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       Row(
         children: [
           Expanded(child: _sectionTitle(_l.sdPlanSection)),
+          if (!_pm)
+            GestureDetector(
+              onTap: _abrirPlanosModalidade,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.category_outlined,
+                  color: context.c.onSurfaceVariant,
+                  size: 18,
+                ),
+              ),
+            ),
           GestureDetector(
             onTap: _editarAluno,
             child: Padding(
@@ -1839,6 +2031,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         ),
       if (diaVenc != null) _row(_l.sdDueDate, _l.sdEveryDayN(diaVenc)),
     ]);
+  }
+
+  /// Abre a gestão de planos por modalidade (feature opt-in, independente do
+  /// campo "Plano" legado acima) — a própria tela avisa se a academia não
+  /// tiver ativado `cobranca_por_modalidade_ativa` em Configurações.
+  void _abrirPlanosModalidade() {
+    final academiaId = _academiaId;
+    final a = _aluno;
+    if (academiaId == null || a == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AlunoPlanosModalidadeScreen(
+          academiaId: academiaId,
+          alunoId: widget.alunoId,
+          alunoNome: a['nome']?.toString() ?? '',
+        ),
+      ),
+    );
   }
 
   // ── Acesso ao App ─────────────────────────────────────
@@ -4214,6 +4425,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+            if (!_pm)
+              IconButton(
+                onPressed: _excluirAluno,
+                icon: Icon(
+                  Icons.delete_forever_rounded,
+                  color: context.sem.danger,
+                  size: 20,
+                ),
+                tooltip: _l.sdDeleteAlunoAction,
               ),
           ],
         ],

@@ -9,11 +9,13 @@ const {
   authEmailMatchesIdentifier,
   buildAccountDocument,
   profileRole,
+  removeProfileRef,
   syntheticAuthEmails,
 } = require("../domain/account");
 const {
   addBillingMonths,
   dueDateForPeriod,
+  modalityChargeDocumentId,
   monthLabelPtBr,
   monthlyChargeDocumentId,
   resolveChargeStatus,
@@ -56,6 +58,13 @@ test("financeiro: id mensal é determinístico", () => {
     monthlyChargeDocumentId("student-a", "2026-09"),
     "mensalidade__student-a__2026-09",
   );
+});
+
+test("financeiro: id de cobrança por modalidade nunca colide com o legado", () => {
+  const legado = monthlyChargeDocumentId("student-a", "2026-09");
+  const porModalidade = modalityChargeDocumentId("student-a", "jiujitsu", "2026-09");
+  assert.equal(porModalidade, "mensalidade__student-a__jiujitsu__2026-09");
+  assert.notEqual(legado, porModalidade);
 });
 
 test("financeiro: grupo sem duplicata (0 ou 1 doc) não decide nada", () => {
@@ -157,6 +166,37 @@ test("identidade: conta v2 mantém papéis isolados por academia", () => {
   });
   assert.equal(account.perfil, "Admin");
   assert.equal(account.email_canonical, "responsavel@example.com");
+
+  const semFilha = removeProfileRef(account, "academy-b|usuarios|student-b");
+  assert.equal(semFilha.deleted, false);
+  assert.deepEqual(semFilha.data.academy_ids, ["academy-a"]);
+  assert.deepEqual(semFilha.data.roles_by_academy, { "academy-a": ["Admin"] });
+  assert.equal(semFilha.data.primary_profile_key, "academy-a|funcionarios|admin-a");
+  assert.equal(semFilha.data.profile_refs.length, 1);
+});
+
+test("exclusão de aluno: irmão com telefone compartilhado não é afetado", () => {
+  const account = buildAccountDocument({
+    uid: "conta-compartilhada",
+    primaryProfileKey: "academia-x|usuarios|aluno-1",
+    phoneCanonical: "+5521999999999",
+    profiles: [
+      { academiaId: "academia-x", usuarioId: "aluno-1", colecao: "usuarios", perfil_nome: "Aluno", nome: "Irmão 1" },
+      { academiaId: "academia-x", usuarioId: "aluno-2", colecao: "usuarios", perfil_nome: "Aluno", nome: "Irmão 2" },
+    ],
+  });
+
+  // Exclui o aluno-1 (era o perfil primário) — aluno-2 continua com acesso.
+  const resultado = removeProfileRef(account, "academia-x|usuarios|aluno-1");
+  assert.equal(resultado.deleted, false);
+  assert.equal(resultado.data.profile_refs.length, 1);
+  assert.equal(resultado.data.profile_refs[0].usuarioId, "aluno-2");
+  // Perfil primário é recalculado pois o antigo não existe mais.
+  assert.equal(resultado.data.primary_profile_key, "academia-x|usuarios|aluno-2");
+
+  // Excluindo o único perfil restante, a conta inteira deve sumir.
+  const contaVazia = removeProfileRef(resultado.data, "academia-x|usuarios|aluno-2");
+  assert.equal(contaVazia.deleted, true);
 });
 
 test("identidade: reconhece papéis legados sem transformar aluno em admin", () => {

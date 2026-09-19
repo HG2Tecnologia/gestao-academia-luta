@@ -347,3 +347,111 @@ test("corrige mensalidade duplicada (mesmo aluno + mesmo mês) preservando a pag
     assert.equal((await pagamentos.doc("sem-duplicata").get()).data().status, 0);
   });
 });
+
+test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade, sem tocar no modelo legado", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const firestore = ctx.firestore();
+    await firestore.doc("academias/academy-c").set({
+      nome: "Academia C",
+      cobranca_por_modalidade_ativa: true,
+    });
+    await firestore.doc("academias/academy-c/funcionarios/admin-c").set({
+      nome: "Admin C",
+      perfil: "Admin",
+      ativo: true,
+    });
+    await firestore.doc("academias/academy-c/planos/plano-jiujitsu").set({
+      nome: "Jiu-jitsu",
+      valor_mensal: 100,
+      ativo: true,
+    });
+    await firestore.doc("academias/academy-c/planos/plano-judo").set({
+      nome: "Judô",
+      valor_mensal: 70,
+      ativo: true,
+    });
+    // Ainda tem plano_id legado preenchido (resquício de antes de ativar o
+    // modo por modalidade) — não pode gerar uma 3ª cobrança combinando os
+    // dois modelos.
+    await firestore.doc("academias/academy-c/usuarios/aluno-multi").set({
+      nome: "Aluno Multi-modalidade",
+      ativo: true,
+      plano_id: "plano-jiujitsu",
+      dia_vencimento: 5,
+    });
+    await firestore.doc("academias/academy-c/planos_modalidade/matricula-jiujitsu").set({
+      aluno_id: "aluno-multi",
+      modalidade_id: "jiujitsu",
+      plano_id: "plano-jiujitsu",
+      dia_vencimento: 10,
+      ativo: true,
+    });
+    await firestore.doc("academias/academy-c/planos_modalidade/matricula-judo").set({
+      aluno_id: "aluno-multi",
+      modalidade_id: "judo",
+      plano_id: "plano-judo",
+      dia_vencimento: 20,
+      ativo: true,
+    });
+    // Matrícula inativa (aluno trancou a modalidade) — não deve gerar cobrança.
+    await firestore.doc("academias/academy-c/planos_modalidade/matricula-cancelada").set({
+      aluno_id: "aluno-multi",
+      modalidade_id: "boxe",
+      plano_id: "plano-jiujitsu",
+      dia_vencimento: 10,
+      ativo: false,
+    });
+  });
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-c-finance@sensei.app", "SenhaFixtureAdmin1");
+  await environment.withSecurityRulesDisabled((ctx) =>
+    ctx.firestore().doc(`usuariosFirebase/${auth.currentUser.uid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-c|funcionarios|admin-c", academiaId: "academy-c", colecao: "funcionarios", usuarioId: "admin-c", perfil_nome: "Admin", nome: "Admin C" },
+      ],
+    }),
+  );
+
+  const functions = getFunctions(app);
+  const garantir = httpsCallable(functions, "ensureChargesForPeriod");
+  const resultado = await garantir({ academiaId: "academy-c", period: "2026-10" });
+
+  assert.equal(resultado.data.criadas, 2, "1 cobrança pra jiujitsu + 1 pra judô, matrícula inativa não conta");
+  assert.equal(resultado.data.ignoradas, 0);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-c/pagamentos");
+
+    const jiujitsu = await pagamentos.doc("mensalidade__aluno-multi__jiujitsu__2026-10").get();
+    assert.equal(jiujitsu.exists, true);
+    assert.equal(jiujitsu.data().valor, 100);
+    assert.equal(jiujitsu.data().data_vencimento, "2026-10-10");
+
+    const judo = await pagamentos.doc("mensalidade__aluno-multi__judo__2026-10").get();
+    assert.equal(judo.exists, true);
+    assert.equal(judo.data().valor, 70);
+    assert.equal(judo.data().data_vencimento, "2026-10-20");
+
+    // Modelo legado (plano_id/dia_vencimento no aluno) não gera cobrança
+    // extra quando a academia está no modo por modalidade.
+    const legado = await pagamentos.doc("mensalidade__aluno-multi__2026-10").get();
+    assert.equal(legado.exists, false);
+
+    // Pagar a de jiujitsu não pode afetar a de judô — independência total.
+    await jiujitsu.ref.update({ status: 1, data_pagamento: "2026-10-05" });
+  });
+
+  // Rodar de novo pra mesma competência continua idempotente e não mexe na
+  // que já foi paga.
+  const resultado2 = await garantir({ academiaId: "academy-c", period: "2026-10" });
+  assert.equal(resultado2.data.criadas, 0);
+  assert.equal(resultado2.data.ignoradas, 2);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-c/pagamentos");
+    assert.equal((await pagamentos.doc("mensalidade__aluno-multi__jiujitsu__2026-10").get()).data().status, 1);
+    assert.equal((await pagamentos.doc("mensalidade__aluno-multi__judo__2026-10").get()).data().status, 0);
+  });
+});

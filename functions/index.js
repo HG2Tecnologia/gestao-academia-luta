@@ -27,6 +27,9 @@ exports.editarGraduacao = graduacaoFunctions.editarGraduacao;
 const turmaFunctions = require("./turma-functions");
 exports.arquivarTurma = turmaFunctions.arquivarTurma;
 
+const alunoFunctions = require("./aluno-functions");
+exports.excluirAluno = alunoFunctions.excluirAluno;
+
 const financeFunctions = require("./finance-functions");
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;

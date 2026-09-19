@@ -295,6 +295,15 @@ class _EscanearTabState extends State<_EscanearTab> {
         turmaId = codigo.substring('TURMA:'.length);
       }
 
+      String? aviso;
+      if (turmaId.isNotEmpty) {
+        aviso = await firestoreService.avisoLimiteDiasSemana(
+          academiaId,
+          user.id,
+          turmaId,
+        );
+      }
+
       await firestoreService.addPresenca(academiaId, {
         'aluno_id': user.id,
         'turma_id': turmaId,
@@ -308,7 +317,7 @@ class _EscanearTabState extends State<_EscanearTab> {
 
       setState(() {
         _sucesso = true;
-        _mensagem = context.l10n.apQrCheckinSuccess;
+        _mensagem = aviso ?? context.l10n.apQrCheckinSuccess;
       });
     } catch (e) {
       setState(() {

@@ -35,6 +35,18 @@ function monthlyChargeDocumentId(studentId, periodValue) {
   return `mensalidade__${studentId}__${period}`;
 }
 
+/**
+ * ID determinístico da cobrança de UMA modalidade (usado só quando a
+ * academia ativa cobrança por modalidade — `cobranca_por_modalidade_ativa`).
+ * Nunca colide com `monthlyChargeDocumentId`, que não tem o segmento de
+ * modalidade — os dois esquemas de cobrança podem coexistir sem conflito de
+ * ID mesmo que uma academia alterne entre eles.
+ */
+function modalityChargeDocumentId(studentId, modalidadeId, periodValue) {
+  const period = parseBillingPeriod(periodValue).value;
+  return `mensalidade__${studentId}__${modalidadeId}__${period}`;
+}
+
 const MONTH_LABELS_PT_BR = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -94,6 +106,7 @@ function resolveDuplicateGroup(docs) {
 module.exports = {
   addBillingMonths,
   dueDateForPeriod,
+  modalityChargeDocumentId,
   monthLabelPtBr,
   monthlyChargeDocumentId,
   parseBillingPeriod,
