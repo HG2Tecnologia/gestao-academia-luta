@@ -1139,6 +1139,13 @@
     }
   },
   "fiCleanupRetroactiveError": "Não foi possível limpar as cobranças retroativas. Tente novamente.",
+  "fiExportReport": "Exportar relatório",
+  "fiExportSheetTitle": "Colunas do relatório financeiro",
+  "fiExportColumnType": "Tipo",
+  "fiExportColumnValue": "Valor",
+  "fiExportColumnDueDate": "Vencimento",
+  "fiExportColumnStatus": "Status",
+  "fiExportColumnPaidDate": "Data de pagamento",
   "fiMergeDuplicates": "Corrigir duplicadas",
   "fiMergeDuplicatesTitle": "Corrigir mensalidades duplicadas",
   "fiMergeDuplicatesExplain": "Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.",
@@ -2405,5 +2412,34 @@
   "rnAutoAbsenceTitle": "Falta automática configurável",
   "rnAutoAbsenceDesc": "Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.",
   "rnAbsenceFixTitle": "Correção nas faltas",
-  "rnAbsenceFixDesc": "Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados."
+  "rnAbsenceFixDesc": "Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.",
+  "rpTitle": "Relatório de Presenças",
+  "rpNoAccess": "Você não tem acesso a este relatório.",
+  "rpAllClasses": "Todas as turmas",
+  "rpPeriodMonth": "Mês",
+  "rpPeriodYear": "Ano",
+  "rpSelectMonth": "Selecione um dia do mês desejado",
+  "rpColumnName": "Nome",
+  "rpColumnPhone": "Telefone",
+  "rpColumnClass": "Turma",
+  "rpColumnBelt": "Faixa",
+  "rpColumnPresences": "Presenças",
+  "rpColumnAbsences": "Faltas",
+  "rpColumnTotalClasses": "Total de aulas",
+  "rpColumnPercent": "% Frequência",
+  "rpExport": "Exportar",
+  "rpExportPdf": "Exportar PDF",
+  "rpExportExcel": "Exportar Excel",
+  "rpExportColumnsTitle": "Colunas do relatório",
+  "rpEmpty": "Nenhum dado de presença para o período e turma selecionados.",
+  "rpRowCount": "Registros no período",
+  "rpStudentsSection": "Alunos",
+  "rpSummaryLine": "{presencas} presenças · {faltas} faltas · {total} aulas no período",
+  "@rpSummaryLine": {
+    "placeholders": {
+      "presencas": {"type": "int"},
+      "faltas": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

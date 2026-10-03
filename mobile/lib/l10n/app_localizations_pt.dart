@@ -2295,6 +2295,27 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não foi possível limpar as cobranças retroativas. Tente novamente.';
 
   @override
+  String get fiExportReport => 'Exportar relatório';
+
+  @override
+  String get fiExportSheetTitle => 'Colunas do relatório financeiro';
+
+  @override
+  String get fiExportColumnType => 'Tipo';
+
+  @override
+  String get fiExportColumnValue => 'Valor';
+
+  @override
+  String get fiExportColumnDueDate => 'Vencimento';
+
+  @override
+  String get fiExportColumnStatus => 'Status';
+
+  @override
+  String get fiExportColumnPaidDate => 'Data de pagamento';
+
+  @override
   String get fiMergeDuplicates => 'Corrigir duplicadas';
 
   @override
@@ -4846,4 +4867,73 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get rnAbsenceFixDesc =>
       'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.';
+
+  @override
+  String get rpTitle => 'Relatório de Presenças';
+
+  @override
+  String get rpNoAccess => 'Você não tem acesso a este relatório.';
+
+  @override
+  String get rpAllClasses => 'Todas as turmas';
+
+  @override
+  String get rpPeriodMonth => 'Mês';
+
+  @override
+  String get rpPeriodYear => 'Ano';
+
+  @override
+  String get rpSelectMonth => 'Selecione um dia do mês desejado';
+
+  @override
+  String get rpColumnName => 'Nome';
+
+  @override
+  String get rpColumnPhone => 'Telefone';
+
+  @override
+  String get rpColumnClass => 'Turma';
+
+  @override
+  String get rpColumnBelt => 'Faixa';
+
+  @override
+  String get rpColumnPresences => 'Presenças';
+
+  @override
+  String get rpColumnAbsences => 'Faltas';
+
+  @override
+  String get rpColumnTotalClasses => 'Total de aulas';
+
+  @override
+  String get rpColumnPercent => '% Frequência';
+
+  @override
+  String get rpExport => 'Exportar';
+
+  @override
+  String get rpExportPdf => 'Exportar PDF';
+
+  @override
+  String get rpExportExcel => 'Exportar Excel';
+
+  @override
+  String get rpExportColumnsTitle => 'Colunas do relatório';
+
+  @override
+  String get rpEmpty =>
+      'Nenhum dado de presença para o período e turma selecionados.';
+
+  @override
+  String get rpRowCount => 'Registros no período';
+
+  @override
+  String get rpStudentsSection => 'Alunos';
+
+  @override
+  String rpSummaryLine(int presencas, int faltas, int total) {
+    return '$presencas presenças · $faltas faltas · $total aulas no período';
+  }
 }

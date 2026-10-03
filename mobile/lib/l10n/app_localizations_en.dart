@@ -2295,6 +2295,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t clean up backdated charges. Please try again.';
 
   @override
+  String get fiExportReport => 'Export report';
+
+  @override
+  String get fiExportSheetTitle => 'Financial report columns';
+
+  @override
+  String get fiExportColumnType => 'Type';
+
+  @override
+  String get fiExportColumnValue => 'Value';
+
+  @override
+  String get fiExportColumnDueDate => 'Due date';
+
+  @override
+  String get fiExportColumnStatus => 'Status';
+
+  @override
+  String get fiExportColumnPaidDate => 'Paid date';
+
+  @override
   String get fiMergeDuplicates => 'Fix duplicates';
 
   @override
@@ -4842,4 +4863,72 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rnAbsenceFixDesc =>
       'Absences are no longer counted on days a class doesn\'t train — the calculation now follows the actual registered schedule.';
+
+  @override
+  String get rpTitle => 'Attendance Report';
+
+  @override
+  String get rpNoAccess => 'You don\'t have access to this report.';
+
+  @override
+  String get rpAllClasses => 'All classes';
+
+  @override
+  String get rpPeriodMonth => 'Month';
+
+  @override
+  String get rpPeriodYear => 'Year';
+
+  @override
+  String get rpSelectMonth => 'Pick any day in the desired month';
+
+  @override
+  String get rpColumnName => 'Name';
+
+  @override
+  String get rpColumnPhone => 'Phone';
+
+  @override
+  String get rpColumnClass => 'Class';
+
+  @override
+  String get rpColumnBelt => 'Belt';
+
+  @override
+  String get rpColumnPresences => 'Present';
+
+  @override
+  String get rpColumnAbsences => 'Absent';
+
+  @override
+  String get rpColumnTotalClasses => 'Total classes';
+
+  @override
+  String get rpColumnPercent => '% Attendance';
+
+  @override
+  String get rpExport => 'Export';
+
+  @override
+  String get rpExportPdf => 'Export PDF';
+
+  @override
+  String get rpExportExcel => 'Export Excel';
+
+  @override
+  String get rpExportColumnsTitle => 'Report columns';
+
+  @override
+  String get rpEmpty => 'No attendance data for the selected period and class.';
+
+  @override
+  String get rpRowCount => 'Records in period';
+
+  @override
+  String get rpStudentsSection => 'Students';
+
+  @override
+  String rpSummaryLine(int presencas, int faltas, int total) {
+    return '$presencas present · $faltas absent · $total classes in period';
+  }
 }

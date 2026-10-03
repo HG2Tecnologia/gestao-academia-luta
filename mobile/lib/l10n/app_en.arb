@@ -729,6 +729,13 @@
     }
   },
   "fiCleanupRetroactiveError": "Couldn't clean up backdated charges. Please try again.",
+  "fiExportReport": "Export report",
+  "fiExportSheetTitle": "Financial report columns",
+  "fiExportColumnType": "Type",
+  "fiExportColumnValue": "Value",
+  "fiExportColumnDueDate": "Due date",
+  "fiExportColumnStatus": "Status",
+  "fiExportColumnPaidDate": "Paid date",
   "fiMergeDuplicates": "Fix duplicates",
   "fiMergeDuplicatesTitle": "Fix duplicate monthly charges",
   "fiMergeDuplicatesExplain": "Scans every month for a student with more than one monthly charge for the same period. When it's unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.",
@@ -1852,5 +1859,34 @@
   "rnAutoAbsenceTitle": "Configurable automatic absence",
   "rnAutoAbsenceDesc": "You can turn off the automatic 24h-after-class absence marking in settings, keeping history to only what the coach marks by hand.",
   "rnAbsenceFixTitle": "Absence calculation fix",
-  "rnAbsenceFixDesc": "Absences are no longer counted on days a class doesn't train — the calculation now follows the actual registered schedule."
+  "rnAbsenceFixDesc": "Absences are no longer counted on days a class doesn't train — the calculation now follows the actual registered schedule.",
+  "rpTitle": "Attendance Report",
+  "rpNoAccess": "You don't have access to this report.",
+  "rpAllClasses": "All classes",
+  "rpPeriodMonth": "Month",
+  "rpPeriodYear": "Year",
+  "rpSelectMonth": "Pick any day in the desired month",
+  "rpColumnName": "Name",
+  "rpColumnPhone": "Phone",
+  "rpColumnClass": "Class",
+  "rpColumnBelt": "Belt",
+  "rpColumnPresences": "Present",
+  "rpColumnAbsences": "Absent",
+  "rpColumnTotalClasses": "Total classes",
+  "rpColumnPercent": "% Attendance",
+  "rpExport": "Export",
+  "rpExportPdf": "Export PDF",
+  "rpExportExcel": "Export Excel",
+  "rpExportColumnsTitle": "Report columns",
+  "rpEmpty": "No attendance data for the selected period and class.",
+  "rpRowCount": "Records in period",
+  "rpStudentsSection": "Students",
+  "rpSummaryLine": "{presencas} present · {faltas} absent · {total} classes in period",
+  "@rpSummaryLine": {
+    "placeholders": {
+      "presencas": {"type": "int"},
+      "faltas": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

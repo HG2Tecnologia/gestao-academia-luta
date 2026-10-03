@@ -12,6 +12,7 @@ import '../../core/finance_service.dart';
 import '../../core/financeiro_resumo.dart';
 import '../../core/firestore_service.dart';
 import '../../core/pagamento_status.dart';
+import '../../core/relatorio_financeiro_export.dart';
 import '../../core/tab_refresh.dart';
 
 class AdminFinanceiroScreen extends StatefulWidget {
@@ -707,6 +708,141 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final msg = Uri.encodeComponent(_l.fiWhatsappGreeting(nome));
     final url = Uri.parse('https://wa.me/$ddi?text=$msg');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Exporta a lista de cobranças atualmente visível (respeita o filtro de
+  /// aba e a busca por nome) em PDF ou Excel, com colunas que o usuário pode
+  /// marcar/desmarcar — mesmo padrão do relatório de presenças.
+  Future<void> _abrirExportarFinanceiro() async {
+    final l = _l;
+    final box = context.findRenderObject() as RenderBox?;
+    final origem = box == null ? null : (box.localToGlobal(Offset.zero) & box.size);
+
+    String fmtData(dynamic raw) {
+      if (raw == null) return '';
+      try {
+        final dt = DateTime.parse(raw.toString());
+        return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    final linhas = _cobrancasFiltradas.map((c) {
+      final valorPago = (c['valor_pago'] as num?)?.toDouble();
+      final valorBase = (c['valor'] as num? ?? 0).toDouble();
+      return LinhaRelatorioFinanceiro(
+        nomeAluno: (c['nomeAluno'] as String?) ?? '',
+        tipo: _tipoLabel(c['tipo'] as String?),
+        valorFormatado: _fmtVal(valorPago ?? valorBase),
+        vencimentoFormatado: fmtData(c['dataVencimento'] ?? c['data_vencimento']),
+        status: _statusLabel(c['status'] as String?),
+        dataPagamentoFormatada: fmtData(c['data_pagamento']),
+      );
+    }).toList();
+
+    final rotulos = <ColunaFinanceiro, String>{
+      ColunaFinanceiro.nome: l.rpColumnName,
+      ColunaFinanceiro.tipo: l.fiExportColumnType,
+      ColunaFinanceiro.valor: l.fiExportColumnValue,
+      ColunaFinanceiro.vencimento: l.fiExportColumnDueDate,
+      ColunaFinanceiro.status: l.fiExportColumnStatus,
+      ColunaFinanceiro.dataPagamento: l.fiExportColumnPaidDate,
+    };
+    final colunasSelecionadas = <ColunaFinanceiro>{...ColunaFinanceiro.values};
+    final periodoLabel = '${_mesCurto(_mes)} $_ano';
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.c.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheetContext).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.fiExportSheetTitle,
+                  style: TextStyle(color: context.c.onSurface, fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                for (final c in ColunaFinanceiro.values)
+                  CheckboxListTile(
+                    value: colunasSelecionadas.contains(c),
+                    onChanged: (v) {
+                      setSheetState(() {
+                        if (v == true) {
+                          colunasSelecionadas.add(c);
+                        } else {
+                          colunasSelecionadas.remove(c);
+                        }
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: context.c.primary,
+                    title: Text(rotulos[c] ?? '', style: TextStyle(color: context.c.onSurface, fontSize: 14)),
+                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: colunasSelecionadas.isEmpty || linhas.isEmpty
+                            ? null
+                            : () async {
+                                Navigator.of(sheetContext).pop();
+                                await exportarRelatorioFinanceiroPdf(
+                                  linhas: linhas,
+                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  rotulos: rotulos,
+                                  tituloAcademia: l.navBilling,
+                                  periodoLabel: periodoLabel,
+                                  sharePositionOrigin: origem,
+                                );
+                              },
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                        label: Text(l.rpExportPdf),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.c.primary,
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: colunasSelecionadas.isEmpty || linhas.isEmpty
+                            ? null
+                            : () async {
+                                Navigator.of(sheetContext).pop();
+                                await exportarRelatorioFinanceiroExcel(
+                                  linhas: linhas,
+                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  rotulos: rotulos,
+                                  tituloAcademia: l.navBilling,
+                                  periodoLabel: periodoLabel,
+                                  sharePositionOrigin: origem,
+                                );
+                              },
+                        icon: const Icon(Icons.table_chart_rounded, size: 18),
+                        label: Text(l.rpExportExcel),
+                        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Corrige mensalidade duplicada (mesmo aluno + mesma competência) —
@@ -2307,6 +2443,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 tooltip: _l.fiMoreActions,
                                 onSelected: (acao) => acao(),
                                 itemBuilder: (ctx) => [
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirExportarFinanceiro,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.ios_share_rounded,
+                                          size: 18,
+                                          color: context.c.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiExportReport,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   PopupMenuItem<VoidCallback>(
                                     value: _abrirModalCobrancas,
                                     child: Row(

@@ -4106,6 +4106,48 @@ abstract class AppLocalizations {
   /// **'Não foi possível limpar as cobranças retroativas. Tente novamente.'**
   String get fiCleanupRetroactiveError;
 
+  /// No description provided for @fiExportReport.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar relatório'**
+  String get fiExportReport;
+
+  /// No description provided for @fiExportSheetTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Colunas do relatório financeiro'**
+  String get fiExportSheetTitle;
+
+  /// No description provided for @fiExportColumnType.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tipo'**
+  String get fiExportColumnType;
+
+  /// No description provided for @fiExportColumnValue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor'**
+  String get fiExportColumnValue;
+
+  /// No description provided for @fiExportColumnDueDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vencimento'**
+  String get fiExportColumnDueDate;
+
+  /// No description provided for @fiExportColumnStatus.
+  ///
+  /// In pt, this message translates to:
+  /// **'Status'**
+  String get fiExportColumnStatus;
+
+  /// No description provided for @fiExportColumnPaidDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Data de pagamento'**
+  String get fiExportColumnPaidDate;
+
   /// No description provided for @fiMergeDuplicates.
   ///
   /// In pt, this message translates to:
@@ -8575,6 +8617,138 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.'**
   String get rnAbsenceFixDesc;
+
+  /// No description provided for @rpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Relatório de Presenças'**
+  String get rpTitle;
+
+  /// No description provided for @rpNoAccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você não tem acesso a este relatório.'**
+  String get rpNoAccess;
+
+  /// No description provided for @rpAllClasses.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todas as turmas'**
+  String get rpAllClasses;
+
+  /// No description provided for @rpPeriodMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mês'**
+  String get rpPeriodMonth;
+
+  /// No description provided for @rpPeriodYear.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ano'**
+  String get rpPeriodYear;
+
+  /// No description provided for @rpSelectMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione um dia do mês desejado'**
+  String get rpSelectMonth;
+
+  /// No description provided for @rpColumnName.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome'**
+  String get rpColumnName;
+
+  /// No description provided for @rpColumnPhone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Telefone'**
+  String get rpColumnPhone;
+
+  /// No description provided for @rpColumnClass.
+  ///
+  /// In pt, this message translates to:
+  /// **'Turma'**
+  String get rpColumnClass;
+
+  /// No description provided for @rpColumnBelt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faixa'**
+  String get rpColumnBelt;
+
+  /// No description provided for @rpColumnPresences.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças'**
+  String get rpColumnPresences;
+
+  /// No description provided for @rpColumnAbsences.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faltas'**
+  String get rpColumnAbsences;
+
+  /// No description provided for @rpColumnTotalClasses.
+  ///
+  /// In pt, this message translates to:
+  /// **'Total de aulas'**
+  String get rpColumnTotalClasses;
+
+  /// No description provided for @rpColumnPercent.
+  ///
+  /// In pt, this message translates to:
+  /// **'% Frequência'**
+  String get rpColumnPercent;
+
+  /// No description provided for @rpExport.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar'**
+  String get rpExport;
+
+  /// No description provided for @rpExportPdf.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar PDF'**
+  String get rpExportPdf;
+
+  /// No description provided for @rpExportExcel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar Excel'**
+  String get rpExportExcel;
+
+  /// No description provided for @rpExportColumnsTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Colunas do relatório'**
+  String get rpExportColumnsTitle;
+
+  /// No description provided for @rpEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum dado de presença para o período e turma selecionados.'**
+  String get rpEmpty;
+
+  /// No description provided for @rpRowCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'Registros no período'**
+  String get rpRowCount;
+
+  /// No description provided for @rpStudentsSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos'**
+  String get rpStudentsSection;
+
+  /// No description provided for @rpSummaryLine.
+  ///
+  /// In pt, this message translates to:
+  /// **'{presencas} presenças · {faltas} faltas · {total} aulas no período'**
+  String rpSummaryLine(int presencas, int faltas, int total);
 }
 
 class _AppLocalizationsDelegate

@@ -11,6 +11,7 @@ const kPermissoesDefault = {
     'acao_graduar': true,
     'acao_editar_aluno_basico': false,
     'acesso_turmas_todas': false,
+    'tela_relatorio_presencas': false,
   },
   'Secretaria': {
     'tela_turmas': true,
@@ -22,6 +23,7 @@ const kPermissoesDefault = {
     'acao_editar_aluno_basico': false,
     'acesso_turmas_todas': false,
     'acesso_redefinir_senha': false,
+    'tela_relatorio_presencas': false,
   },
 };
 
@@ -44,6 +46,10 @@ const kPermissoesInfo = <String, (String, String)>{
   'acesso_redefinir_senha': (
     'Redefinir senha de outros',
     'Gerar uma senha temporária para alunos ou equipe que perderam o acesso',
+  ),
+  'tela_relatorio_presencas': (
+    'Relatório de Presenças',
+    'Ver e exportar o relatório oficial de presenças e faltas dos alunos',
   ),
 };
 
