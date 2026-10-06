@@ -11,6 +11,7 @@ import '../../core/drawer_helper.dart';
 import '../../core/finance_service.dart';
 import '../../core/financeiro_resumo.dart';
 import '../../core/firestore_service.dart';
+import '../../core/modalidade_icones.dart';
 import '../../core/pagamento_status.dart';
 import '../../core/relatorio_financeiro_export.dart';
 import '../../core/tab_refresh.dart';
@@ -48,13 +49,69 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     }
   }
 
+  /// Select estilizado (dropdown) pra filtros — usado tanto pro status
+  /// quanto pra modalidade, lado a lado na mesma linha.
+  Widget _selectFiltro<T>({
+    required T valor,
+    required List<(T, String)> itens,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 42,
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.c.outline),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: valor,
+          isExpanded: true,
+          isDense: true,
+          dropdownColor: context.c.surfaceContainer,
+          borderRadius: BorderRadius.circular(10),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: context.c.onSurfaceVariant,
+            size: 18,
+          ),
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          items: [
+            for (final item in itens)
+              DropdownMenuItem<T>(
+                value: item.$1,
+                child: Text(item.$2, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   String _tipoLabel(String? t) =>
       t == 'Taxa de Matrícula' ? _l.fiTypeEnrollment : _l.fiTypeMonthly;
 
   Map<String, dynamic>? _resumo;
   List<Map<String, dynamic>> _cobrancas = [];
+  // Todos os pagamentos crus da academia (não só o mês navegado) — mantidos
+  // em memória pra permitir recalcular `_cobrancas`/`_resumo` localmente
+  // depois de uma ação pontual (marcar pago, estornar, etc.) sem refazer a
+  // consulta inteira e sem perder a posição de rolagem.
+  List<Map<String, dynamic>> _todosPagamentos = [];
+  Map<String, Map<String, dynamic>> _modalidadesPorId = {};
+  String? _modalidadeFiltro; // null = todas
   bool _loading = true;
   String? _academiaId;
+
+  // Modo de seleção múltipla — "marcar como pago" em lote.
+  bool _modoSelecao = false;
+  final Set<String> _selecionados = {};
 
   late int _ano;
   late int _mes;
@@ -129,81 +186,116 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
+        firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
       final acadData = results[1] as Map<String, dynamic>? ?? {};
+      _modalidadesPorId = {
+        for (final m in results[2] as List<Map<String, dynamic>>)
+          (m['id'] ?? '').toString(): m,
+      };
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
       _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
       _taxaAtrasoValor =
           (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
 
-      final now = DateTime.now();
-      final hoje = DateTime(now.year, now.month, now.day);
-
-      // Filter for selected month
-      final doMes = todos.where((p) {
-        final venc = p['data_vencimento'] as String? ?? '';
-        if (venc.isEmpty) return false;
-        try {
-          final dt = DateTime.parse(venc);
-          return dt.year == _ano && dt.month == _mes;
-        } catch (_) {
-          return false;
-        }
-      }).toList();
-
-      // Resumo client-side — fonte única compartilhada com os testes
-      // (financeiro_resumo.dart). Ignora Desconsiderado por completo.
-      final resumo = resumoFinanceiroAcademia(
-        todos,
-        ano: _ano,
-        mes: _mes,
-        hoje: hoje,
-      );
-
-      // Convert status for display; compute effective status (Atrasado if pending+overdue)
-      final cobrancasComStatus = doMes.map((p) {
-        // Status efetivo: fonte única compartilhada com o app do aluno
-        // (Pendente/Previsto vencido → Atrasado; Pago/Desconsiderado intactos).
-        final stEf = pagamentoStatusEfetivo(
-          rawStatus: p['status'],
-          dataVencimento: p['data_vencimento'],
-          hoje: hoje,
-        );
-        final statusStr = switch (stEf) {
-          PagamentoStatus.pago => 'Pago',
-          PagamentoStatus.atrasado => 'Atrasado',
-          PagamentoStatus.previsto => 'Previsto',
-          PagamentoStatus.desconsiderado => 'Desconsiderado',
-          PagamentoStatus.pendente => 'Pendente',
-        };
-        final rawNome =
-            (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
-                .toString();
-        final rawTipo = p['tipo']?.toString() ?? '';
-        return {
-          ...p,
-          'status': statusStr,
-          'nomeAluno': rawNome == 'null' ? '' : rawNome,
-          'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
-          'tipo': (rawTipo.isEmpty || rawTipo == 'null')
-              ? 'Mensalidade'
-              : rawTipo,
-        };
-      }).toList();
-
-      if (mounted) {
-        setState(() {
-          _resumo = resumo.toMap();
-          _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
-        });
-      }
+      _todosPagamentos = todos;
+      if (mounted) setState(_recomputarDerivados);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Recalcula `_cobrancas` (lista do mês navegado, já com status efetivo
+  /// resolvido) e `_resumo` a partir de `_todosPagamentos` — puramente em
+  /// memória, sem rede. Chamado tanto depois de um `_load()` completo quanto
+  /// depois de uma edição pontual local (`_atualizarLocal`/`_removerLocal`),
+  /// que são os casos que precisam evitar o recarregamento completo da tela
+  /// (e o pulo de rolagem que ele causa).
+  void _recomputarDerivados() {
+    final now = DateTime.now();
+    final hoje = DateTime(now.year, now.month, now.day);
+
+    final doMes = _todosPagamentos.where((p) {
+      final venc = p['data_vencimento'] as String? ?? '';
+      if (venc.isEmpty) return false;
+      try {
+        final dt = DateTime.parse(venc);
+        return dt.year == _ano && dt.month == _mes;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+
+    // Resumo client-side — fonte única compartilhada com os testes
+    // (financeiro_resumo.dart). Ignora Desconsiderado por completo.
+    final resumo = resumoFinanceiroAcademia(
+      _todosPagamentos,
+      ano: _ano,
+      mes: _mes,
+      hoje: hoje,
+    );
+
+    // Convert status for display; compute effective status (Atrasado if pending+overdue)
+    final cobrancasComStatus = doMes.map((p) {
+      // Status efetivo: fonte única compartilhada com o app do aluno
+      // (Pendente/Previsto vencido → Atrasado; Pago/Desconsiderado intactos).
+      final stEf = pagamentoStatusEfetivo(
+        rawStatus: p['status'],
+        dataVencimento: p['data_vencimento'],
+        hoje: hoje,
+      );
+      final statusStr = switch (stEf) {
+        PagamentoStatus.pago => 'Pago',
+        PagamentoStatus.atrasado => 'Atrasado',
+        PagamentoStatus.previsto => 'Previsto',
+        PagamentoStatus.desconsiderado => 'Desconsiderado',
+        PagamentoStatus.pendente => 'Pendente',
+      };
+      final rawNome =
+          (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
+              .toString();
+      final rawTipo = p['tipo']?.toString() ?? '';
+      return {
+        ...p,
+        'status': statusStr,
+        'nomeAluno': rawNome == 'null' ? '' : rawNome,
+        'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
+        'tipo': (rawTipo.isEmpty || rawTipo == 'null')
+            ? 'Mensalidade'
+            : rawTipo,
+      };
+    }).toList();
+
+    _resumo = resumo.toMap();
+    _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
+  }
+
+  /// Aplica [alteracoes] (mesmos campos crus escritos no Firestore, ex.:
+  /// `status` como int) ao pagamento [id] só em memória, e recalcula
+  /// `_cobrancas`/`_resumo` — usado depois que a escrita no Firestore já deu
+  /// certo, pra refletir a mudança sem recarregar a lista inteira (o que
+  /// faria a tela pular pro topo, perdendo a posição de rolagem).
+  void _atualizarLocal(String id, Map<String, dynamic> alteracoes) {
+    final idx = _todosPagamentos.indexWhere((p) => p['id']?.toString() == id);
+    if (idx == -1 || !mounted) return;
+    setState(() {
+      _todosPagamentos[idx] = {..._todosPagamentos[idx], ...alteracoes};
+      _recomputarDerivados();
+    });
+  }
+
+  /// Igual a [_atualizarLocal], mas pra exclusão (remove o doc da lista em
+  /// memória em vez de atualizar campos).
+  void _removerLocal(String id) {
+    if (!mounted) return;
+    setState(() {
+      _todosPagamentos.removeWhere((p) => p['id']?.toString() == id);
+      _recomputarDerivados();
+    });
   }
 
   List<Map<String, dynamic>> get _cobrancasFiltradas {
@@ -211,6 +303,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     return _cobrancas.where((c) {
       final nome = (c['nomeAluno'] as String? ?? '').toLowerCase();
       if (busca.isNotEmpty && !nome.contains(busca)) return false;
+      if (_modalidadeFiltro != null &&
+          (c['modalidade_id'] as String?) != _modalidadeFiltro) {
+        return false;
+      }
       final status = c['status'] as String? ?? '';
       switch (_tabFiltro) {
         case 'pendente':
@@ -1914,6 +2010,49 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
   }
 
+  /// Marca todas as cobranças selecionadas no modo de seleção como pagas
+  /// hoje, sem desconto (o fluxo com desconto por item continua disponível
+  /// fora do modo seleção, pra casos pontuais). Escreve uma por uma — mesma
+  /// escrita já usada em [_marcarPago] — e atualiza a lista localmente a
+  /// cada sucesso, preservando a posição de rolagem.
+  Future<void> _marcarPagoEmLote() async {
+    if (_academiaId == null || _selecionados.isEmpty) return;
+    final ids = List<String>.from(_selecionados);
+    final now = DateTime.now();
+    final dataStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    const alteracoes = {'status': 1};
+
+    var sucesso = 0;
+    for (final id in ids) {
+      try {
+        await firestoreService.updatePagamento(_academiaId!, id, {
+          ...alteracoes,
+          'data_pagamento': dataStr,
+        });
+        sucesso++;
+        _atualizarLocal(id, {...alteracoes, 'data_pagamento': dataStr});
+      } catch (_) {
+        // Segue tentando os demais — o snackbar final reflete quantos deram certo.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selecionados.clear();
+      _modoSelecao = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_l.fiBatchMarkedPaid(sucesso)),
+        backgroundColor: sucesso == ids.length
+            ? context.sem.success
+            : context.sem.warning,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _marcarPago(Map<String, dynamic> c) async {
     final valorBase = (c['valor'] as num? ?? 0).toDouble();
     final descontoCtrl = TextEditingController();
@@ -2093,12 +2232,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final desconto = (result['desconto'] as double? ?? 0.0);
       final valorPago = (result['valorPago'] as double? ?? valorBase);
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+      final alteracoes = {
         'status': 1,
         'data_pagamento': dataStr,
         if (desconto > 0) 'desconto': desconto,
         if (desconto > 0) 'valor_pago': valorPago,
-      });
+      };
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2107,7 +2251,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {
       if (mounted)
@@ -2167,12 +2311,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+      const alteracoes = {
         'status': 0,
         'data_pagamento': null,
         'desconto': null,
         'valor_pago': null,
-      });
+      };
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2181,7 +2330,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -2232,11 +2381,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
-        'status': 4,
-      });
+      const alteracoes = {'status': 4};
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -2244,11 +2396,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Future<void> _restaurar(Map<String, dynamic> c) async {
     if (!mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
-        'status': 0,
-      });
+      const alteracoes = {'status': 0};
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -2296,7 +2451,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     try {
       await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
       if (mounted) {
-        _load();
+        _removerLocal(c['id'].toString());
       }
     } catch (_) {}
   }
@@ -2307,11 +2462,45 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final isAtual = DateTime.now().year == _ano && DateTime.now().month == _mes;
     return Scaffold(
       backgroundColor: context.c.surface,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _criarCobrancaAvulsa,
-        backgroundColor: context.c.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _modoSelecao
+          ? null
+          : FloatingActionButton(
+              onPressed: _criarCobrancaAvulsa,
+              backgroundColor: context.c.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+      bottomNavigationBar: _modoSelecao && _selecionados.isNotEmpty
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  color: context.c.surfaceContainer,
+                  border: Border(top: BorderSide(color: context.c.outline)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      _l.fiSelectedCount(_selecionados.length),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: _marcarPagoEmLote,
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: Text(_l.fiMarkPaid),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: context.sem.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: _load,
         color: context.c.primary,
@@ -2754,59 +2943,45 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     ),
                   ),
                 ),
-                // ── Tabs de status ──────────────────────────────────────
+                // ── Filtros: status + modalidade (selects lado a lado) ──
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final tab in [
-                            ('todos', _l.fiTabAll),
-                            ('pendente', _l.fiTabPending),
-                            ('atrasado', _l.fiTabOverdue),
-                            ('pago', _l.fiTabPaid),
-                            ('desconsiderado', _l.fiTabDismissed),
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _tabFiltro = tab.$1),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 7,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _selectFiltro<String>(
+                            valor: _tabFiltro,
+                            itens: [
+                              ('todos', _l.fiTabAll),
+                              ('pendente', _l.fiTabPending),
+                              ('atrasado', _l.fiTabOverdue),
+                              ('pago', _l.fiTabPaid),
+                              ('desconsiderado', _l.fiTabDismissed),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _tabFiltro = v ?? 'todos'),
+                          ),
+                        ),
+                        if (_modalidadesPorId.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _selectFiltro<String?>(
+                              valor: _modalidadeFiltro,
+                              itens: [
+                                (null, _l.fiAllModalities),
+                                for (final m in _modalidadesPorId.values)
+                                  (
+                                    m['id']?.toString(),
+                                    m['nome']?.toString() ?? '',
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: _tabFiltro == tab.$1
-                                        ? context.c.primary
-                                        : context.c.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _tabFiltro == tab.$1
-                                          ? context.c.primary
-                                          : context.c.outline,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    tab.$2,
-                                    style: TextStyle(
-                                      color: _tabFiltro == tab.$1
-                                          ? Colors.white
-                                          : context.c.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontWeight: _tabFiltro == tab.$1
-                                          ? FontWeight.w700
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _modalidadeFiltro = v),
                             ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -2816,15 +2991,67 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     child: Builder(
                       builder: (_) {
                         final lista = _cobrancasFiltradas;
-                        return Text(
-                          lista.isEmpty
-                              ? _l.fiNoCharges
-                              : _l.fiChargesCount(lista.length),
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                lista.isEmpty
+                                    ? _l.fiNoCharges
+                                    : _l.fiChargesCount(lista.length),
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() {
+                                _modoSelecao = !_modoSelecao;
+                                if (!_modoSelecao) _selecionados.clear();
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _modoSelecao
+                                      ? context.c.primary
+                                      : context.c.surfaceContainer,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _modoSelecao
+                                        ? context.c.primary
+                                        : context.c.outline,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.checklist_rounded,
+                                      color: _modoSelecao
+                                          ? Colors.black
+                                          : context.c.onSurfaceVariant,
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _l.fiSelectMode,
+                                      style: TextStyle(
+                                        color: _modoSelecao
+                                            ? Colors.black
+                                            : context.c.onSurfaceVariant,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
@@ -2849,6 +3076,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
                           } catch (_) {}
                         }
+                        final modalidadeId = c['modalidade_id'] as String?;
+                        final modalidadeDoc = modalidadeId == null
+                            ? null
+                            : _modalidadesPorId[modalidadeId];
+                        final modalidadeNome =
+                            modalidadeDoc?['nome']?.toString() ??
+                            (c['modalidade_nome'] as String?)?.trim() ??
+                            '';
+                        final modalidadeCor = modalidadeDoc != null
+                            ? resolverVisualModalidade(modalidadeDoc).cor
+                            : context.c.primary;
                         final isPago = status == 'Pago';
                         final valorBase = (c['valor'] as num? ?? 0).toDouble();
                         final desconto =
@@ -2886,6 +3124,30 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      if (_modoSelecao &&
+                                          (status == 'Pendente' ||
+                                              status == 'Atrasado'))
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 4,
+                                            top: 2,
+                                          ),
+                                          child: Checkbox(
+                                            value: _selecionados.contains(
+                                              c['id']?.toString(),
+                                            ),
+                                            activeColor: context.c.primary,
+                                            onChanged: (_) => setState(() {
+                                              final id = c['id']?.toString();
+                                              if (id == null) return;
+                                              if (_selecionados.contains(id)) {
+                                                _selecionados.remove(id);
+                                              } else {
+                                                _selecionados.add(id);
+                                              }
+                                            }),
+                                          ),
+                                        ),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -2899,20 +3161,51 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                            Text(
-                                              [
-                                                _tipoLabel(
-                                                  c['tipo']?.toString(),
+                                            if (modalidadeNome.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: modalidadeCor
+                                                      .withValues(alpha: 0.16),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                 ),
-                                                if (dataStr != null)
-                                                  _l.fiDueOn(dataStr),
-                                              ].join(' · '),
+                                                child: Text(
+                                                  modalidadeNome,
+                                                  style: TextStyle(
+                                                    color: modalidadeCor,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _tipoLabel(c['tipo']?.toString()),
                                               style: TextStyle(
                                                 color:
                                                     context.c.onSurfaceVariant,
                                                 fontSize: 12,
                                               ),
                                             ),
+                                            if (dataStr != null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${_l.fiDueLabel} - $dataStr',
+                                                style: TextStyle(
+                                                  color: context
+                                                      .c
+                                                      .onSurfaceVariant,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
                                             // Breakdown (taxa + desconto)
                                             if (taxaValor > 0 ||
                                                 desconto > 0) ...[

@@ -1,0 +1,721 @@
+{
+  "totals": {
+    "academias": 3,
+    "cobrancasSemNome": 116,
+    "resolvidas": 116,
+    "semModalidadeValida": 0
+  },
+  "detalhes": [
+    {
+      "academiaId": "6QYvMKt54gHjWh0NoUGY",
+      "pagamentos": [
+        {
+          "pagamentoId": "mensalidade__E8TCRRAz4IVSm9um4ZI7__htKll1anLy7SOyBBKgbt__2026-09",
+          "alunoId": "E8TCRRAz4IVSm9um4ZI7",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__E8TCRRAz4IVSm9um4ZI7__htKll1anLy7SOyBBKgbt__2026-10",
+          "alunoId": "E8TCRRAz4IVSm9um4ZI7",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__E8TCRRAz4IVSm9um4ZI7__htKll1anLy7SOyBBKgbt__2026-11",
+          "alunoId": "E8TCRRAz4IVSm9um4ZI7",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__hmxGyBFPoVIqP0IaqEzt__htKll1anLy7SOyBBKgbt__2026-09",
+          "alunoId": "hmxGyBFPoVIqP0IaqEzt",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__hmxGyBFPoVIqP0IaqEzt__htKll1anLy7SOyBBKgbt__2026-10",
+          "alunoId": "hmxGyBFPoVIqP0IaqEzt",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__hmxGyBFPoVIqP0IaqEzt__htKll1anLy7SOyBBKgbt__2026-11",
+          "alunoId": "hmxGyBFPoVIqP0IaqEzt",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sFCCKgkABKc1Ah7rKZGP__htKll1anLy7SOyBBKgbt__2026-09",
+          "alunoId": "sFCCKgkABKc1Ah7rKZGP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sFCCKgkABKc1Ah7rKZGP__htKll1anLy7SOyBBKgbt__2026-10",
+          "alunoId": "sFCCKgkABKc1Ah7rKZGP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sFCCKgkABKc1Ah7rKZGP__htKll1anLy7SOyBBKgbt__2026-11",
+          "alunoId": "sFCCKgkABKc1Ah7rKZGP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sXKGePowi3AFQ5lvWDNP__htKll1anLy7SOyBBKgbt__2026-09",
+          "alunoId": "sXKGePowi3AFQ5lvWDNP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sXKGePowi3AFQ5lvWDNP__htKll1anLy7SOyBBKgbt__2026-10",
+          "alunoId": "sXKGePowi3AFQ5lvWDNP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        },
+        {
+          "pagamentoId": "mensalidade__sXKGePowi3AFQ5lvWDNP__htKll1anLy7SOyBBKgbt__2026-11",
+          "alunoId": "sXKGePowi3AFQ5lvWDNP",
+          "modalidadeId": "htKll1anLy7SOyBBKgbt",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Infantil"
+        }
+      ]
+    },
+    {
+      "academiaId": "NfJLlek5nNTDhr9iW82G",
+      "pagamentos": [
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__MMCnXeiMaRCgspEFngtK__2026-09",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "MMCnXeiMaRCgspEFngtK",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__MMCnXeiMaRCgspEFngtK__2026-10",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "MMCnXeiMaRCgspEFngtK",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__MMCnXeiMaRCgspEFngtK__2026-11",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "MMCnXeiMaRCgspEFngtK",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__lyNX8uXqVI9zL5iiCC90__2026-09",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "lyNX8uXqVI9zL5iiCC90",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Adulto"
+        },
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__lyNX8uXqVI9zL5iiCC90__2026-10",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "lyNX8uXqVI9zL5iiCC90",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Adulto"
+        },
+        {
+          "pagamentoId": "mensalidade__ibYJWBnuq4TAtqQtCjTG__lyNX8uXqVI9zL5iiCC90__2026-11",
+          "alunoId": "ibYJWBnuq4TAtqQtCjTG",
+          "modalidadeId": "lyNX8uXqVI9zL5iiCC90",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Adulto"
+        }
+      ]
+    },
+    {
+      "academiaId": "hqaz47RuFrA9lFnlrY2q",
+      "pagamentos": [
+        {
+          "pagamentoId": "mensalidade__EJ0HZ1crvcWOeGOkMrcL__p43SqQMsn35lCyw2LF6k__2026-10",
+          "alunoId": "EJ0HZ1crvcWOeGOkMrcL",
+          "modalidadeId": "p43SqQMsn35lCyw2LF6k",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Adulto"
+        },
+        {
+          "pagamentoId": "mensalidade__EJ0HZ1crvcWOeGOkMrcL__p43SqQMsn35lCyw2LF6k__2026-11",
+          "alunoId": "EJ0HZ1crvcWOeGOkMrcL",
+          "modalidadeId": "p43SqQMsn35lCyw2LF6k",
+          "modalidadeNomeResolvido": "Jiu-Jitsu Adulto"
+        },
+        {
+          "pagamentoId": "mensalidade__18hxxGqNOrlcAwLHaNxv__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "18hxxGqNOrlcAwLHaNxv",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__18hxxGqNOrlcAwLHaNxv__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "18hxxGqNOrlcAwLHaNxv",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__1Y9XzvZRHUw9razaYZUa__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "1Y9XzvZRHUw9razaYZUa",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__1Y9XzvZRHUw9razaYZUa__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "1Y9XzvZRHUw9razaYZUa",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2NsdBTUW8uepQfnUzDLW__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "2NsdBTUW8uepQfnUzDLW",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2NsdBTUW8uepQfnUzDLW__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "2NsdBTUW8uepQfnUzDLW",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2OHE3D3j8Y81C2MyV3Ah__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "2OHE3D3j8Y81C2MyV3Ah",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2OHE3D3j8Y81C2MyV3Ah__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "2OHE3D3j8Y81C2MyV3Ah",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2cKIL90ecsCt4gH8hcFq__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "2cKIL90ecsCt4gH8hcFq",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2cKIL90ecsCt4gH8hcFq__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "2cKIL90ecsCt4gH8hcFq",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2s81NogGm3virxQGZ8pI__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "2s81NogGm3virxQGZ8pI",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__2s81NogGm3virxQGZ8pI__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "2s81NogGm3virxQGZ8pI",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__4t2CDUpKMBrNeVIna6qX__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "4t2CDUpKMBrNeVIna6qX",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__4t2CDUpKMBrNeVIna6qX__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "4t2CDUpKMBrNeVIna6qX",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__5d7UfdXibTLzoiTAbDIQ__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "5d7UfdXibTLzoiTAbDIQ",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__5d7UfdXibTLzoiTAbDIQ__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "5d7UfdXibTLzoiTAbDIQ",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__6zFplLdMNyZJjU8wcGh9__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "6zFplLdMNyZJjU8wcGh9",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__6zFplLdMNyZJjU8wcGh9__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "6zFplLdMNyZJjU8wcGh9",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__9fXVmKD81tzRb4vlggPC__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "9fXVmKD81tzRb4vlggPC",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__9fXVmKD81tzRb4vlggPC__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "9fXVmKD81tzRb4vlggPC",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__9kzQTzTukh8UWB9Szah1__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "9kzQTzTukh8UWB9Szah1",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__9kzQTzTukh8UWB9Szah1__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "9kzQTzTukh8UWB9Szah1",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ACPN3XWHoYczhYysbtdc__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "ACPN3XWHoYczhYysbtdc",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ACPN3XWHoYczhYysbtdc__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "ACPN3XWHoYczhYysbtdc",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__D3y5cDU044sJyVicSbyM__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "D3y5cDU044sJyVicSbyM",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__D3y5cDU044sJyVicSbyM__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "D3y5cDU044sJyVicSbyM",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__EJ0HZ1crvcWOeGOkMrcL__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "EJ0HZ1crvcWOeGOkMrcL",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__EJ0HZ1crvcWOeGOkMrcL__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "EJ0HZ1crvcWOeGOkMrcL",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__JUvGxhjPIdKjByC3dH0N__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "JUvGxhjPIdKjByC3dH0N",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__JUvGxhjPIdKjByC3dH0N__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "JUvGxhjPIdKjByC3dH0N",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__JxHVXNKXtFHgVyBoj3ig__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "JxHVXNKXtFHgVyBoj3ig",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__JxHVXNKXtFHgVyBoj3ig__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "JxHVXNKXtFHgVyBoj3ig",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__OFRTiJdit686iPl5hacE__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "OFRTiJdit686iPl5hacE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__OFRTiJdit686iPl5hacE__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "OFRTiJdit686iPl5hacE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__Qr4SCI6XjyNsfNeMqse8__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "Qr4SCI6XjyNsfNeMqse8",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__Qr4SCI6XjyNsfNeMqse8__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "Qr4SCI6XjyNsfNeMqse8",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__SYTvkhUYyAWVrFclVNJu__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "SYTvkhUYyAWVrFclVNJu",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__SYTvkhUYyAWVrFclVNJu__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "SYTvkhUYyAWVrFclVNJu",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__Sm0B3EGCexzWDDKasoOY__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "Sm0B3EGCexzWDDKasoOY",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__Sm0B3EGCexzWDDKasoOY__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "Sm0B3EGCexzWDDKasoOY",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__SuOdYCjDB9o0hBPlEV2A__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "SuOdYCjDB9o0hBPlEV2A",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__SuOdYCjDB9o0hBPlEV2A__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "SuOdYCjDB9o0hBPlEV2A",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__T4gJPoeKhzDnSKBGF7Yk__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "T4gJPoeKhzDnSKBGF7Yk",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__T4gJPoeKhzDnSKBGF7Yk__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "T4gJPoeKhzDnSKBGF7Yk",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__UlkifnTntgdgxTPL4Qnh__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "UlkifnTntgdgxTPL4Qnh",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__UlkifnTntgdgxTPL4Qnh__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "UlkifnTntgdgxTPL4Qnh",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__UpL8EAFmhEEOEK7ViKNr__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "UpL8EAFmhEEOEK7ViKNr",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__UpL8EAFmhEEOEK7ViKNr__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "UpL8EAFmhEEOEK7ViKNr",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__YaLFJTVpVgKe2gdPmzVE__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "YaLFJTVpVgKe2gdPmzVE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__YaLFJTVpVgKe2gdPmzVE__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "YaLFJTVpVgKe2gdPmzVE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ZEDRuiaZ2atlS5NlfUQi__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "ZEDRuiaZ2atlS5NlfUQi",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ZEDRuiaZ2atlS5NlfUQi__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "ZEDRuiaZ2atlS5NlfUQi",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__bgIbr2QQM2eEg78jg88P__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "bgIbr2QQM2eEg78jg88P",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__bgIbr2QQM2eEg78jg88P__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "bgIbr2QQM2eEg78jg88P",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__cMR1GosLgbTezJgBKJpM__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "cMR1GosLgbTezJgBKJpM",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__cMR1GosLgbTezJgBKJpM__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "cMR1GosLgbTezJgBKJpM",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__e0KupdQQl79ZvsDUGQfX__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "e0KupdQQl79ZvsDUGQfX",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__e0KupdQQl79ZvsDUGQfX__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "e0KupdQQl79ZvsDUGQfX",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__e9J5AZj8xnsHJLofAftn__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "e9J5AZj8xnsHJLofAftn",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__e9J5AZj8xnsHJLofAftn__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "e9J5AZj8xnsHJLofAftn",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__fsKMUo1uUBlZG3GrxNQE__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "fsKMUo1uUBlZG3GrxNQE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__fsKMUo1uUBlZG3GrxNQE__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "fsKMUo1uUBlZG3GrxNQE",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__gIslx4xSHKeXQsrepg46__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "gIslx4xSHKeXQsrepg46",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__gIslx4xSHKeXQsrepg46__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "gIslx4xSHKeXQsrepg46",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__hsUCLWfbsS1GPk6iZ8fn__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "hsUCLWfbsS1GPk6iZ8fn",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__hsUCLWfbsS1GPk6iZ8fn__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "hsUCLWfbsS1GPk6iZ8fn",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__jLJ7NSMjbzdQOLdcpizH__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "jLJ7NSMjbzdQOLdcpizH",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__jLJ7NSMjbzdQOLdcpizH__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "jLJ7NSMjbzdQOLdcpizH",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__kTXeINZK5quEiz2iKoof__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "kTXeINZK5quEiz2iKoof",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__kTXeINZK5quEiz2iKoof__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "kTXeINZK5quEiz2iKoof",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__kkw5XnrvARZHWB4rg17F__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "kkw5XnrvARZHWB4rg17F",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__kkw5XnrvARZHWB4rg17F__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "kkw5XnrvARZHWB4rg17F",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__lGIc1u0od8poNsV5WXVW__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "lGIc1u0od8poNsV5WXVW",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__lGIc1u0od8poNsV5WXVW__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "lGIc1u0od8poNsV5WXVW",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__oidu3nfRh1633MXni6bp__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "oidu3nfRh1633MXni6bp",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__oidu3nfRh1633MXni6bp__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "oidu3nfRh1633MXni6bp",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__p1bPbNu0RZQSyIOJeLIO__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "p1bPbNu0RZQSyIOJeLIO",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__p1bPbNu0RZQSyIOJeLIO__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "p1bPbNu0RZQSyIOJeLIO",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__pwZ48es35QXriWKx5egF__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "pwZ48es35QXriWKx5egF",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__pwZ48es35QXriWKx5egF__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "pwZ48es35QXriWKx5egF",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tGeVuPkjhoYM89NBanGd__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "tGeVuPkjhoYM89NBanGd",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tGeVuPkjhoYM89NBanGd__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "tGeVuPkjhoYM89NBanGd",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tSsjmvBNsjO8jh2Xx7hk__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "tSsjmvBNsjO8jh2Xx7hk",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tSsjmvBNsjO8jh2Xx7hk__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "tSsjmvBNsjO8jh2Xx7hk",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tdMsJGkDQI2j91EywF6K__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "tdMsJGkDQI2j91EywF6K",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__tdMsJGkDQI2j91EywF6K__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "tdMsJGkDQI2j91EywF6K",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__to564ca5FalVGbNG4jgP__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "to564ca5FalVGbNG4jgP",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__to564ca5FalVGbNG4jgP__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "to564ca5FalVGbNG4jgP",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ut2rzExOwr1NFH39gxeY__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "ut2rzExOwr1NFH39gxeY",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__ut2rzExOwr1NFH39gxeY__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "ut2rzExOwr1NFH39gxeY",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__v84QOEYh43aONRqODdra__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "v84QOEYh43aONRqODdra",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__v84QOEYh43aONRqODdra__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "v84QOEYh43aONRqODdra",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__waahfXjc0CKqIjmje0L0__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "waahfXjc0CKqIjmje0L0",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__waahfXjc0CKqIjmje0L0__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "waahfXjc0CKqIjmje0L0",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__zct8k5icxDan33giX1Mo__sOtEAJz5wwkh6arh5Om8__2026-10",
+          "alunoId": "zct8k5icxDan33giX1Mo",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        },
+        {
+          "pagamentoId": "mensalidade__zct8k5icxDan33giX1Mo__sOtEAJz5wwkh6arh5Om8__2026-11",
+          "alunoId": "zct8k5icxDan33giX1Mo",
+          "modalidadeId": "sOtEAJz5wwkh6arh5Om8",
+          "modalidadeNomeResolvido": "Judô"
+        }
+      ]
+    }
+  ]
+}

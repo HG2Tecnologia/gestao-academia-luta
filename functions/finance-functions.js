@@ -129,12 +129,14 @@ async function ensureChargesLegado(academiaId, period, alunosSnap) {
 async function ensureChargesPorModalidade(academiaId, period, alunosSnap) {
   const alunosPorId = new Map(alunosSnap.docs.map((doc) => [doc.id, doc.data()]));
 
-  const [planosSnap, planosModalidadeSnap] = await Promise.all([
+  const [planosSnap, planosModalidadeSnap, modalidadesSnap] = await Promise.all([
     db.collection("academias").doc(academiaId).collection("planos").get(),
     db.collection("academias").doc(academiaId).collection("planos_modalidade")
       .where("ativo", "==", true).get(),
+    db.collection("academias").doc(academiaId).collection("modalidades").get(),
   ]);
   const planosPorId = new Map(planosSnap.docs.map((doc) => [doc.id, doc.data()]));
+  const modalidadesPorId = new Map(modalidadesSnap.docs.map((doc) => [doc.id, doc.data()]));
 
   let criadas = 0;
   let ignoradas = 0;
@@ -156,11 +158,13 @@ async function ensureChargesPorModalidade(academiaId, period, alunosSnap) {
       : DEFAULT_DUE_DAY;
     const valor = Number(plano.valor_mensal ?? 0);
     const chargeId = modalityChargeDocumentId(alunoId, modalidadeId, period);
+    const modalidadeNome = modalidadesPorId.get(modalidadeId)?.nome || "";
 
     const criado = await criarCobrancaSeNecessario(academiaId, chargeId, {
       aluno_id: alunoId,
       aluno_nome: aluno.nome || "",
       modalidade_id: modalidadeId,
+      modalidade_nome: modalidadeNome,
       plano_id: planoId,
       plano_nome: plano.nome || "",
       tipo: "Mensalidade",

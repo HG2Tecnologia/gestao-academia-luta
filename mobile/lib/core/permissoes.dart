@@ -12,6 +12,10 @@ const kPermissoesDefault = {
     'acao_editar_aluno_basico': false,
     'acesso_turmas_todas': false,
     'tela_relatorio_presencas': false,
+    'acesso_redefinir_senha': false,
+    'acesso_saude_aluno': false,
+    'acesso_grupo_familiar': false,
+    'acesso_gerenciar_acesso_app': false,
   },
   'Secretaria': {
     'tela_turmas': true,
@@ -24,6 +28,12 @@ const kPermissoesDefault = {
     'acesso_turmas_todas': false,
     'acesso_redefinir_senha': false,
     'tela_relatorio_presencas': false,
+    // Secretaria já via/editava isso incondicionalmente antes de virar
+    // permissão — default true preserva o comportamento atual sem exigir
+    // reconfiguração de ninguém.
+    'acesso_saude_aluno': true,
+    'acesso_grupo_familiar': true,
+    'acesso_gerenciar_acesso_app': true,
   },
 };
 
@@ -50,6 +60,18 @@ const kPermissoesInfo = <String, (String, String)>{
   'tela_relatorio_presencas': (
     'Relatório de Presenças',
     'Ver e exportar o relatório oficial de presenças e faltas dos alunos',
+  ),
+  'acesso_saude_aluno': (
+    'Dados de saúde do aluno',
+    'Ver atestado médico e PAR-Q na ficha do aluno',
+  ),
+  'acesso_grupo_familiar': (
+    'Grupo familiar',
+    'Ver e gerenciar o grupo familiar do aluno',
+  ),
+  'acesso_gerenciar_acesso_app': (
+    'Gerenciar acesso ao app',
+    'Liberar ou bloquear o acesso do aluno ao app',
   ),
 };
 

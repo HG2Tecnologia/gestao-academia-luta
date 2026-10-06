@@ -729,6 +729,8 @@
     }
   },
   "fiCleanupRetroactiveError": "Couldn't clean up backdated charges. Please try again.",
+  "fiAllModalities": "All disciplines",
+  "fiDueLabel": "Due date",
   "fiExportReport": "Export report",
   "fiExportSheetTitle": "Financial report columns",
   "fiExportColumnType": "Type",
@@ -774,6 +776,23 @@
   "fiDeleteChargeBody": "Are you sure you want to delete this charge? This can't be undone.",
   "fiMarkedPaid": "{name} marked as paid!",
   "fiUpdateError": "Error updating the payment.",
+  "fiSelectMode": "Select",
+  "fiSelectedCount": "{count, plural, one{1 selected} other{{count} selected}}",
+  "@fiSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiBatchMarkedPaid": "{count, plural, one{1 charge marked as paid} other{{count} charges marked as paid}}",
+  "@fiBatchMarkedPaid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "fiConfirmPayment": "Confirm payment",
   "fiBaseValue": "Base amount",
   "fiToReceive": "To receive",
@@ -1236,6 +1255,55 @@
   "cfgWeeklyLimitSaved": "Weekly training-day limit saved.",
   "cfgAutoAbsence": "Automatic absence after 24h",
   "cfgAutoAbsenceSub": "On: the app automatically marks a student absent if no attendance was recorded within 24h of class, and it stays in the student's attendance history. Off: the app never infers absence on its own — it's up to the instructor to mark attendance; if they don't, that day simply doesn't show up in the student's history (neither as present nor absent).",
+  "cfgManualCheckin": "Manual check-in without QR",
+  "cfgManualCheckinSub": "Lets the student (or guardian) check in through the app without scanning a QR code, only while a class is actually happening for them right now. Off by default — check-in stays QR-only.",
+  "cfgManualCheckinWindow": "Check-in window",
+  "cfgManualCheckinWindowSub": "How long before and after class time the student can confirm attendance",
+  "cfgManualCheckinWindowDesc": "Sets when the check-in button becomes available to the student, relative to the class start time.",
+  "cfgManualCheckinWindowBefore": "Before class starts",
+  "cfgManualCheckinWindowAfter": "After class starts",
+  "cfgManualCheckinWindowZero": "At class time",
+  "cfgManualCheckinWindowMinutes": "{min}min",
+  "@cfgManualCheckinWindowMinutes": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHours": "{h, plural, one{1h} other{{h}h}}",
+  "@cfgManualCheckinWindowHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHoursMinutes": "{h}h{min}min",
+  "@cfgManualCheckinWindowHoursMinutes": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowValue": "{antes} before · {depois} after",
+  "@cfgManualCheckinWindowValue": {
+    "placeholders": {
+      "antes": {
+        "type": "String"
+      },
+      "depois": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgManualCheckinWindowUnlimited": "No limit",
+  "cfgManualCheckinWindowMinutesSuffix": "min",
+  "cfgManualCheckinWindowSaved": "Check-in window updated.",
   "cfgGradSection": "Belts and Disciplines",
   "cfgGradSub": "Configure belts, promotions and disciplines.",
   "cfgBeltsSub": "Register and edit promotions by discipline",
@@ -1633,8 +1701,53 @@
   "apRankNoPeriodData": "No data for this period",
   "apRankTrainMore": "Train more to show up in the ranking!",
   "apRankingsTitle": "Rankings",
-  "apQrMyCode": "My QR Code",
-  "apQrScanAcademy": "Scan Academy",
+  "apQrMyCode": "My QR",
+  "apQrScanAcademy": "Scan",
+  "apQrManualCheckin": "No QR",
+  "apManualCheckinLoadError": "Couldn't check your classes right now. Please try again.",
+  "apManualCheckinNoClassNow": "None of your classes is happening right now.",
+  "apManualCheckinPick": "You have more than one class happening now — choose which one to check in to:",
+  "apManualCheckinClassFallback": "Class",
+  "apManualCheckinHistoryLabel": "Manual, no QR",
+  "apManualCheckinClassAt": "Today at {hora}",
+  "@apManualCheckinClassAt": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinConfirm": "Confirm attendance",
+  "apManualCheckinClassOn": "{data} at {hora}",
+  "@apManualCheckinClassOn": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAtToday": "Available from {hora}",
+  "@apManualCheckinAvailableAtToday": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAt": "Available from {data} at {hora}",
+  "@apManualCheckinAvailableAt": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
   "apQrShowInstructor": "Show it to the instructor at the entrance",
   "apQrGenFailed": "Couldn't generate the QR Code",
   "apQrShowInstructorLong": "Show this QR Code to the instructor to register your attendance.",

@@ -2295,6 +2295,12 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não foi possível limpar as cobranças retroativas. Tente novamente.';
 
   @override
+  String get fiAllModalities => 'Todas as modalidades';
+
+  @override
+  String get fiDueLabel => 'Vencimento';
+
+  @override
   String get fiExportReport => 'Exportar relatório';
 
   @override
@@ -2429,6 +2435,31 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get fiUpdateError => 'Erro ao atualizar pagamento.';
+
+  @override
+  String get fiSelectMode => 'Selecionar';
+
+  @override
+  String fiSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selecionados',
+      one: '1 selecionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String fiBatchMarkedPaid(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cobranças marcadas como pagas',
+      one: '1 cobrança marcada como paga',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get fiConfirmPayment => 'Confirmar pagamento';
@@ -3550,6 +3581,68 @@ class AppLocalizationsPt extends AppLocalizations {
       'Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).';
 
   @override
+  String get cfgManualCheckin => 'Check-in manual sem QR';
+
+  @override
+  String get cfgManualCheckinSub =>
+      'Permite que o aluno (ou responsável) registre a própria presença pelo app sem escanear nenhum QR Code, só quando há aula acontecendo agora pra ele. Desativado por padrão — o check-in continua só por QR Code.';
+
+  @override
+  String get cfgManualCheckinWindow => 'Janela de check-in';
+
+  @override
+  String get cfgManualCheckinWindowSub =>
+      'Quanto tempo antes e depois do horário da aula o aluno pode confirmar presença';
+
+  @override
+  String get cfgManualCheckinWindowDesc =>
+      'Define quando o botão de confirmar presença fica liberado pro aluno, em relação ao horário de início da aula.';
+
+  @override
+  String get cfgManualCheckinWindowBefore => 'Antes do início da aula';
+
+  @override
+  String get cfgManualCheckinWindowAfter => 'Depois do início da aula';
+
+  @override
+  String get cfgManualCheckinWindowZero => 'No horário';
+
+  @override
+  String cfgManualCheckinWindowMinutes(int min) {
+    return '${min}min';
+  }
+
+  @override
+  String cfgManualCheckinWindowHours(int h) {
+    String _temp0 = intl.Intl.pluralLogic(
+      h,
+      locale: localeName,
+      other: '${h}h',
+      one: '1h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cfgManualCheckinWindowHoursMinutes(int h, int min) {
+    return '${h}h${min}min';
+  }
+
+  @override
+  String cfgManualCheckinWindowValue(String antes, String depois) {
+    return '$antes antes · $depois depois';
+  }
+
+  @override
+  String get cfgManualCheckinWindowUnlimited => 'Sem limite';
+
+  @override
+  String get cfgManualCheckinWindowMinutesSuffix => 'min';
+
+  @override
+  String get cfgManualCheckinWindowSaved => 'Janela de check-in atualizada.';
+
+  @override
   String get cfgGradSection => 'Graduações e Modalidades';
 
   @override
@@ -4338,10 +4431,54 @@ class AppLocalizationsPt extends AppLocalizations {
   String get apRankingsTitle => 'Rankings';
 
   @override
-  String get apQrMyCode => 'Meu QR Code';
+  String get apQrMyCode => 'Meu QR';
 
   @override
-  String get apQrScanAcademy => 'Escanear Academia';
+  String get apQrScanAcademy => 'Escanear';
+
+  @override
+  String get apQrManualCheckin => 'Sem QR';
+
+  @override
+  String get apManualCheckinLoadError =>
+      'Não foi possível verificar suas turmas agora. Tente de novo.';
+
+  @override
+  String get apManualCheckinNoClassNow =>
+      'Nenhuma das suas turmas tem aula no horário de agora.';
+
+  @override
+  String get apManualCheckinPick =>
+      'Você tem mais de uma turma com aula agora — escolha em qual confirmar presença:';
+
+  @override
+  String get apManualCheckinClassFallback => 'Turma';
+
+  @override
+  String get apManualCheckinHistoryLabel => 'Manual, sem QR';
+
+  @override
+  String apManualCheckinClassAt(String hora) {
+    return 'Hoje às $hora';
+  }
+
+  @override
+  String get apManualCheckinConfirm => 'Confirmar presença';
+
+  @override
+  String apManualCheckinClassOn(String data, String hora) {
+    return '$data às $hora';
+  }
+
+  @override
+  String apManualCheckinAvailableAtToday(String hora) {
+    return 'Disponível a partir das $hora';
+  }
+
+  @override
+  String apManualCheckinAvailableAt(String data, String hora) {
+    return 'Disponível a partir de $data às $hora';
+  }
 
   @override
   String get apQrShowInstructor => 'Apresente ao professor na entrada';

@@ -5,6 +5,7 @@ import '../../core/financeiro_resumo.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
+import '../../core/modalidade_icones.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 
@@ -17,6 +18,7 @@ class AlunoFinanceiroScreen extends StatefulWidget {
 
 class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   List<Map<String, dynamic>> _cobrancas = [];
+  Map<String, Map<String, dynamic>> _modalidadesPorId = {};
   bool _loading = true;
   bool _erro = false;
   String _filtro = 'Todos';
@@ -75,9 +77,14 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
       final results = await Future.wait([
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
+        firestoreService.getModalidades(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
+      _modalidadesPorId = {
+        for (final m in results[2] as List<Map<String, dynamic>>)
+          (m['id'] ?? '').toString(): m,
+      };
       if (mounted)
         setState(() {
           _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
@@ -650,6 +657,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                       fmtTaxa: _fmtTaxa,
                       valorComTaxa: _valorComTaxa,
                       taxaAtrasoAtiva: _taxaAtrasoAtiva,
+                      modalidadesPorId: _modalidadesPorId,
                     ),
                   );
                 }, childCount: filtrados.length),
@@ -767,6 +775,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                         fmtTaxa: _fmtTaxa,
                         valorComTaxa: _valorComTaxa,
                         taxaAtrasoAtiva: _taxaAtrasoAtiva,
+                        modalidadesPorId: _modalidadesPorId,
                       ),
                     ),
                   ),
@@ -801,6 +810,7 @@ class _CobrancaCard extends StatelessWidget {
   final String Function() fmtTaxa;
   final num Function(num) valorComTaxa;
   final bool taxaAtrasoAtiva;
+  final Map<String, Map<String, dynamic>> modalidadesPorId;
 
   const _CobrancaCard({
     required this.c,
@@ -811,6 +821,7 @@ class _CobrancaCard extends StatelessWidget {
     required this.fmtTaxa,
     required this.valorComTaxa,
     required this.taxaAtrasoAtiva,
+    this.modalidadesPorId = const {},
   });
 
   @override
@@ -818,6 +829,17 @@ class _CobrancaCard extends StatelessWidget {
     final s = c['status'] as String?;
     final cor = statusCor(s);
     final atrasado = s == 'Atrasado';
+    final modalidadeId = c['modalidade_id'] as String?;
+    final modalidadeDoc = modalidadeId == null
+        ? null
+        : modalidadesPorId[modalidadeId];
+    final modalidadeNome =
+        modalidadeDoc?['nome']?.toString() ??
+        (c['modalidade_nome'] as String?)?.trim() ??
+        '';
+    final modalidadeCor = modalidadeDoc != null
+        ? resolverVisualModalidade(modalidadeDoc).cor
+        : context.c.primary;
 
     return Container(
       decoration: BoxDecoration(
@@ -857,6 +879,28 @@ class _CobrancaCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (modalidadeNome.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: modalidadeCor.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            modalidadeNome,
+                            style: TextStyle(
+                              color: modalidadeCor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                       if ((c['dataVencimento'] as String? ?? '').isNotEmpty)
                         Text(
                           context.l10n.apDueDatePrefix(

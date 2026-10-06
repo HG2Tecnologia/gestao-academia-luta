@@ -69,6 +69,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
   // Modo professor
   bool get _pm => widget.professorMode;
+
+  // Admin/Secretaria sempre veem (comportamento de sempre); em modo
+  // professor, só com a permissão granular correspondente ligada.
+  bool get _podeVerSaude =>
+      !_pm || (_callerUser?.temPermissao('acesso_saude_aluno') ?? false);
+  bool get _podeVerGrupoFamiliar =>
+      !_pm || (_callerUser?.temPermissao('acesso_grupo_familiar') ?? false);
+
   bool _podeEditarBasico = false;
   bool _podeGraduar = true;
   bool _acessoNegado = false;
@@ -2066,6 +2074,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         _callerUser != null &&
         (_callerUser!.perfil == 'Admin' ||
             _callerUser!.temPermissao('acesso_redefinir_senha'));
+    final podeGerenciarAcesso =
+        !_pm ||
+        (_callerUser?.temPermissao('acesso_gerenciar_acesso_app') ?? false);
     return _buildCard([
       _sectionTitle(_l.sdAppAccessSection),
       Row(
@@ -2098,7 +2109,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               ],
             ),
           ),
-          if (!_pm)
+          if (podeGerenciarAcesso)
             Switch(
               value: !bloqueado,
               activeColor: context.sem.success,
@@ -4622,11 +4633,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                   if (!_pm) ...[const SizedBox(height: 12), _buildPlanoCard(a)],
                   const SizedBox(height: 12),
                   _buildAcessoAppCard(a),
-                  if (!_pm) ...[
+                  if (_podeVerSaude) ...[
                     const SizedBox(height: 12),
                     _buildAtestadoCard(),
+                  ],
+                  if (_podeVerGrupoFamiliar) ...[
                     const SizedBox(height: 12),
                     _buildGrupoFamiliarCard(),
+                  ],
+                  if (_podeVerSaude) ...[
                     const SizedBox(height: 12),
                     _buildParQCard(),
                   ],

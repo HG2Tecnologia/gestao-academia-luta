@@ -1139,6 +1139,8 @@
     }
   },
   "fiCleanupRetroactiveError": "Não foi possível limpar as cobranças retroativas. Tente novamente.",
+  "fiAllModalities": "Todas as modalidades",
+  "fiDueLabel": "Vencimento",
   "fiExportReport": "Exportar relatório",
   "fiExportSheetTitle": "Colunas do relatório financeiro",
   "fiExportColumnType": "Tipo",
@@ -1240,6 +1242,23 @@
     }
   },
   "fiUpdateError": "Erro ao atualizar pagamento.",
+  "fiSelectMode": "Selecionar",
+  "fiSelectedCount": "{count, plural, one{1 selecionado} other{{count} selecionados}}",
+  "@fiSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiBatchMarkedPaid": "{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
+  "@fiBatchMarkedPaid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "fiConfirmPayment": "Confirmar pagamento",
   "fiBaseValue": "Valor base",
   "fiToReceive": "A receber",
@@ -1789,6 +1808,55 @@
   "cfgWeeklyLimitSaved": "Limite de dias por semana salvo.",
   "cfgAutoAbsence": "Falta automática após 24h",
   "cfgAutoAbsenceSub": "Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).",
+  "cfgManualCheckin": "Check-in manual sem QR",
+  "cfgManualCheckinSub": "Permite que o aluno (ou responsável) registre a própria presença pelo app sem escanear nenhum QR Code, só quando há aula acontecendo agora pra ele. Desativado por padrão — o check-in continua só por QR Code.",
+  "cfgManualCheckinWindow": "Janela de check-in",
+  "cfgManualCheckinWindowSub": "Quanto tempo antes e depois do horário da aula o aluno pode confirmar presença",
+  "cfgManualCheckinWindowDesc": "Define quando o botão de confirmar presença fica liberado pro aluno, em relação ao horário de início da aula.",
+  "cfgManualCheckinWindowBefore": "Antes do início da aula",
+  "cfgManualCheckinWindowAfter": "Depois do início da aula",
+  "cfgManualCheckinWindowZero": "No horário",
+  "cfgManualCheckinWindowMinutes": "{min}min",
+  "@cfgManualCheckinWindowMinutes": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHours": "{h, plural, one{1h} other{{h}h}}",
+  "@cfgManualCheckinWindowHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHoursMinutes": "{h}h{min}min",
+  "@cfgManualCheckinWindowHoursMinutes": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowValue": "{antes} antes · {depois} depois",
+  "@cfgManualCheckinWindowValue": {
+    "placeholders": {
+      "antes": {
+        "type": "String"
+      },
+      "depois": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgManualCheckinWindowUnlimited": "Sem limite",
+  "cfgManualCheckinWindowMinutesSuffix": "min",
+  "cfgManualCheckinWindowSaved": "Janela de check-in atualizada.",
   "cfgGradSection": "Graduações e Modalidades",
   "cfgGradSub": "Configure faixas, graduações e modalidades.",
   "cfgBeltsSub": "Cadastrar e editar graduações por modalidade",
@@ -2186,8 +2254,53 @@
   "apRankNoPeriodData": "Sem dados para este período",
   "apRankTrainMore": "Treine mais para aparecer no ranking!",
   "apRankingsTitle": "Rankings",
-  "apQrMyCode": "Meu QR Code",
-  "apQrScanAcademy": "Escanear Academia",
+  "apQrMyCode": "Meu QR",
+  "apQrScanAcademy": "Escanear",
+  "apQrManualCheckin": "Sem QR",
+  "apManualCheckinLoadError": "Não foi possível verificar suas turmas agora. Tente de novo.",
+  "apManualCheckinNoClassNow": "Nenhuma das suas turmas tem aula no horário de agora.",
+  "apManualCheckinPick": "Você tem mais de uma turma com aula agora — escolha em qual confirmar presença:",
+  "apManualCheckinClassFallback": "Turma",
+  "apManualCheckinHistoryLabel": "Manual, sem QR",
+  "apManualCheckinClassAt": "Hoje às {hora}",
+  "@apManualCheckinClassAt": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinConfirm": "Confirmar presença",
+  "apManualCheckinClassOn": "{data} às {hora}",
+  "@apManualCheckinClassOn": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAtToday": "Disponível a partir das {hora}",
+  "@apManualCheckinAvailableAtToday": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAt": "Disponível a partir de {data} às {hora}",
+  "@apManualCheckinAvailableAt": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
   "apQrShowInstructor": "Apresente ao professor na entrada",
   "apQrGenFailed": "Não foi possível gerar o QR Code",
   "apQrShowInstructorLong": "Apresente este QR Code ao professor para registrar sua presença.",

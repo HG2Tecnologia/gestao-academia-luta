@@ -809,31 +809,27 @@ class _RegistrosCard extends StatelessWidget {
           const SizedBox(height: 14),
           Divider(height: 1, color: context.c.primary.withValues(alpha: 0.2)),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 20,
+            runSpacing: 10,
             children: [
-              Expanded(
-                child: _ResumoItem(
-                  icon: Icons.check_circle_rounded,
-                  cor: context.sem.success,
-                  valor: '$presencas',
-                  label: l.rpColumnPresences,
-                ),
+              _ResumoItem(
+                icon: Icons.check_circle_rounded,
+                cor: context.sem.success,
+                valor: '$presencas',
+                label: l.rpColumnPresences,
               ),
-              Expanded(
-                child: _ResumoItem(
-                  icon: Icons.cancel_rounded,
-                  cor: context.sem.danger,
-                  valor: '$faltas',
-                  label: l.rpColumnAbsences,
-                ),
+              _ResumoItem(
+                icon: Icons.cancel_rounded,
+                cor: context.sem.danger,
+                valor: '$faltas',
+                label: l.rpColumnAbsences,
               ),
-              Expanded(
-                child: _ResumoItem(
-                  icon: Icons.calendar_month_rounded,
-                  cor: context.sem.goldOnSurface,
-                  valor: '$totalAulas',
-                  label: l.rpColumnTotalClasses,
-                ),
+              _ResumoItem(
+                icon: Icons.calendar_month_rounded,
+                cor: context.sem.goldOnSurface,
+                valor: '$totalAulas',
+                label: l.rpColumnTotalClasses,
               ),
             ],
           ),
@@ -852,15 +848,21 @@ class _ResumoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: cor, size: 18),
-        const SizedBox(height: 4),
-        Text(valor, style: TextStyle(color: context.c.onSurface, fontSize: 16, fontWeight: FontWeight.w800)),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 10.5),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(valor, style: TextStyle(color: context.c.onSurface, fontSize: 16, fontWeight: FontWeight.w800)),
+            Text(
+              label,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 10.5),
+            ),
+          ],
         ),
       ],
     );

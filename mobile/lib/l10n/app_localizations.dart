@@ -4106,6 +4106,18 @@ abstract class AppLocalizations {
   /// **'Não foi possível limpar as cobranças retroativas. Tente novamente.'**
   String get fiCleanupRetroactiveError;
 
+  /// No description provided for @fiAllModalities.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todas as modalidades'**
+  String get fiAllModalities;
+
+  /// No description provided for @fiDueLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vencimento'**
+  String get fiDueLabel;
+
   /// No description provided for @fiExportReport.
   ///
   /// In pt, this message translates to:
@@ -4333,6 +4345,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao atualizar pagamento.'**
   String get fiUpdateError;
+
+  /// No description provided for @fiSelectMode.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecionar'**
+  String get fiSelectMode;
+
+  /// No description provided for @fiSelectedCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 selecionado} other{{count} selecionados}}'**
+  String fiSelectedCount(int count);
+
+  /// No description provided for @fiBatchMarkedPaid.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
+  String fiBatchMarkedPaid(int count);
 
   /// No description provided for @fiConfirmPayment.
   ///
@@ -6308,6 +6338,96 @@ abstract class AppLocalizations {
   /// **'Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).'**
   String get cfgAutoAbsenceSub;
 
+  /// No description provided for @cfgManualCheckin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Check-in manual sem QR'**
+  String get cfgManualCheckin;
+
+  /// No description provided for @cfgManualCheckinSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite que o aluno (ou responsável) registre a própria presença pelo app sem escanear nenhum QR Code, só quando há aula acontecendo agora pra ele. Desativado por padrão — o check-in continua só por QR Code.'**
+  String get cfgManualCheckinSub;
+
+  /// No description provided for @cfgManualCheckinWindow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Janela de check-in'**
+  String get cfgManualCheckinWindow;
+
+  /// No description provided for @cfgManualCheckinWindowSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quanto tempo antes e depois do horário da aula o aluno pode confirmar presença'**
+  String get cfgManualCheckinWindowSub;
+
+  /// No description provided for @cfgManualCheckinWindowDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Define quando o botão de confirmar presença fica liberado pro aluno, em relação ao horário de início da aula.'**
+  String get cfgManualCheckinWindowDesc;
+
+  /// No description provided for @cfgManualCheckinWindowBefore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Antes do início da aula'**
+  String get cfgManualCheckinWindowBefore;
+
+  /// No description provided for @cfgManualCheckinWindowAfter.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois do início da aula'**
+  String get cfgManualCheckinWindowAfter;
+
+  /// No description provided for @cfgManualCheckinWindowZero.
+  ///
+  /// In pt, this message translates to:
+  /// **'No horário'**
+  String get cfgManualCheckinWindowZero;
+
+  /// No description provided for @cfgManualCheckinWindowMinutes.
+  ///
+  /// In pt, this message translates to:
+  /// **'{min}min'**
+  String cfgManualCheckinWindowMinutes(int min);
+
+  /// No description provided for @cfgManualCheckinWindowHours.
+  ///
+  /// In pt, this message translates to:
+  /// **'{h, plural, one{1h} other{{h}h}}'**
+  String cfgManualCheckinWindowHours(int h);
+
+  /// No description provided for @cfgManualCheckinWindowHoursMinutes.
+  ///
+  /// In pt, this message translates to:
+  /// **'{h}h{min}min'**
+  String cfgManualCheckinWindowHoursMinutes(int h, int min);
+
+  /// No description provided for @cfgManualCheckinWindowValue.
+  ///
+  /// In pt, this message translates to:
+  /// **'{antes} antes · {depois} depois'**
+  String cfgManualCheckinWindowValue(String antes, String depois);
+
+  /// No description provided for @cfgManualCheckinWindowUnlimited.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem limite'**
+  String get cfgManualCheckinWindowUnlimited;
+
+  /// No description provided for @cfgManualCheckinWindowMinutesSuffix.
+  ///
+  /// In pt, this message translates to:
+  /// **'min'**
+  String get cfgManualCheckinWindowMinutesSuffix;
+
+  /// No description provided for @cfgManualCheckinWindowSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Janela de check-in atualizada.'**
+  String get cfgManualCheckinWindowSaved;
+
   /// No description provided for @cfgGradSection.
   ///
   /// In pt, this message translates to:
@@ -7673,14 +7793,80 @@ abstract class AppLocalizations {
   /// No description provided for @apQrMyCode.
   ///
   /// In pt, this message translates to:
-  /// **'Meu QR Code'**
+  /// **'Meu QR'**
   String get apQrMyCode;
 
   /// No description provided for @apQrScanAcademy.
   ///
   /// In pt, this message translates to:
-  /// **'Escanear Academia'**
+  /// **'Escanear'**
   String get apQrScanAcademy;
+
+  /// No description provided for @apQrManualCheckin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem QR'**
+  String get apQrManualCheckin;
+
+  /// No description provided for @apManualCheckinLoadError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível verificar suas turmas agora. Tente de novo.'**
+  String get apManualCheckinLoadError;
+
+  /// No description provided for @apManualCheckinNoClassNow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma das suas turmas tem aula no horário de agora.'**
+  String get apManualCheckinNoClassNow;
+
+  /// No description provided for @apManualCheckinPick.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você tem mais de uma turma com aula agora — escolha em qual confirmar presença:'**
+  String get apManualCheckinPick;
+
+  /// No description provided for @apManualCheckinClassFallback.
+  ///
+  /// In pt, this message translates to:
+  /// **'Turma'**
+  String get apManualCheckinClassFallback;
+
+  /// No description provided for @apManualCheckinHistoryLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manual, sem QR'**
+  String get apManualCheckinHistoryLabel;
+
+  /// No description provided for @apManualCheckinClassAt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Hoje às {hora}'**
+  String apManualCheckinClassAt(String hora);
+
+  /// No description provided for @apManualCheckinConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar presença'**
+  String get apManualCheckinConfirm;
+
+  /// No description provided for @apManualCheckinClassOn.
+  ///
+  /// In pt, this message translates to:
+  /// **'{data} às {hora}'**
+  String apManualCheckinClassOn(String data, String hora);
+
+  /// No description provided for @apManualCheckinAvailableAtToday.
+  ///
+  /// In pt, this message translates to:
+  /// **'Disponível a partir das {hora}'**
+  String apManualCheckinAvailableAtToday(String hora);
+
+  /// No description provided for @apManualCheckinAvailableAt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Disponível a partir de {data} às {hora}'**
+  String apManualCheckinAvailableAt(String data, String hora);
 
   /// No description provided for @apQrShowInstructor.
   ///

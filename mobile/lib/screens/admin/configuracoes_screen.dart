@@ -45,6 +45,9 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   String? _logoBase64;
   bool _bloqueioCheckinAtivo = false;
   int _carenciaDias = 3;
+  bool _checkinManualAtivo = false;
+  int _checkinManualAntesMinutos = 60;
+  int _checkinManualDepoisMinutos = 0;
   bool _pesquisaAtiva = false;
   int _pesquisaXpRecompensa = 50;
   bool _taxaAtrasoAtiva = false;
@@ -91,6 +94,11 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _bloqueioCheckinAtivo = dados['bloqueio_checkin_ativo'] as bool? ?? false;
       _carenciaDias =
           (dados['bloqueio_checkin_carencia_dias'] as num?)?.toInt() ?? 3;
+      _checkinManualAtivo = dados['checkin_manual_ativo'] as bool? ?? false;
+      _checkinManualAntesMinutos =
+          (dados['checkin_manual_antes_minutos'] as num?)?.toInt() ?? 60;
+      _checkinManualDepoisMinutos =
+          (dados['checkin_manual_depois_minutos'] as num?)?.toInt() ?? 0;
       _pesquisaAtiva = dados['pesquisa_satisfacao_ativa'] as bool? ?? false;
       _pesquisaXpRecompensa =
           (dados['pesquisa_xp_recompensa'] as num?)?.toInt() ?? 50;
@@ -131,6 +139,9 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'logoUrl': _logoBase64,
     'bloqueio_checkin_ativo': _bloqueioCheckinAtivo,
     'bloqueio_checkin_carencia_dias': _carenciaDias,
+    'checkin_manual_ativo': _checkinManualAtivo,
+    'checkin_manual_antes_minutos': _checkinManualAntesMinutos,
+    'checkin_manual_depois_minutos': _checkinManualDepoisMinutos,
     'pesquisa_satisfacao_ativa': _pesquisaAtiva,
     'pesquisa_xp_recompensa': _pesquisaXpRecompensa,
     'taxa_atraso_ativa': _taxaAtrasoAtiva,
@@ -270,6 +281,23 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           _carenciaDias = dias;
           final ok = await _persistirTudo();
           if (ok) _snack(_l.cfgGraceSaved);
+          return ok;
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _abrirJanelaCheckinManual() async {
+    await _sheet<void>(
+      _CheckinManualJanelaSheet(
+        antesInicial: _checkinManualAntesMinutos,
+        depoisInicial: _checkinManualDepoisMinutos,
+        onSalvar: (antes, depois) async {
+          _checkinManualAntesMinutos = antes;
+          _checkinManualDepoisMinutos = depois;
+          final ok = await _persistirTudo();
+          if (ok) _snack(_l.cfgManualCheckinWindowSaved);
           return ok;
         },
       ),
@@ -536,6 +564,35 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             v,
                           ),
                         ),
+                        _SwitchRow(
+                          icon: Icons.touch_app_rounded,
+                          titulo: _l.cfgManualCheckin,
+                          subtitulo: _l.cfgManualCheckinSub,
+                          valor: _checkinManualAtivo,
+                          onChanged: (v) => _toggle(
+                            _l.cfgManualCheckin,
+                            _checkinManualAtivo,
+                            (x) => _checkinManualAtivo = x,
+                            v,
+                          ),
+                        ),
+                        if (_checkinManualAtivo)
+                          _NavRowComValorAbaixo(
+                            icon: Icons.timelapse_rounded,
+                            titulo: _l.cfgManualCheckinWindow,
+                            subtitulo: _l.cfgManualCheckinWindowSub,
+                            valor: _l.cfgManualCheckinWindowValue(
+                              formatarJanelaCheckinManual(
+                                _checkinManualAntesMinutos,
+                                _l,
+                              ),
+                              formatarJanelaCheckinManual(
+                                _checkinManualDepoisMinutos,
+                                _l,
+                              ),
+                            ),
+                            onTap: _abrirJanelaCheckinManual,
+                          ),
                       ],
                     ),
                   ),
@@ -945,6 +1002,105 @@ class _NavRow extends StatelessWidget {
   }
 }
 
+/// Variante de [_NavRow] pra quando o valor configurado é longo demais pra
+/// caber ao lado do título sem espremer o texto (ex.: "60min antes · sem
+/// limite depois") — o valor fica numa linha própria, abaixo do subtítulo,
+/// alinhado com ele.
+class _NavRowComValorAbaixo extends StatelessWidget {
+  const _NavRowComValorAbaixo({
+    required this.icon,
+    required this.titulo,
+    required this.subtitulo,
+    required this.valor,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String titulo;
+  final String subtitulo;
+  final String valor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: context.c.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(icon, color: context.c.primary, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          titulo,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitulo,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 46),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        valor,
+                        style: TextStyle(
+                          color: context.c.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({
     required this.icon,
@@ -971,7 +1127,10 @@ class _SwitchRow extends StatelessWidget {
         trailing: Switch(
           value: valor,
           onChanged: onChanged,
-          activeThumbColor: context.c.primary,
+          activeThumbColor: Colors.white,
+          activeTrackColor: context.c.primary,
+          inactiveThumbColor: context.c.surface,
+          inactiveTrackColor: context.c.outline,
         ),
       ),
     );
@@ -1572,7 +1731,10 @@ class _TaxaAtrasoSheetState extends State<_TaxaAtrasoSheet> {
               Switch(
                 value: _ativa,
                 onChanged: (v) => setState(() => _ativa = v),
-                activeThumbColor: context.c.primary,
+                activeThumbColor: Colors.white,
+                activeTrackColor: context.c.primary,
+                inactiveThumbColor: context.c.surface,
+                inactiveTrackColor: context.c.outline,
               ),
             ],
           ),
@@ -1695,6 +1857,171 @@ class _CarenciaSheetState extends State<_CarenciaSheet> {
           _SheetSaveButton(
             label: _l.commonSave,
             onSalvar: () => widget.onSalvar(_dias),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sheet: janela do check-in manual sem QR ──────────────────────────────
+
+/// Formata minutos pra exibição nas configurações de check-in manual.
+/// `-1` é a sentinela de "sem limite" (ver `proximaAulaCheckinManual` em
+/// `firestore_service.dart`).
+String formatarJanelaCheckinManual(int min, AppLocalizations l) {
+  if (min < 0) return l.cfgManualCheckinWindowUnlimited;
+  if (min == 0) return l.cfgManualCheckinWindowZero;
+  if (min < 60) return l.cfgManualCheckinWindowMinutes(min);
+  if (min % 60 == 0) return l.cfgManualCheckinWindowHours(min ~/ 60);
+  return l.cfgManualCheckinWindowHoursMinutes(min ~/ 60, min % 60);
+}
+
+class _CheckinManualJanelaSheet extends StatefulWidget {
+  const _CheckinManualJanelaSheet({
+    required this.antesInicial,
+    required this.depoisInicial,
+    required this.onSalvar,
+  });
+  final int antesInicial;
+  final int depoisInicial;
+  final Future<bool> Function(int antes, int depois) onSalvar;
+
+  @override
+  State<_CheckinManualJanelaSheet> createState() =>
+      _CheckinManualJanelaSheetState();
+}
+
+class _CheckinManualJanelaSheetState extends State<_CheckinManualJanelaSheet> {
+  AppLocalizations get _l => context.l10n;
+  // 1439 = 23h59 — cobre até quase um dia inteiro; "sem limite" cobre o resto.
+  static const _maximo = 1439;
+
+  late bool _semLimiteAntes = widget.antesInicial < 0;
+  late bool _semLimiteDepois = widget.depoisInicial < 0;
+  late final TextEditingController _antesCtrl = TextEditingController(
+    text: '${widget.antesInicial < 0 ? 60 : widget.antesInicial}',
+  );
+  late final TextEditingController _depoisCtrl = TextEditingController(
+    text: '${widget.depoisInicial < 0 ? 0 : widget.depoisInicial}',
+  );
+
+  @override
+  void dispose() {
+    _antesCtrl.dispose();
+    _depoisCtrl.dispose();
+    super.dispose();
+  }
+
+  int _valorCampo(TextEditingController c) =>
+      (int.tryParse(c.text.trim()) ?? 0).clamp(0, _maximo);
+
+  Widget _campo({
+    required String titulo,
+    required bool semLimite,
+    required ValueChanged<bool> onSemLimiteChanged,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: TextStyle(
+            color: context.c.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          enabled: !semLimite,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: semLimite ? context.c.onSurfaceVariant : context.c.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+          decoration: InputDecoration(
+            suffixText: _l.cfgManualCheckinWindowMinutesSuffix,
+            filled: true,
+            fillColor: context.c.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: context.c.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: context.c.outline),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () => setState(() => onSemLimiteChanged(!semLimite)),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: semLimite,
+                  onChanged: (v) => setState(() => onSemLimiteChanged(v)),
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: context.c.primary,
+                  inactiveThumbColor: context.c.surface,
+                  inactiveTrackColor: context.c.outline,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  _l.cfgManualCheckinWindowUnlimited,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetScaffold(
+      titulo: _l.cfgManualCheckinWindow,
+      descricao: _l.cfgManualCheckinWindowDesc,
+      child: Column(
+        children: [
+          _campo(
+            titulo: _l.cfgManualCheckinWindowBefore,
+            semLimite: _semLimiteAntes,
+            onSemLimiteChanged: (v) => _semLimiteAntes = v,
+            controller: _antesCtrl,
+          ),
+          const SizedBox(height: 16),
+          _campo(
+            titulo: _l.cfgManualCheckinWindowAfter,
+            semLimite: _semLimiteDepois,
+            onSemLimiteChanged: (v) => _semLimiteDepois = v,
+            controller: _depoisCtrl,
+          ),
+          const SizedBox(height: 20),
+          _SheetSaveButton(
+            label: _l.commonSave,
+            onSalvar: () => widget.onSalvar(
+              _semLimiteAntes ? -1 : _valorCampo(_antesCtrl),
+              _semLimiteDepois ? -1 : _valorCampo(_depoisCtrl),
+            ),
           ),
         ],
       ),
@@ -1833,7 +2160,10 @@ class _PesquisaConfigSheetState extends State<_PesquisaConfigSheet> {
               Switch(
                 value: _ativa,
                 onChanged: (v) => setState(() => _ativa = v),
-                activeThumbColor: context.c.primary,
+                activeThumbColor: Colors.white,
+                activeTrackColor: context.c.primary,
+                inactiveThumbColor: context.c.surface,
+                inactiveTrackColor: context.c.outline,
               ),
             ],
           ),

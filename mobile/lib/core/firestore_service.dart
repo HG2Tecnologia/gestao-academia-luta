@@ -645,6 +645,95 @@ class FirestoreService {
     return _convertDoc(doc);
   }
 
+  /// Próxima aula de [alunoId] pra check-in manual sem QR
+  /// (`checkin_manual_ativo`) — a ocorrência cronologicamente mais próxima
+  /// (hoje ou nos próximos 7 dias) entre todas as turmas matriculadas, com a
+  /// janela de liberação configurada pela academia
+  /// (`checkin_manual_antes_minutos`/`checkin_manual_depois_minutos`,
+  /// default 60min antes / 0min depois do início). Qualquer um dos dois pode
+  /// vir `-1`, que significa "sem limite" daquele lado (sempre liberado
+  /// antes da aula, ou liberado indefinidamente depois dela).
+  ///
+  /// Retorna `null` se o aluno não tem nenhuma turma com horário cadastrado.
+  /// Caso contrário, `{turmaId, horarioId, nomeTurma, inicio,
+  /// disponivelEm, indisponivelApos}` — a UI decide se já está "dentro da
+  /// janela" comparando `DateTime.now()` com `disponivelEm`/`indisponivelApos`.
+  Future<Map<String, dynamic>?> proximaAulaCheckinManual(
+    String academiaId,
+    String alunoId,
+  ) async {
+    final academia = await getAcademia(academiaId);
+    final antesMin =
+        (academia?['checkin_manual_antes_minutos'] as num?)?.toInt() ?? 60;
+    final depoisMin =
+        (academia?['checkin_manual_depois_minutos'] as num?)?.toInt() ?? 0;
+    // Sentinela -1 = "sem limite" daquele lado da janela.
+    final semLimiteAntes = antesMin < 0;
+    final semLimiteDepois = depoisMin < 0;
+
+    final matriculas = await getMatriculas(
+      academiaId,
+      alunoId: alunoId,
+      ativasOnly: true,
+    );
+    final turmaIds = matriculas
+        .map((m) => m['turma_id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (turmaIds.isEmpty) return null;
+
+    int parseTime(String t) {
+      final partes = t.split(':');
+      if (partes.length < 2) return 0;
+      return (int.tryParse(partes[0]) ?? 0) * 60 + (int.tryParse(partes[1]) ?? 0);
+    }
+
+    final agora = DateTime.now();
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+
+    Map<String, dynamic>? melhor;
+    DateTime? melhorInicio;
+
+    for (final turmaId in turmaIds) {
+      final horarios = await getHorarios(academiaId, turmaId: turmaId);
+      for (final h in horarios) {
+        final diaSemana = h['dia_semana'] as int?;
+        if (diaSemana == null) continue;
+        final minutosInicio = parseTime(h['hora_inicio']?.toString() ?? '');
+
+        // Procura a próxima ocorrência desse dia da semana, de hoje até 7
+        // dias à frente — a primeira cuja janela ainda não fechou.
+        for (var offset = 0; offset <= 7; offset++) {
+          final dia = hoje.add(Duration(days: offset));
+          if (dia.weekday % 7 != diaSemana) continue;
+          final inicio = dia.add(Duration(minutes: minutosInicio));
+          final indisponivelApos = semLimiteDepois
+              ? DateTime(9999)
+              : inicio.add(Duration(minutes: depoisMin));
+          if (indisponivelApos.isBefore(agora)) continue;
+
+          if (melhorInicio == null || inicio.isBefore(melhorInicio)) {
+            melhorInicio = inicio;
+            final turma = await getTurma(academiaId, turmaId);
+            melhor = {
+              'turmaId': turmaId,
+              'horarioId': (h['id'] ?? '').toString(),
+              'nomeTurma': turma?['nome']?.toString() ?? '',
+              'inicio': inicio,
+              'disponivelEm': semLimiteAntes
+                  ? DateTime(0)
+                  : inicio.subtract(Duration(minutes: antesMin)),
+              'indisponivelApos': indisponivelApos,
+            };
+          }
+          break; // já achou a próxima ocorrência desse horário específico
+        }
+      }
+    }
+    return melhor;
+  }
+
   Future<String> addTurma(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'turmas').doc();
     await ref.set({

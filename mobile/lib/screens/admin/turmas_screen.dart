@@ -313,7 +313,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                 color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
-                  onTap: () => context.push('/admin/turmas/relatorio'),
+                  onTap: () => context.push('/relatorio-presencas-oficial'),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(

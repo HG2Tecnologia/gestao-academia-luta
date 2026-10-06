@@ -370,6 +370,12 @@ test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade
       valor_mensal: 70,
       ativo: true,
     });
+    await firestore.doc("academias/academy-c/modalidades/jiujitsu").set({
+      nome: "Jiu-Jitsu",
+    });
+    await firestore.doc("academias/academy-c/modalidades/judo").set({
+      nome: "Judô",
+    });
     // Ainda tem plano_id legado preenchido (resquício de antes de ativar o
     // modo por modalidade) — não pode gerar uma 3ª cobrança combinando os
     // dois modelos.
@@ -428,11 +434,13 @@ test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade
     assert.equal(jiujitsu.exists, true);
     assert.equal(jiujitsu.data().valor, 100);
     assert.equal(jiujitsu.data().data_vencimento, "2026-10-10");
+    assert.equal(jiujitsu.data().modalidade_nome, "Jiu-Jitsu");
 
     const judo = await pagamentos.doc("mensalidade__aluno-multi__judo__2026-10").get();
     assert.equal(judo.exists, true);
     assert.equal(judo.data().valor, 70);
     assert.equal(judo.data().data_vencimento, "2026-10-20");
+    assert.equal(judo.data().modalidade_nome, "Judô");
 
     // Modelo legado (plano_id/dia_vencimento no aluno) não gera cobrança
     // extra quando a academia está no modo por modalidade.
