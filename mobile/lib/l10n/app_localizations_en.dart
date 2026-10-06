@@ -5002,6 +5002,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Absences are no longer counted on days a class doesn\'t train — the calculation now follows the actual registered schedule.';
 
   @override
+  String get rnOfficialReportTitle => 'Official attendance report';
+
+  @override
+  String get rnOfficialReportDesc =>
+      'New attendance report with PDF and Excel export, available to the academy and to front-desk staff with permission.';
+
+  @override
+  String get rnModalityBadgeTitle => 'Discipline badge in Billing';
+
+  @override
+  String get rnModalityBadgeDesc =>
+      'Each per-discipline charge now shows a colored badge with its name, plus filters by discipline and by status to organize the list.';
+
+  @override
+  String get rnBulkPaymentTitle => 'Mark several as paid';
+
+  @override
+  String get rnBulkPaymentDesc =>
+      'In Billing you can now select several pending charges and mark them all as paid at once, without losing your scroll position.';
+
+  @override
+  String get rnManualCheckinTitle => 'Check-in without a QR code';
+
+  @override
+  String get rnManualCheckinDesc =>
+      'Once enabled in settings, students can confirm attendance without scanning the QR code — handy when someone else drops the child off at class.';
+
+  @override
+  String get rnStaffPermissionsTitle => 'More control over staff';
+
+  @override
+  String get rnStaffPermissionsDesc =>
+      'You can now grant a coach permission to view a student\'s medical certificate, PAR-Q and family group, without changing their role.';
+
+  @override
   String get rpTitle => 'Attendance Report';
 
   @override

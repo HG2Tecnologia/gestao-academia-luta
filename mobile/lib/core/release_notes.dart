@@ -158,6 +158,46 @@ final Map<String, AppReleaseNotes> _releaseNotesByVersion = {
       ),
     ],
   ),
+  '1.3.5': AppReleaseNotes(
+    version: '1.3.5',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.picture_as_pdf_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnOfficialReportTitle,
+        description: (l) => l.rnOfficialReportDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.category_rounded,
+        tag: ReleaseTag.improvement,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnModalityBadgeTitle,
+        description: (l) => l.rnModalityBadgeDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.checklist_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnBulkPaymentTitle,
+        description: (l) => l.rnBulkPaymentDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.qr_code_2_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.all,
+        title: (l) => l.rnManualCheckinTitle,
+        description: (l) => l.rnManualCheckinDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.admin_panel_settings_rounded,
+        tag: ReleaseTag.improvement,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnStaffPermissionsTitle,
+        description: (l) => l.rnStaffPermissionsDesc,
+      ),
+    ],
+  ),
 };
 
 /// Notas da [version] instalada, ou `null` se não houver nada a anunciar.

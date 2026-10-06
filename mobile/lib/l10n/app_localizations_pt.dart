@@ -5006,6 +5006,41 @@ class AppLocalizationsPt extends AppLocalizations {
       'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.';
 
   @override
+  String get rnOfficialReportTitle => 'Relatório oficial de presenças';
+
+  @override
+  String get rnOfficialReportDesc =>
+      'Novo relatório de presenças e faltas com exportação em PDF e Excel, acessível pela academia e por quem tem permissão na secretaria.';
+
+  @override
+  String get rnModalityBadgeTitle => 'Modalidade no Financeiro';
+
+  @override
+  String get rnModalityBadgeDesc =>
+      'Cada cobrança por modalidade agora mostra um badge colorido com o nome dela, além de filtros por modalidade e por status para organizar a lista.';
+
+  @override
+  String get rnBulkPaymentTitle => 'Marcar vários como pago';
+
+  @override
+  String get rnBulkPaymentDesc =>
+      'No Financeiro agora dá para selecionar várias cobranças pendentes e marcar todas como pagas de uma vez, sem perder a posição da rolagem.';
+
+  @override
+  String get rnManualCheckinTitle => 'Check-in sem QR Code';
+
+  @override
+  String get rnManualCheckinDesc =>
+      'Quem ativar nas configurações permite que o aluno confirme presença sem escanear o QR, útil quando outra pessoa leva a criança ao treino.';
+
+  @override
+  String get rnStaffPermissionsTitle => 'Mais controle sobre a equipe';
+
+  @override
+  String get rnStaffPermissionsDesc =>
+      'Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.';
+
+  @override
   String get rpTitle => 'Relatório de Presenças';
 
   @override

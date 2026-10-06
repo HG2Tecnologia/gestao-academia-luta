@@ -8804,6 +8804,66 @@ abstract class AppLocalizations {
   /// **'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.'**
   String get rnAbsenceFixDesc;
 
+  /// No description provided for @rnOfficialReportTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Relatório oficial de presenças'**
+  String get rnOfficialReportTitle;
+
+  /// No description provided for @rnOfficialReportDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo relatório de presenças e faltas com exportação em PDF e Excel, acessível pela academia e por quem tem permissão na secretaria.'**
+  String get rnOfficialReportDesc;
+
+  /// No description provided for @rnModalityBadgeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade no Financeiro'**
+  String get rnModalityBadgeTitle;
+
+  /// No description provided for @rnModalityBadgeDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada cobrança por modalidade agora mostra um badge colorido com o nome dela, além de filtros por modalidade e por status para organizar a lista.'**
+  String get rnModalityBadgeDesc;
+
+  /// No description provided for @rnBulkPaymentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Marcar vários como pago'**
+  String get rnBulkPaymentTitle;
+
+  /// No description provided for @rnBulkPaymentDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'No Financeiro agora dá para selecionar várias cobranças pendentes e marcar todas como pagas de uma vez, sem perder a posição da rolagem.'**
+  String get rnBulkPaymentDesc;
+
+  /// No description provided for @rnManualCheckinTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Check-in sem QR Code'**
+  String get rnManualCheckinTitle;
+
+  /// No description provided for @rnManualCheckinDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações permite que o aluno confirme presença sem escanear o QR, útil quando outra pessoa leva a criança ao treino.'**
+  String get rnManualCheckinDesc;
+
+  /// No description provided for @rnStaffPermissionsTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mais controle sobre a equipe'**
+  String get rnStaffPermissionsTitle;
+
+  /// No description provided for @rnStaffPermissionsDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.'**
+  String get rnStaffPermissionsDesc;
+
   /// No description provided for @rpTitle.
   ///
   /// In pt, this message translates to:
