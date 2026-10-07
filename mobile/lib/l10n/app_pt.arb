@@ -626,6 +626,22 @@
   "sdPointsError": "Erro ao lançar pontos.",
   "sdEmergencyContact": "Contato de Emergência",
   "sdNoClasses": "Nenhuma turma vinculada.",
+  "sdUnlinkClassTitle": "Desvincular desta turma?",
+  "sdUnlinkClassBody": "{aluno} sai de \"{turma}\". Se essa for a única turma dele(a) nessa modalidade, as cobranças pendentes, atrasadas e futuras dessa modalidade também são canceladas — cobrança já paga nunca é afetada.",
+  "@sdUnlinkClassBody": {
+    "placeholders": {
+      "aluno": {"type": "String"},
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassButton": "Desvincular",
+  "sdUnlinkedToast": "Desvinculado de {turma}.",
+  "@sdUnlinkedToast": {
+    "placeholders": {
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassError": "Não foi possível desvincular a turma. Tente novamente.",
   "sdBeltHistory": "Histórico de Graduações",
   "sdNoBeltHistory": "Nenhuma graduação registrada.",
   "sdRemovePromotionTitle": "Remover graduação?",
@@ -745,6 +761,9 @@
   "level": "Nível",
   "instructorOptional": "Professor (opcional)",
   "noInstructor": "Sem professor",
+  "classDefaultPlanOptional": "Plano padrão (opcional)",
+  "classNoDefaultPlan": "Sem plano padrão",
+  "classDefaultPlanHelper": "Todo aluno matriculado nessa turma já é vinculado a este plano automaticamente, sem precisar configurar no perfil dele.",
   "maxCapacity": "Capacidade máxima",
   "invalidNumber": "Número inválido",
   "classActiveToggle": "Turma ativa",
@@ -1149,6 +1168,7 @@
   "fiExportColumnStatus": "Status",
   "fiExportColumnPaidDate": "Data de pagamento",
   "fiMergeDuplicates": "Corrigir duplicadas",
+  "fiCleanOrphans": "Limpar órfãs",
   "fiMergeDuplicatesTitle": "Corrigir mensalidades duplicadas",
   "fiMergeDuplicatesExplain": "Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.",
   "fiMergeDuplicatesConfirmTitle": "Corrigir duplicadas agora?",
@@ -1163,6 +1183,19 @@
     }
   },
   "fiMergeDuplicatesError": "Não foi possível corrigir as mensalidades duplicadas. Tente novamente.",
+  "fiCleanOrphansTitle": "Limpar cobranças órfãs",
+  "fiCleanOrphansExplain": "Procura cobranças ainda pendentes (nunca pagas) presas num plano que já foi excluído, ou numa modalidade da qual o aluno já foi desvinculado. Quando encontra, desconsidera — nunca exclui, nunca marca como paga. Cobrança já paga nunca é tocada, mesmo que o plano dela tenha sido excluído depois.",
+  "fiCleanOrphansConfirmTitle": "Limpar cobranças órfãs agora?",
+  "fiCleanOrphansConfirmBody": "Isso vai desconsiderar toda cobrança pendente desta academia presa num plano excluído ou numa modalidade da qual o aluno já foi desvinculado. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?",
+  "fiCleanOrphansButton": "Limpar órfãs",
+  "fiCleanOrphansSuccess": "{analisadas} cobrança(s) pendente(s) analisada(s) · {canceladas} cancelada(s) por estarem órfãs.",
+  "@fiCleanOrphansSuccess": {
+    "placeholders": {
+      "analisadas": {"type": "int"},
+      "canceladas": {"type": "int"}
+    }
+  },
+  "fiCleanOrphansError": "Não foi possível limpar as cobranças órfãs. Tente novamente.",
   "fiNoCharges": "Nenhuma cobrança.",
   "fiChargesCount": "Cobranças · {count}",
   "@fiChargesCount": {
@@ -1986,6 +2019,7 @@
   "fxZeroNoMin": "0 = sem exigência mínima.",
   "authEnterPassword": "Informe sua senha.",
   "authErrUserNotFound": "Usuário não encontrado no sistema. Contate o administrador.",
+  "authErrUnknownProfile": "Não foi possível identificar seu perfil de acesso. Contate o administrador da academia.",
   "authErrDbNotConfigured": "Banco de dados ainda não configurado. Contate o administrador.",
   "authErrNoPermission": "Sem permissão para acessar os dados. Contate o administrador.",
   "authFirstTimeUsingApp": "Acessando o app pela primeira vez",

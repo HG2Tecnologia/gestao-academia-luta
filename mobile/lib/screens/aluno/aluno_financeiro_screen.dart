@@ -19,6 +19,7 @@ class AlunoFinanceiroScreen extends StatefulWidget {
 class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   List<Map<String, dynamic>> _cobrancas = [];
   Map<String, Map<String, dynamic>> _modalidadesPorId = {};
+  Map<String, Map<String, dynamic>> _planosPorId = {};
   bool _loading = true;
   bool _erro = false;
   String _filtro = 'Todos';
@@ -78,12 +79,17 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
         firestoreService.getModalidades(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getTodosPlanos(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
       _modalidadesPorId = {
         for (final m in results[2] as List<Map<String, dynamic>>)
           (m['id'] ?? '').toString(): m,
+      };
+      _planosPorId = {
+        for (final p in results[3] as List<Map<String, dynamic>>)
+          (p['id'] ?? '').toString(): p,
       };
       if (mounted)
         setState(() {
@@ -104,7 +110,22 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
           'dataVencimento': _fmtDate(
             p['data_vencimento'] ?? p['dataVencimento'],
           ),
-          'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
+          'tipo': (() {
+            final tipoBruto = p['tipo']?.toString();
+            if (tipoBruto != 'Mensalidade') {
+              return tipoBruto ?? p['plano_nome']?.toString() ?? 'Cobrança';
+            }
+            final planoId = p['plano_id']?.toString();
+            final nomeAoVivo = planoId == null
+                ? null
+                : _planosPorId[planoId]?['nome']?.toString().trim();
+            if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) {
+              return nomeAoVivo;
+            }
+            final planoNome = p['plano_nome']?.toString().trim();
+            if (planoNome != null && planoNome.isNotEmpty) return planoNome;
+            return tipoBruto;
+          })(),
         };
       }).toList();
       if (mounted) setState(() => _cobrancas = converted);

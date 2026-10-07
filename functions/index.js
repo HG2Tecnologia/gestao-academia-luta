@@ -35,6 +35,7 @@ exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
 exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePeriod;
 exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
+exports.limparCobrancasOrfas = financeFunctions.limparCobrancasOrfas;
 
 const DIAS_ANTECEDENCIA = 3;
 

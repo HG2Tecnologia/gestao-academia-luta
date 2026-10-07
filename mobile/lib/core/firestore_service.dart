@@ -860,6 +860,116 @@ class FirestoreService {
   Future<void> deleteMatricula(String academiaId, String id) =>
       _doc(academiaId, 'matriculas', id).delete();
 
+  /// Desvincula o aluno de UMA turma (encerra só aquela matrícula). Se essa
+  /// era a ÚLTIMA turma dele naquela modalidade, também cancela as
+  /// cobranças pendentes e desativa o vínculo de plano daquela
+  /// modalidade — ele não deve continuar sendo cobrado por uma modalidade
+  /// que não frequenta mais. Se ainda tiver outra turma da MESMA
+  /// modalidade (ex.: duas turmas de Jiu-Jitsu em horários diferentes), a
+  /// cobrança continua normal, intocada.
+  Future<void> desvincularTurmaDoAluno(
+    String academiaId, {
+    required String matriculaId,
+    required String alunoId,
+    required String modalidadeId,
+  }) async {
+    await deleteMatricula(academiaId, matriculaId);
+    if (modalidadeId.isEmpty) return;
+
+    final outrasMatriculas = await _col(academiaId, 'matriculas')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('ativo', isEqualTo: true)
+        .get();
+    for (final doc in outrasMatriculas.docs) {
+      final docData = doc.data() as Map<String, dynamic>;
+      final turmaId = docData['turma_id']?.toString();
+      if (turmaId == null || turmaId.isEmpty) continue;
+      final turmaDoc = await _doc(academiaId, 'turmas', turmaId).get();
+      final turmaData = turmaDoc.data() as Map<String, dynamic>?;
+      if (turmaData?['modalidadeId']?.toString() == modalidadeId) {
+        // Ainda matriculado em outra turma da mesma modalidade — a
+        // cobrança continua válida, não mexe em nada.
+        return;
+      }
+    }
+
+    await _cancelarCobrancasPendentesDoPlano(
+      academiaId,
+      alunoId: alunoId,
+      modalidadeId: modalidadeId,
+    );
+
+    final vinculos = await _col(academiaId, 'planos_modalidade')
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('modalidade_id', isEqualTo: modalidadeId)
+        .where('ativo', isEqualTo: true)
+        .get();
+    if (vinculos.docs.isEmpty) return;
+    final batch = _db.batch();
+    for (final doc in vinculos.docs) {
+      batch.update(doc.reference, {
+        'ativo': false,
+        'atualizado_em': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  /// Se a turma tiver um plano padrão configurado (`planoPadraoId`), vincula
+  /// automaticamente o aluno recém-matriculado a esse plano — evita o
+  /// admin/professor ter que ir até o perfil do aluno vincular o plano à
+  /// mão. Nunca sobrescreve um plano já existente pro aluno naquela
+  /// modalidade (ou, no modelo legado, um `plano_id` já definido).
+  Future<void> vincularPlanoPadraoDaTurma(
+    String academiaId, {
+    required String alunoId,
+    required String turmaId,
+  }) async {
+    try {
+      final turmaDoc = await _doc(academiaId, 'turmas', turmaId).get();
+      final turma = turmaDoc.data() as Map<String, dynamic>?;
+      final planoPadraoId = turma?['planoPadraoId']?.toString();
+      if (planoPadraoId == null || planoPadraoId.isEmpty) return;
+      final modalidadeId = turma?['modalidadeId']?.toString();
+
+      final academia = await getAcademia(academiaId);
+      final porModalidade =
+          academia?['cobranca_por_modalidade_ativa'] as bool? ?? false;
+
+      if (porModalidade) {
+        if (modalidadeId == null || modalidadeId.isEmpty) return;
+        final existentes = await _col(academiaId, 'planos_modalidade')
+            .where('aluno_id', isEqualTo: alunoId)
+            .where('modalidade_id', isEqualTo: modalidadeId)
+            .where('ativo', isEqualTo: true)
+            .limit(1)
+            .get();
+        if (existentes.docs.isNotEmpty) return;
+        final diaVencimento = DateTime.now().day > 28
+            ? 28
+            : DateTime.now().day;
+        await addPlanoModalidade(academiaId, {
+          'aluno_id': alunoId,
+          'modalidade_id': modalidadeId,
+          'plano_id': planoPadraoId,
+          'dia_vencimento': diaVencimento,
+        });
+      } else {
+        final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
+        final aluno = alunoDoc.data() as Map<String, dynamic>?;
+        final planoAtual = aluno?['plano_id']?.toString();
+        if (planoAtual != null && planoAtual.isNotEmpty) return;
+        await _doc(academiaId, 'usuarios', alunoId).update({
+          'plano_id': planoPadraoId,
+          'atualizado_em': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {
+      // Matrícula já foi criada com sucesso — vincular o plano padrão é um
+      // atalho de conveniência, não deve impedir/reportar erro na matrícula.
+    }
+  }
+
   Future<void> updateMatricula(
     String academiaId,
     String id,
@@ -1471,6 +1581,15 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
+  /// Todos os planos (ativos e inativos/apagados) — usado para resolver o
+  /// nome do plano ao vivo nas cobranças do Financeiro, mesmo quando o
+  /// plano já foi excluído (nesse caso o nome não é encontrado aqui e a
+  /// tela cai de volta no `plano_nome` em cache da própria cobrança).
+  Future<List<Map<String, dynamic>>> getTodosPlanos(String academiaId) async {
+    final snap = await _col(academiaId, 'planos').get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
   Future<Map<String, dynamic>?> getPlano(String academiaId, String id) async {
     final doc = await _doc(academiaId, 'planos', id).get();
     if (!doc.exists) return null;
@@ -1498,11 +1617,48 @@ class FirestoreService {
     id,
   ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
 
-  Future<void> deletePlano(String academiaId, String id) => _doc(
-    academiaId,
-    'planos',
-    id,
-  ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+  Future<void> deletePlano(String academiaId, String id) async {
+    await _doc(
+      academiaId,
+      'planos',
+      id,
+    ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+    await _cancelarCobrancasPendentesDoPlano(academiaId, planoId: id);
+    await _desvincularPlanoExcluido(academiaId, id);
+  }
+
+  /// Desfaz qualquer vínculo ativo apontando pro plano recém-excluído —
+  /// sem isso, o aluno continuava "preso" ao plano apagado: em
+  /// `planos_modalidade` (desativa o vínculo) e no modelo legado
+  /// (`usuarios.plano_id`, limpa o campo). Evita o card órfão mostrando o
+  /// ID do plano em vez do nome.
+  Future<void> _desvincularPlanoExcluido(
+    String academiaId,
+    String planoId,
+  ) async {
+    final vinculos = await _col(academiaId, 'planos_modalidade')
+        .where('plano_id', isEqualTo: planoId)
+        .where('ativo', isEqualTo: true)
+        .get();
+    final alunosLegado = await _col(academiaId, 'usuarios')
+        .where('plano_id', isEqualTo: planoId)
+        .get();
+    if (vinculos.docs.isEmpty && alunosLegado.docs.isEmpty) return;
+    final batch = _db.batch();
+    for (final doc in vinculos.docs) {
+      batch.update(doc.reference, {
+        'ativo': false,
+        'atualizado_em': FieldValue.serverTimestamp(),
+      });
+    }
+    for (final doc in alunosLegado.docs) {
+      batch.update(doc.reference, {
+        'plano_id': null,
+        'atualizado_em': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
 
   // ─── PLANOS POR MODALIDADE (opt-in via academia.cobranca_por_modalidade_ativa) ─
   //
@@ -1536,24 +1692,129 @@ class FirestoreService {
     return ref.id;
   }
 
+  /// Atualiza o vínculo aluno+modalidade e, quando `plano_id` está no
+  /// payload, propaga o plano (nome + valor) pra qualquer cobrança dessa
+  /// modalidade ainda pendente — sem isso a cobrança do mês continuava
+  /// mostrando o plano antigo até ser paga.
   Future<void> updatePlanoModalidade(
     String academiaId,
     String id,
     Map<String, dynamic> data,
-  ) => _doc(
-    academiaId,
-    'planos_modalidade',
-    id,
-  ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+  ) async {
+    await _doc(
+      academiaId,
+      'planos_modalidade',
+      id,
+    ).update({...data, 'atualizado_em': FieldValue.serverTimestamp()});
+    final novoPlanoId = data['plano_id']?.toString();
+    if (novoPlanoId == null || novoPlanoId.isEmpty) return;
+    final doc = await _doc(academiaId, 'planos_modalidade', id).get();
+    final vinculo = doc.data() as Map<String, dynamic>?;
+    final alunoId = vinculo?['aluno_id']?.toString();
+    final modalidadeId = vinculo?['modalidade_id']?.toString();
+    if (alunoId == null || modalidadeId == null) return;
+    await _atualizarPlanoEmCobrancasPendentes(
+      academiaId,
+      alunoId: alunoId,
+      modalidadeId: modalidadeId,
+      novoPlanoId: novoPlanoId,
+    );
+  }
+
+  /// Atualiza `plano_id`/`plano_nome`/`valor` das cobranças ainda
+  /// **pendentes** (status 0) de um aluno+modalidade pro plano atualmente
+  /// vinculado. Nunca toca em cobrança paga, prevista ou desconsiderada —
+  /// preserva o que já foi cobrado/recebido.
+  Future<void> _atualizarPlanoEmCobrancasPendentes(
+    String academiaId, {
+    required String alunoId,
+    required String modalidadeId,
+    required String novoPlanoId,
+  }) async {
+    final plano = await getPlano(academiaId, novoPlanoId);
+    if (plano == null) return;
+    final snap = await _col(academiaId, 'pagamentos')
+        .where('status', isEqualTo: 0)
+        .where('aluno_id', isEqualTo: alunoId)
+        .where('modalidade_id', isEqualTo: modalidadeId)
+        .get();
+    if (snap.docs.isEmpty) return;
+    final batch = _db.batch();
+    var houveMudanca = false;
+    for (final doc in snap.docs) {
+      final atual = doc.data() as Map<String, dynamic>;
+      final mesmoPlano = atual['plano_id']?.toString() == novoPlanoId;
+      final mesmoValor =
+          (atual['valor'] as num?)?.toDouble() ==
+          (plano['valor_mensal'] as num?)?.toDouble();
+      final mesmoNome = atual['plano_nome']?.toString() == plano['nome'];
+      if (mesmoPlano && mesmoValor && mesmoNome) continue;
+      houveMudanca = true;
+      batch.update(doc.reference, {
+        'plano_id': novoPlanoId,
+        'plano_nome': plano['nome'],
+        'valor': (plano['valor_mensal'] as num?)?.toDouble() ?? atual['valor'],
+        'atualizado_em': FieldValue.serverTimestamp(),
+      });
+    }
+    if (houveMudanca) await batch.commit();
+  }
 
   /// Encerra a matrícula naquela modalidade (soft delete, mesmo padrão de
-  /// `deletePlano`) — para de gerar cobrança dali em diante, sem apagar o
-  /// histórico de cobranças já geradas.
-  Future<void> deletePlanoModalidade(String academiaId, String id) => _doc(
-    academiaId,
-    'planos_modalidade',
-    id,
-  ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+  /// `deletePlano`) — para de gerar cobrança dali em diante, e cancela
+  /// (desconsidera) cobranças dessa modalidade que ainda estejam pendentes,
+  /// sem apagar o histórico de cobranças já pagas.
+  Future<void> deletePlanoModalidade(String academiaId, String id) async {
+    final doc = await _doc(academiaId, 'planos_modalidade', id).get();
+    final data = doc.data() as Map<String, dynamic>?;
+    await _doc(
+      academiaId,
+      'planos_modalidade',
+      id,
+    ).update({'ativo': false, 'atualizado_em': FieldValue.serverTimestamp()});
+    if (data != null) {
+      await _cancelarCobrancasPendentesDoPlano(
+        academiaId,
+        alunoId: data['aluno_id']?.toString(),
+        modalidadeId: data['modalidade_id']?.toString(),
+      );
+    }
+  }
+
+  /// Cancela (status 4 = Desconsiderado) cobranças ainda **pendentes**
+  /// (status 0 — inclui as já vencidas, "Atrasado" é só um estado derivado)
+  /// vinculadas a um plano ou a uma modalidade que acabou de ser
+  /// desativada. Nunca toca em cobranças pagas, previstas ou já
+  /// desconsideradas — evita que a cobrança do plano antigo continue
+  /// aparecendo "duplicada" ao lado da nova, sem mexer no histórico
+  /// financeiro já consolidado.
+  Future<void> _cancelarCobrancasPendentesDoPlano(
+    String academiaId, {
+    String? planoId,
+    String? alunoId,
+    String? modalidadeId,
+  }) async {
+    if (planoId == null && modalidadeId == null) return;
+    Query q = _col(academiaId, 'pagamentos').where('status', isEqualTo: 0);
+    if (alunoId != null) {
+      q = q.where('aluno_id', isEqualTo: alunoId);
+    }
+    if (modalidadeId != null) {
+      q = q.where('modalidade_id', isEqualTo: modalidadeId);
+    } else if (planoId != null) {
+      q = q.where('plano_id', isEqualTo: planoId);
+    }
+    final snap = await q.get();
+    if (snap.docs.isEmpty) return;
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {
+        'status': 4,
+        'atualizado_em': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
 
   // ─── NOTÍCIAS ──────────────────────────────────────────────────────────────
 

@@ -2964,6 +2964,11 @@ class _MatriculaSheetState extends State<_MatriculaSheet> {
         'data_matricula': DateTime.now().toUtc().toIso8601String(),
         'ativo': true,
       });
+      await firestoreService.vincularPlanoPadraoDaTurma(
+        widget.academiaId,
+        alunoId: _selecionadoId!,
+        turmaId: widget.turmaId,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted)

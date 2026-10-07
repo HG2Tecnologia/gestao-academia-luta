@@ -599,7 +599,10 @@ class _NoticiaFormScreenState extends State<_NoticiaFormScreen> {
                     Switch(
                       value: _publicarAgora,
                       onChanged: (v) => setState(() => _publicarAgora = v),
-                      activeColor: context.c.primary,
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: context.c.primary,
+                      inactiveThumbColor: context.c.surface,
+                      inactiveTrackColor: context.c.outline,
                     ),
                   ],
                 ),

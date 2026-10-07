@@ -433,6 +433,99 @@ async function mergeDuplicateChargesCore(academiaId) {
   return { gruposComDuplicata, resolvidasAutomaticamente, ignoradasRevisaoManual };
 }
 
+/**
+ * Varre cobranças ainda PENDENTES (`status === 0`, inclui as já vencidas —
+ * "Atrasado" é só um estado derivado, nunca persistido) e desconsidera as
+ * que ficaram órfãs:
+ *
+ *  * `plano_id` preenchido mas o plano foi excluído (`ativo !== true` ou o
+ *    doc nem existe mais).
+ *  * `modalidade_id` preenchido mas o aluno não tem mais um
+ *    `planos_modalidade` ativo pra essa modalidade (foi desvinculado).
+ *
+ * Nunca toca em cobrança paga, prevista, desconsiderada, ou em cobrança
+ * avulsa sem plano (`tipo === "Taxa de Matrícula"`) — só mensalidade
+ * pendente realmente travada num plano/vínculo que não existe mais.
+ */
+async function limparCobrancasOrfasCore(academiaId) {
+  const academiaRef = db.collection("academias").doc(academiaId);
+  const [pagamentosSnap, planosSnap, planosModalidadeSnap] = await Promise.all([
+    academiaRef.collection("pagamentos").where("status", "==", 0).get(),
+    academiaRef.collection("planos").get(),
+    academiaRef.collection("planos_modalidade").where("ativo", "==", true).get(),
+  ]);
+
+  const planosAtivos = new Set(
+    planosSnap.docs.filter((d) => d.data().ativo === true).map((d) => d.id),
+  );
+  const vinculosAtivos = new Set(
+    planosModalidadeSnap.docs.map(
+      (d) => `${String(d.data().aluno_id ?? "")}|${String(d.data().modalidade_id ?? "")}`,
+    ),
+  );
+
+  let analisadas = 0;
+  let canceladas = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400;
+
+  for (const doc of pagamentosSnap.docs) {
+    const data = doc.data();
+    if (!eMensalidade(data)) continue;
+    analisadas++;
+
+    const planoId = String(data.plano_id ?? "").trim();
+    const modalidadeId = String(data.modalidade_id ?? "").trim();
+    const alunoId = String(data.aluno_id ?? "").trim();
+
+    let motivo = null;
+    if (planoId && !planosAtivos.has(planoId)) {
+      motivo = "plano_removido";
+    } else if (modalidadeId && alunoId && !vinculosAtivos.has(`${alunoId}|${modalidadeId}`)) {
+      motivo = "aluno_desvinculado_modalidade";
+    }
+    if (!motivo) continue;
+
+    batch.update(doc.ref, {
+      status: 4,
+      desconsiderado_em: FieldValue.serverTimestamp(),
+      desconsiderado_motivo: motivo,
+    });
+    canceladas++;
+    opsNoBatch++;
+    if (opsNoBatch >= TAMANHO_LOTE) {
+      await batch.commit();
+      batch = db.batch();
+      opsNoBatch = 0;
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { cobrancasAnalisadas: analisadas, cobrancasCanceladas: canceladas };
+}
+
+exports.limparCobrancasOrfas = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de limpar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await limparCobrancasOrfasCore(academiaId);
+
+  logger.info("Cobranças órfãs limpas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
 exports.mergeDuplicateCharges = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
   if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
     throw new HttpsError("unauthenticated", "É necessário autenticar antes de corrigir duplicatas.");
@@ -458,5 +551,6 @@ exports._test = {
   ensureChargesForPeriodCore,
   disregardChargesBeforePeriodCore,
   mergeDuplicateChargesCore,
+  limparCobrancasOrfasCore,
   loadFinanceAuthority,
 };

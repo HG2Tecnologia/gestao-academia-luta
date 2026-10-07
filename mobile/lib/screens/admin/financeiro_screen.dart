@@ -94,8 +94,23 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
   }
 
-  String _tipoLabel(String? t) =>
-      t == 'Taxa de Matrícula' ? _l.fiTypeEnrollment : _l.fiTypeMonthly;
+  /// Rótulo de tipo de cobrança, preferindo o nome do plano (quando a
+  /// cobrança é uma mensalidade) ao texto genérico "Mensalidade" — assim
+  /// cobranças de planos diferentes não aparecem todas com o mesmo rótulo.
+  /// Resolve o nome AO VIVO em `_planosPorId` (reflete rename imediato);
+  /// só cai pro `plano_nome` em cache se o plano já tiver sido excluído.
+  String _tipoLabelCompleto(Map<String, dynamic> c) {
+    final tipo = c['tipo']?.toString();
+    if (tipo == 'Taxa de Matrícula') return _l.fiTypeEnrollment;
+    final planoId = c['plano_id']?.toString();
+    final nomeAoVivo = planoId == null
+        ? null
+        : _planosPorId[planoId]?['nome']?.toString().trim();
+    if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) return nomeAoVivo;
+    final planoNome = c['plano_nome']?.toString().trim();
+    if (planoNome != null && planoNome.isNotEmpty) return planoNome;
+    return _l.fiTypeMonthly;
+  }
 
   Map<String, dynamic>? _resumo;
   List<Map<String, dynamic>> _cobrancas = [];
@@ -105,6 +120,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   // consulta inteira e sem perder a posição de rolagem.
   List<Map<String, dynamic>> _todosPagamentos = [];
   Map<String, Map<String, dynamic>> _modalidadesPorId = {};
+  Map<String, Map<String, dynamic>> _planosPorId = {};
   String? _modalidadeFiltro; // null = todas
   bool _loading = true;
   String? _academiaId;
@@ -187,6 +203,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
         firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
@@ -194,6 +211,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       _modalidadesPorId = {
         for (final m in results[2] as List<Map<String, dynamic>>)
           (m['id'] ?? '').toString(): m,
+      };
+      _planosPorId = {
+        for (final p in results[3] as List<Map<String, dynamic>>)
+          (p['id'] ?? '').toString(): p,
       };
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
@@ -829,7 +850,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final valorBase = (c['valor'] as num? ?? 0).toDouble();
       return LinhaRelatorioFinanceiro(
         nomeAluno: (c['nomeAluno'] as String?) ?? '',
-        tipo: _tipoLabel(c['tipo'] as String?),
+        tipo: _tipoLabelCompleto(c),
         valorFormatado: _fmtVal(valorPago ?? valorBase),
         vencimentoFormatado: fmtData(c['dataVencimento'] ?? c['data_vencimento']),
         status: _statusLabel(c['status'] as String?),
@@ -1011,6 +1032,82 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_l.fiMergeDuplicatesError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Complementar à correção de duplicatas: limpa cobrança pendente ÚNICA
+  /// (não precisa ser duplicata de nada) presa num plano excluído ou numa
+  /// modalidade da qual o aluno já foi desvinculado. Nunca toca em cobrança
+  /// paga, prevista, desconsiderada, ou avulsa sem plano.
+  Future<void> _abrirLimparOrfas() async {
+    if (_academiaId == null) return;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanOrphansTitle),
+        content: Text(_l.fiCleanOrphansExplain),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanOrphansButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final confirmadoDeVerdade = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanOrphansConfirmTitle),
+        content: Text(_l.fiCleanOrphansConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanOrphansButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmadoDeVerdade != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.limparCobrancasOrfas(
+        academiaId: _academiaId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiCleanOrphansSuccess(
+              resultado.cobrancasAnalisadas,
+              resultado.cobrancasCanceladas,
+            ),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiCleanOrphansError),
           backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
         ),
@@ -2708,6 +2805,25 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       ],
                                     ),
                                   ),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirLimparOrfas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.link_off_rounded,
+                                          size: 18,
+                                          color: context.sem.warning,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiCleanOrphans,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -3187,7 +3303,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                             ],
                                             const SizedBox(height: 4),
                                             Text(
-                                              _tipoLabel(c['tipo']?.toString()),
+                                              _tipoLabelCompleto(c),
                                               style: TextStyle(
                                                 color:
                                                     context.c.onSurfaceVariant,

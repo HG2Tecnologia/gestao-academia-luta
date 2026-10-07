@@ -73,7 +73,14 @@ class _TrocaSenhaObrigatoriaScreenState
         case 'Aluno':
           context.go('/aluno/inicio');
         default:
-          context.go('/boas-vindas');
+          // Senha já foi trocada com sucesso no Firebase Auth nesse ponto —
+          // não dá pra simplesmente voltar pra entrada em silêncio, isso
+          // pareceria que a troca de senha "não funcionou". Mostra o erro e
+          // deixa a pessoa logar de novo (já com a senha nova).
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          setState(() => _erro = l.tsoErrUnexpected);
+          return;
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

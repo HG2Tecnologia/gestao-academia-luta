@@ -26,6 +26,15 @@ class ResultadoCorrecaoDuplicatas {
   final int ignoradasRevisaoManual;
 }
 
+class ResultadoLimpezaOrfas {
+  const ResultadoLimpezaOrfas({
+    required this.cobrancasAnalisadas,
+    required this.cobrancasCanceladas,
+  });
+  final int cobrancasAnalisadas;
+  final int cobrancasCanceladas;
+}
+
 /// Geração automática de mensalidades por competência (`YYYY-MM`) — sempre
 /// via Cloud Function, nunca só no cliente. Idempotente: chamar de novo para
 /// a mesma competência não duplica nem sobrescreve cobranças já existentes
@@ -95,6 +104,30 @@ class FinanceService {
       gruposComDuplicata: asNum('gruposComDuplicata').toInt(),
       resolvidasAutomaticamente: asNum('resolvidasAutomaticamente').toInt(),
       ignoradasRevisaoManual: asNum('ignoradasRevisaoManual').toInt(),
+    );
+  }
+
+  /// Varre cobranças ainda pendentes (nunca pagas, previstas ou já
+  /// desconsideradas) e desconsidera as que ficaram órfãs: plano excluído
+  /// ou aluno desvinculado daquela modalidade. Complementar ao
+  /// [mergeDuplicateCharges] — aquele resolve duplicatas (mesmo aluno+mês
+  /// com mais de uma cobrança); este limpa cobrança única presa num
+  /// plano/vínculo que não existe mais, mesmo sem ser duplicata de nada.
+  Future<ResultadoLimpezaOrfas> limparCobrancasOrfas({
+    required String academiaId,
+  }) async {
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('limparCobrancasOrfas')
+        .call({'academiaId': academiaId});
+    final data = result.data;
+    num asNum(String key) {
+      final v = data is Map ? data[key] : null;
+      return v is num ? v : 0;
+    }
+
+    return ResultadoLimpezaOrfas(
+      cobrancasAnalisadas: asNum('cobrancasAnalisadas').toInt(),
+      cobrancasCanceladas: asNum('cobrancasCanceladas').toInt(),
     );
   }
 }

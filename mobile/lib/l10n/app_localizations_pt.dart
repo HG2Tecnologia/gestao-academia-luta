@@ -1429,6 +1429,26 @@ class AppLocalizationsPt extends AppLocalizations {
   String get sdNoClasses => 'Nenhuma turma vinculada.';
 
   @override
+  String get sdUnlinkClassTitle => 'Desvincular desta turma?';
+
+  @override
+  String sdUnlinkClassBody(String aluno, String turma) {
+    return '$aluno sai de \"$turma\". Se essa for a única turma dele(a) nessa modalidade, as cobranças pendentes, atrasadas e futuras dessa modalidade também são canceladas — cobrança já paga nunca é afetada.';
+  }
+
+  @override
+  String get sdUnlinkClassButton => 'Desvincular';
+
+  @override
+  String sdUnlinkedToast(String turma) {
+    return 'Desvinculado de $turma.';
+  }
+
+  @override
+  String get sdUnlinkClassError =>
+      'Não foi possível desvincular a turma. Tente novamente.';
+
+  @override
   String get sdBeltHistory => 'Histórico de Graduações';
 
   @override
@@ -1623,6 +1643,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get noInstructor => 'Sem professor';
+
+  @override
+  String get classDefaultPlanOptional => 'Plano padrão (opcional)';
+
+  @override
+  String get classNoDefaultPlan => 'Sem plano padrão';
+
+  @override
+  String get classDefaultPlanHelper =>
+      'Todo aluno matriculado nessa turma já é vinculado a este plano automaticamente, sem precisar configurar no perfil dele.';
 
   @override
   String get maxCapacity => 'Capacidade máxima';
@@ -2325,6 +2355,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiMergeDuplicates => 'Corrigir duplicadas';
 
   @override
+  String get fiCleanOrphans => 'Limpar órfãs';
+
+  @override
   String get fiMergeDuplicatesTitle => 'Corrigir mensalidades duplicadas';
 
   @override
@@ -2349,6 +2382,32 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get fiMergeDuplicatesError =>
       'Não foi possível corrigir as mensalidades duplicadas. Tente novamente.';
+
+  @override
+  String get fiCleanOrphansTitle => 'Limpar cobranças órfãs';
+
+  @override
+  String get fiCleanOrphansExplain =>
+      'Procura cobranças ainda pendentes (nunca pagas) presas num plano que já foi excluído, ou numa modalidade da qual o aluno já foi desvinculado. Quando encontra, desconsidera — nunca exclui, nunca marca como paga. Cobrança já paga nunca é tocada, mesmo que o plano dela tenha sido excluído depois.';
+
+  @override
+  String get fiCleanOrphansConfirmTitle => 'Limpar cobranças órfãs agora?';
+
+  @override
+  String get fiCleanOrphansConfirmBody =>
+      'Isso vai desconsiderar toda cobrança pendente desta academia presa num plano excluído ou numa modalidade da qual o aluno já foi desvinculado. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?';
+
+  @override
+  String get fiCleanOrphansButton => 'Limpar órfãs';
+
+  @override
+  String fiCleanOrphansSuccess(int analisadas, int canceladas) {
+    return '$analisadas cobrança(s) pendente(s) analisada(s) · $canceladas cancelada(s) por estarem órfãs.';
+  }
+
+  @override
+  String get fiCleanOrphansError =>
+      'Não foi possível limpar as cobranças órfãs. Tente novamente.';
 
   @override
   String get fiNoCharges => 'Nenhuma cobrança.';
@@ -3889,6 +3948,10 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get authErrUserNotFound =>
       'Usuário não encontrado no sistema. Contate o administrador.';
+
+  @override
+  String get authErrUnknownProfile =>
+      'Não foi possível identificar seu perfil de acesso. Contate o administrador da academia.';
 
   @override
   String get authErrDbNotConfigured =>

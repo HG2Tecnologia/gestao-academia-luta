@@ -1429,6 +1429,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sdNoClasses => 'Not enrolled in any class.';
 
   @override
+  String get sdUnlinkClassTitle => 'Unlink from this class?';
+
+  @override
+  String sdUnlinkClassBody(String aluno, String turma) {
+    return '$aluno leaves \"$turma\". If this is their only class in that modality, pending, overdue and future charges for that modality are cancelled too — a charge that\'s already paid is never affected.';
+  }
+
+  @override
+  String get sdUnlinkClassButton => 'Unlink';
+
+  @override
+  String sdUnlinkedToast(String turma) {
+    return 'Unlinked from $turma.';
+  }
+
+  @override
+  String get sdUnlinkClassError =>
+      'Couldn\'t unlink the class. Please try again.';
+
+  @override
   String get sdBeltHistory => 'Promotion History';
 
   @override
@@ -1623,6 +1643,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noInstructor => 'No instructor';
+
+  @override
+  String get classDefaultPlanOptional => 'Default plan (optional)';
+
+  @override
+  String get classNoDefaultPlan => 'No default plan';
+
+  @override
+  String get classDefaultPlanHelper =>
+      'Every student enrolled in this class is automatically linked to this plan, with no need to set it up on their profile.';
 
   @override
   String get maxCapacity => 'Maximum capacity';
@@ -2325,6 +2355,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiMergeDuplicates => 'Fix duplicates';
 
   @override
+  String get fiCleanOrphans => 'Clean orphans';
+
+  @override
   String get fiMergeDuplicatesTitle => 'Fix duplicate monthly charges';
 
   @override
@@ -2349,6 +2382,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get fiMergeDuplicatesError =>
       'Couldn\'t fix the duplicate monthly charges. Please try again.';
+
+  @override
+  String get fiCleanOrphansTitle => 'Clean up orphan charges';
+
+  @override
+  String get fiCleanOrphansExplain =>
+      'Looks for still-pending charges (never paid) stuck on a plan that was deleted, or on a modality the student was unlinked from. When found, it disregards them — never deletes, never marks as paid. A charge that\'s already paid is never touched, even if its plan was deleted afterward.';
+
+  @override
+  String get fiCleanOrphansConfirmTitle => 'Clean up orphan charges now?';
+
+  @override
+  String get fiCleanOrphansConfirmBody =>
+      'This will disregard every pending charge in this academy that\'s stuck on a deleted plan or a modality the student was unlinked from. This can\'t be undone in bulk — only one at a time, manually. Continue?';
+
+  @override
+  String get fiCleanOrphansButton => 'Clean orphans';
+
+  @override
+  String fiCleanOrphansSuccess(int analisadas, int canceladas) {
+    return '$analisadas pending charge(s) analyzed · $canceladas cancelled for being orphaned.';
+  }
+
+  @override
+  String get fiCleanOrphansError =>
+      'Couldn\'t clean up orphan charges. Please try again.';
 
   @override
   String get fiNoCharges => 'No charges.';
@@ -3888,6 +3947,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authErrUserNotFound =>
       'User not found in the system. Contact the administrator.';
+
+  @override
+  String get authErrUnknownProfile =>
+      'We couldn\'t identify your access profile. Contact the academy administrator.';
 
   @override
   String get authErrDbNotConfigured =>

@@ -2612,6 +2612,36 @@ abstract class AppLocalizations {
   /// **'Nenhuma turma vinculada.'**
   String get sdNoClasses;
 
+  /// No description provided for @sdUnlinkClassTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvincular desta turma?'**
+  String get sdUnlinkClassTitle;
+
+  /// No description provided for @sdUnlinkClassBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{aluno} sai de \"{turma}\". Se essa for a única turma dele(a) nessa modalidade, as cobranças pendentes, atrasadas e futuras dessa modalidade também são canceladas — cobrança já paga nunca é afetada.'**
+  String sdUnlinkClassBody(String aluno, String turma);
+
+  /// No description provided for @sdUnlinkClassButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvincular'**
+  String get sdUnlinkClassButton;
+
+  /// No description provided for @sdUnlinkedToast.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvinculado de {turma}.'**
+  String sdUnlinkedToast(String turma);
+
+  /// No description provided for @sdUnlinkClassError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível desvincular a turma. Tente novamente.'**
+  String get sdUnlinkClassError;
+
   /// No description provided for @sdBeltHistory.
   ///
   /// In pt, this message translates to:
@@ -2947,6 +2977,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Sem professor'**
   String get noInstructor;
+
+  /// No description provided for @classDefaultPlanOptional.
+  ///
+  /// In pt, this message translates to:
+  /// **'Plano padrão (opcional)'**
+  String get classDefaultPlanOptional;
+
+  /// No description provided for @classNoDefaultPlan.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem plano padrão'**
+  String get classNoDefaultPlan;
+
+  /// No description provided for @classDefaultPlanHelper.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todo aluno matriculado nessa turma já é vinculado a este plano automaticamente, sem precisar configurar no perfil dele.'**
+  String get classDefaultPlanHelper;
 
   /// No description provided for @maxCapacity.
   ///
@@ -4166,6 +4214,12 @@ abstract class AppLocalizations {
   /// **'Corrigir duplicadas'**
   String get fiMergeDuplicates;
 
+  /// No description provided for @fiCleanOrphans.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar órfãs'**
+  String get fiCleanOrphans;
+
   /// No description provided for @fiMergeDuplicatesTitle.
   ///
   /// In pt, this message translates to:
@@ -4207,6 +4261,48 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Não foi possível corrigir as mensalidades duplicadas. Tente novamente.'**
   String get fiMergeDuplicatesError;
+
+  /// No description provided for @fiCleanOrphansTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças órfãs'**
+  String get fiCleanOrphansTitle;
+
+  /// No description provided for @fiCleanOrphansExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procura cobranças ainda pendentes (nunca pagas) presas num plano que já foi excluído, ou numa modalidade da qual o aluno já foi desvinculado. Quando encontra, desconsidera — nunca exclui, nunca marca como paga. Cobrança já paga nunca é tocada, mesmo que o plano dela tenha sido excluído depois.'**
+  String get fiCleanOrphansExplain;
+
+  /// No description provided for @fiCleanOrphansConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças órfãs agora?'**
+  String get fiCleanOrphansConfirmTitle;
+
+  /// No description provided for @fiCleanOrphansConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Isso vai desconsiderar toda cobrança pendente desta academia presa num plano excluído ou numa modalidade da qual o aluno já foi desvinculado. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?'**
+  String get fiCleanOrphansConfirmBody;
+
+  /// No description provided for @fiCleanOrphansButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar órfãs'**
+  String get fiCleanOrphansButton;
+
+  /// No description provided for @fiCleanOrphansSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{analisadas} cobrança(s) pendente(s) analisada(s) · {canceladas} cancelada(s) por estarem órfãs.'**
+  String fiCleanOrphansSuccess(int analisadas, int canceladas);
+
+  /// No description provided for @fiCleanOrphansError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível limpar as cobranças órfãs. Tente novamente.'**
+  String get fiCleanOrphansError;
 
   /// No description provided for @fiNoCharges.
   ///
@@ -6871,6 +6967,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Usuário não encontrado no sistema. Contate o administrador.'**
   String get authErrUserNotFound;
+
+  /// No description provided for @authErrUnknownProfile.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível identificar seu perfil de acesso. Contate o administrador da academia.'**
+  String get authErrUnknownProfile;
 
   /// No description provided for @authErrDbNotConfigured.
   ///

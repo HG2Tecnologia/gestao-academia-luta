@@ -342,7 +342,13 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'Aluno':
           context.go('/aluno/inicio');
         default:
-          context.go('/boas-vindas');
+          // Perfil vazio/inesperado: antes voltava pra entrada sem avisar
+          // nada, parecendo que o login "não deu em nada" mesmo tendo
+          // autenticado com sucesso. Agora mostra um erro de verdade.
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          setState(() => _erro = _l.authErrUnknownProfile);
+          return;
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

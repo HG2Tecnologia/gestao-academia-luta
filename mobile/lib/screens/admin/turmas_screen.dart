@@ -867,9 +867,11 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
   List<Map<String, dynamic>> _modalidades = [];
   List<Map<String, dynamic>> _professores = [];
+  List<Map<String, dynamic>> _planos = [];
 
   String? _modalidadeId;
   String? _professorId;
+  String? _planoPadraoId;
   String? _nivel;
   bool _ativo = true;
   bool _loading = true;
@@ -895,6 +897,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
           .toString();
       _nivel = t['nivel'] as String?;
       _ativo = t['ativo'] == true;
+      _planoPadraoId = t['planoPadraoId']?.toString();
     }
     _loadDados();
   }
@@ -911,10 +914,12 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       final results = await Future.wait([
         firestoreService.getModalidades(widget.academiaId),
         firestoreService.getFuncionarios(widget.academiaId),
+        firestoreService.getPlanos(widget.academiaId),
       ]);
 
       final mods = results[0].cast<Map<String, dynamic>>();
       final funcs = results[1].cast<Map<String, dynamic>>();
+      final planos = results[2].cast<Map<String, dynamic>>();
       final profs = funcs.where((f) {
         final cargo = f['cargo']?.toString().toLowerCase() ?? '';
         final perfil = f['perfil']?.toString().toLowerCase() ?? '';
@@ -925,6 +930,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         setState(() {
           _modalidades = mods;
           _professores = profs;
+          _planos = planos;
 
           if (_editando) {
             final t = widget.turma!;
@@ -989,6 +995,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         'capacidadeMaxima': int.tryParse(_capCtrl.text.trim()) ?? 30,
         if (_nivel != null) 'nivel': _nivel,
         'ativo': _ativo,
+        'planoPadraoId': _planoPadraoId,
       };
 
       if (_editando) {
@@ -1190,6 +1197,51 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                     onChanged: (v) => setState(() => _professorId = v),
                   ),
                   const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value:
+                        _planos.any((p) => p['id']?.toString() == _planoPadraoId)
+                        ? _planoPadraoId
+                        : null,
+                    decoration: _inputDecoration(
+                      l.classDefaultPlanOptional,
+                      Icons.payments_rounded,
+                    ),
+                    dropdownColor: context.c.surfaceContainer,
+                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text(
+                          l.classNoDefaultPlan,
+                          style: TextStyle(color: context.c.onSurfaceVariant),
+                        ),
+                      ),
+                      ..._planos.map(
+                        (p) => DropdownMenuItem(
+                          value: p['id']?.toString(),
+                          child: Text(
+                            p['nome']?.toString() ?? '',
+                            style: TextStyle(color: context.c.onSurface),
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _planoPadraoId = v),
+                  ),
+                  if (_planoPadraoId != null) ...[
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        l.classDefaultPlanHelper,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
                   _field(
                     _capCtrl,
                     l.maxCapacity,
@@ -1234,7 +1286,10 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
                           Switch(
                             value: _ativo,
                             onChanged: (v) => setState(() => _ativo = v),
-                            activeThumbColor: context.c.primary,
+                            activeThumbColor: Colors.white,
+                            activeTrackColor: context.c.primary,
+                            inactiveThumbColor: context.c.surface,
+                            inactiveTrackColor: context.c.outline,
                           ),
                         ],
                       ),

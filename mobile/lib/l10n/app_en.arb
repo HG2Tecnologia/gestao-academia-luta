@@ -471,6 +471,22 @@
   "sdPointsError": "Error adding points.",
   "sdEmergencyContact": "Emergency Contact",
   "sdNoClasses": "Not enrolled in any class.",
+  "sdUnlinkClassTitle": "Unlink from this class?",
+  "sdUnlinkClassBody": "{aluno} leaves \"{turma}\". If this is their only class in that modality, pending, overdue and future charges for that modality are cancelled too — a charge that's already paid is never affected.",
+  "@sdUnlinkClassBody": {
+    "placeholders": {
+      "aluno": {"type": "String"},
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassButton": "Unlink",
+  "sdUnlinkedToast": "Unlinked from {turma}.",
+  "@sdUnlinkedToast": {
+    "placeholders": {
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassError": "Couldn't unlink the class. Please try again.",
   "sdBeltHistory": "Promotion History",
   "sdNoBeltHistory": "No promotions on record.",
   "sdRemovePromotionTitle": "Remove promotion?",
@@ -527,6 +543,9 @@
   "level": "Level",
   "instructorOptional": "Instructor (optional)",
   "noInstructor": "No instructor",
+  "classDefaultPlanOptional": "Default plan (optional)",
+  "classNoDefaultPlan": "No default plan",
+  "classDefaultPlanHelper": "Every student enrolled in this class is automatically linked to this plan, with no need to set it up on their profile.",
   "maxCapacity": "Maximum capacity",
   "invalidNumber": "Invalid number",
   "classActiveToggle": "Class active",
@@ -739,6 +758,7 @@
   "fiExportColumnStatus": "Status",
   "fiExportColumnPaidDate": "Paid date",
   "fiMergeDuplicates": "Fix duplicates",
+  "fiCleanOrphans": "Clean orphans",
   "fiMergeDuplicatesTitle": "Fix duplicate monthly charges",
   "fiMergeDuplicatesExplain": "Scans every month for a student with more than one monthly charge for the same period. When it's unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.",
   "fiMergeDuplicatesConfirmTitle": "Fix duplicates now?",
@@ -753,6 +773,19 @@
     }
   },
   "fiMergeDuplicatesError": "Couldn't fix the duplicate monthly charges. Please try again.",
+  "fiCleanOrphansTitle": "Clean up orphan charges",
+  "fiCleanOrphansExplain": "Looks for still-pending charges (never paid) stuck on a plan that was deleted, or on a modality the student was unlinked from. When found, it disregards them — never deletes, never marks as paid. A charge that's already paid is never touched, even if its plan was deleted afterward.",
+  "fiCleanOrphansConfirmTitle": "Clean up orphan charges now?",
+  "fiCleanOrphansConfirmBody": "This will disregard every pending charge in this academy that's stuck on a deleted plan or a modality the student was unlinked from. This can't be undone in bulk — only one at a time, manually. Continue?",
+  "fiCleanOrphansButton": "Clean orphans",
+  "fiCleanOrphansSuccess": "{analisadas} pending charge(s) analyzed · {canceladas} cancelled for being orphaned.",
+  "@fiCleanOrphansSuccess": {
+    "placeholders": {
+      "analisadas": {"type": "int"},
+      "canceladas": {"type": "int"}
+    }
+  },
+  "fiCleanOrphansError": "Couldn't clean up orphan charges. Please try again.",
   "fiNoCharges": "No charges.",
   "fiChargesCount": "Charges · {count}",
   "fiTabAll": "All",
@@ -1433,6 +1466,7 @@
   "fxZeroNoMin": "0 = no minimum requirement.",
   "authEnterPassword": "Enter your password.",
   "authErrUserNotFound": "User not found in the system. Contact the administrator.",
+  "authErrUnknownProfile": "We couldn't identify your access profile. Contact the academy administrator.",
   "authErrDbNotConfigured": "Database not configured yet. Contact the administrator.",
   "authErrNoPermission": "No permission to access the data. Contact the administrator.",
   "authFirstTimeUsingApp": "Using the app for the first time",

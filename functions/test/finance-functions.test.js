@@ -463,3 +463,140 @@ test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade
     assert.equal((await pagamentos.doc("mensalidade__aluno-multi__judo__2026-10").get()).data().status, 0);
   });
 });
+
+test("limpa cobranças pendentes órfãs (plano excluído ou aluno desvinculado da modalidade), sem tocar em pagas nem em cobranças válidas", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const firestore = ctx.firestore();
+    await firestore.doc("academias/academy-d").set({ nome: "Academia D" });
+    await firestore.doc("academias/academy-d/funcionarios/admin-d").set({
+      nome: "Admin D",
+      perfil: "Admin",
+      ativo: true,
+    });
+
+    // Plano ainda ativo — cobrança ligada a ele é válida, nunca tocada.
+    await firestore.doc("academias/academy-d/planos/plano-ativo").set({
+      nome: "Plano Ativo",
+      valor_mensal: 150,
+      ativo: true,
+    });
+    // Plano excluído (soft delete) — qualquer cobrança pendente presa nele é órfã.
+    await firestore.doc("academias/academy-d/planos/plano-excluido").set({
+      nome: "Plano Excluído",
+      valor_mensal: 150,
+      ativo: false,
+    });
+
+    // Vínculo ativo aluno+modalidade — cobrança por modalidade válida.
+    await firestore.doc("academias/academy-d/planos_modalidade/vinculo-ativo").set({
+      aluno_id: "aluno-vinculado",
+      modalidade_id: "judo",
+      plano_id: "plano-ativo",
+      ativo: true,
+    });
+
+    const pagamentos = firestore.collection("academias/academy-d/pagamentos");
+
+    // Órfã: plano_id aponta pra plano excluído.
+    await pagamentos.doc("orfa-plano-excluido").set({
+      aluno_id: "aluno-a",
+      status: 0,
+      tipo: "Mensalidade",
+      plano_id: "plano-excluido",
+      mes_referencia: "2026-09",
+      data_vencimento: "2026-09-10",
+      valor: 150,
+    });
+    // Órfã: modalidade_id sem planos_modalidade ativo correspondente (aluno desvinculado).
+    await pagamentos.doc("orfa-aluno-desvinculado").set({
+      aluno_id: "aluno-b",
+      status: 0,
+      tipo: "Mensalidade",
+      modalidade_id: "judo",
+      plano_id: "plano-ativo",
+      mes_referencia: "2026-09",
+      data_vencimento: "2026-09-10",
+      valor: 150,
+    });
+    // Válida: vínculo ativo bate certinho — não deve ser tocada.
+    await pagamentos.doc("valida-vinculo-ativo").set({
+      aluno_id: "aluno-vinculado",
+      status: 0,
+      tipo: "Mensalidade",
+      modalidade_id: "judo",
+      plano_id: "plano-ativo",
+      mes_referencia: "2026-09",
+      data_vencimento: "2026-09-10",
+      valor: 150,
+    });
+    // Órfã mas PAGA — nunca deve ser tocada, mesmo apontando pra plano excluído.
+    await pagamentos.doc("orfa-mas-paga").set({
+      aluno_id: "aluno-c",
+      status: 1,
+      tipo: "Mensalidade",
+      plano_id: "plano-excluido",
+      mes_referencia: "2026-08",
+      data_vencimento: "2026-08-10",
+      valor: 150,
+    });
+    // Cobrança avulsa sem plano — nunca é alvo da limpeza.
+    await pagamentos.doc("avulsa-sem-plano").set({
+      aluno_id: "aluno-d",
+      status: 0,
+      tipo: "Taxa de Matrícula",
+      mes_referencia: "2026-09",
+      data_vencimento: "2026-09-20",
+      valor: 80,
+    });
+  });
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-d-finance@sensei.app", "SenhaFixtureAdmin1");
+  await environment.withSecurityRulesDisabled((ctx) =>
+    ctx
+      .firestore()
+      .doc(`usuariosFirebase/${auth.currentUser.uid}`)
+      .set({
+        schemaVersion: 2,
+        profile_refs: [
+          {
+            key: "academy-d|funcionarios|admin-d",
+            academiaId: "academy-d",
+            colecao: "funcionarios",
+            usuarioId: "admin-d",
+            perfil_nome: "Admin",
+            nome: "Admin D",
+          },
+        ],
+      }),
+  );
+
+  const functions = getFunctions(app);
+  const limpar = httpsCallable(functions, "limparCobrancasOrfas");
+  const resultado = await limpar({ academiaId: "academy-d" });
+
+  assert.equal(resultado.data.ok, true);
+  assert.equal(resultado.data.cobrancasCanceladas, 2, "só as 2 pendentes órfãs (plano excluído + aluno desvinculado)");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-d/pagamentos");
+
+    assert.equal((await pagamentos.doc("orfa-plano-excluido").get()).data().status, 4);
+    assert.equal((await pagamentos.doc("orfa-aluno-desvinculado").get()).data().status, 4);
+    assert.equal(
+      (await pagamentos.doc("valida-vinculo-ativo").get()).data().status,
+      0,
+      "vínculo ativo é válido, nunca é tocado",
+    );
+    assert.equal(
+      (await pagamentos.doc("orfa-mas-paga").get()).data().status,
+      1,
+      "cobrança já paga nunca é tocada, mesmo órfã",
+    );
+    assert.equal(
+      (await pagamentos.doc("avulsa-sem-plano").get()).data().status,
+      0,
+      "cobrança avulsa sem plano nunca é alvo da limpeza",
+    );
+  });
+});

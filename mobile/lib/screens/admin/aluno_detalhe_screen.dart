@@ -179,31 +179,31 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       // excluída (soft delete) encerra a matrícula na mesma transação
       // (arquivarTurma), então sem esse filtro o aluno continuava aparecendo
       // vinculado a turmas que já não existem mais operacionalmente.
-      final matriculaIds = matriculas
+      // Mantém o id da matrícula (não só o id da turma, já deduplicado) pra
+      // dar pra desvincular uma turma específica depois, direto pela ficha
+      // do aluno.
+      final turmasDetails = matriculas
           .where((m) => m['ativo'] == true)
-          .map((m) => m['turma_id']?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      final alunoTurmas = matriculaIds
-          .map((id) => turmaMap[id])
-          .whereType<Map<String, dynamic>>()
-          .where((t) => t['deleted_at'] == null)
-          .toList();
-      final turmaNomes = alunoTurmas
-          .map((t) => t['nome']?.toString() ?? '')
-          .where((n) => n.isNotEmpty)
-          .toList();
-      final turmasDetails = alunoTurmas
-          .map(
-            (t) => <String, dynamic>{
+          .map((m) {
+            final turmaId = m['turma_id']?.toString() ?? '';
+            final t = turmaId.isEmpty ? null : turmaMap[turmaId];
+            if (t == null || t['deleted_at'] != null) return null;
+            return <String, dynamic>{
+              'matriculaId': m['id']?.toString() ?? '',
+              'turmaId': turmaId,
               'modalidadeId':
                   (t['modalidadeId'] ?? t['modalidade_id'])?.toString() ?? '',
               'modalidadeNome':
                   (t['modalidadeNome'] ?? t['modalidade_nome'])?.toString() ??
                   '',
               'nome': t['nome'],
-            },
-          )
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final turmaNomes = turmasDetails
+          .map((t) => t['nome']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
           .toList();
 
       // Normaliza aluno (snake_case → camelCase para compatibilidade com UI)
@@ -3267,8 +3267,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       ),
                       Switch(
                         value: gerarCobranca,
-                        activeColor: context.c.primary,
                         onChanged: (v) => setModal(() => gerarCobranca = v),
+                        activeThumbColor: Colors.white,
+                        activeTrackColor: context.c.primary,
+                        inactiveThumbColor: context.c.surface,
+                        inactiveTrackColor: context.c.outline,
                       ),
                     ],
                   ),
@@ -3542,6 +3545,63 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
   }
 
+  // ── Desvincular Turma ────────────────────────────────
+
+  Future<void> _desvincularTurma(Map<String, dynamic> turma) async {
+    final matriculaId = turma['matriculaId']?.toString() ?? '';
+    final nomeTurma = turma['nome']?.toString() ?? '';
+    final modalidadeId = turma['modalidadeId']?.toString() ?? '';
+    if (_academiaId == null || matriculaId.isEmpty) return;
+
+    final nomeAluno = (_aluno?['nome'] ?? '').toString();
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.sdUnlinkClassTitle),
+        content: Text(_l.sdUnlinkClassBody(nomeAluno, nomeTurma)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.sdUnlinkClassButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    try {
+      await firestoreService.desvincularTurmaDoAluno(
+        _academiaId!,
+        matriculaId: matriculaId,
+        alunoId: widget.alunoId,
+        modalidadeId: modalidadeId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.sdUnlinkedToast(nomeTurma)),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.sdUnlinkClassError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   // ── Vincular Turma ───────────────────────────────────
 
   Future<void> _abrirVincularTurma() async {
@@ -3701,6 +3761,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                     'academia_id': _academiaId!,
                                     'ativo': true,
                                   });
+                              await firestoreService
+                                  .vincularPlanoPadraoDaTurma(
+                                    _academiaId!,
+                                    alunoId: widget.alunoId,
+                                    turmaId: turmaSel!['id'].toString(),
+                                  );
                               if (ctx.mounted) Navigator.of(ctx).pop();
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -4790,7 +4856,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ),
                       ],
                     ),
-                    if ((a['turmas'] as List?)?.isEmpty != false)
+                    if ((a['turmasDetalhes'] as List?)?.isEmpty != false)
                       Text(
                         _l.sdNoClasses,
                         style: TextStyle(
@@ -4799,28 +4865,45 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ),
                       )
                     else
-                      ...(a['turmas'] as List).map(
-                        (t) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.circle,
-                                color: context.c.primary,
-                                size: 6,
+                      ...(a['turmasDetalhes'] as List)
+                          .cast<Map<String, dynamic>>()
+                          .map(
+                            (t) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.circle,
+                                    color: context.c.primary,
+                                    size: 6,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      t['nome']?.toString() ?? '',
+                                      style: TextStyle(
+                                        color: context.c.onSurface,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!_pm)
+                                    InkWell(
+                                      onTap: () => _desvincularTurma(t),
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: context.sem.danger,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                t.toString(),
-                                style: TextStyle(
-                                  color: context.c.onSurface,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
                   ]),
                   if (!_pm) ...[
                     const SizedBox(height: 12),
