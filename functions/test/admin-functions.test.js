@@ -311,6 +311,77 @@ test("provisão vincula ao irmão que já tem conta no mesmo telefone", async ()
   await signInWithEmailAndPassword(auth, "5521970000003@sensei.app", senha);
 });
 
+test("redefinir a senha de um irmão atualiza a senha temporária exibida no perfil do OUTRO irmão também (conta compartilhada)", async () => {
+  // Bug real reportado por cliente: a senha do Firebase Auth é uma só por
+  // conta, mas antes `acesso_senha_temporaria` só era gravado no perfil que
+  // a academia estava olhando — o irmão ficava com um valor antigo, que já
+  // não era mais a senha de verdade, e dava "senha incorreta" mesmo
+  // copiando certinho o que a ficha dele mostrava.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-compartilhada@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000008@sensei.app", "SenhaAntigaCompartilhada1");
+  const uidCompartilhado = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-x").set({
+      nome: "Irmão X", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0008", telefone_digits: "21970000008",
+      firebaseUid: uidCompartilhado,
+      acesso_senha_temporaria: "senhaAntigaDoIrmaoX",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-y").set({
+      nome: "Irmão Y", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0008", telefone_digits: "21970000008",
+      firebaseUid: uidCompartilhado,
+      acesso_senha_temporaria: "senhaAntigaDoIrmaoY",
+    });
+    await fs.doc(`usuariosFirebase/${uidCompartilhado}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|usuarios|irmao-x", academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-x", perfil_nome: "Aluno", nome: "Irmão X" },
+        { key: "academy-a|usuarios|irmao-y", academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-y", perfil_nome: "Aluno", nome: "Irmão Y" },
+      ],
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-compartilhada@sensei.app", "SenhaFixtureAdmin1");
+
+  // Academia redefine a senha pelo perfil do Irmão X.
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-x", motivo: "redefinicao",
+  });
+  const novaSenha = resultado.data.temporaryPassword;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    const docX = await fs.doc("academias/academy-a/usuarios/irmao-x").get();
+    const docY = await fs.doc("academias/academy-a/usuarios/irmao-y").get();
+    assert.equal(docX.data().acesso_senha_temporaria, novaSenha);
+    assert.equal(
+      docY.data().acesso_senha_temporaria,
+      novaSenha,
+      "o irmão Y precisa mostrar a MESMA senha nova — é a conta compartilhada inteira que mudou",
+    );
+  });
+
+  // E a senha nova realmente funciona pra entrar na conta compartilhada.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000008@sensei.app", novaSenha);
+});
+
 test("provisão bloqueia quando outro aluno com mesmo telefone já definiu a própria senha", async () => {
   // Bug reportado: cadastrar um aluno novo reaproveitando o telefone/e-mail de
   // outro que já tinha passado pelo primeiro acesso derrubava a senha desse
@@ -520,7 +591,7 @@ test("requestPasswordReset: sem sessão, cria uma solicitação pro sino da acad
       nome: "Aluno Solicitante",
       perfil: 3,
       ativo: true,
-      telefone: "(21) 97000-0009",
+      telefone: "(21) 97000-0008",
       telefone_digits: "21970000009",
     });
   });

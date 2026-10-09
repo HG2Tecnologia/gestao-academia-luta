@@ -218,6 +218,50 @@ async function marcarTrocaObrigatoria(uid, authorityNome, callerUid) {
 }
 
 /**
+ * A senha no Firebase Auth é POR CONTA (um único uid) — mas `acesso_senha_temporaria`
+ * fica salvo em cada PERFIL (doc `usuarios`/`funcionarios`) separadamente. Numa
+ * conta compartilhada (grupo familiar — irmãos com o mesmo telefone/e-mail),
+ * redefinir a senha de UM perfil muda a senha real da conta inteira, mas sem
+ * isto só o perfil que a academia estava olhando ficava com o valor novo — o(s)
+ * outro(s) irmão(s) continuavam mostrando uma senha antiga que já não era mais
+ * válida, levando a um "senha incorreta" mesmo copiando certinho o que a ficha
+ * dele mostrava. Grava o mesmo valor em TODO perfil vinculado à conta.
+ */
+async function atualizarSenhaTemporariaEmPerfisVinculados({
+  uid,
+  temporaryPassword,
+  authorityNome,
+  academiaId,
+  colecao,
+  usuarioId,
+}) {
+  const payload = {
+    acesso_senha_temporaria: temporaryPassword,
+    acesso_senha_temporaria_em: FieldValue.serverTimestamp(),
+    acesso_senha_temporaria_por: authorityNome,
+  };
+
+  await db
+    .collection("academias").doc(academiaId)
+    .collection(colecao).doc(usuarioId)
+    .set(payload, { merge: true });
+
+  const contaSnap = await db.collection("usuariosFirebase").doc(uid).get();
+  const refs = Array.isArray(contaSnap.data()?.profile_refs) ? contaSnap.data().profile_refs : [];
+  await Promise.all(
+    refs
+      .filter((r) => !(r.academiaId === academiaId && r.colecao === colecao && r.usuarioId === usuarioId))
+      .map((r) =>
+        db
+          .collection("academias").doc(r.academiaId)
+          .collection(r.colecao).doc(r.usuarioId)
+          .set(payload, { merge: true })
+          .catch(() => {}),
+      ),
+  );
+}
+
+/**
  * Redefine (ou provisiona) a senha de acesso ao app de um aluno/funcionário.
  *
  * - Gera UMA senha temporária e aplica em TODAS as contas Auth do contato
@@ -349,12 +393,19 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
 
     // A senha temporária fica visível para a academia na ficha do aluno até
     // ele entrar pela primeira vez e definir a própria senha (quando
-    // `completeMandatoryPasswordChange` a apaga). É forçada a trocar no 1º login.
-    await targetRef.set({
-      acesso_senha_temporaria: temporaryPassword,
-      acesso_senha_temporaria_em: FieldValue.serverTimestamp(),
-      acesso_senha_temporaria_por: authority.nome,
-    }, { merge: true });
+    // `completeMandatoryPasswordChange` a apaga). É forçada a trocar no 1º
+    // login. Atualiza em TODO perfil vinculado a cada conta afetada — numa
+    // conta compartilhada entre irmãos, todos precisam mostrar a senha atual.
+    for (const uidAfetado of contasAtingidas) {
+      await atualizarSenhaTemporariaEmPerfisVinculados({
+        uid: uidAfetado,
+        temporaryPassword,
+        authorityNome: authority.nome,
+        academiaId,
+        colecao,
+        usuarioId,
+      });
+    }
   }
 
   await db.collection("academias").doc(academiaId).collection("auditoria").add({
