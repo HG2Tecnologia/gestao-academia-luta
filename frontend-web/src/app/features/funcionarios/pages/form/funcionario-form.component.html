@@ -51,7 +51,7 @@
             (change)="onPerfilChange($any($event.target).value)">
             <option value="Admin">Admin</option>
             <option value="Professor">Professor</option>
-            <option value="Recepcionista">Recepcionista</option>
+            <option value="Secretaria">Secretaria</option>
           </select>
           @if (!editandoId()) {
             <span style="font-size:11px;color:var(--color-text-secondary);margin-top:4px;display:block;">
@@ -63,10 +63,10 @@
 
       <div class="form-section-title">Permissões de acesso</div>
       <div class="permissoes-grid" formGroupName="permissoes">
-        @for (modulo of modulos; track modulo) {
-          <label class="perm-item">
-            <input type="checkbox" [formControlName]="modulo" />
-            <span>{{ modulo }}</span>
+        @for (p of permissoesInfo; track p.chave) {
+          <label class="perm-item" [title]="p.descricao">
+            <input type="checkbox" [formControlName]="p.chave" />
+            <span>{{ p.label }}</span>
           </label>
         }
       </div>

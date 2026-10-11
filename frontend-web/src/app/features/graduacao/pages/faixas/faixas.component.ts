@@ -118,7 +118,20 @@ export class FaixasComponent implements OnInit {
       this.form.patchValue({ ...faixa });
     } else {
       this.editandoId.set(null);
-      this.form.reset({ cor: '#FFFFFF', ordem: this.faixas().length + 1 });
+      // `FormGroup.reset(valor)` zera pra `null` qualquer controle que não
+      // apareça explicitamente aqui — faltava `corBarra` (e os outros
+      // defaults), então o campo "Cor da barinha" sempre ficava `null`,
+      // sempre marcado `required`, e travava o Salvar sem erro visível
+      // (campo só aparece com "Esta faixa tem graus" marcado).
+      this.form.reset({
+        cor: '#FFFFFF',
+        corBarra: '#000000',
+        temGraus: false,
+        maxGraus: 4,
+        ordem: this.faixas().length + 1,
+        requisitosMesesMinimos: 0,
+        requisitosPresencasMinimas: 0,
+      });
     }
     this.erro.set('');
     this.modalAberto.set(true);
