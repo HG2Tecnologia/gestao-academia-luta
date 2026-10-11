@@ -15,6 +15,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase/firebase';
 import { FirebaseAuthService } from './firebase-auth.service';
 import { BaseResponse } from '../models/auth.model';
+import { statusEfetivo } from '../utils/pagamento-status.util';
 import {
   AlunoListaDto,
   AlunoDetalheDto,
@@ -23,21 +24,6 @@ import {
   UpdateAlunoRequest,
   PagedResult,
 } from '../models/aluno.model';
-
-type PagamentoStatus = 'pendente' | 'pago' | 'atrasado' | 'previsto' | 'desconsiderado';
-
-/** Espelho de `pagamentoStatusEfetivo` em `mobile/lib/core/pagamento_status.dart`. */
-function statusEfetivo(rawStatus: unknown, dataVencimento: unknown): PagamentoStatus {
-  const base: PagamentoStatus =
-    rawStatus === 1 ? 'pago' : rawStatus === 3 ? 'previsto' : rawStatus === 4 ? 'desconsiderado' : 'pendente';
-  if (base === 'pago' || base === 'desconsiderado') return base;
-  if (!dataVencimento) return base;
-  const venc = new Date(String(dataVencimento));
-  if (isNaN(venc.getTime())) return base;
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  return venc < hoje ? 'atrasado' : base;
-}
 
 function ok<T>(dados: T): BaseResponse<T> {
   return { sucesso: true, dados, erros: [] };
@@ -100,9 +86,9 @@ export class AlunoService {
       const alunoId = String(p['aluno_id'] ?? '');
       if (!alunoId) return;
       const status = statusEfetivo(p['status'], p['data_vencimento']);
-      if (status === 'atrasado') {
+      if (status === 'Atrasado') {
         situacaoPorAluno.set(alunoId, 'Inadimplente');
-      } else if (status === 'pendente' && situacaoPorAluno.get(alunoId) !== 'Inadimplente') {
+      } else if (status === 'Pendente' && situacaoPorAluno.get(alunoId) !== 'Inadimplente') {
         situacaoPorAluno.set(alunoId, 'Pendente');
       }
     });
