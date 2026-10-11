@@ -7,7 +7,7 @@ import { AlunoService } from '../../../../core/services/aluno.service';
 import { TurmaService } from '../../../../core/services/turma.service';
 import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ModalidadeService } from '../../../../core/services/modalidade.service';
-import { AuthService } from '../../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 import { PlanoService } from '../../../../core/services/plano.service';
 import { TurmaDto } from '../../../../core/models/turma.model';
 import { FaixaDto } from '../../../../core/models/graduacao.model';
@@ -26,7 +26,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   private readonly turmaService = inject(TurmaService);
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly modalidadeService = inject(ModalidadeService);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(FirebaseAuthService);
   private readonly planoService = inject(PlanoService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -148,7 +148,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   registrarGraduacao(): void {
     const alunoId = this.editandoId();
     const faixaId = this.faixaGradId();
-    const professorId = this.authService.currentUser()?.sub;
+    const professorId = this.authService.currentUser()?.id;
     if (!alunoId || !faixaId || !professorId) { this.erroGrad.set('Selecione modalidade e faixa.'); return; }
     this.registrandoGrad.set(true);
     this.erroGrad.set('');
@@ -222,7 +222,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   private vincularOpcionais(alunoId: string): void {
     const turmaId = this.turmaInicialId();
     const faixaId = this.faixaInicialId();
-    const professorId = this.authService.currentUser()?.sub;
+    const professorId = this.authService.currentUser()?.id;
     const hoje = new Date().toISOString().split('T')[0];
 
     const pendentes: Promise<any>[] = [];
