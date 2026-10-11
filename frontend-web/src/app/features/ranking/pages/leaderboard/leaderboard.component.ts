@@ -4,7 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 import { RouterLink } from '@angular/router';
 import { RankingService } from '../../../../core/services/ranking.service';
 import { AlunoService } from '../../../../core/services/aluno.service';
-import { AuthService } from '../../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 import {
   LeaderboardDto, LeaderboardCustomDto, LancamentoPontoDto,
   RankingCustomDto, NIVEL_CONFIG
@@ -69,7 +69,7 @@ export class LeaderboardComponent implements OnInit {
   constructor(
     private rankingService: RankingService,
     private alunoService: AlunoService,
-    readonly authService: AuthService,
+    readonly authService: FirebaseAuthService,
     private fb: FormBuilder,
   ) {}
 
@@ -277,9 +277,16 @@ export class LeaderboardComponent implements OnInit {
     return `#${pos}`;
   }
 
+  /**
+   * `dataInicio`/`dataFim` do ranking são datas puras (`yyyy-MM-dd`),
+   * mas `lancamento.data` é um timestamp ISO completo (é o que
+   * `lancarPontos` grava, espelhando `ranking_detalhe_screen.dart`) —
+   * só concatena hora fixa quando ainda não tem uma.
+   */
   fmtData(d?: string): string {
     if (!d) return '';
-    return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+    const data = d.includes('T') ? new Date(d) : new Date(d + 'T00:00:00');
+    return data.toLocaleDateString('pt-BR');
   }
 
   tagPeriodo(r: RankingCustomDto): string {
