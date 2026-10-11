@@ -2,17 +2,13 @@ export const environment = {
   production: false,
   apiUrl: 'http://localhost:5226',
   tenantFallback: 'dev',
-  // TODO(migração Firestore): preencher com `firebase apps:sdkconfig web`
-  // depois de registrar o app web no projeto `sensei-manager-d64c0`
-  // (bloqueado por `firebase login --reauth` pendente no momento em que
-  // este arquivo foi criado). Mesmo projeto do app mobile — nunca criar um
-  // Firebase project novo para o CRM.
+  // App Web "Sensei Manager CRM" no mesmo projeto Firebase do app mobile.
   firebaseConfig: {
-    apiKey: '',
-    authDomain: '',
+    apiKey: 'AIzaSyDD9NvRXPIH1yUJQEtsEKFRiV36OgH9KMw',
+    authDomain: 'sensei-manager-d64c0.firebaseapp.com',
     projectId: 'sensei-manager-d64c0',
-    storageBucket: '',
-    messagingSenderId: '',
-    appId: '',
+    storageBucket: 'sensei-manager-d64c0.firebasestorage.app',
+    messagingSenderId: '376094928692',
+    appId: '1:376094928692:web:4970a9ac3d475fb83e3f61',
   },
 };
