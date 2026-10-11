@@ -1,10 +1,9 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificacaoService } from '../../../core/services/notificacao.service';
-import { SignalrService } from '../../../core/services/signalr.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { NotificacaoDto } from '../../../core/models/notificacao.model';
 
@@ -16,12 +15,11 @@ import { NotificacaoDto } from '../../../core/models/notificacao.model';
   styleUrls: ['./topbar.component.css'],
 })
 export class TopbarComponent implements OnInit {
-  readonly authService = inject(AuthService);
+  readonly authService = inject(FirebaseAuthService);
   readonly router = inject(Router);
   readonly themeService = inject(ThemeService);
   readonly layoutService = inject(LayoutService);
   private readonly notifService = inject(NotificacaoService);
-  private readonly signalrService = inject(SignalrService);
 
   readonly dropdownAberto = signal(false);
   readonly notifAberto = signal(false);
@@ -41,21 +39,11 @@ export class TopbarComponent implements OnInit {
       next: r => this.notificacoes.set(r.dados ?? []),
     });
 
-    // Connect SignalR and listen for new notifications
-    const token = this.authService.getAccessToken();
-    const user = this.authService.currentUser();
-    if (token && user?.academia_id) {
-      this.signalrService.startConnection(user.academia_id, token)
-        .then(() => {
-          this.signalrService.onNovaNotificacao(() => {
-            // Reload full list to get the new notification
-            this.notifService.listar().subscribe({
-              next: r => this.notificacoes.set(r.dados ?? []),
-            });
-          });
-        })
-        .catch(() => {});
-    }
+    // TODO(migração Firestore, fase de Notificações): SignalR/notifService
+    // falavam com o backend C# (Postgres), que não é mais a fonte de dados.
+    // Trocar por um listener do Firestore (`onSnapshot` em
+    // `academias/{id}/notificacoes`), igual o app mobile já faz — fica pra
+    // quando essa fase específica for portada, não bloqueia a autenticação.
   }
 
   get breadcrumb(): string {

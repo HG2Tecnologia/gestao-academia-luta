@@ -82,16 +82,16 @@
 
       <form [formGroup]="form" (ngSubmit)="entrar()" novalidate>
         <div class="form-group">
-          <div class="form-label">E-mail</div>
+          <div class="form-label">E-mail ou telefone</div>
           <input
             class="form-input"
-            [class.has-error]="emailInvalido"
-            type="email"
-            formControlName="email"
-            placeholder="seu@email.com"
-            autocomplete="email">
-          @if (emailInvalido) {
-            <p class="form-error">Informe um e-mail válido.</p>
+            [class.has-error]="identificadorInvalido"
+            type="text"
+            formControlName="identificador"
+            placeholder="seu@email.com ou (11) 91234-5678"
+            autocomplete="username">
+          @if (identificadorInvalido) {
+            <p class="form-error">Informe seu e-mail ou telefone.</p>
           }
         </div>
 

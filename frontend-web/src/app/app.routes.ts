@@ -55,91 +55,91 @@ export const routes: Routes = [
       },
       {
         path: 'alunos',
-        canActivate: [permissaoGuard('Alunos')],
+        canActivate: [permissaoGuard('tela_alunos')],
         loadChildren: () =>
           import('./features/alunos/alunos.routes').then((m) => m.alunosRoutes),
       },
       {
         path: 'turmas',
-        canActivate: [permissaoGuard('Turmas')],
+        canActivate: [permissaoGuard('tela_turmas')],
         loadChildren: () =>
           import('./features/turmas/turmas.routes').then((m) => m.turmasRoutes),
       },
       {
         path: 'horarios',
-        canActivate: [permissaoGuard('Horários')],
+        canActivate: [permissaoGuard('tela_horarios')],
         loadChildren: () =>
           import('./features/horarios/horarios.routes').then((m) => m.horariosRoutes),
       },
       {
         path: 'presencas',
-        canActivate: [permissaoGuard('Presenças')],
+        canActivate: [permissaoGuard('acao_dar_presenca')],
         loadChildren: () =>
           import('./features/presencas/presencas.routes').then((m) => m.presencasRoutes),
       },
       {
         path: 'graduacao',
-        canActivate: [permissaoGuard('Graduação')],
+        canActivate: [permissaoGuard('acao_graduar')],
         loadChildren: () =>
           import('./features/graduacao/graduacao.routes').then((m) => m.graduacaoRoutes),
       },
       {
         path: 'ranking',
-        canActivate: [permissaoGuard('Ranking')],
+        canActivate: [permissaoGuard('tela_rankings')],
         loadChildren: () =>
           import('./features/ranking/ranking.routes').then((m) => m.RANKING_ROUTES),
       },
       {
         path: 'modalidades',
-        canActivate: [permissaoGuard('Admin')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/modalidades/modalidades.routes').then((m) => m.modalidadesRoutes),
       },
       {
         path: 'funcionarios',
-        canActivate: [permissaoGuard('Admin')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/funcionarios/funcionarios.routes').then((m) => m.funcionariosRoutes),
       },
       {
         path: 'configuracoes',
-        canActivate: [permissaoGuard('Configurações')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/configuracoes/configuracoes.routes').then((m) => m.configuracoesRoutes),
       },
       {
         path: 'catraca',
-        canActivate: [permissaoGuard('Catraca')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/catraca/catraca.routes').then((m) => m.catracaRoutes),
       },
       {
         path: 'planos',
-        canActivate: [permissaoGuard('Planos')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/planos/planos.routes').then((m) => m.planosRoutes),
       },
       {
         path: 'financeiro',
-        canActivate: [permissaoGuard('Financeiro')],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/financeiro/financeiro.routes').then((m) => m.financeiroRoutes),
       },
       {
         path: 'relatorios',
-        canActivate: [permissaoGuard('Relatórios')],
+        canActivate: [permissaoGuard('tela_relatorio_presencas')],
         loadChildren: () =>
           import('./features/relatorios/relatorios.routes').then((m) => m.relatoriosRoutes),
       },
       {
         path: 'contratos',
-        canActivate: [permissaoGuard('Contratos')],
+        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
         loadChildren: () =>
           import('./features/contratos/contratos.routes').then((m) => m.contratosRoutes),
       },
       {
         path: 'grupos-familiares',
-        canActivate: [permissaoGuard('Admin')],
+        canActivate: [permissaoGuard('acesso_grupo_familiar')],
         loadChildren: () =>
           import('./features/grupos-familiares/grupos-familiares.routes').then((m) => m.gruposFamiliaresRoutes),
       },
