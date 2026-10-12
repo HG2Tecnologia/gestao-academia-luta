@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /login
+Disallow: /cadastro
+Disallow: /forgot-password
+Disallow: /assinar/
+
+Sitemap: https://sensei-crm.web.app/sitemap.xml

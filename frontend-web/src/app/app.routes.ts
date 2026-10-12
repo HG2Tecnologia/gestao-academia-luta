@@ -1,7 +1,40 @@
-import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
-import { guestGuard } from './core/guards/guest.guard';
-import { permissaoGuard } from './core/guards/permissao.guard';
+import { inject, Injector, runInInjectionContext } from '@angular/core';
+import { CanActivateFn, Routes, UrlTree } from '@angular/router';
+
+/**
+ * Guards importados via `import()` dinâmico, não estático — os guards
+ * injetam `FirebaseAuthService`, que carrega o SDK inteiro do Firebase
+ * (Auth+Firestore+Functions). Um import estático no topo deste arquivo
+ * (que é ele mesmo carregado eager pelo `app.config.ts`) colocava todo
+ * esse peso no bundle inicial, pago até por quem só visita a landing
+ * pública sem nunca clicar em Entrar/Cadastrar. Isso é só code-splitting;
+ * a lógica dos guards em si (`core/guards/*.guard.ts`) não muda em nada.
+ *
+ * `Injector` é capturado de forma síncrona (barato, não traz o Firebase)
+ * ANTES do `await import(...)` — depois do await o contexto de injeção
+ * do Angular já não existe mais, e o `inject()` de dentro do guard
+ * carregado dinamicamente lançaria `NG0203`. `runInInjectionContext`
+ * reabre esse contexto pra chamada do guard real.
+ */
+const authGuard: CanActivateFn = async (route, state): Promise<boolean | UrlTree> => {
+  const injector = inject(Injector);
+  const m = await import('./core/guards/auth.guard');
+  return (await runInInjectionContext(injector, () => m.authGuard(route, state))) as boolean | UrlTree;
+};
+
+const guestGuard: CanActivateFn = async (route, state): Promise<boolean | UrlTree> => {
+  const injector = inject(Injector);
+  const m = await import('./core/guards/guest.guard');
+  return (await runInInjectionContext(injector, () => m.guestGuard(route, state))) as boolean | UrlTree;
+};
+
+function permissaoGuard(chave: string | { perfis: string[] }): CanActivateFn {
+  return async (route, state): Promise<boolean | UrlTree> => {
+    const injector = inject(Injector);
+    const m = await import('./core/guards/permissao.guard');
+    return (await runInInjectionContext(injector, () => m.permissaoGuard(chave)(route, state))) as boolean | UrlTree;
+  };
+}
 
 export const routes: Routes = [
   {
@@ -9,6 +42,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/landing/landing.component').then((m) => m.LandingComponent),
     title: 'Sensei Manager — Gestão inteligente para artes marciais',
+    data: {
+      description:
+        'Sensei Manager: sistema de gestão para academias de artes marciais. Controle de alunos, turmas, presença, graduação e financeiro — integrado ao app do gestor, professor e aluno.',
+      robots: 'index, follow',
+    },
   },
   {
     path: 'login',
@@ -16,6 +54,7 @@ export const routes: Routes = [
       import('./features/auth/login/login.component').then((m) => m.LoginComponent),
     canActivate: [guestGuard],
     title: 'Entrar — Sensei Manager',
+    data: { robots: 'noindex, nofollow' },
   },
   {
     path: 'cadastro',
@@ -23,6 +62,7 @@ export const routes: Routes = [
       import('./features/auth/cadastro/cadastro.component').then((m) => m.CadastroComponent),
     canActivate: [guestGuard],
     title: 'Criar conta — Sensei Manager',
+    data: { robots: 'noindex, nofollow' },
   },
   {
     path: 'forgot-password',
@@ -31,12 +71,14 @@ export const routes: Routes = [
         (m) => m.ForgotPasswordComponent
       ),
     title: 'Recuperar senha — Sensei Manager',
+    data: { robots: 'noindex, nofollow' },
   },
   {
     path: 'app',
     loadComponent: () =>
       import('./shared/layout/shell/shell.component').then((m) => m.ShellComponent),
     canActivate: [authGuard],
+    data: { robots: 'noindex, nofollow' },
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
@@ -142,18 +184,22 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/contratos/pages/assinar/assinar-contrato.component').then((m) => m.AssinarContratoComponent),
     title: 'Assinar Contrato',
+    // Página de assinatura de contrato com token na própria URL — nunca pode ser indexada/cacheada publicamente.
+    data: { robots: 'noindex, nofollow' },
   },
   {
     path: 'privacidade',
     loadComponent: () =>
       import('./features/legal/privacidade.component').then((m) => m.PrivacidadeComponent),
     title: 'Política de Privacidade — Sensei Manager',
+    data: { description: 'Política de privacidade do Sensei Manager.', robots: 'index, follow' },
   },
   {
     path: 'termos',
     loadComponent: () =>
       import('./features/legal/termos.component').then((m) => m.TermosComponent),
     title: 'Termos de Uso — Sensei Manager',
+    data: { description: 'Termos de uso do Sensei Manager.', robots: 'index, follow' },
   },
   {
     path: '**',

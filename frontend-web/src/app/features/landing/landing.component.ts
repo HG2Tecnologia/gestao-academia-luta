@@ -6,10 +6,11 @@ import {
   inject,
   OnDestroy,
   OnInit,
+  PLATFORM_ID,
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, DOCUMENT, isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-landing',
@@ -20,6 +21,8 @@ import { DecimalPipe } from '@angular/common';
 })
 export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef);
+  private readonly document = inject(DOCUMENT);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly intervals: ReturnType<typeof setInterval>[] = [];
   private observer: IntersectionObserver | null = null;
 
@@ -242,11 +245,12 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   ngOnInit(): void {
-    document.body.style.setProperty('background', '#0a0a0a');
-    document.body.style.setProperty('color', '#fafaf7');
+    this.document.body.style.setProperty('background', '#0a0a0a');
+    this.document.body.style.setProperty('color', '#fafaf7');
   }
 
   ngAfterViewInit(): void {
+    if (!this.isBrowser) return;
     this.intervals.push(
       setInterval(() => this.tick.update((t) => t + 1), 1800),
       setInterval(() => {
@@ -276,8 +280,8 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.intervals.forEach(clearInterval);
     this.observer?.disconnect();
-    document.body.style.removeProperty('background');
-    document.body.style.removeProperty('color');
+    this.document.body.style.removeProperty('background');
+    this.document.body.style.removeProperty('color');
   }
 
   fmtBrl(n: number): string {
