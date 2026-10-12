@@ -37,6 +37,10 @@ exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePe
 exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
 exports.limparCobrancasOrfas = financeFunctions.limparCobrancasOrfas;
 
+const contratoFunctions = require("./contrato-functions");
+exports.contratoPublicoObter = contratoFunctions.contratoPublicoObter;
+exports.contratoPublicoAssinar = contratoFunctions.contratoPublicoAssinar;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

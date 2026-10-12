@@ -20,6 +20,7 @@
     { "collectionGroup": "noticias", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "publicada", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
     { "collectionGroup": "pontos_ranking", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "ranking_custom_id", "order": "ASCENDING" }, { "fieldPath": "data", "order": "DESCENDING" }] },
     { "collectionGroup": "par_qs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "vista_pelo_aluno", "order": "ASCENDING" }] },
+    { "collectionGroup": "par_qs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
     { "collectionGroup": "atestados", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "data_upload", "order": "DESCENDING" }] },
     { "collectionGroup": "contratos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "aluno_id", "order": "ASCENDING" }, { "fieldPath": "criado_em", "order": "DESCENDING" }] },
     { "collectionGroup": "faixas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "modalidade_id", "order": "ASCENDING" }, { "fieldPath": "ordem", "order": "ASCENDING" }] }
@@ -102,6 +103,14 @@
         { "order": "ASCENDING", "queryScope": "COLLECTION" },
         { "order": "DESCENDING", "queryScope": "COLLECTION" },
         { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "contratos",
+      "fieldPath": "token_publico",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
     }

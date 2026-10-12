@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { from } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -26,8 +27,9 @@ import { AtestadoService } from '../../../../core/services/atestado.service';
 import { AtestadoMedicoComArquivoDto, AvaliarAtestadoRequest } from '../../../../core/models/atestado.model';
 import { GruposFamiliaresService, GrupoFamiliarDto, MembroDto } from '../../../../core/services/grupos-familiares.service';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../../environments/environment';
+import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
+import { db } from '../../../../core/firebase/firebase';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 
 type Aba = 'info' | 'presencas' | 'financeiro' | 'ranking' | 'contratos' | 'atestado' | 'parq';
 
@@ -50,7 +52,7 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly modeloContratoService = inject(ModeloContratoService);
   private readonly atestadoService = inject(AtestadoService);
   private readonly grupoFamiliarService = inject(GruposFamiliaresService);
-  private readonly http = inject(HttpClient);
+  private readonly authService = inject(FirebaseAuthService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -418,11 +420,38 @@ export class AlunoDetalheComponent implements OnInit {
 
   // ─── PAR-Q ───────────────────────────────────────────────────
 
+  /**
+   * Espelho de `academias/{id}/par_qs` em `firestore_service.dart`.
+   * O CRM só lê (preenchimento é feito pelo aluno no app) — mas o
+   * mobile tem uma inconsistência real: a tela do aluno grava
+   * `nomeCompleto`/`requerAvaliacaoMedica` (camelCase) e a do admin
+   * grava `nome_completo`/`requer_avaliacao_medica` (snake_case). Lê
+   * os dois formatos pra não perder preenchimentos feitos por
+   * qualquer um dos dois caminhos.
+   */
   carregarParQ(alunoId: string): void {
     this.carregandoParQ.set(true);
     this.erroParQ.set('');
-    this.http.get<{ sucesso: boolean; dados: Record<string, unknown> | null }>(`${environment.apiUrl}/api/parq/aluno/${alunoId}`).subscribe({
-      next: res => { this.parq.set(res.dados ?? null); this.carregandoParQ.set(false); },
+    const academiaId = this.authService.currentUser()?.academiaId ?? '';
+    from(
+      getDocs(
+        query(collection(db, 'academias', academiaId, 'par_qs'), where('aluno_id', '==', alunoId), orderBy('criado_em', 'desc'), limit(1)),
+      ),
+    ).subscribe({
+      next: (snap) => {
+        if (snap.empty) {
+          this.parq.set(null);
+        } else {
+          const p = snap.docs[0].data();
+          this.parq.set({
+            ...p,
+            nomeCompleto: p['nome_completo'] ?? p['nomeCompleto'] ?? '',
+            requerAvaliacaoMedica: p['requer_avaliacao_medica'] ?? p['requerAvaliacaoMedica'] ?? false,
+            dataPreenchimento: p['data_preenchimento']?.toDate?.()?.toISOString?.() ?? null,
+          });
+        }
+        this.carregandoParQ.set(false);
+      },
       error: () => { this.erroParQ.set('Erro ao carregar PAR-Q.'); this.carregandoParQ.set(false); },
     });
   }
@@ -668,9 +697,10 @@ export class AlunoDetalheComponent implements OnInit {
 
   faixaCor(cor?: string): string { return cor ?? '#94a3b8'; }
 
+  /** Aceita tanto data pura (`yyyy-MM-dd`, a maioria dos campos) quanto timestamp ISO completo (ex: `contrato.criadoEm`) — corta na parte da data antes de formatar. */
   formatarData(d?: string): string {
     if (!d) return '—';
-    const [y, m, day] = d.split('-');
+    const [y, m, day] = d.split('T')[0].split('-');
     return `${day}/${m}/${y}`;
   }
 
