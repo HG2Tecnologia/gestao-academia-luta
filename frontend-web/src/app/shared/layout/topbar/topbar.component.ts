@@ -28,22 +28,15 @@ export class TopbarComponent implements OnInit {
   readonly notificacoes = signal<NotificacaoDto[]>([]);
   readonly carregandoNotif = signal(false);
 
-  readonly naoLidas = computed(() => this.notificacoes().filter(n => !n.lida && n.titulo !== '_dedup').length);
-  readonly notifVisiveis = computed(() => this.notificacoes().filter(n => n.titulo !== '_dedup'));
+  readonly naoLidas = computed(() => this.notificacoes().filter(n => !n.lida).length);
+  readonly notifVisiveis = computed(() => this.notificacoes());
 
   private readonly uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   ngOnInit(): void {
-    // Load initial notification count silently
     this.notifService.listar().subscribe({
       next: r => this.notificacoes.set(r.dados ?? []),
     });
-
-    // TODO(migração Firestore, fase de Notificações): SignalR/notifService
-    // falavam com o backend C# (Postgres), que não é mais a fonte de dados.
-    // Trocar por um listener do Firestore (`onSnapshot` em
-    // `academias/{id}/notificacoes`), igual o app mobile já faz — fica pra
-    // quando essa fase específica for portada, não bloqueia a autenticação.
   }
 
   get breadcrumb(): string {
@@ -131,9 +124,26 @@ export class TopbarComponent implements OnInit {
     });
   }
 
+  /** O mobile não calcula isso (não exibe hora na lista de notificações) — exibição extra só no CRM, não altera nenhum dado. */
+  tempoRelativo(criadoEm: string): string {
+    if (!criadoEm) return '';
+    const diffMs = Date.now() - new Date(criadoEm).getTime();
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'agora';
+    if (min < 60) return `há ${min} min`;
+    const horas = Math.floor(min / 60);
+    if (horas < 24) return `há ${horas}h`;
+    const dias = Math.floor(horas / 24);
+    return `há ${dias}d`;
+  }
+
   iconeTipo(tipo: string): string {
     if (tipo === 'aniversario') return '🎂';
     if (tipo === 'alerta') return '⚠️';
+    if (tipo === 'solicitacao_senha') return '🔑';
+    if (tipo === 'cobranca_gerada') return '🧾';
+    if (tipo === 'graduacao') return '🏆';
+    if (tipo === 'atestado_pendente') return '📋';
     return 'ℹ️';
   }
 

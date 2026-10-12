@@ -105,11 +105,11 @@
             <div class="notif-list">
               @for (n of notifVisiveis(); track n.id) {
                 <div class="notif-item" [class.notif-nao-lida]="!n.lida">
-                  <div class="notif-icone">{{ iconeTipo(n.tipoLabel) }}</div>
+                  <div class="notif-icone">{{ iconeTipo(n.tipo) }}</div>
                   <div class="notif-conteudo">
                     <div class="notif-titulo">{{ n.titulo }}</div>
                     <div class="notif-mensagem">{{ n.mensagem }}</div>
-                    <div class="notif-tempo">{{ n.tempoRelativo }}</div>
+                    <div class="notif-tempo">{{ tempoRelativo(n.criadoEm) }}</div>
                   </div>
                   <div class="notif-acoes">
                     @if (!n.lida) {
