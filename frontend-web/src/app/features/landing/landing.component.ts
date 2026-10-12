@@ -29,9 +29,6 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly tick = signal(0);
   readonly billingPeriod = signal<'mensal' | 'trimestral' | 'anual'>('mensal');
   readonly menuAberto = signal(false);
-  readonly roiStudents = signal(120);
-  readonly roiFee = signal(220);
-  readonly roiDefaultRate = signal(14);
   readonly rankingRows = signal([
     { name: 'Bruno Yamamoto', pts: 1284, faixa: 'Roxa' },
     { name: 'Letícia Andrade', pts: 1247, faixa: 'Azul' },
@@ -76,8 +73,8 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
       a: 'Qualquer uma. Jiu-Jitsu, Muay Thai, Boxe, MMA, Karatê, Judô, Taekwondo... feito para todas as artes marciais.',
     },
     {
-      q: 'Como funciona a cobrança automática?',
-      a: 'Você conecta sua conta Pix ou cartão, define o vencimento e pronto. O sistema cobra no dia, manda lembrete e segunda via automaticamente.',
+      q: 'Como funciona a geração de mensalidades?',
+      a: 'Você define o valor e o dia de vencimento por modalidade ou plano, e o sistema gera a cobrança automaticamente todo mês. O recebimento em si (Pix, dinheiro, cartão) é do seu jeito — o sistema organiza quem pagou, quem está pendente e quem está atrasado.',
     },
     {
       q: 'Posso cancelar quando quiser?',
@@ -107,30 +104,18 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   });
 
-  readonly roiResult = computed(() => {
-    const students = this.roiStudents();
-    const fee = this.roiFee();
-    const rate = this.roiDefaultRate();
-    const monthlyRevenue = students * fee;
-    const lostNow = monthlyRevenue * (rate / 100);
-    const recovered = lostNow * 0.7;
-    const newStudents = Math.round(students * 0.12);
-    const growth = newStudents * fee;
-    return { recovered, growth, total: recovered + growth, newStudents };
-  });
-
   readonly problemas = [
     {
       num: '01',
       title: 'Inadimplência fora de controle',
       body: 'Você não sabe quem pagou, quem deve, e gasta a semana cobrando no WhatsApp.',
-      strike: '14% de inadimplência média',
+      strike: 'Cobrança manual, toda semana',
     },
     {
       num: '02',
       title: 'Aluno some e ninguém percebe',
-      body: 'Frequência cai por 3 semanas, ninguém liga, ele cancela. Churn invisível.',
-      strike: '1 em cada 4 alunos some por ano',
+      body: 'Frequência cai, ninguém liga, ele cancela sem avisar.',
+      strike: 'Nenhuma visão de quem sumiu',
     },
     {
       num: '03',
@@ -141,15 +126,15 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       num: '04',
       title: 'Sem visão financeira nenhuma',
-      body: 'Quanto entrou esse mês? Quanto vai entrar? Qual aluno dá lucro? Ninguém sabe.',
+      body: 'Quanto entrou esse mês? Quanto está pendente? Quanto está atrasado? Ninguém sabe sem abrir uma planilha.',
       strike: 'Decisões no escuro',
     },
   ];
 
   readonly transforms = [
     ['Planilha de Excel quebrando', 'Dashboard ao vivo no celular'],
-    ['Cobrar aluno por WhatsApp', 'Pix automático + lembrete'],
-    ['Aluno some sem você ver', 'Alerta de churn em 7 dias'],
+    ['Cobrar aluno por WhatsApp', 'Mensalidade gerada automaticamente'],
+    ['Aluno some sem você ver', 'Lista de quem está sem turma ou sumiu'],
     ['Decidir no achômetro', 'Relatórios em tempo real'],
     ['Aluno desmotivado', 'Ranking gamificado por faixa'],
   ];
@@ -157,13 +142,13 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly diferenciais = [
     {
       num: '01',
-      title: 'Automação que cobra sozinha',
-      body: 'Pix, cartão, lembrete por WhatsApp, segunda via, comprovante. O fluxo financeiro inteiro roda sozinho. Você revisa em 5 minutos por semana.',
+      title: 'Financeiro sem planilha',
+      body: 'Mensalidade gerada automaticamente todo mês, com vencimento por aluno. Você acompanha pago, pendente e atrasado numa tela só — a cobrança em si (Pix, dinheiro, cartão) você recebe do seu jeito, o sistema só organiza.',
     },
     {
       num: '02',
-      title: 'Inteligência que prevê o churn',
-      body: 'Quando um aluno falta 3 semanas, o sistema te avisa antes dele cancelar. Você liga, ele volta. Retenção sobe sem esforço.',
+      title: 'App e sistema web, os mesmos dados',
+      body: 'O que o professor lança no app (presença, graduação) aparece no sistema web na hora, e vice-versa. Sem exportar, sem sincronizar manualmente.',
     },
     {
       num: '03',
@@ -186,12 +171,12 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       num: 'Passo 02',
       title: 'Importe seus alunos',
-      body: 'Mande sua planilha. Importamos pra você sem custo. Em 4 horas tá tudo lá.',
+      body: 'Mande sua planilha. Importamos pra você sem custo.',
     },
     {
       num: 'Passo 03',
-      title: 'Configure cobrança',
-      body: 'Conecta sua conta Pix ou banco. Define dia de vencimento. Pronto, automatizou.',
+      title: 'Configure suas mensalidades',
+      body: 'Defina o valor e o dia de vencimento por modalidade ou plano. O sistema gera a cobrança automaticamente todo mês.',
     },
     {
       num: 'Passo 04',
@@ -200,47 +185,24 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     },
   ];
 
-  readonly beneficios = [
-    { num: '+38%', label: 'Frequência média de alunos no tatame' },
-    { num: '−72%', label: 'Inadimplência depois do 2º mês' },
-    { num: '+27%', label: 'Crescimento de base de alunos em 6 meses' },
-    { num: '12h', label: 'Economizadas por semana em tarefas operacionais' },
-  ];
-
   readonly disciplinas = [
     'JIU-JITSU', 'MUAY THAI', 'BOXE', 'MMA',
     'KARATÊ', 'TAEKWONDO', 'WRESTLING', 'KICKBOXING', 'JUDÔ', 'CAPOEIRA',
   ];
   readonly disciplinasMarquee = [...this.disciplinas, ...this.disciplinas];
 
-  readonly priceFeatures = [
-    'Alunos ilimitados',
-    'Cobrança automática (Pix + cartão)',
-    'Ranking gamificado',
-    'Controle de presença por QR',
-    'Dashboard financeiro completo',
-    'App iOS e Android incluso (alunos + equipe)',
-    'Contratos digitais com assinatura',
-    'Relatórios personalizados',
-    'Grade de horários completa',
-    'Gestão de faixas e graduações',
-    'Alertas de inadimplência e churn',
-    'Suporte humano em português, 7 dias',
-  ];
-
   readonly blackBeltFeatures = [
     'Alunos ilimitados',
     'Turmas ilimitadas',
     'App do aluno (iOS e Android)',
-    'Cobrança automática (Pix + cartão)',
+    'Mensalidades geradas automaticamente',
     'Ranking gamificado por faixa',
     'Dashboard financeiro completo',
     'Contratos digitais com assinatura',
-    'Relatórios personalizados',
+    'Relatório financeiro e de presença',
     'Grade de horários completa',
     'Gestão de faixas e graduações',
-    'Alertas de inadimplência e churn',
-    'Catraca integrada',
+    'Controle de inadimplência em tempo real',
     'Suporte humano em português, 7 dias',
   ];
 
@@ -282,22 +244,6 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.observer?.disconnect();
     this.document.body.style.removeProperty('background');
     this.document.body.style.removeProperty('color');
-  }
-
-  fmtBrl(n: number): string {
-    return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
-  }
-
-  setRoiStudents(e: Event): void {
-    this.roiStudents.set(+(e.target as HTMLInputElement).value);
-  }
-
-  setRoiFee(e: Event): void {
-    this.roiFee.set(+(e.target as HTMLInputElement).value);
-  }
-
-  setRoiDefault(e: Event): void {
-    this.roiDefaultRate.set(+(e.target as HTMLInputElement).value);
   }
 
 }
