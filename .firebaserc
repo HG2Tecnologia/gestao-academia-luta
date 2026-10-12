@@ -7,6 +7,9 @@
       "hosting": {
         "timer": [
           "sensei-manager-d64c0"
+        ],
+        "crm": [
+          "sensei-crm"
         ]
       }
     }
