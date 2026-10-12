@@ -10,7 +10,7 @@ import { FinanceiroService } from '../../../../core/services/financeiro.service'
 import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
-import { UsuarioService } from '../../../../core/services/usuario.service';
+import { FuncionarioService } from '../../../../core/services/funcionario.service';
 import { ContratoService } from '../../../../core/services/contrato.service';
 import { ModeloContratoService } from '../../../../core/services/modelo-contrato.service';
 import { AlunoDetalheDto } from '../../../../core/models/aluno.model';
@@ -45,7 +45,7 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly toastService = inject(ToastService);
   private readonly modalidadeService = inject(ModalidadeService);
-  private readonly usuarioService = inject(UsuarioService);
+  private readonly funcionarioService = inject(FuncionarioService);
   private readonly contratoService = inject(ContratoService);
   private readonly modeloContratoService = inject(ModeloContratoService);
   private readonly atestadoService = inject(AtestadoService);
@@ -168,7 +168,7 @@ export class AlunoDetalheComponent implements OnInit {
       error: () => { this.erro.set('Aluno não encontrado.'); this.carregando.set(false); },
     });
     this.modalidadeService.getAll().subscribe({ next: r => this.modalidades.set(r.dados ?? []) });
-    this.usuarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
+    this.funcionarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
     this.modeloContratoService.listar().subscribe({ next: r => this.modelos.set(r.dados ?? []) });
   }
 

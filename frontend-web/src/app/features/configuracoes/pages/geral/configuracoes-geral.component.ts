@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { AcademiaService } from '../../../../core/services/academia.service';
-import { AuthService } from '../../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 import { UsuarioService, MeuPerfilDto } from '../../../../core/services/usuario.service';
 import { AcademiaDto } from '../../../../core/models/academia.model';
 
@@ -15,7 +15,7 @@ import { AcademiaDto } from '../../../../core/models/academia.model';
 })
 export class ConfiguracoesGeralComponent implements OnInit {
   private readonly academiaService = inject(AcademiaService);
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(FirebaseAuthService);
   private readonly usuarioService = inject(UsuarioService);
   private readonly fb = inject(FormBuilder);
 
@@ -118,23 +118,28 @@ export class ConfiguracoesGeralComponent implements OnInit {
   abrirModalSenha(): void { this.formSenha.reset(); this.erroSenha.set(''); this.senhaOk.set(false); this.modalSenhaAberto.set(true); }
   fecharModalSenha(): void { this.modalSenhaAberto.set(false); }
 
-  salvarSenha(): void {
+  async salvarSenha(): Promise<void> {
     if (this.formSenha.invalid) { this.formSenha.markAllAsTouched(); return; }
     const v = this.formSenha.value;
     if (v.novaSenha !== v.confirmarSenha) { this.erroSenha.set('As senhas não coincidem.'); return; }
     this.salvandoSenha.set(true);
     this.erroSenha.set('');
-    this.authService.alterarSenha(v.senhaAtual!, v.novaSenha!).subscribe({
-      next: (res) => {
-        this.salvandoSenha.set(false);
-        if (res.sucesso) { this.senhaOk.set(true); setTimeout(() => this.fecharModalSenha(), 1800); }
-        else { this.erroSenha.set(res.mensagem ?? 'Erro ao alterar senha.'); }
-      },
-      error: (err) => {
-        this.salvandoSenha.set(false);
-        this.erroSenha.set(err.error?.mensagem ?? 'Erro ao alterar senha.');
-      },
-    });
+    try {
+      await this.authService.alterarSenha(v.senhaAtual!, v.novaSenha!);
+      this.salvandoSenha.set(false);
+      this.senhaOk.set(true);
+      setTimeout(() => this.fecharModalSenha(), 1800);
+    } catch (err: any) {
+      this.salvandoSenha.set(false);
+      const codigo = err?.code;
+      if (codigo === 'auth/invalid-credential' || codigo === 'auth/wrong-password') {
+        this.erroSenha.set('Senha atual incorreta.');
+      } else if (codigo === 'auth/weak-password') {
+        this.erroSenha.set('A nova senha é muito fraca.');
+      } else {
+        this.erroSenha.set('Erro ao alterar senha.');
+      }
+    }
   }
 
   iniciais(nome: string): string { return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase(); }

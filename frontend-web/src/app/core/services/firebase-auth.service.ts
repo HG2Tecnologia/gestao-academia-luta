@@ -4,6 +4,9 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  updatePassword,
+  EmailAuthProvider,
   User as FirebaseUser,
   AuthErrorCodes,
 } from 'firebase/auth';
@@ -260,5 +263,21 @@ export class FirebaseAuthService {
 
   getUser(): StoredUser | null {
     return this.currentUser();
+  }
+
+  /** Atualiza o `StoredUser` em memória + localStorage (ex: após editar o próprio nome em "Meu perfil"), sem precisar relogar. */
+  atualizarPerfilLocal(dados: Partial<StoredUser>): void {
+    const atual = this.currentUser();
+    if (!atual) return;
+    this.salvarNoStorage({ ...atual, ...dados });
+  }
+
+  /** Troca a própria senha — reautentica com a senha atual (exigência do Firebase Auth pra operações sensíveis) antes de chamar `updatePassword`. */
+  async alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('Sessão inválida.');
+    const credential = EmailAuthProvider.credential(user.email, senhaAtual);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, novaSenha);
   }
 }
