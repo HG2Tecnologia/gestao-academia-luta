@@ -47,6 +47,22 @@ export class LoginSemAcessoStaffError extends Error {
 }
 
 /**
+ * Espelho de `login_screen.dart::_mostrarSeletorPerfil` — a conta tem mais
+ * de um perfil de equipe (ex: Admin E Professor na mesma academia, ou
+ * Admin em duas academias). Sem isso, o login escolhia sempre o primeiro
+ * do array silenciosamente, o que podia logar alguém como Professor quando
+ * ela também é Admin — via menos opções de menu sem nenhum aviso.
+ */
+export class PrecisaEscolherPerfilError extends Error {
+  constructor(
+    public readonly perfis: Record<string, any>[],
+    public readonly contexto: { uid: string; conta: Record<string, any> },
+  ) {
+    super('Esta conta tem mais de um perfil de equipe — escolha qual usar.');
+  }
+}
+
+/**
  * Espelho de `mobile/lib/screens/auth/login_screen.dart` — mesmo fluxo
  * (telefone/e-mail → e-mail sintético `<digitos>@sensei.app` → Firebase
  * Auth → `usuariosFirebase/{uid}` → seletor de perfil se houver mais de
@@ -172,18 +188,40 @@ export class FirebaseAuthService {
       throw new LoginSemAcessoStaffError();
     }
 
-    let usuarioId: string = conta['usuarioId'] ?? uid;
+    // 2+ perfis de equipe (ex: a mesma pessoa é Admin E Professor na mesma
+    // academia, ou Admin em duas academias) — não dá pra escolher sozinho
+    // qual é o "certo" sem esconder acesso de quem só vê 1; o componente de
+    // login mostra o seletor e chama `finalizarComPerfil` com a escolha.
+    // Mantém a sessão do Firebase Auth ativa (já autenticou com sucesso).
+    if (perfisStaff.length > 1) {
+      throw new PrecisaEscolherPerfilError(perfisStaff, { uid, conta });
+    }
+
+    const selecionado = perfisStaff.length === 1 ? perfisStaff[0] : null;
+    return this.finalizarLogin(conta, credential.user.email, selecionado, perfisStaff, perfisTodos);
+  }
+
+  /** Chamado pelo componente de login depois que o usuário escolhe um perfil em `PrecisaEscolherPerfilError`. */
+  async finalizarComPerfil(
+    selecionado: Record<string, any>,
+    contexto: { uid: string; conta: Record<string, any> },
+  ): Promise<StoredUser> {
+    return this.finalizarLogin(contexto.conta, contexto.conta['email'] ?? null, selecionado, [selecionado], [selecionado]);
+  }
+
+  private async finalizarLogin(
+    conta: Record<string, any>,
+    emailAuth: string | null,
+    selecionado: Record<string, any> | null,
+    perfisStaff: Record<string, any>[],
+    perfisTodos: Record<string, any>[],
+  ): Promise<StoredUser> {
+    let usuarioId: string = conta['usuarioId'] ?? '';
     let academiaId: string | null = conta['academiaId'] ?? null;
     let perfilNome: string = conta['perfil'] ?? '';
     let nomeUsuario: string = conta['nome'] ?? '';
-    let permissoes: Record<string, boolean> = {};
     let colecao: string = conta['colecao'] ?? 'usuarios';
 
-    const selecionado = perfisStaff.length >= 1 ? perfisStaff[0] : null;
-    // Com 2+ perfis de equipe (raro — ex: a mesma pessoa é Admin em duas
-    // academias), o componente de login mostra o seletor antes de chamar
-    // este método de novo já com o perfil escolhido; aqui só resolve o caso
-    // de 1 perfil direto. Ver `resolverPerfisStaff` usado pelo componente.
     if (selecionado) {
       usuarioId = selecionado['usuarioId'] ?? usuarioId;
       nomeUsuario = selecionado['nome'] ?? nomeUsuario;
@@ -200,6 +238,7 @@ export class FirebaseAuthService {
       throw new LoginSemAcessoStaffError();
     }
 
+    let permissoes: Record<string, boolean>;
     if (colecao === 'funcionarios' && academiaId) {
       const funcSnap = await getDoc(doc(db, 'academias', academiaId, 'funcionarios', usuarioId));
       const func = funcSnap.data() as Record<string, any> | undefined;
@@ -215,48 +254,12 @@ export class FirebaseAuthService {
     const storedUser: StoredUser = {
       id: usuarioId,
       nome: nomeUsuario,
-      email: conta['email'] ?? credential.user.email ?? '',
+      email: conta['email'] ?? emailAuth ?? '',
       perfil: perfilNome,
       academiaId,
       permissoes,
       perfis: perfisStaff,
       mustChangePassword: conta['must_change_password'] === true,
-    };
-    this.salvarNoStorage(storedUser);
-    return storedUser;
-  }
-
-  /** Devolve os perfis de equipe quando há mais de um — pro componente mostrar o seletor. */
-  resolverPerfisStaff(user: StoredUser): Record<string, any>[] {
-    return user.perfis ?? [];
-  }
-
-  async trocarParaPerfil(selecionado: Record<string, any>): Promise<StoredUser> {
-    const usuarioId: string = selecionado['usuarioId'];
-    const academiaId: string = selecionado['academiaId'];
-    const colecao: string = selecionado['colecao'] ?? 'usuarios';
-    const perfilNome: string = selecionado['perfil_nome'];
-
-    let permissoes: Record<string, boolean> = permissoesParaPerfil(perfilNome);
-    if (colecao === 'funcionarios') {
-      const funcSnap = await getDoc(doc(db, 'academias', academiaId, 'funcionarios', usuarioId));
-      const func = funcSnap.data() as Record<string, any> | undefined;
-      const rawPerm = func?.['permissoes'];
-      if (rawPerm && typeof rawPerm === 'object') {
-        permissoes = Object.fromEntries(Object.entries(rawPerm).map(([k, v]) => [k, v === true]));
-      }
-    }
-
-    const atual = this.currentUser();
-    const storedUser: StoredUser = {
-      id: usuarioId,
-      nome: selecionado['nome'] ?? atual?.nome ?? '',
-      email: atual?.email ?? '',
-      perfil: perfilNome,
-      academiaId,
-      permissoes,
-      perfis: atual?.perfis ?? [],
-      mustChangePassword: atual?.mustChangePassword ?? false,
     };
     this.salvarNoStorage(storedUser);
     return storedUser;

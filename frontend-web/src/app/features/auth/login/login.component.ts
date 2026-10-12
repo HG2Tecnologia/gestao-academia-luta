@@ -2,7 +2,9 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { FirebaseAuthService, LoginSemAcessoStaffError } from '../../../core/services/firebase-auth.service';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../../core/firebase/firebase';
+import { FirebaseAuthService, LoginSemAcessoStaffError, PrecisaEscolherPerfilError } from '../../../core/services/firebase-auth.service';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +20,10 @@ export class LoginComponent {
   readonly carregando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly mostrarSenha = signal(false);
+
+  /** Preenchido quando a conta tem mais de 1 perfil de equipe — ver `PrecisaEscolherPerfilError`. */
+  readonly perfisParaEscolher = signal<Record<string, any>[] | null>(null);
+  private contextoEscolha: { uid: string; conta: Record<string, any> } | null = null;
 
   readonly form = new FormGroup({
     identificador: new FormControl('', {
@@ -40,18 +46,45 @@ export class LoginComponent {
 
     try {
       const user = await this.authService.login(identificador, senha);
-
-      if (user.mustChangePassword) {
-        this.router.navigate(['/troca-senha-obrigatoria']);
+      this.finalizarNavegacao(user);
+    } catch (err) {
+      if (err instanceof PrecisaEscolherPerfilError) {
+        this.perfisParaEscolher.set(err.perfis);
+        this.contextoEscolha = err.contexto;
+        this.carregando.set(false);
         return;
       }
-
-      this.router.navigate(['/app/dashboard']);
-    } catch (err) {
       this.erro.set(this.mensagemDeErro(err));
     } finally {
       this.carregando.set(false);
     }
+  }
+
+  async escolherPerfil(perfil: Record<string, any>): Promise<void> {
+    if (!this.contextoEscolha || this.carregando()) return;
+    this.carregando.set(true);
+    try {
+      const user = await this.authService.finalizarComPerfil(perfil, this.contextoEscolha);
+      this.finalizarNavegacao(user);
+    } catch (err) {
+      this.erro.set(this.mensagemDeErro(err));
+      this.carregando.set(false);
+    }
+  }
+
+  /** Volta pro formulário de login, saindo da sessão do Firebase Auth que ficou pendente de escolha. */
+  async cancelarEscolhaPerfil(): Promise<void> {
+    await signOut(auth);
+    this.perfisParaEscolher.set(null);
+    this.contextoEscolha = null;
+  }
+
+  private finalizarNavegacao(user: { mustChangePassword: boolean }): void {
+    if (user.mustChangePassword) {
+      this.router.navigate(['/troca-senha-obrigatoria']);
+      return;
+    }
+    this.router.navigate(['/app/dashboard']);
   }
 
   private mensagemDeErro(err: unknown): string {

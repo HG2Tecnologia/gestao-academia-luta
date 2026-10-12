@@ -80,6 +80,27 @@
         </div>
       }
 
+      @if (perfisParaEscolher(); as perfis) {
+        <div class="form-group">
+          <div class="form-label">Essa conta tem mais de um perfil. Como você quer entrar?</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom: 16px;">
+          @for (p of perfis; track $index) {
+            <button
+              type="button"
+              class="btn-submit"
+              style="background: var(--surface-container, #f4f4f5); color: inherit; text-align:left; justify-content:flex-start;"
+              [disabled]="carregando()"
+              (click)="escolherPerfil(p)">
+              {{ p['perfil_nome'] }} — {{ p['nome'] || 'Sem nome' }}
+            </button>
+          }
+        </div>
+        <button type="button" class="eye-btn" style="background:none; border:none; cursor:pointer; color: var(--primary-600, #2563eb);" (click)="cancelarEscolhaPerfil()">
+          ← Usar outra conta
+        </button>
+      } @else {
+
       <form [formGroup]="form" (ngSubmit)="entrar()" novalidate>
         <div class="form-group">
           <div class="form-label">E-mail ou telefone</div>
@@ -132,6 +153,7 @@
           }
         </button>
       </form>
+      }
 
       <div class="auth-footer">© {{ year }} Sensei Manager. Todos os direitos reservados.</div>
     </div>
