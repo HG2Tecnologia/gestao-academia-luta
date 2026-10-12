@@ -21,12 +21,21 @@ const indexPath = path.join(browserDir, 'index.html');
 const shellPath = path.join(browserDir, 'app-shell.html');
 
 const html = fs.readFileSync(indexPath, 'utf8');
-const shell = html.replace(/<app-root[^>]*>[\s\S]*<\/app-root>/, '<app-root></app-root>');
+let shell = html.replace(/<app-root[^>]*>[\s\S]*<\/app-root>/, '<app-root></app-root>');
 
 if (shell === html) {
   console.error('strip-shell: não encontrou <app-root>...</app-root> em index.html — abortando.');
   process.exit(1);
 }
+
+// O <head> ainda carrega meta description/robots/canonical/OG da HOME (foi
+// prerenderizada nesse mesmo arquivo antes da cópia) — esse shell também
+// serve de fallback pra /login, /cadastro, /app/** etc, então o valor
+// SEGURO por padrão é noindex; o SeoService corrige pro valor certo de
+// cada rota assim que o Angular faz bootstrap no navegador/Googlebot.
+shell = shell
+  .replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex, nofollow">')
+  .replace(/<link rel="canonical" href="[^"]*">\s*/, '');
 
 fs.writeFileSync(shellPath, shell);
 console.log('strip-shell: app-shell.html gerado em', shellPath);
