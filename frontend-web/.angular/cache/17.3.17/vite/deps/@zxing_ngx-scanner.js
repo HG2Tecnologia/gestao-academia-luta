@@ -1,6 +1,6 @@
 import {
   FormsModule
-} from "./chunk-XW5RUYLQ.js";
+} from "./chunk-C67QPZII.js";
 import {
   ArgumentException_default,
   AztecReader_default,
@@ -26,7 +26,7 @@ import {
 } from "./chunk-JMPBAGG7.js";
 import {
   CommonModule
-} from "./chunk-XP4VNIGW.js";
+} from "./chunk-RUNFSKY6.js";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -48,17 +48,18 @@ import {
   ɵɵstyleProp,
   ɵɵtext,
   ɵɵviewQuery
-} from "./chunk-MQGZ3KM5.js";
-import "./chunk-LFVCTHGI.js";
-import "./chunk-4RMHXXWK.js";
+} from "./chunk-FLRNDHTY.js";
+import "./chunk-RYXFXP5Z.js";
+import "./chunk-3QM5XZ4S.js";
 import {
   BehaviorSubject
-} from "./chunk-AJN3JCM6.js";
+} from "./chunk-UKZQYWUF.js";
+import "./chunk-QYITSSD3.js";
 import {
   __async,
   __spreadProps,
   __spreadValues
-} from "./chunk-J25FJFZE.js";
+} from "./chunk-5K356HEJ.js";
 
 // node_modules/@zxing/browser/esm/common/HTMLCanvasElementLuminanceSource.js
 var __extends = /* @__PURE__ */ function() {
