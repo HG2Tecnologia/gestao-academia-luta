@@ -287,6 +287,15 @@ export class FinanceiroService {
     return from(this.carregarRelatorioAnual(anoAlvo)).pipe(map((dto) => ok(dto)));
   }
 
+  /**
+   * Agrupamento por `data_vencimento` (ano/mês da própria data), igual
+   * `relatorio_anual_screen.dart::_load` — NÃO por `mes_referencia`, que é
+   * só um campo interno de idempotência das Cloud Functions de cobrança
+   * recorrente (`ensureChargesForPeriod`/`ensureChargesPorModalidade*`) e
+   * nunca é escrito em cobranças avulsas (`financeiro_screen.dart::_criarCobrancaAvulsa`,
+   * linha ~704-710). Agrupar por `mes_referencia` deixaria toda cobrança
+   * avulsa fora do relatório, silenciosamente.
+   */
   private async carregarRelatorioAnual(ano: number): Promise<RelatorioAnualDto> {
     const academiaId = this.academiaId;
     const [pagamentosSnap, presencasSnap, usuariosSnap] = await Promise.all([
@@ -304,12 +313,14 @@ export class FinanceiroService {
 
     pagamentosSnap.forEach((d) => {
       const p = d.data();
-      const mesRef = (p['mes_referencia'] as string) ?? '';
-      const [anoStr, mesStr] = mesRef.split('-');
-      if (Number(anoStr) !== ano) return;
-      const mes = Number(mesStr);
+      const dataVenc = p['data_vencimento'] ? new Date(p['data_vencimento']) : null;
+      if (!dataVenc || isNaN(dataVenc.getTime()) || dataVenc.getFullYear() !== ano) return;
+      const mes = dataVenc.getMonth() + 1;
       const bucket = receitaPorMes.get(mes);
       if (!bucket) return;
+      // statusEfetivo (não o `status` bruto) — mesma função que financeiro_screen.dart usa
+      // pra classificar "Atrasado" de verdade; o próprio comentário de pagamento_status.dart
+      // já documenta que o valor 2/"Atrasado" NUNCA é gravado, só derivado.
       const status = statusEfetivo(p['status'], p['data_vencimento']);
       const valor = (p['valor'] as number) ?? 0;
       if (status === 'Pago') bucket.recebido += valor;
@@ -317,16 +328,20 @@ export class FinanceiroService {
       else if (status === 'Atrasado') {
         bucket.atrasado += valor;
         const alunoId = String(p['aluno_id'] ?? '');
+        const diasAtraso = Math.max(0, Math.floor((Date.now() - dataVenc.getTime()) / 86400000));
         const existente = inadimplentesMap.get(alunoId);
-        if (existente) existente.totalDevido += valor;
-        else {
+        if (existente) {
+          existente.totalDevido += valor;
+          if (diasAtraso > existente.diasAtraso) {
+            existente.diasAtraso = diasAtraso;
+            existente.ultimoVencimento = p['data_vencimento'];
+          }
+        } else {
           inadimplentesMap.set(alunoId, {
             alunoId,
             nomeAluno: nomePorAluno.get(alunoId) ?? '',
             totalDevido: valor,
-            diasAtraso: p['data_vencimento']
-              ? Math.max(0, Math.floor((Date.now() - new Date(p['data_vencimento']).getTime()) / 86400000))
-              : 0,
+            diasAtraso,
             ultimoVencimento: p['data_vencimento'] ?? undefined,
           });
         }
@@ -362,7 +377,7 @@ export class FinanceiroService {
       totalInadimplentes: inadimplentesMap.size,
       receitaMensal: [...receitaPorMes.values()],
       frequenciaMensal,
-      inadimplentes: [...inadimplentesMap.values()].sort((a, b) => b.totalDevido - a.totalDevido),
+      inadimplentes: [...inadimplentesMap.values()].sort((a, b) => b.diasAtraso - a.diasAtraso),
     };
   }
 }
