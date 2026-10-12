@@ -41,10 +41,10 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./features/landing/landing.component').then((m) => m.LandingComponent),
-    title: 'Sensei Manager — Gestão inteligente para artes marciais',
+    title: 'Sensei Manager | Acesse sua conta ou cadastre sua academia',
     data: {
       description:
-        'Sensei Manager: sistema de gestão para academias de artes marciais. Controle de alunos, turmas, presença, graduação e financeiro — integrado ao app do gestor, professor e aluno.',
+        'Acesse o Sensei Manager CRM ou cadastre sua academia. Gerencie sua operação pelo computador com integração ao aplicativo mobile.',
       robots: 'index, follow',
     },
   },
