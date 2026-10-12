@@ -33,14 +33,6 @@ export const routes: Routes = [
     title: 'Recuperar senha — Sensei Manager',
   },
   {
-    path: 'reset-password',
-    loadComponent: () =>
-      import('./features/auth/reset-password/reset-password.component').then(
-        (m) => m.ResetPasswordComponent
-      ),
-    title: 'Nova senha — Sensei Manager',
-  },
-  {
     path: 'app',
     loadComponent: () =>
       import('./shared/layout/shell/shell.component').then((m) => m.ShellComponent),

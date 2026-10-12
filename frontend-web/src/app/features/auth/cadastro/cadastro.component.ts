@@ -9,7 +9,7 @@ import {
   ValidationErrors,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
 
 function senhasIguaisValidator(group: AbstractControl): ValidationErrors | null {
   const senha = group.get('senha')?.value;
@@ -25,7 +25,7 @@ function senhasIguaisValidator(group: AbstractControl): ValidationErrors | null 
   styleUrls: ['./cadastro.component.css'],
 })
 export class CadastroComponent {
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(FirebaseAuthService);
   private readonly router = inject(Router);
 
   readonly carregando = signal(false);
@@ -92,7 +92,7 @@ export class CadastroComponent {
     if (etapa1Valida) this.etapa.set(2);
   }
 
-  cadastrar(): void {
+  async cadastrar(): Promise<void> {
     if (this.form.invalid || this.carregando()) return;
 
     this.carregando.set(true);
@@ -100,23 +100,26 @@ export class CadastroComponent {
 
     const { nome, email, senha, nomeAcademia, subdominio, telefone } = this.form.getRawValue();
 
-    this.authService
-      .register({ nome, email, senha, nomeAcademia, subdominio, telefone: telefone || undefined })
-      .subscribe({
-        next: (res) => {
-          if (res.sucesso) {
-            this.router.navigate(['/app/dashboard']);
-          } else {
-            this.erro.set(res.mensagem ?? 'Erro ao criar conta. Tente novamente.');
-            this.carregando.set(false);
-          }
-        },
-        error: (err) => {
-          const msg = err?.error?.mensagem;
-          this.erro.set(msg ?? 'Não foi possível conectar ao servidor. Tente novamente.');
-          this.carregando.set(false);
-        },
-      });
+    try {
+      await this.authService.cadastrarAcademia({ nome, email, senha, nomeAcademia, subdominio, telefone: telefone || undefined });
+      this.router.navigate(['/app/dashboard']);
+    } catch (erro: any) {
+      this.erro.set(this.mensagemErro(erro?.code));
+      this.carregando.set(false);
+    }
+  }
+
+  private mensagemErro(code?: string): string {
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return 'Este e-mail já está cadastrado. Use "Esqueci minha senha" para recuperar o acesso.';
+      case 'auth/weak-password':
+        return 'A senha é muito fraca. Use ao menos 6 caracteres.';
+      case 'auth/invalid-email':
+        return 'E-mail inválido.';
+      default:
+        return 'Erro ao criar conta. Tente novamente.';
+    }
   }
 
   onTelefoneInput(event: Event): void {

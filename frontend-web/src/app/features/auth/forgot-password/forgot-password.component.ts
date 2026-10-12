@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
+import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -56,27 +56,39 @@ import { AuthService } from '../../../core/services/auth.service';
   `,
 })
 export class ForgotPasswordComponent {
-  private readonly authService = inject(AuthService);
+  private readonly authService = inject(FirebaseAuthService);
 
   readonly emailCtrl = new FormControl('', [Validators.required, Validators.email]);
   readonly enviado = signal(false);
   readonly enviando = signal(false);
   readonly erro = signal('');
 
-  enviar(): void {
+  /**
+   * Espelho de `esqueci_senha_screen.dart::_enviarLinkEmail` (fluxo de
+   * academia/funcionário) — link de redefinição do próprio Firebase Auth.
+   * Igual lá, "usuário não encontrado" não é revelado por segurança: sempre
+   * mostra sucesso, erro só aparece pra e-mail malformado/rate-limit.
+   */
+  async enviar(): Promise<void> {
     if (this.emailCtrl.invalid) return;
     this.enviando.set(true);
     this.erro.set('');
 
-    this.authService.forgotPassword(this.emailCtrl.value!).subscribe({
-      next: () => {
-        this.enviando.set(false);
+    try {
+      await this.authService.enviarLinkRedefinicaoSenha(this.emailCtrl.value!);
+      this.enviado.set(true);
+    } catch (erro: any) {
+      if (erro?.code === 'auth/user-not-found') {
         this.enviado.set(true);
-      },
-      error: () => {
-        this.enviando.set(false);
+      } else if (erro?.code === 'auth/too-many-requests') {
+        this.erro.set('Muitas tentativas. Tente novamente mais tarde.');
+      } else if (erro?.code === 'auth/invalid-email') {
+        this.erro.set('E-mail inválido.');
+      } else {
         this.erro.set('Ocorreu um erro. Tente novamente.');
-      },
-    });
+      }
+    } finally {
+      this.enviando.set(false);
+    }
   }
 }

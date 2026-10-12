@@ -2,19 +2,31 @@ import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   reauthenticateWithCredential,
   updatePassword,
+  sendPasswordResetEmail,
   EmailAuthProvider,
   User as FirebaseUser,
   AuthErrorCodes,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, collection, getDoc, addDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '../firebase/firebase';
 import { StoredUser } from '../models/stored-user.model';
 import { permissoesParaPerfil } from '../models/permissoes.model';
+import { MODALIDADES_DEFAULT } from '../firebase/academia-seeds';
+
+export interface CadastrarAcademiaRequest {
+  nome: string;
+  email: string;
+  senha: string;
+  nomeAcademia: string;
+  subdominio: string;
+  telefone?: string;
+}
 
 const STORAGE_KEY = 'crm_stored_user';
 const RETRY_CODES = new Set<string>([
@@ -279,5 +291,133 @@ export class FirebaseAuthService {
     const credential = EmailAuthProvider.credential(user.email, senhaAtual);
     await reauthenticateWithCredential(user, credential);
     await updatePassword(user, novaSenha);
+  }
+
+  /**
+   * Espelho de `mobile/lib/screens/auth/cadastro_screen.dart::_cadastrar` —
+   * mesma sequência (Auth → doc da academia → doc do usuário Admin → lookup
+   * `usuariosFirebase` → seed de modalidades/faixas), cliente-Firestore
+   * direto como lá (sem Cloud Function; as regras de segurança já permitem
+   * esse bootstrap pro próprio uid recém-criado). Se o Firestore falhar
+   * depois da conta Auth criada, apaga a conta Auth — mesmo rollback do
+   * mobile, pra não deixar login "fantasma" sem academia.
+   */
+  async cadastrarAcademia(req: CadastrarAcademiaRequest): Promise<StoredUser> {
+    const email = req.email.trim().toLowerCase();
+    const credential = await createUserWithEmailAndPassword(auth, email, req.senha);
+    const uid = credential.user.uid;
+
+    try {
+      const academiaRef = doc(collection(db, 'academias'));
+      const academiaId = academiaRef.id;
+      const usuarioRef = doc(collection(db, 'academias', academiaId, 'usuarios'));
+      const usuarioId = usuarioRef.id;
+      const telefone = req.telefone?.trim();
+
+      const batch = writeBatch(db);
+      batch.set(academiaRef, {
+        id: academiaId,
+        nome: req.nomeAcademia,
+        email,
+        subdominio: req.subdominio,
+        ...(telefone ? { telefone } : {}),
+        ativo: true,
+        plano_tipo: 0,
+        noticias_ativas: false,
+        created_by_uid: uid,
+        criado_em: serverTimestamp(),
+      });
+      batch.set(usuarioRef, {
+        id: usuarioId,
+        academia_id: academiaId,
+        firebase_uid: uid,
+        firebaseUid: uid,
+        nome: req.nome,
+        email,
+        perfil: 0,
+        perfil_nome: 'Admin',
+        ativo: true,
+        xp_total: 0,
+        xp_mensal: 0,
+        nivel: 0,
+        ...(telefone ? { telefone } : {}),
+        criado_em: serverTimestamp(),
+      });
+
+      const profileKey = `${academiaId}|usuarios|${usuarioId}`;
+      const profileRef = {
+        key: profileKey,
+        academiaId,
+        usuarioId,
+        colecao: 'usuarios',
+        perfil_nome: 'Admin',
+        nome: req.nome,
+      };
+      batch.set(doc(db, 'usuariosFirebase', uid), {
+        schemaVersion: 2,
+        uid,
+        status: 'active',
+        primary_profile_key: profileKey,
+        profile_keys: [profileKey],
+        profile_refs: [profileRef],
+        academy_ids: [academiaId],
+        roles_by_academy: { [academiaId]: ['Admin'] },
+        email_canonical: email,
+        academiaId,
+        usuarioId,
+        colecao: 'usuarios',
+        perfil: 'Admin',
+        nome: req.nome,
+        email,
+        perfis: [profileRef],
+      });
+      await batch.commit();
+
+      await this.popularModalidadesDefault(academiaId);
+
+      const storedUser: StoredUser = {
+        id: usuarioId,
+        nome: req.nome,
+        email,
+        perfil: 'Admin',
+        academiaId,
+        permissoes: permissoesParaPerfil('Admin'),
+        perfis: [profileRef],
+        mustChangePassword: false,
+      };
+      this.salvarNoStorage(storedUser);
+      return storedUser;
+    } catch (erro) {
+      await credential.user.delete().catch(() => {});
+      throw erro;
+    }
+  }
+
+  /** Espelho de `firestore_service.dart::popularModalidadesDefault` — mesmos dados em `academia-seeds.ts`. */
+  private async popularModalidadesDefault(academiaId: string): Promise<void> {
+    for (const modalidade of MODALIDADES_DEFAULT) {
+      const modRef = await addDoc(collection(db, 'academias', academiaId, 'modalidades'), {
+        nome: modalidade.nome,
+        cor: modalidade.cor,
+        ativo: true,
+        criado_em: serverTimestamp(),
+      });
+      for (const faixa of modalidade.faixas) {
+        await addDoc(collection(db, 'academias', academiaId, 'faixas'), {
+          modalidadeId: modRef.id,
+          nome: faixa.nome,
+          cor: faixa.cor,
+          ordem: faixa.ordem,
+          tem_graus: faixa.tem_graus,
+          max_graus: faixa.max_graus,
+          criado_em: serverTimestamp(),
+        });
+      }
+    }
+  }
+
+  /** Espelho do fluxo "academia/funcionário" em `esqueci_senha_screen.dart::_enviarLinkEmail` — link do Firebase, sem tela de reset própria (o próprio Firebase cuida disso fora do app). */
+  async enviarLinkRedefinicaoSenha(email: string): Promise<void> {
+    await sendPasswordResetEmail(auth, email.trim().toLowerCase());
   }
 }
