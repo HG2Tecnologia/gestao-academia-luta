@@ -2,6 +2,8 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CatracaService, CatracaValidacaoDto, CatracaAlunoVinculoDto, CatracaAgentConfigDto } from '../../core/services/catraca.service';
+import { DialogService } from '../../core/services/dialog.service';
+import { ToastService } from '../../core/services/toast.service';
 
 interface LogEntry {
   hora: string;
@@ -20,6 +22,8 @@ interface LogEntry {
 })
 export class CatracaComponent implements OnInit {
   private readonly catracaService = inject(CatracaService);
+  private readonly dialogService = inject(DialogService);
+  private readonly toastService = inject(ToastService);
 
   // Abertura manual
   readonly abrindo = signal(false);
@@ -126,9 +130,12 @@ export class CatracaComponent implements OnInit {
           this.vinculos.update(list =>
             list.map(v => v.alunoId === aluno.alunoId ? { ...v, ...res.dados! } : v)
           );
-          alert(`✅ ${res.mensagem ?? 'Aluno vinculado!'}\n\nID no dispositivo: ${res.dados.deviceUserId}\n\nPeça ao aluno para escanear a digital na catraca agora.`);
+          this.dialogService.alert(
+            `ID no dispositivo: ${res.dados.deviceUserId}\n\nPeça ao aluno para escanear a digital na catraca agora.`,
+            { titulo: res.mensagem ?? 'Aluno vinculado!' },
+          );
         } else {
-          alert(`Erro: ${res.mensagem}`);
+          this.toastService.error(res.mensagem ?? 'Erro ao vincular aluno.');
         }
         this.vinculandoId.set(null);
       },
@@ -136,8 +143,12 @@ export class CatracaComponent implements OnInit {
     });
   }
 
-  desvincular(aluno: CatracaAlunoVinculoDto): void {
-    if (!confirm(`Desvincular ${aluno.nomeAluno} da catraca? A digital será removida do dispositivo.`)) return;
+  async desvincular(aluno: CatracaAlunoVinculoDto): Promise<void> {
+    const confirmado = await this.dialogService.confirm(
+      `Desvincular ${aluno.nomeAluno} da catraca? A digital será removida do dispositivo.`,
+      { titulo: 'Desvincular da catraca', textoConfirmar: 'Desvincular', perigoso: true },
+    );
+    if (!confirmado) return;
     this.vinculandoId.set(aluno.alunoId);
     this.catracaService.desvincularAluno(aluno.alunoId).subscribe({
       next: () => {
@@ -172,7 +183,7 @@ export class CatracaComponent implements OnInit {
         this.baixandoPacote.set(false);
       },
       error: () => {
-        alert('Executável do agente ainda não está disponível no servidor. Entre em contato com o suporte.');
+        this.toastService.error('Executável do agente ainda não está disponível no servidor. Entre em contato com o suporte.');
         this.baixandoPacote.set(false);
       },
     });
@@ -180,6 +191,6 @@ export class CatracaComponent implements OnInit {
 
   copiarApiKey(): void {
     const key = this.agentConfig()?.apiKey ?? '';
-    navigator.clipboard.writeText(key).then(() => alert('API Key copiada!'));
+    navigator.clipboard.writeText(key).then(() => this.toastService.success('API Key copiada!'));
   }
 }

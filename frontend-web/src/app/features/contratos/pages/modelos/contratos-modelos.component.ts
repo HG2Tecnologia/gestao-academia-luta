@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ModeloContratoService } from '../../../../core/services/modelo-contrato.service';
 import { ModeloContratoDto } from '../../../../core/models/contrato.model';
+import { DialogService } from '../../../../core/services/dialog.service';
 
 const VARIAVEIS = [
   '{{nomeAluno}}', '{{email}}', '{{telefone}}', '{{dataNascimento}}',
@@ -47,6 +48,7 @@ const TEMPLATE_PADRAO = `<h2>Contrato de Prestação de Serviços</h2>
 })
 export class ContratosModelosComponent implements OnInit {
   private readonly modeloService = inject(ModeloContratoService);
+  private readonly dialogService = inject(DialogService);
 
   @ViewChild('editorRef') editorRef?: ElementRef<HTMLDivElement>;
 
@@ -141,8 +143,9 @@ export class ContratosModelosComponent implements OnInit {
     });
   }
 
-  excluir(m: ModeloContratoDto): void {
-    if (!confirm(`Excluir o modelo "${m.nome}"?`)) return;
+  async excluir(m: ModeloContratoDto): Promise<void> {
+    const confirmado = await this.dialogService.confirm(`Excluir o modelo "${m.nome}"?`, { textoConfirmar: 'Excluir', perigoso: true });
+    if (!confirmado) return;
     this.modeloService.excluir(m.id).subscribe({ next: () => this.carregar() });
   }
 

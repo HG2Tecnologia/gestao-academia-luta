@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { RankingService } from '../../../../core/services/ranking.service';
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+import { DialogService } from '../../../../core/services/dialog.service';
 import {
   LeaderboardDto, LeaderboardCustomDto, LancamentoPontoDto,
   RankingCustomDto, NIVEL_CONFIG
@@ -70,6 +71,7 @@ export class LeaderboardComponent implements OnInit {
     private rankingService: RankingService,
     private alunoService: AlunoService,
     readonly authService: FirebaseAuthService,
+    private dialogService: DialogService,
     private fb: FormBuilder,
   ) {}
 
@@ -218,8 +220,9 @@ export class LeaderboardComponent implements OnInit {
     });
   }
 
-  desativarRanking(r: RankingCustomDto): void {
-    if (!confirm(`Desativar o ranking "${r.nome}"?`)) return;
+  async desativarRanking(r: RankingCustomDto): Promise<void> {
+    const confirmado = await this.dialogService.confirm(`Desativar o ranking "${r.nome}"?`, { textoConfirmar: 'Desativar', perigoso: true });
+    if (!confirmado) return;
     this.rankingService.desativarRankingCustom(r.id).subscribe({
       next: () => this.carregarRankings(),
       error: () => {},
@@ -256,8 +259,9 @@ export class LeaderboardComponent implements OnInit {
     });
   }
 
-  removerLancamento(id: string): void {
-    if (!confirm('Remover este lançamento?')) return;
+  async removerLancamento(id: string): Promise<void> {
+    const confirmado = await this.dialogService.confirm('Remover este lançamento?', { textoConfirmar: 'Remover', perigoso: true });
+    if (!confirmado) return;
     this.rankingService.removerLancamento(id).subscribe({
       next: () => {
         this.lancamentos.update(list => list.filter(l => l.id !== id));

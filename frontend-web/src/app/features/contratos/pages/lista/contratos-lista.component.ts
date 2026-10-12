@@ -7,6 +7,7 @@ import { ModeloContratoService } from '../../../../core/services/modelo-contrato
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { ContratoDto, ModeloContratoDto } from '../../../../core/models/contrato.model';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
+import { DialogService } from '../../../../core/services/dialog.service';
 
 @Component({
   selector: 'app-contratos-lista',
@@ -18,6 +19,7 @@ export class ContratosListaComponent implements OnInit {
   private readonly contratoService = inject(ContratoService);
   private readonly modeloService = inject(ModeloContratoService);
   private readonly alunoService = inject(AlunoService);
+  private readonly dialogService = inject(DialogService);
 
   readonly carregando = signal(true);
   readonly erro = signal('');
@@ -94,9 +96,10 @@ export class ContratosListaComponent implements OnInit {
     });
   }
 
-  cancelarContrato(id: string, event: Event): void {
+  async cancelarContrato(id: string, event: Event): Promise<void> {
     event.stopPropagation();
-    if (!confirm('Cancelar este contrato?')) return;
+    const confirmado = await this.dialogService.confirm('Cancelar este contrato?', { textoConfirmar: 'Cancelar contrato', perigoso: true });
+    if (!confirmado) return;
     this.contratoService.cancelar(id).subscribe({
       next: () => this.carregarContratos(),
     });
