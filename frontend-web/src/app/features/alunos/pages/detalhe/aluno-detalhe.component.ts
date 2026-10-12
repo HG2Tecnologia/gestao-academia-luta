@@ -18,6 +18,7 @@ import { PresencaDto } from '../../../../core/models/presenca.model';
 import { PerfilGamificadoDto } from '../../../../core/models/ranking.model';
 import { PagamentoDto, CreatePagamentoRequest } from '../../../../core/models/financeiro.model';
 import { FaixaDto, GraduacaoDto, RegistrarGraduacaoRequest } from '../../../../core/models/graduacao.model';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 import { UsuarioResumoDto } from '../../../../core/models/usuario.model';
 import { ContratoDto, ContratoDetalheDto, ModeloContratoDto } from '../../../../core/models/contrato.model';
 import { NivelBadgeComponent } from '../../../../shared/components/nivel-badge/nivel-badge.component';
@@ -66,7 +67,7 @@ export class AlunoDetalheComponent implements OnInit {
   readonly erro = signal('');
   readonly tabAtiva = signal<Aba>('info');
   readonly presencasDe = signal(this.primeiroDiaMes());
-  readonly presencasAte = signal(new Date().toISOString().split('T')[0]);
+  readonly presencasAte = signal(dataLocalISO());
 
   // Contratos
   readonly contratos = signal<ContratoDto[]>([]);
@@ -142,7 +143,7 @@ export class AlunoDetalheComponent implements OnInit {
   readonly gradModalidadeId = signal('');
   readonly gradFaixaId = signal('');
   readonly gradProfessorId = signal('');
-  readonly gradData = signal(new Date().toISOString().split('T')[0]);
+  readonly gradData = signal(dataLocalISO());
   readonly gradObservacoes = signal('');
   readonly gradGerarCobranca = signal(false);
   readonly gradValorCobranca = signal('');
@@ -203,7 +204,7 @@ export class AlunoDetalheComponent implements OnInit {
   }
 
   marcarPagamentoPago(p: PagamentoDto): void {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = dataLocalISO();
     this.financeiroService.atualizar(p.id, { status: 1, dataPagamento: hoje }).subscribe({
       next: () => this.carregarPagamentos(this.aluno()!.id),
     });
@@ -341,7 +342,7 @@ export class AlunoDetalheComponent implements OnInit {
     this.gradModalidadeId.set(modalidadePreSelecionada ?? '');
     this.gradFaixaId.set('');
     this.gradProfessorId.set('');
-    this.gradData.set(new Date().toISOString().split('T')[0]);
+    this.gradData.set(dataLocalISO());
     this.gradObservacoes.set('');
     this.gradGerarCobranca.set(false);
     this.gradValorCobranca.set('');

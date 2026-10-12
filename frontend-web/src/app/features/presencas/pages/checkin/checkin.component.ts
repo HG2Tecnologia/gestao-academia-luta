@@ -8,6 +8,7 @@ import { MatriculaDto, TurmaDto } from '../../../../core/models/turma.model';
 import { HorarioDto } from '../../../../core/models/horario.model';
 import { PresencaDto } from '../../../../core/models/presenca.model';
 import { QrScannerComponent } from '../../../../shared/components/qr-scanner/qr-scanner.component';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 
 @Component({
   selector: 'app-checkin',
@@ -28,7 +29,7 @@ export class CheckinComponent implements OnInit {
 
   readonly turmaId = signal('');
   readonly horarioId = signal('');
-  readonly data = signal(new Date().toISOString().split('T')[0]);
+  readonly data = signal(dataLocalISO());
 
   readonly carregandoTurmas = signal(false);
   readonly carregandoHorarios = signal(false);

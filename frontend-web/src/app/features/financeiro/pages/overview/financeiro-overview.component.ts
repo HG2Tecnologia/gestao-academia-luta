@@ -12,6 +12,7 @@ import {
   StatusPagamento,
 } from '../../../../core/models/financeiro.model';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 
 type Aba = 'pagamentos' | 'inadimplentes';
 
@@ -237,7 +238,7 @@ export class FinanceiroOverviewComponent implements OnInit {
   }
 
   marcarComoPago(p: PagamentoDto): void {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = dataLocalISO();
     this.financeiroService.atualizar(p.id, { status: 1, dataPagamento: hoje }).subscribe({
       next: () => { this.fecharDropdownAcao(); this.carregarTudo(); },
     });

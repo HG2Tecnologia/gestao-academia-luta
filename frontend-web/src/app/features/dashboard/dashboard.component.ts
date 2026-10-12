@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 import { DashboardService, DashboardResumoDto, FrequenciaDiariaDto } from '../../core/services/dashboard.service';
 import { AlunoService } from '../../core/services/aluno.service';
 import { AniversarianteDto } from '../../core/models/aluno.model';
@@ -9,6 +9,7 @@ import { ModalidadeService } from '../../core/services/modalidade.service';
 import { PlanoService } from '../../core/services/plano.service';
 import { FinanceiroService } from '../../core/services/financeiro.service';
 import { ResumoFinanceiroDto, PagamentoDto } from '../../core/models/financeiro.model';
+import { dataLocalISO } from '../../core/utils/date.util';
 
 type FiltroPag = 'hoje' | 'semana' | 'mes';
 
@@ -20,7 +21,7 @@ type FiltroPag = 'hoje' | 'semana' | 'mes';
   styleUrls: ['./dashboard.component.css'],
 })
 export class DashboardComponent implements OnInit {
-  readonly authService = inject(AuthService);
+  readonly authService = inject(FirebaseAuthService);
   private readonly dashboardService = inject(DashboardService);
   private readonly alunoService = inject(AlunoService);
   private readonly modalidadeService = inject(ModalidadeService);
@@ -50,14 +51,14 @@ export class DashboardComponent implements OnInit {
   readonly pagamentosFiltrados = computed(() => {
     const pags = this.pagamentosMes().filter(p => p.status === 'Pendente' || p.status === 'Atrasado');
     const filtro = this.filtroPag();
-    const hojeStr = this.hoje.toISOString().split('T')[0];
+    const hojeStr = dataLocalISO(this.hoje);
     if (filtro === 'hoje') {
       return pags.filter(p => p.dataVencimento === hojeStr);
     }
     if (filtro === 'semana') {
       const fim = new Date(this.hoje);
       fim.setDate(fim.getDate() + 7);
-      const fimStr = fim.toISOString().split('T')[0];
+      const fimStr = dataLocalISO(fim);
       return pags.filter(p => p.dataVencimento && p.dataVencimento <= fimStr && p.dataVencimento >= hojeStr);
     }
     return pags;

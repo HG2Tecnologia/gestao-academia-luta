@@ -12,6 +12,7 @@ import { PlanoService } from '../../../../core/services/plano.service';
 import { TurmaDto } from '../../../../core/models/turma.model';
 import { FaixaDto } from '../../../../core/models/graduacao.model';
 import { PlanoDto } from '../../../../core/models/plano.model';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 
 interface ModalidadeResumo { id: string; nome: string; }
 
@@ -55,7 +56,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   readonly modalidadeGradId = signal('');
   readonly faixaGradId = signal('');
   readonly faixasGrad = signal<FaixaDto[]>([]);
-  readonly dataGrad = signal(new Date().toISOString().split('T')[0]);
+  readonly dataGrad = signal(dataLocalISO());
   readonly registrandoGrad = signal(false);
   readonly gradSucesso = signal(false);
   readonly erroGrad = signal('');
@@ -223,7 +224,7 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
     const turmaId = this.turmaInicialId();
     const faixaId = this.faixaInicialId();
     const professorId = this.authService.currentUser()?.id;
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = dataLocalISO();
 
     const pendentes: Promise<any>[] = [];
 

@@ -10,6 +10,7 @@ import {
   PresencaRelatorioDto,
   AlunoFrequenciaDto,
 } from '../models/presenca.model';
+import { dataLocalISO } from '../utils/date.util';
 
 function ok<T>(dados: T): BaseResponse<T> {
   return { sucesso: true, dados, erros: [] };
@@ -48,7 +49,7 @@ export class PresencaService {
     const academiaId = this.academiaId;
     const turmaId = await this.resolverTurmaId(academiaId, data.horarioId);
     const agora = new Date();
-    const dataStr = data.data ?? agora.toISOString().split('T')[0];
+    const dataStr = data.data ?? dataLocalISO(agora);
     const payload = {
       aluno_id: data.alunoId,
       turma_id: turmaId,
