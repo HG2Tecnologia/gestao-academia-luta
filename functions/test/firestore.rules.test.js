@@ -136,3 +136,27 @@ test("cadastro da academia cria apenas o próprio Admin em batch validado", asyn
 
   await assertSucceeds(batch.commit());
 });
+
+test("nem o Admin da academia lê ou escreve a subcoleção _atribuicao pelo cliente", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-fixture").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+    await context.firestore().doc("academias/academy-fixture/_atribuicao/dados").set({
+      classificacao: "identificada",
+      utm_source: "google",
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-fixture").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture/_atribuicao/dados").get(),
+  );
+  await assertFails(
+    firestore.doc("academias/academy-fixture/_atribuicao/dados").set({ utm_source: "forjado" }),
+  );
+});

@@ -1,0 +1,55 @@
+@if (consent.banerAberto()) {
+  <div class="consent-wrap" role="dialog" aria-label="Preferências de cookies">
+    @if (!personalizarAberto()) {
+      <div class="consent-card">
+        <p class="consent-text">
+          Usamos cookies essenciais para o funcionamento do sistema e, com sua permissão,
+          cookies de análise e publicidade para entender o uso do site. Você pode aceitar,
+          recusar ou personalizar sua escolha, e revisar isso depois em
+          <a routerLink="/privacidade">Privacidade</a>.
+        </p>
+        <div class="consent-actions">
+          <button class="consent-btn-ghost" type="button" (click)="abrirPersonalizar()">Personalizar</button>
+          <button class="consent-btn-ghost" type="button" (click)="recusarTudo()">Recusar</button>
+          <button class="consent-btn-primary" type="button" (click)="aceitarTudo()">Aceitar</button>
+        </div>
+      </div>
+    } @else {
+      <div class="consent-card">
+        <p class="consent-text consent-title">Personalizar preferências</p>
+
+        <label class="consent-option consent-option-disabled">
+          <input type="checkbox" checked disabled>
+          <span>
+            <strong>Essenciais</strong> — login, sessão e preferências do sistema. Sempre ativos.
+          </span>
+        </label>
+
+        <label class="consent-option">
+          <input type="checkbox" [checked]="analyticsMarcado()" (change)="analyticsMarcado.set(!analyticsMarcado())">
+          <span>
+            <strong>Análise</strong> — entender como o site é usado (Google Analytics).
+          </span>
+        </label>
+
+        <label class="consent-option">
+          <input type="checkbox" [checked]="adsMarcado()" (change)="adsMarcado.set(!adsMarcado())">
+          <span>
+            <strong>Publicidade</strong> — medir campanhas (Google Ads).
+          </span>
+        </label>
+
+        <label class="consent-option">
+          <input type="checkbox" [checked]="personalizacaoMarcado()" (change)="personalizacaoMarcado.set(!personalizacaoMarcado())">
+          <span>
+            <strong>Personalização</strong> — adaptar conteúdo com base no seu uso.
+          </span>
+        </label>
+
+        <div class="consent-actions">
+          <button class="consent-btn-primary" type="button" (click)="confirmarPersonalizado()">Salvar preferências</button>
+        </div>
+      </div>
+    }
+  </div>
+}

@@ -1,8 +1,7 @@
 import {
   BrowserModule,
   DomRendererFactory2
-} from "./chunk-TCE4NMXJ.js";
-import "./chunk-SVJBWL5J.js";
+} from "./chunk-KBDXFHZV.js";
 import {
   DOCUMENT
 } from "./chunk-RUNFSKY6.js";
@@ -24,8 +23,8 @@ import {
   ɵɵdefineNgModule,
   ɵɵinject
 } from "./chunk-FLRNDHTY.js";
-import "./chunk-RYXFXP5Z.js";
 import "./chunk-3QM5XZ4S.js";
+import "./chunk-RYXFXP5Z.js";
 import "./chunk-UKZQYWUF.js";
 import "./chunk-QYITSSD3.js";
 import {

@@ -86,7 +86,7 @@ export class SeoService {
           url: SITE_URL,
           logo: `${SITE_URL}/images/logo_sistema.png`,
           sameAs: [
-            'https://apps.apple.com/app/id6745397960',
+            'https://apps.apple.com/app/id6777092562',
             'https://play.google.com/store/apps/details?id=br.com.hg2tecnologia.senseimanager',
           ],
         },

@@ -157,10 +157,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Atribuição de origem do cadastro (UTM/gclid/referrer) — só a Cloud
+    // Function `registrarAtribuicaoCadastro` escreve, com o Admin SDK (que
+    // ignora estas regras). Nenhum perfil client-side lê ou escreve, nem o
+    // próprio Admin da academia: é dado de marketing/atribuição, não um dado
+    // operacional que a equipe da academia precise ver.
+    match /academias/{academiaId}/_atribuicao/{doc} {
+      allow read, write: if false;
+    }
+
     // Resto: admin/secretaria gerencia tudo; membros leem
+    // ATENÇÃO: regras de match sobrepostas são combinadas com OR em
+    // Firestore — por isso `_atribuicao` precisa ser explicitamente
+    // excluída aqui também, senão este bloco genérico reabriria leitura
+    // (`pertenceAcademia`) e escrita (Admin/Secretaria/Professor) por cima
+    // do `allow read, write: if false` do match específico acima.
     match /academias/{academiaId}/{colecao}/{doc} {
-      allow read: if pertenceAcademia(academiaId);
-      allow write: if !(colecao in ['usuarios', 'funcionarios']) &&
+      allow read: if colecao != '_atribuicao' && pertenceAcademia(academiaId);
+      allow write: if !(colecao in ['usuarios', 'funcionarios', '_atribuicao']) &&
         (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
     }
 

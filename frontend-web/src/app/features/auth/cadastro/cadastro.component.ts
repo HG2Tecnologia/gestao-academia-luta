@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
@@ -10,6 +10,8 @@ import {
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
+import { AnalyticsService } from '../../../core/services/analytics.service';
+import { AttributionService } from '../../../core/services/attribution.service';
 
 function senhasIguaisValidator(group: AbstractControl): ValidationErrors | null {
   const senha = group.get('senha')?.value;
@@ -24,9 +26,15 @@ function senhasIguaisValidator(group: AbstractControl): ValidationErrors | null 
   templateUrl: './cadastro.component.html',
   styleUrls: ['./cadastro.component.css'],
 })
-export class CadastroComponent {
+export class CadastroComponent implements OnInit {
   private readonly authService = inject(FirebaseAuthService);
   private readonly router = inject(Router);
+  private readonly analytics = inject(AnalyticsService);
+  private readonly attribution = inject(AttributionService);
+
+  ngOnInit(): void {
+    this.analytics.cadastroIniciado();
+  }
 
   readonly carregando = signal(false);
   readonly erro = signal<string | null>(null);
@@ -101,7 +109,13 @@ export class CadastroComponent {
     const { nome, email, senha, nomeAcademia, subdominio, telefone } = this.form.getRawValue();
 
     try {
-      await this.authService.cadastrarAcademia({ nome, email, senha, nomeAcademia, subdominio, telefone: telefone || undefined });
+      const usuario = await this.authService.cadastrarAcademia({ nome, email, senha, nomeAcademia, subdominio, telefone: telefone || undefined });
+      // Dispara só aqui — depois que Auth + Firestore + seed de
+      // modalidades confirmaram sucesso, nunca no clique do botão.
+      this.analytics.cadastroConcluido();
+      if (usuario.academiaId) {
+        await this.attribution.registrarNoCadastro(usuario.academiaId);
+      }
       this.router.navigate(['/app/dashboard']);
     } catch (erro: any) {
       this.erro.set(this.mensagemErro(erro?.code));

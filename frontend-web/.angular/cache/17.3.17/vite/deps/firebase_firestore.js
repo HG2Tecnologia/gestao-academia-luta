@@ -1,7 +1,4 @@
 import {
-  __classPrivateFieldGet
-} from "./chunk-QYITSSD3.js";
-import {
   Component,
   FirebaseError,
   LogLevel,
@@ -25,6 +22,9 @@ import {
   pingServer,
   registerVersion
 } from "./chunk-SYOR37SW.js";
+import {
+  __classPrivateFieldGet
+} from "./chunk-QYITSSD3.js";
 import {
   __async,
   __objRest,

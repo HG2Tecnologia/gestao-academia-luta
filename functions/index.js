@@ -41,6 +41,9 @@ const contratoFunctions = require("./contrato-functions");
 exports.contratoPublicoObter = contratoFunctions.contratoPublicoObter;
 exports.contratoPublicoAssinar = contratoFunctions.contratoPublicoAssinar;
 
+const attributionFunctions = require("./attribution-functions");
+exports.registrarAtribuicaoCadastro = attributionFunctions.registrarAtribuicaoCadastro;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {
