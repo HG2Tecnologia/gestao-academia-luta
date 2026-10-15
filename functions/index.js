@@ -47,6 +47,9 @@ exports.registrarAtribuicaoCadastro = attributionFunctions.registrarAtribuicaoCa
 const modalidadeInitFunctions = require("./modalidade-init-functions");
 exports.inicializarModalidadesPadrao = modalidadeInitFunctions.inicializarModalidadesPadrao;
 
+const analyticsFunctions = require("./analytics-functions");
+exports.registrarEventoAnalytics = analyticsFunctions.registrarEventoAnalytics;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

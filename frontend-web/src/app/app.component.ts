@@ -20,9 +20,11 @@ export class AppComponent {
     const attribution = inject(AttributionService);
     const analytics = inject(AnalyticsService);
 
-    // Ordem importa: consent default precisa estar no dataLayer antes do
-    // gtag.js carregar (AnalyticsService.iniciar()), e a atribuição lê o
-    // estado de consentimento atual antes de decidir se persiste.
+    // Ordem importa: consent precisa estar decidido antes de qualquer
+    // tentativa de envio — tanto a atribuição quanto o AnalyticsService
+    // (via Cloud Function `registrarEventoAnalytics`) checam
+    // `consent.estado().analytics_storage === 'granted'` antes de mandar
+    // qualquer coisa pro GA4.
     consent.iniciar();
     attribution.capturarNaChegada();
     analytics.iniciar();
