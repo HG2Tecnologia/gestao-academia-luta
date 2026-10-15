@@ -44,6 +44,9 @@ exports.contratoPublicoAssinar = contratoFunctions.contratoPublicoAssinar;
 const attributionFunctions = require("./attribution-functions");
 exports.registrarAtribuicaoCadastro = attributionFunctions.registrarAtribuicaoCadastro;
 
+const modalidadeInitFunctions = require("./modalidade-init-functions");
+exports.inicializarModalidadesPadrao = modalidadeInitFunctions.inicializarModalidadesPadrao;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

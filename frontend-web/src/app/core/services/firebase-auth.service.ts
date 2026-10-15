@@ -12,12 +12,11 @@ import {
   User as FirebaseUser,
   AuthErrorCodes,
 } from 'firebase/auth';
-import { doc, collection, getDoc, addDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '../firebase/firebase';
 import { StoredUser } from '../models/stored-user.model';
 import { permissoesParaPerfil } from '../models/permissoes.model';
-import { MODALIDADES_DEFAULT } from '../firebase/academia-seeds';
 
 export interface CadastrarAcademiaRequest {
   nome: string;
@@ -376,7 +375,21 @@ export class FirebaseAuthService {
       });
       await batch.commit();
 
-      await this.popularModalidadesDefault(academiaId);
+      // A partir daqui a academia JÁ é válida e o Admin já consegue logar
+      // — por isso a inicialização de modalidades/faixas não tem mais
+      // permissão de apagar a conta Auth se falhar (ver catch abaixo).
+      // Centralizada numa Cloud Function (`inicializarModalidadesPadrao`)
+      // com IDs determinísticos e idempotência real — substituiu o antigo
+      // `popularModalidadesDefault` client-side. Se a function falhar ou
+      // ainda não estiver deployada, o cadastro segue normalmente; fica
+      // pendente pra retry (ex.: o dashboard reexecuta ao detectar
+      // `modalidades_status !== 'completo'`).
+      try {
+        const inicializar = httpsCallable(functions, 'inicializarModalidadesPadrao');
+        await inicializar({ academiaId });
+      } catch (erroInicializacao) {
+        console.warn('[FirebaseAuthService] Inicialização de modalidades pendente, será retentada depois:', erroInicializacao);
+      }
 
       const storedUser: StoredUser = {
         id: usuarioId,
@@ -393,29 +406,6 @@ export class FirebaseAuthService {
     } catch (erro) {
       await credential.user.delete().catch(() => {});
       throw erro;
-    }
-  }
-
-  /** Espelho de `firestore_service.dart::popularModalidadesDefault` — mesmos dados em `academia-seeds.ts`. */
-  private async popularModalidadesDefault(academiaId: string): Promise<void> {
-    for (const modalidade of MODALIDADES_DEFAULT) {
-      const modRef = await addDoc(collection(db, 'academias', academiaId, 'modalidades'), {
-        nome: modalidade.nome,
-        cor: modalidade.cor,
-        ativo: true,
-        criado_em: serverTimestamp(),
-      });
-      for (const faixa of modalidade.faixas) {
-        await addDoc(collection(db, 'academias', academiaId, 'faixas'), {
-          modalidadeId: modRef.id,
-          nome: faixa.nome,
-          cor: faixa.cor,
-          ordem: faixa.ordem,
-          tem_graus: faixa.tem_graus,
-          max_graus: faixa.max_graus,
-          criado_em: serverTimestamp(),
-        });
-      }
     }
   }
 

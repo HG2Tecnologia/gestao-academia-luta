@@ -160,3 +160,56 @@ test("nem o Admin da academia lê ou escreve a subcoleção _atribuicao pelo cli
     firestore.doc("academias/academy-fixture/_atribuicao/dados").set({ utm_source: "forjado" }),
   );
 });
+
+test("regressão: se a exclusão de _atribuicao sumir do match genérico, o acesso REABRE (prova que a proteção depende dos dois blocos)", async () => {
+  // Isto não testa o `firestore.rules` real do projeto — testa uma cópia
+  // DELIBERADAMENTE REGREDIDA (remove só a exclusão de '_atribuicao' do
+  // match genérico "resto", mantendo o match específico com
+  // `allow read, write: if false` intacto) pra provar que, SOZINHO, o
+  // bloco específico não basta. Isso é a demonstração concreta do aviso
+  // escrito no topo do bloco `_atribuicao` do arquivo real: um rollback
+  // que restaure só metade da proteção reabre o acesso.
+  const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  const rulesRegredidas = rulesOriginais
+    .replace("colecao != '_atribuicao' && pertenceAcademia(academiaId)", "pertenceAcademia(academiaId)")
+    .replace("colecao in ['usuarios', 'funcionarios', '_atribuicao']", "colecao in ['usuarios', 'funcionarios']");
+
+  // Confirma que a substituição realmente mudou o texto (senão o teste
+  // passaria por engano, sem provar nada).
+  if (rulesRegredidas === rulesOriginais) {
+    throw new Error("A regressão simulada não alterou o arquivo de regras — teste inválido.");
+  }
+
+  const projectIdRegressao = "sensei-manager-test-regressao";
+  const ambienteRegredido = await initializeTestEnvironment({
+    projectId: projectIdRegressao,
+    firestore: {
+      host: "127.0.0.1",
+      port: 8080,
+      rules: rulesRegredidas,
+    },
+  });
+
+  try {
+    await ambienteRegredido.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc("usuariosFirebase/admin-regressao").set({
+        schemaVersion: 2,
+        academiaId: "academy-fixture",
+        perfil: "Admin",
+        academy_ids: ["academy-fixture"],
+        roles_by_academy: { "academy-fixture": ["Admin"] },
+      });
+      await context.firestore().doc("academias/academy-fixture/_atribuicao/dados").set({
+        classificacao: "identificada",
+      });
+    });
+    const firestore = ambienteRegredido.authenticatedContext("admin-regressao").firestore();
+
+    // Com a regressão, a leitura TEM que suceder — é isso que prova que a
+    // exclusão no match genérico é indispensável, não redundante.
+    await assertSucceeds(firestore.doc("academias/academy-fixture/_atribuicao/dados").get());
+  } finally {
+    await ambienteRegredido.cleanup();
+  }
+});

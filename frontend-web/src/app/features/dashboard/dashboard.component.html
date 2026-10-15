@@ -12,6 +12,27 @@
     </div>
   </div>
 
+  @if (avisoModalidadesPendentes()) {
+    <div class="onboarding-card" style="margin-bottom: 16px;">
+      <p style="margin: 0; font-size: 13px; color: var(--fg-2, #475569);">
+        Identificamos uma ou mais modalidades que podem precisar da sua revisão em
+        <a routerLink="/app/modalidades">Modalidades</a>. Se notar algo diferente do esperado, fale com o suporte.
+      </p>
+    </div>
+  }
+
+  @if (inicializacaoModalidadesFalhou()) {
+    <div class="onboarding-card" style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <p style="margin: 0; font-size: 13px; color: var(--fg-2, #475569);">
+        A configuração inicial de modalidades não terminou. Pode tentar de novo quando quiser.
+      </p>
+      <button type="button" (click)="tentarNovamenteModalidades()" [disabled]="tentandoNovamenteModalidades()"
+              style="white-space: nowrap; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border, #e2e8f0); background: transparent; cursor: pointer; font-size: 13px;">
+        {{ tentandoNovamenteModalidades() ? 'Tentando...' : 'Tentar novamente' }}
+      </button>
+    </div>
+  }
+
   <!-- Onboarding: aparece enquanto o setup não está completo -->
   @if (!carregando() && !setupCompleto()) {
     <div class="onboarding-card">

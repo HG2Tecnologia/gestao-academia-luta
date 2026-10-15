@@ -90,10 +90,19 @@ export class AttributionService {
         import('../firebase/firebase'),
       ]);
       const registrar = httpsCallable(functions, 'registrarAtribuicaoCadastro');
-      await registrar({ academiaId, atribuicao });
-    } catch {
-      // Atribuição é "nice to have" pro marketing — nunca pode quebrar o
-      // fluxo de criação de conta do usuário.
+      await registrar({
+        academiaId,
+        atribuicao,
+        // A function não confia só em "o cliente decidiu chamar" como
+        // prova de consentimento — exige essa declaração explícita.
+        consentimentoAnalytics: this.consent.estado().analytics_storage === 'granted',
+      });
+    } catch (erro) {
+      // Nunca propaga — atribuição é complementar ao cadastro, não pode
+      // bloquear a criação da academia. Mas registra no console pra não
+      // mascarar diagnóstico (ex.: function não deployada ainda, regra do
+      // Firestore rejeitando, academia fora da janela de 30min).
+      console.warn('[AttributionService] Falha ao registrar atribuição do cadastro:', erro);
     }
   }
 

@@ -15,7 +15,10 @@
     "test:graduacao": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/graduacao-functions.test.js\"",
     "test:turma": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/turma-functions.test.js\"",
     "test:aluno": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/aluno-functions.test.js\"",
-    "test:finance": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/finance-functions.test.js\""
+    "test:finance": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/finance-functions.test.js\"",
+    "test:modalidades": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/modalidade-init-functions.test.js\"",
+    "test:attribution": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/attribution-functions.test.js\"",
+    "deploy:rules": "npm run test:rules && firebase deploy --only firestore:rules --project sensei-manager-d64c0"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
