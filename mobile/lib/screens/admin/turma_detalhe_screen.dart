@@ -1529,6 +1529,11 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
     final maxGraus = maxGrausRaw > 0
         ? maxGrausRaw
         : (grauAtual > 0 ? grauAtual : 4);
+    final faixaGrauCores =
+        (primary?['faixaGrauCores'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
 
     final card = GestureDetector(
       onTap: alunoId.isNotEmpty
@@ -1593,6 +1598,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                           temGraus: temGraus,
                           grau: grauAtual,
                           maxGraus: maxGraus,
+                          grauCores:
+                              faixaGrauCores.map(_parseCor2).toList(),
                           height: 12,
                           minWidth: 28,
                         ),

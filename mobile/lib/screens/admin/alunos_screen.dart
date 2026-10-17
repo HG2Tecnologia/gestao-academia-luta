@@ -421,6 +421,11 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                           final temGraus =
                               primary?['faixaTemGraus'] == true ||
                               grauAtual > 0;
+                          final faixaGrauCores =
+                              (primary?['faixaGrauCores'] as List?)
+                                  ?.map((e) => e.toString())
+                                  .toList() ??
+                              const <String>[];
                           final faixaNome = primary?['faixaNome'] as String?;
                           final foto =
                               a['fotoBase64'] as String? ??
@@ -508,6 +513,9 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                                 temGraus: temGraus,
                                                 grau: grauAtual,
                                                 maxGraus: maxGraus,
+                                                grauCores: faixaGrauCores
+                                                    .map(parseCor)
+                                                    .toList(),
                                                 height: 14,
                                                 minWidth: 32,
                                               ),

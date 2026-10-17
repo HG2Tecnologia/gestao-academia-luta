@@ -3493,6 +3493,96 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fxCreateBtn => 'Create Belt';
 
   @override
+  String get fxHasDegrees => 'Has degrees';
+
+  @override
+  String get fxHasDegreesSub =>
+      'Shows degree markers on the belt tip (e.g. stripes before moving to the next belt)';
+
+  @override
+  String get fxMaxDegrees => 'Degrees before next belt';
+
+  @override
+  String get fxDegreeTipColor => 'Tip color';
+
+  @override
+  String get fxColoredDegrees => 'Colored degrees';
+
+  @override
+  String get fxColoredDegreesSub =>
+      'Instead of one color for every degree, each degree can have its own color (e.g. IBJJF/CBJJ kids system)';
+
+  @override
+  String get fxPresetOfficial => 'Official IBJJF/CBJJ';
+
+  @override
+  String get fxPresetOfficialShort => 'Official';
+
+  @override
+  String get fxPresetSimplified => 'Simplified';
+
+  @override
+  String get fxPresetCustom => 'Custom';
+
+  @override
+  String get fxPresetOfficialHint =>
+      'First 4 degrees white, next 4 red, the rest use the next belt\'s color in sequence.';
+
+  @override
+  String get fxPresetOfficialHintNoNext =>
+      'First 4 degrees white, next 4 red. This is the last belt registered — register the next belt first to set the final degrees\' color, or switch to the Custom preset.';
+
+  @override
+  String get fxPresetSimplifiedPickColors =>
+      'Pick the colors, in order — they repeat in equal blocks until all degrees are filled';
+
+  @override
+  String get fxPresetSimplifiedHint =>
+      'Colors come in blocks, one after another — never one color on top of another. E.g. with white/red/yellow and 12 degrees, the student first earns the 4 white degrees, only then the 4 red ones, and only then the 4 yellow ones.';
+
+  @override
+  String get fxPresetCustomPickPerDegree => 'Tap each degree to pick its color';
+
+  @override
+  String get fxPresetCustomHint =>
+      'To have more than one degree in total, adjust the \"Degrees before next belt\" field above first. Below, you pick each degree\'s color individually, with no fixed block pattern.';
+
+  @override
+  String fxPickColorForDegree(int numero) {
+    return 'Color for degree $numero';
+  }
+
+  @override
+  String get fxTapToChange => 'Tap to change';
+
+  @override
+  String fxSimplifiedWarningColorsNeverShow(int numero) {
+    return 'With the current number of degrees, not every chosen color will show up — some will never be reached. To see them all, set at least $numero degrees (4 per color, above).';
+  }
+
+  @override
+  String get fxFixAutomatically => 'Fix automatically';
+
+  @override
+  String get turmaColoredDegrees => 'Colored degrees in this class';
+
+  @override
+  String get turmaColoredDegreesSub =>
+      'Students enrolled here see the colors configured on the belt (if any). Useful to turn on only for kids classes, for example, even when sharing the modality with adult classes.';
+
+  @override
+  String get fxPreview => 'Preview';
+
+  @override
+  String get fxPreviewDragHint =>
+      'Drag to simulate the student\'s degree and see the colors coming in sequence, one at a time';
+
+  @override
+  String fxPreviewDegreeLabel(int numero) {
+    return 'Degree $numero';
+  }
+
+  @override
   String get cfgTitle => 'Academy Settings';
 
   @override
@@ -3664,6 +3754,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cfgManualCheckinWindowZero => 'At class time';
+
+  @override
+  String get cfgColoredDegrees => 'Colored degrees';
+
+  @override
+  String get cfgColoredDegreesSub =>
+      'Unlocks, in the Belts screen, the option to configure colors per degree (e.g. IBJJF/CBJJ kids system). Off: every belt keeps showing degrees the usual way.';
+
+  @override
+  String get grauColoridoHelpTitle => 'How do colored degrees work?';
+
+  @override
+  String get grauColoridoStep1Title => 'Each degree can have its own color';
+
+  @override
+  String get grauColoridoStep1Body =>
+      'Instead of every degree being marked with just a white stripe, you pick a different color for each degree — the way IBJJF/CBJJ does it for kids.';
+
+  @override
+  String get grauColoridoStep2Title => 'Colors come in sequence';
+
+  @override
+  String get grauColoridoStep2Body =>
+      'Never one color on top of another. E.g. with 12 degrees and white/red/yellow — the student first earns degrees 1 through 4, all white. Only after that come degrees 5 through 8, red. And only after that come degrees 9 through 12, yellow. At the 12th, they move to the next belt.';
+
+  @override
+  String get grauColoridoStep3Title => 'Set this up per belt';
+
+  @override
+  String get grauColoridoStep3Body =>
+      'Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {
@@ -3926,6 +4047,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cfgPlanFreeDesc => '3 classes · 10 students/class · ads';
+
+  @override
+  String get planTitle => 'My subscription';
+
+  @override
+  String get planSubscribedSince => 'Subscriber since';
+
+  @override
+  String get planRenewsOn => 'Renews on';
+
+  @override
+  String get planRenewsOnHint =>
+      'Date controlled by the store (Apple/Google) — may vary.';
+
+  @override
+  String get planViaAppStore => 'Subscribed via App Store';
+
+  @override
+  String get planViaPlayStore => 'Subscribed via Google Play';
+
+  @override
+  String get planChangePlan => 'Change plan';
+
+  @override
+  String get planCancelSubscription => 'Cancel subscription';
+
+  @override
+  String get planCancelHint =>
+      'Cancellation happens in the store where you subscribed, not inside the app. We\'ll take you straight there.';
+
+  @override
+  String get planCancelError => 'Couldn\'t open the store. Please try again.';
 
   @override
   String fxStudentsCount(int count) {
@@ -5098,6 +5251,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rnStaffPermissionsDesc =>
       'You can now grant a coach permission to view a student\'s medical certificate, PAR-Q and family group, without changing their role.';
+
+  @override
+  String get rnColoredDegreesTitle => 'Colored belt degrees';
+
+  @override
+  String get rnColoredDegreesDesc =>
+      'Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.';
 
   @override
   String get rpTitle => 'Attendance Report';

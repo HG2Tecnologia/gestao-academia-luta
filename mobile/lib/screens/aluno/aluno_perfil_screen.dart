@@ -352,6 +352,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               final temGraus = f['faixaTemGraus'] == true || grau > 0;
               final maxGraus = ((f['faixaMaxGraus'] as num?)?.toInt() ?? 0)
                   .clamp(1, 99);
+              final grauCores =
+                  (f['faixaGrauCores'] as List?)
+                      ?.map((c) => _parseHex(c?.toString()))
+                      .toList() ??
+                  const <Color>[];
               final isPrincipal = id == principalAtual;
               return GestureDetector(
                 onTap: () => Navigator.pop(context, id),
@@ -377,6 +382,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                         temGraus: temGraus,
                         grau: grau,
                         maxGraus: maxGraus > 0 ? maxGraus : 4,
+                        grauCores: grauCores,
                         height: 14,
                         minWidth: 32,
                       ),
@@ -1138,6 +1144,11 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     final faixaMaxGraus = maxGrausRaw > 0
         ? maxGrausRaw
         : (grauAtual > 0 ? grauAtual : 4);
+    final faixaGrauCores =
+        (primaryFaixa?['faixaGrauCores'] as List?)
+            ?.map((c) => _parseHex(c?.toString()))
+            .toList() ??
+        const <Color>[];
     final turmasDetalhes = (a['turmasDetalhes'] as List? ?? [])
         .cast<Map<String, dynamic>>();
     final finRaw = a['situacaoFinanceira'] as String?;
@@ -1436,6 +1447,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                                   temGraus: faixaTemGraus,
                                   grau: grauAtual,
                                   maxGraus: faixaMaxGraus,
+                                  grauCores: faixaGrauCores,
                                   height: 14,
                                   minWidth: 52,
                                 ),

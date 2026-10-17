@@ -95,6 +95,10 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
     );
     final grau = (faixaAtual['grau'] as num?)?.toInt() ?? 0;
     final temGraus = faixaAtual['faixaTemGraus'] == true || grau > 0;
+    final grauCores = ((faixaAtual['grauCoresFaixa'] as List?)
+            ?.map((c) => _hexCor(c?.toString()))
+            .toList()) ??
+        const <Color>[];
     final accentLight = Color.lerp(corFaixa, Colors.white, 0.3)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -116,6 +120,7 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
             temGraus: temGraus,
             grau: grau,
             maxGraus: _effectiveMaxGraus(faixaAtual),
+            grauCores: grauCores,
             height: 22,
             minWidth: 52,
           ),
@@ -268,6 +273,10 @@ class _AlunoGraduacoesScreenState extends State<AlunoGraduacoesScreen> {
                                     ((g['grau'] as num?)?.toInt() ?? 0) > 0,
                                 grau: (g['grau'] as num?)?.toInt() ?? 0,
                                 maxGraus: _effectiveMaxGraus(g),
+                                grauCores: ((g['grauCoresFaixa'] as List?)
+                                        ?.map((c) => _hexCor(c?.toString()))
+                                        .toList()) ??
+                                    const [],
                                 height: 14,
                                 minWidth: 32,
                               ),

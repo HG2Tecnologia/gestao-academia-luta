@@ -88,11 +88,15 @@ class IapService {
         expiracao = now.add(const Duration(days: 30));
       }
 
+      final academia = await firestoreService.getAcademia(academiaId) ?? {};
+      final jaTemAssinaturaDesde = academia['plano_assinado_em'] != null;
+
       await firestoreService.updateAcademia(academiaId, {
         'plano_tipo': 1, // Pro
         'plano_expiracao': expiracao.toIso8601String(),
         'plano_produto_id': purchase.productID,
         'plano_plataforma': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
+        if (!jaTemAssinaturaDesde) 'plano_assinado_em': now.toIso8601String(),
       });
       onPurchaseResult?.call(true, null);
     } catch (_) {

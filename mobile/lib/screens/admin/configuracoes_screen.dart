@@ -13,8 +13,10 @@ import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
+import '../../core/widgets.dart';
 import '../../l10n/app_localizations.dart';
 import 'modalidades_screen.dart';
+import 'plano_screen.dart';
 import 'planos_screen.dart';
 
 /// Central de Configurações da Academia — hub compacto. Cada configuração com
@@ -56,6 +58,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   // 'off' | 'aviso' | 'bloqueio'
   String _limiteDiasSemanaModo = 'off';
   bool _faltaAutomaticaAtiva = true;
+  bool _grausColoridosDisponivel = false;
 
   @override
   void initState() {
@@ -113,6 +116,8 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _limiteDiasSemanaModo =
           dados['limite_dias_semana_modo'] as String? ?? 'off';
       _faltaAutomaticaAtiva = dados['falta_automatica_ativa'] as bool? ?? true;
+      _grausColoridosDisponivel =
+          dados['graus_coloridos_disponivel'] as bool? ?? false;
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -151,6 +156,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'cobranca_por_modalidade_ativa': _cobrancaPorModalidadeAtiva,
     'limite_dias_semana_modo': _limiteDiasSemanaModo,
     'falta_automatica_ativa': _faltaAutomaticaAtiva,
+    'graus_coloridos_disponivel': _grausColoridosDisponivel,
   };
 
   /// Grava o documento completo da academia (mesma chamada que o antigo botão
@@ -727,6 +733,35 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           subtitulo: _l.cfgContractsSub,
                           onTap: () =>
                               context.push('/admin/dashboard/contratos'),
+                        ),
+                        _RowShell(
+                          icon: Icons.palette_rounded,
+                          titulo: _l.cfgColoredDegrees,
+                          subtitulo: _l.cfgColoredDegreesSub,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const AjudaGrausColoridosButton(),
+                              Switch(
+                                value: _grausColoridosDisponivel,
+                                onChanged: (v) async {
+                                  await _toggle(
+                                    _l.cfgColoredDegrees,
+                                    _grausColoridosDisponivel,
+                                    (x) => _grausColoridosDisponivel = x,
+                                    v,
+                                  );
+                                  if (v && mounted) {
+                                    await mostrarAjudaGrausColoridos(context);
+                                  }
+                                },
+                                activeThumbColor: Colors.white,
+                                activeTrackColor: context.c.primary,
+                                inactiveThumbColor: context.c.surface,
+                                inactiveTrackColor: context.c.outline,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -2449,7 +2484,13 @@ class _PlanStatusTile extends StatelessWidget {
         : Icons.lock_outline_rounded;
 
     Future<void> abrir() async {
-      if (isPro) return;
+      if (isPro) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PlanoScreen()),
+        );
+        return;
+      }
       final ok = await mostrarPaywall(context);
       if (ok == true) await PlanService.instance.refresh();
     }

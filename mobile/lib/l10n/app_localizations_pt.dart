@@ -3494,6 +3494,97 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fxCreateBtn => 'Criar Faixa';
 
   @override
+  String get fxHasDegrees => 'Tem graus';
+
+  @override
+  String get fxHasDegreesSub =>
+      'Mostra marcadores de grau na ponteira da faixa (ex.: listras antes de trocar de faixa)';
+
+  @override
+  String get fxMaxDegrees => 'Graus até trocar de faixa';
+
+  @override
+  String get fxDegreeTipColor => 'Cor da ponteira';
+
+  @override
+  String get fxColoredDegrees => 'Graus coloridos';
+
+  @override
+  String get fxColoredDegreesSub =>
+      'Em vez de uma cor única pra todos os graus, cada grau pode ter a própria cor (ex.: sistema infantil da IBJJF/CBJJ)';
+
+  @override
+  String get fxPresetOfficial => 'Oficial IBJJF/CBJJ';
+
+  @override
+  String get fxPresetOfficialShort => 'Oficial';
+
+  @override
+  String get fxPresetSimplified => 'Simplificado';
+
+  @override
+  String get fxPresetCustom => 'Personalizado';
+
+  @override
+  String get fxPresetOfficialHint =>
+      '4 primeiros graus brancos, 4 seguintes vermelhos, os demais usam a cor da próxima faixa na sequência.';
+
+  @override
+  String get fxPresetOfficialHintNoNext =>
+      '4 primeiros graus brancos, 4 seguintes vermelhos. Esta é a última faixa cadastrada — cadastre a próxima faixa primeiro pra definir a cor dos graus finais, ou troque pro preset Personalizado.';
+
+  @override
+  String get fxPresetSimplifiedPickColors =>
+      'Escolha as cores, na ordem — elas se repetem em blocos iguais até completar os graus';
+
+  @override
+  String get fxPresetSimplifiedHint =>
+      'As cores vêm em blocos, um atrás do outro — nunca uma cor sobreposta à outra. Ex.: com branco/vermelho/amarelo e 12 graus, o aluno ganha primeiro os 4 graus brancos, só depois os 4 vermelhos, e só depois os 4 amarelos.';
+
+  @override
+  String get fxPresetCustomPickPerDegree =>
+      'Toque em cada grau pra escolher a cor dele';
+
+  @override
+  String get fxPresetCustomHint =>
+      'Pra ter mais de um grau no total, ajuste o campo \"Graus até trocar de faixa\" ali em cima primeiro. Aqui embaixo você escolhe a cor de cada grau individualmente, sem seguir nenhum padrão fixo de blocos.';
+
+  @override
+  String fxPickColorForDegree(int numero) {
+    return 'Cor do $numeroº grau';
+  }
+
+  @override
+  String get fxTapToChange => 'Toque pra mudar';
+
+  @override
+  String fxSimplifiedWarningColorsNeverShow(int numero) {
+    return 'Com o número de graus atual, nem toda cor escolhida vai aparecer — algumas nunca serão alcançadas. Pra ver todas, defina pelo menos $numero graus (4 por cor, acima).';
+  }
+
+  @override
+  String get fxFixAutomatically => 'Ajustar automaticamente';
+
+  @override
+  String get turmaColoredDegrees => 'Graus coloridos nesta turma';
+
+  @override
+  String get turmaColoredDegreesSub =>
+      'Alunos matriculados aqui veem as cores configuradas na faixa (se houver). Útil pra ligar só em turmas infantis, por exemplo, mesmo compartilhando a modalidade com turmas de adulto.';
+
+  @override
+  String get fxPreview => 'Pré-visualização';
+
+  @override
+  String get fxPreviewDragHint =>
+      'Arraste pra simular o grau do aluno e ver as cores entrando em sequência, uma de cada vez';
+
+  @override
+  String fxPreviewDegreeLabel(int numero) {
+    return '$numeroº grau';
+  }
+
+  @override
   String get cfgTitle => 'Configurações da Academia';
 
   @override
@@ -3665,6 +3756,37 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cfgManualCheckinWindowZero => 'No horário';
+
+  @override
+  String get cfgColoredDegrees => 'Graus coloridos';
+
+  @override
+  String get cfgColoredDegreesSub =>
+      'Libera, na tela de Faixas, a opção de configurar cores por grau (ex.: sistema infantil da IBJJF/CBJJ). Desativado: cada faixa continua mostrando os graus do jeito de sempre.';
+
+  @override
+  String get grauColoridoHelpTitle => 'Como funciona o grau colorido?';
+
+  @override
+  String get grauColoridoStep1Title => 'Cada grau pode ter sua própria cor';
+
+  @override
+  String get grauColoridoStep1Body =>
+      'Em vez de todos os graus serem marcados só com listras brancas, você escolhe uma cor diferente pra cada grau — do jeito que a IBJJF/CBJJ usa no infantil.';
+
+  @override
+  String get grauColoridoStep2Title => 'As cores vêm em sequência';
+
+  @override
+  String get grauColoridoStep2Body =>
+      'Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.';
+
+  @override
+  String get grauColoridoStep3Title => 'Configure isso por faixa';
+
+  @override
+  String get grauColoridoStep3Body =>
+      'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {
@@ -3927,6 +4049,39 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cfgPlanFreeDesc => '3 turmas · 10 alunos/turma · anúncios';
+
+  @override
+  String get planTitle => 'Minha assinatura';
+
+  @override
+  String get planSubscribedSince => 'Assinante desde';
+
+  @override
+  String get planRenewsOn => 'Renova em';
+
+  @override
+  String get planRenewsOnHint =>
+      'Data controlada pela loja (Apple/Google) — pode variar.';
+
+  @override
+  String get planViaAppStore => 'Assinado via App Store';
+
+  @override
+  String get planViaPlayStore => 'Assinado via Google Play';
+
+  @override
+  String get planChangePlan => 'Trocar de plano';
+
+  @override
+  String get planCancelSubscription => 'Cancelar assinatura';
+
+  @override
+  String get planCancelHint =>
+      'O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.';
+
+  @override
+  String get planCancelError =>
+      'Não foi possível abrir a loja. Tente novamente.';
 
   @override
   String fxStudentsCount(int count) {
@@ -5102,6 +5257,13 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get rnStaffPermissionsDesc =>
       'Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.';
+
+  @override
+  String get rnColoredDegreesTitle => 'Graus coloridos';
+
+  @override
+  String get rnColoredDegreesDesc =>
+      'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.';
 
   @override
   String get rpTitle => 'Relatório de Presenças';

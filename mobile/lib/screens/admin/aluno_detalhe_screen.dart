@@ -15,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/grau_colorido.dart';
 import '../../core/graduacao_service.dart';
 import '../../core/phone_normalizer.dart';
 import '../../core/senha_temporaria_modal.dart';
@@ -175,6 +176,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final turmaMap = <String, Map<String, dynamic>>{
         for (final t in todasTurmas) t['id'].toString(): t,
       };
+      // Modalidades em que ESTE aluno é elegível pra graus coloridos (ver
+      // core/grau_colorido.dart) — gate aplicado abaixo em
+      // `enrichedGraduacoes`, antes de montar `faixasMod`.
+      final modalidadesElegiveisGrauColorido =
+          montarElegibilidadeGrausColoridosPorAluno(
+            matriculas: matriculas,
+            turmasPorId: turmaMap,
+          )[widget.alunoId] ??
+          const <String>{};
       // Só matrículas ATIVAS contam como "turma atual do aluno" — uma turma
       // excluída (soft delete) encerra a matrícula na mesma transação
       // (arquivarTurma), então sem esse filtro o aluno continuava aparecendo
@@ -226,6 +236,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final enrichedGraduacoes = graduacoesRaw.map((g) {
         final faixaId = g['faixa_id']?.toString() ?? '';
         final f = faixaMap[faixaId] ?? {};
+        final faixaModalidadeId =
+            (f['modalidadeId'] ?? f['modalidade_id'])?.toString() ?? '';
+        final elegivelGrauColorido = modalidadesElegiveisGrauColorido
+            .contains(faixaModalidadeId);
         return <String, dynamic>{
           ...g,
           'faixaId': faixaId,
@@ -234,6 +248,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           'corBarraFaixa': f['cor_barra'] ?? '#000000',
           'faixaTemGraus': f['tem_graus'] == true,
           'faixaMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+          // Só exposto se o aluno estiver numa turma dessa modalidade que
+          // ligou o recurso — ver core/grau_colorido.dart.
+          'faixaGrauCores': elegivelGrauColorido && f['grau_cores'] is List
+              ? f['grau_cores']
+              : const [],
           'faixaOrdem': (f['ordem'] as num?)?.toInt() ?? 0,
           'nomeModalidade':
               g['nomeModalidade'] ?? f['modalidade_nome'] ?? 'Modalidade',
@@ -263,6 +282,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             'corBarra': g['corBarraFaixa'] ?? '#000000',
             'temGraus': g['faixaTemGraus'] == true,
             'maxGraus': (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
+            'grauCores': g['faixaGrauCores'] is List ? g['faixaGrauCores'] : const [],
             '_faixaOrdem': faixaOrdem,
             'grau': grau,
           };
@@ -4669,6 +4689,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                         eGrau > 0,
                                     grau: eGrau,
                                     maxGraus: eEffectiveMax,
+                                    grauCores: ((e.value['grauCores'] as List?)
+                                            ?.map((c) => _parseCor(c?.toString()))
+                                            .toList()) ??
+                                        const [],
                                     height: 14,
                                     minWidth: 32,
                                   ),
@@ -5281,6 +5305,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final temGraus = g['faixaTemGraus'] == true || grau > 0;
     final maxGrausRaw = (g['faixaMaxGraus'] as num?)?.toInt() ?? 0;
     final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grau > 0 ? grau : 4);
+    final grauCores = ((g['faixaGrauCores'] as List?)
+            ?.map((c) => _parseCor(c?.toString()))
+            .toList()) ??
+        const <Color>[];
     final dataStr = _formatDate(g['dataExame']) ?? '';
     final label = grau > 0 ? '$nomeFaixa · ${_l.stripeLabel(grau)}' : nomeFaixa;
 
@@ -5315,6 +5343,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       temGraus: temGraus,
                       grau: grau,
                       maxGraus: maxGraus,
+                      grauCores: grauCores,
                       height: 10,
                       minWidth: 20,
                     ),

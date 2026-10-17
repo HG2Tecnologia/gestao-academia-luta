@@ -100,7 +100,28 @@ async function collectRelatedUids(targetData) {
     }
   }
 
-  return { uids: [...uids], realEmail, phoneCanonical, authEmails };
+  // Autocorreção de drift: um `firebaseUid` salvo no perfil (ou achado em
+  // outro perfil do mesmo contato) pode apontar pra uma conta Auth que não
+  // existe mais (removida manualmente, inconsistência antiga). Sem checar
+  // isso, `adminResetPassword` tentava `updateUser`/`revokeRefreshTokens`
+  // numa conta morta e quebrava com "internal" sem explicação. Verificando
+  // aqui, um uid morto é tratado como "sem conta" — o fluxo normal de
+  // provisionamento (já existente) cria uma conta nova e revincula o mesmo
+  // perfil, sem perder nenhum dado do aluno (nome/faixa/turma/financeiro
+  // continuam intactos, só a credencial de login é recriada).
+  const uidsVerificados = await Promise.all(
+    [...uids].map(async (uid) => {
+      try {
+        await auth.getUser(uid);
+        return uid;
+      } catch (error) {
+        if (error.code === "auth/user-not-found") return null;
+        throw error;
+      }
+    }),
+  );
+
+  return { uids: uidsVerificados.filter(Boolean), realEmail, phoneCanonical, authEmails };
 }
 
 /**
@@ -275,6 +296,46 @@ async function atualizarSenhaTemporariaEmPerfisVinculados({
  * A senha só existe na resposta; nunca é persistida em texto claro.
  */
 exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  try {
+    return await executarAdminResetPassword(request);
+  } catch (erro) {
+    if (erro instanceof HttpsError) throw erro;
+    // Qualquer exceção crua do Admin SDK de Auth (conta removida, política
+    // de senha do projeto rejeitando a senha gerada, instabilidade da API)
+    // cai aqui — sem isso, o Functions embrulha num "internal" sem detalhe
+    // nenhum pro cliente E sem nenhum log nosso pra investigar depois, só o
+    // stack automático do Node. Loga com contexto (nunca PII) e devolve uma
+    // mensagem que pelo menos diferencia "sua conta sumiu" de "tente de novo".
+    logger.error("adminResetPassword falhou com erro não tratado", {
+      academiaId: request.data?.academiaId,
+      colecao: request.data?.colecao,
+      usuarioId: request.data?.usuarioId,
+      codigoErro: erro.code || null,
+      mensagemErro: erro.message || String(erro),
+    });
+    if (erro.code === "auth/user-not-found") {
+      throw new HttpsError(
+        "not-found",
+        "A conta de acesso ao app deste perfil não existe mais no Firebase — pode ter sido removida manualmente. Contate o suporte técnico.",
+      );
+    }
+    if (erro.code === "auth/password-does-not-meet-requirements" || erro.code === "auth/invalid-password") {
+      throw new HttpsError(
+        "internal",
+        "A política de senha configurada no projeto está rejeitando a senha temporária gerada pelo sistema — isso precisa de um ajuste de configuração, não é passageiro. Contate o suporte técnico.",
+      );
+    }
+    if (erro.code === "auth/too-many-requests") {
+      throw new HttpsError("resource-exhausted", "Muitas tentativas em sequência. Aguarde alguns minutos e tente novamente.");
+    }
+    throw new HttpsError(
+      "internal",
+      "Não foi possível redefinir a senha agora. Tente novamente em instantes; se persistir, contate o suporte técnico.",
+    );
+  }
+});
+
+async function executarAdminResetPassword(request) {
   if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
     throw new HttpsError("unauthenticated", "É necessário autenticar antes de redefinir uma senha.");
   }
@@ -435,7 +496,7 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
     contas: contasAtingidas.length,
     vinculadoSemSenha: acao === "vincular_sem_senha",
   };
-});
+}
 
 /**
  * Verificação PRÉVIA (sem criar/editar nada), usada antes de cadastrar um

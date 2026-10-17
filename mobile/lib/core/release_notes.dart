@@ -198,6 +198,18 @@ final Map<String, AppReleaseNotes> _releaseNotesByVersion = {
       ),
     ],
   ),
+  '1.3.7': AppReleaseNotes(
+    version: '1.3.7',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.palette_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnColoredDegreesTitle,
+        description: (l) => l.rnColoredDegreesDesc,
+      ),
+    ],
+  ),
 };
 
 /// Notas da [version] instalada, ou `null` se não houver nada a anunciar.

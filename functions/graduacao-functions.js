@@ -130,6 +130,11 @@ exports.editarGraduacao = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
       faixaOrdem: faixaData.ordem ?? 0,
       faixaTemGraus: faixaData.tem_graus === true,
       faixaMaxGraus: faixaData.max_graus ?? 0,
+      // Graus coloridos (opcional, ver mobile/lib/core/grau_colorido.dart) —
+      // congela a lista de cores da faixa no momento da edição, igual já é
+      // feito com corFaixa/corBarraFaixa. Faixas que nunca configuraram isso
+      // simplesmente não têm `grau_cores`, e o campo fica uma lista vazia.
+      grauCoresFaixa: Array.isArray(faixaData.grau_cores) ? faixaData.grau_cores : [],
       editado_em: FieldValue.serverTimestamp(),
       editado_por: { uid: request.auth.uid, usuarioId: authority.usuarioId, nome: authority.nome },
     });

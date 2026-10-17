@@ -4,6 +4,7 @@ const String kApiUrl = 'https://gestao-academia-luta.onrender.com';
 const String kWebCadastroUrl = 'https://sensei-manager-front.onrender.com/cadastrar';
 const String kPrivacidadeUrl = 'https://sensei-manager-front.onrender.com/privacidade';
 const String kTermosUrl = 'https://sensei-manager-front.onrender.com/termos';
+const String kAppPackageId = 'br.com.hg2tecnologia.senseimanager';
 
 const Color kPrimary = Color(0xFFC9A020);
 const Color kBg = Color(0xFF0A0A0A);

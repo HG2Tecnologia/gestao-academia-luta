@@ -1238,6 +1238,52 @@
   "fxDescHint": "e.g. Notes about the belt...",
   "fxBeltColor": "Belt Color",
   "fxCreateBtn": "Create Belt",
+  "fxHasDegrees": "Has degrees",
+  "fxHasDegreesSub": "Shows degree markers on the belt tip (e.g. stripes before moving to the next belt)",
+  "fxMaxDegrees": "Degrees before next belt",
+  "fxDegreeTipColor": "Tip color",
+  "fxColoredDegrees": "Colored degrees",
+  "fxColoredDegreesSub": "Instead of one color for every degree, each degree can have its own color (e.g. IBJJF/CBJJ kids system)",
+  "fxPresetOfficial": "Official IBJJF/CBJJ",
+  "fxPresetOfficialShort": "Official",
+  "fxPresetSimplified": "Simplified",
+  "fxPresetCustom": "Custom",
+  "fxPresetOfficialHint": "First 4 degrees white, next 4 red, the rest use the next belt's color in sequence.",
+  "fxPresetOfficialHintNoNext": "First 4 degrees white, next 4 red. This is the last belt registered — register the next belt first to set the final degrees' color, or switch to the Custom preset.",
+  "fxPresetSimplifiedPickColors": "Pick the colors, in order — they repeat in equal blocks until all degrees are filled",
+  "fxPresetSimplifiedHint": "Colors come in blocks, one after another — never one color on top of another. E.g. with white/red/yellow and 12 degrees, the student first earns the 4 white degrees, only then the 4 red ones, and only then the 4 yellow ones.",
+  "fxPresetCustomPickPerDegree": "Tap each degree to pick its color",
+  "fxPresetCustomHint": "To have more than one degree in total, adjust the \"Degrees before next belt\" field above first. Below, you pick each degree's color individually, with no fixed block pattern.",
+  "fxPickColorForDegree": "Color for degree {numero}",
+  "fxTapToChange": "Tap to change",
+  "fxSimplifiedWarningColorsNeverShow": "With the current number of degrees, not every chosen color will show up — some will never be reached. To see them all, set at least {numero} degrees (4 per color, above).",
+  "@fxSimplifiedWarningColorsNeverShow": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxFixAutomatically": "Fix automatically",
+  "turmaColoredDegrees": "Colored degrees in this class",
+  "turmaColoredDegreesSub": "Students enrolled here see the colors configured on the belt (if any). Useful to turn on only for kids classes, for example, even when sharing the modality with adult classes.",
+  "@fxPickColorForDegree": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxPreview": "Preview",
+  "fxPreviewDragHint": "Drag to simulate the student's degree and see the colors coming in sequence, one at a time",
+  "fxPreviewDegreeLabel": "Degree {numero}",
+  "@fxPreviewDegreeLabel": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
   "cfgTitle": "Academy Settings",
   "cfgSubtitle": "Manage your academy's information and preferences.",
   "cfgIdentitySection": "Academy Identity",
@@ -1296,6 +1342,15 @@
   "cfgManualCheckinWindowBefore": "Before class starts",
   "cfgManualCheckinWindowAfter": "After class starts",
   "cfgManualCheckinWindowZero": "At class time",
+  "cfgColoredDegrees": "Colored degrees",
+  "cfgColoredDegreesSub": "Unlocks, in the Belts screen, the option to configure colors per degree (e.g. IBJJF/CBJJ kids system). Off: every belt keeps showing degrees the usual way.",
+  "grauColoridoHelpTitle": "How do colored degrees work?",
+  "grauColoridoStep1Title": "Each degree can have its own color",
+  "grauColoridoStep1Body": "Instead of every degree being marked with just a white stripe, you pick a different color for each degree — the way IBJJF/CBJJ does it for kids.",
+  "grauColoridoStep2Title": "Colors come in sequence",
+  "grauColoridoStep2Body": "Never one color on top of another. E.g. with 12 degrees and white/red/yellow — the student first earns degrees 1 through 4, all white. Only after that come degrees 5 through 8, red. And only after that come degrees 9 through 12, yellow. At the 12th, they move to the next belt.",
+  "grauColoridoStep3Title": "Set this up per belt",
+  "grauColoridoStep3Body": "Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.",
   "cfgManualCheckinWindowMinutes": "{min}min",
   "@cfgManualCheckinWindowMinutes": {
     "placeholders": {
@@ -1435,6 +1490,16 @@
     }
   },
   "cfgPlanFreeDesc": "3 classes · 10 students/class · ads",
+  "planTitle": "My subscription",
+  "planSubscribedSince": "Subscriber since",
+  "planRenewsOn": "Renews on",
+  "planRenewsOnHint": "Date controlled by the store (Apple/Google) — may vary.",
+  "planViaAppStore": "Subscribed via App Store",
+  "planViaPlayStore": "Subscribed via Google Play",
+  "planChangePlan": "Change plan",
+  "planCancelSubscription": "Cancel subscription",
+  "planCancelHint": "Cancellation happens in the store where you subscribed, not inside the app. We'll take you straight there.",
+  "planCancelError": "Couldn't open the store. Please try again.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {
@@ -2017,6 +2082,8 @@
   "rnManualCheckinDesc": "Once enabled in settings, students can confirm attendance without scanning the QR code — handy when someone else drops the child off at class.",
   "rnStaffPermissionsTitle": "More control over staff",
   "rnStaffPermissionsDesc": "You can now grant a coach permission to view a student's medical certificate, PAR-Q and family group, without changing their role.",
+  "rnColoredDegreesTitle": "Colored belt degrees",
+  "rnColoredDegreesDesc": "Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.",
   "rpTitle": "Attendance Report",
   "rpNoAccess": "You don't have access to this report.",
   "rpAllClasses": "All classes",

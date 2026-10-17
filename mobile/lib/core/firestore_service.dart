@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'academia_seeds.dart';
+import 'grau_colorido.dart';
 import 'permissoes.dart';
 
 class CheckinBloqueadoException implements Exception {
@@ -1415,6 +1416,23 @@ class FirestoreService {
     final modalidades = await getModalidades(academiaId);
     final faixaMap = {for (final f in faixas) f['id'].toString(): f};
     final modalidadeMap = {for (final m in modalidades) m['id'].toString(): m};
+    // Elegibilidade de graus coloridos por aluno+modalidade (ver
+    // core/grau_colorido.dart) — só busca turmas/matrículas se pelo menos
+    // uma faixa tem `grau_cores` configurado, pra não pagar o custo dessas
+    // 2 leituras extras em academias que nunca usam o recurso.
+    final algumaFaixaTemGrauCores = faixas.any(
+      (f) => f['grau_cores'] is List && (f['grau_cores'] as List).isNotEmpty,
+    );
+    var elegibilidade = const <String, Set<String>>{};
+    if (algumaFaixaTemGrauCores) {
+      final turmas = await getTurmas(academiaId);
+      final turmasPorId = {for (final t in turmas) t['id'].toString(): t};
+      final matriculas = await getMatriculas(academiaId);
+      elegibilidade = montarElegibilidadeGrausColoridosPorAluno(
+        matriculas: matriculas,
+        turmasPorId: turmasPorId,
+      );
+    }
     return graduacoes.map((g) {
       final faixa = faixaMap[g['faixa_id']?.toString() ?? ''] ?? const {};
       final modalidadeId =
@@ -1424,6 +1442,9 @@ class FirestoreService {
               ?.toString() ??
           '';
       final modalidade = modalidadeMap[modalidadeId] ?? const {};
+      final alunoId = (g['aluno_id'] ?? '').toString();
+      final elegivel =
+          elegibilidade[alunoId]?.contains(modalidadeId) ?? false;
       return <String, dynamic>{
         ...g,
         'dataExame': g['data_exame'] ?? g['dataExame'] ?? '',
@@ -1444,6 +1465,23 @@ class FirestoreService {
             (faixa['max_graus'] as num?)?.toInt() ??
             (g['faixaMaxGraus'] as num?)?.toInt() ??
             0,
+        // Graus coloridos (opcional) — prefere a cor ATUAL da faixa (igual
+        // já acontece com corFaixa/corBarraFaixa acima); cai pro valor
+        // congelado no doc da graduação (gravado por `editarGraduacao`)
+        // quando a faixa não tem mais `grau_cores`, e pra lista vazia
+        // quando nenhum dos dois existe — aí a UI usa o visual de sempre.
+        // SÓ é exposto se o aluno estiver numa turma dessa modalidade que
+        // ligou o recurso (`usa_graus_coloridos`) — a faixa pode ter cores
+        // configuradas e mesmo assim não aparecer pra um aluno de uma
+        // turma que não optou por isso (ex.: turma Adulto vs. turma Kids
+        // na mesma modalidade "Jiu-Jitsu").
+        'grauCoresFaixa': elegivel
+            ? (faixa['grau_cores'] is List
+                  ? faixa['grau_cores']
+                  : (g['grauCoresFaixa'] is List
+                        ? g['grauCoresFaixa']
+                        : const []))
+            : const [],
       };
     }).toList();
   }

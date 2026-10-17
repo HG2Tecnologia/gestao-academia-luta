@@ -124,6 +124,11 @@ Map<String, Map<String, Map<String, dynamic>>> montarFaixasAtuaisPorAluno(
           (graduacao['faixaMaxGraus'] as num?)?.toInt() ?? 0,
       'faixaOrdem': (graduacao['faixaOrdem'] as num?)?.toInt() ?? 0,
       'grau': (graduacao['grau'] as num?)?.toInt() ?? 0,
+      // Graus coloridos (opcional) — lista vazia quando a faixa nunca
+      // configurou isso, mantendo o visual de sempre.
+      'faixaGrauCores': graduacao['grauCoresFaixa'] is List
+          ? graduacao['grauCoresFaixa']
+          : const <String>[],
     };
   }
 

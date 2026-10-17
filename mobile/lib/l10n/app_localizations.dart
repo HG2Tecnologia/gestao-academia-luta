@@ -6176,6 +6176,156 @@ abstract class AppLocalizations {
   /// **'Criar Faixa'**
   String get fxCreateBtn;
 
+  /// No description provided for @fxHasDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tem graus'**
+  String get fxHasDegrees;
+
+  /// No description provided for @fxHasDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostra marcadores de grau na ponteira da faixa (ex.: listras antes de trocar de faixa)'**
+  String get fxHasDegreesSub;
+
+  /// No description provided for @fxMaxDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus até trocar de faixa'**
+  String get fxMaxDegrees;
+
+  /// No description provided for @fxDegreeTipColor.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cor da ponteira'**
+  String get fxDegreeTipColor;
+
+  /// No description provided for @fxColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get fxColoredDegrees;
+
+  /// No description provided for @fxColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em vez de uma cor única pra todos os graus, cada grau pode ter a própria cor (ex.: sistema infantil da IBJJF/CBJJ)'**
+  String get fxColoredDegreesSub;
+
+  /// No description provided for @fxPresetOfficial.
+  ///
+  /// In pt, this message translates to:
+  /// **'Oficial IBJJF/CBJJ'**
+  String get fxPresetOfficial;
+
+  /// No description provided for @fxPresetOfficialShort.
+  ///
+  /// In pt, this message translates to:
+  /// **'Oficial'**
+  String get fxPresetOfficialShort;
+
+  /// No description provided for @fxPresetSimplified.
+  ///
+  /// In pt, this message translates to:
+  /// **'Simplificado'**
+  String get fxPresetSimplified;
+
+  /// No description provided for @fxPresetCustom.
+  ///
+  /// In pt, this message translates to:
+  /// **'Personalizado'**
+  String get fxPresetCustom;
+
+  /// No description provided for @fxPresetOfficialHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'4 primeiros graus brancos, 4 seguintes vermelhos, os demais usam a cor da próxima faixa na sequência.'**
+  String get fxPresetOfficialHint;
+
+  /// No description provided for @fxPresetOfficialHintNoNext.
+  ///
+  /// In pt, this message translates to:
+  /// **'4 primeiros graus brancos, 4 seguintes vermelhos. Esta é a última faixa cadastrada — cadastre a próxima faixa primeiro pra definir a cor dos graus finais, ou troque pro preset Personalizado.'**
+  String get fxPresetOfficialHintNoNext;
+
+  /// No description provided for @fxPresetSimplifiedPickColors.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolha as cores, na ordem — elas se repetem em blocos iguais até completar os graus'**
+  String get fxPresetSimplifiedPickColors;
+
+  /// No description provided for @fxPresetSimplifiedHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'As cores vêm em blocos, um atrás do outro — nunca uma cor sobreposta à outra. Ex.: com branco/vermelho/amarelo e 12 graus, o aluno ganha primeiro os 4 graus brancos, só depois os 4 vermelhos, e só depois os 4 amarelos.'**
+  String get fxPresetSimplifiedHint;
+
+  /// No description provided for @fxPresetCustomPickPerDegree.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque em cada grau pra escolher a cor dele'**
+  String get fxPresetCustomPickPerDegree;
+
+  /// No description provided for @fxPresetCustomHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pra ter mais de um grau no total, ajuste o campo \"Graus até trocar de faixa\" ali em cima primeiro. Aqui embaixo você escolhe a cor de cada grau individualmente, sem seguir nenhum padrão fixo de blocos.'**
+  String get fxPresetCustomHint;
+
+  /// No description provided for @fxPickColorForDegree.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cor do {numero}º grau'**
+  String fxPickColorForDegree(int numero);
+
+  /// No description provided for @fxTapToChange.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque pra mudar'**
+  String get fxTapToChange;
+
+  /// No description provided for @fxSimplifiedWarningColorsNeverShow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Com o número de graus atual, nem toda cor escolhida vai aparecer — algumas nunca serão alcançadas. Pra ver todas, defina pelo menos {numero} graus (4 por cor, acima).'**
+  String fxSimplifiedWarningColorsNeverShow(int numero);
+
+  /// No description provided for @fxFixAutomatically.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar automaticamente'**
+  String get fxFixAutomatically;
+
+  /// No description provided for @turmaColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos nesta turma'**
+  String get turmaColoredDegrees;
+
+  /// No description provided for @turmaColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos matriculados aqui veem as cores configuradas na faixa (se houver). Útil pra ligar só em turmas infantis, por exemplo, mesmo compartilhando a modalidade com turmas de adulto.'**
+  String get turmaColoredDegreesSub;
+
+  /// No description provided for @fxPreview.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pré-visualização'**
+  String get fxPreview;
+
+  /// No description provided for @fxPreviewDragHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Arraste pra simular o grau do aluno e ver as cores entrando em sequência, uma de cada vez'**
+  String get fxPreviewDragHint;
+
+  /// No description provided for @fxPreviewDegreeLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'{numero}º grau'**
+  String fxPreviewDegreeLabel(int numero);
+
   /// No description provided for @cfgTitle.
   ///
   /// In pt, this message translates to:
@@ -6481,6 +6631,60 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'No horário'**
   String get cfgManualCheckinWindowZero;
+
+  /// No description provided for @cfgColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get cfgColoredDegrees;
+
+  /// No description provided for @cfgColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Libera, na tela de Faixas, a opção de configurar cores por grau (ex.: sistema infantil da IBJJF/CBJJ). Desativado: cada faixa continua mostrando os graus do jeito de sempre.'**
+  String get cfgColoredDegreesSub;
+
+  /// No description provided for @grauColoridoHelpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como funciona o grau colorido?'**
+  String get grauColoridoHelpTitle;
+
+  /// No description provided for @grauColoridoStep1Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada grau pode ter sua própria cor'**
+  String get grauColoridoStep1Title;
+
+  /// No description provided for @grauColoridoStep1Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em vez de todos os graus serem marcados só com listras brancas, você escolhe uma cor diferente pra cada grau — do jeito que a IBJJF/CBJJ usa no infantil.'**
+  String get grauColoridoStep1Body;
+
+  /// No description provided for @grauColoridoStep2Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'As cores vêm em sequência'**
+  String get grauColoridoStep2Title;
+
+  /// No description provided for @grauColoridoStep2Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.'**
+  String get grauColoridoStep2Body;
+
+  /// No description provided for @grauColoridoStep3Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'Configure isso por faixa'**
+  String get grauColoridoStep3Title;
+
+  /// No description provided for @grauColoridoStep3Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
+  String get grauColoridoStep3Body;
 
   /// No description provided for @cfgManualCheckinWindowMinutes.
   ///
@@ -6943,6 +7147,66 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'3 turmas · 10 alunos/turma · anúncios'**
   String get cfgPlanFreeDesc;
+
+  /// No description provided for @planTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Minha assinatura'**
+  String get planTitle;
+
+  /// No description provided for @planSubscribedSince.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinante desde'**
+  String get planSubscribedSince;
+
+  /// No description provided for @planRenewsOn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renova em'**
+  String get planRenewsOn;
+
+  /// No description provided for @planRenewsOnHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Data controlada pela loja (Apple/Google) — pode variar.'**
+  String get planRenewsOnHint;
+
+  /// No description provided for @planViaAppStore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinado via App Store'**
+  String get planViaAppStore;
+
+  /// No description provided for @planViaPlayStore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinado via Google Play'**
+  String get planViaPlayStore;
+
+  /// No description provided for @planChangePlan.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar de plano'**
+  String get planChangePlan;
+
+  /// No description provided for @planCancelSubscription.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelar assinatura'**
+  String get planCancelSubscription;
+
+  /// No description provided for @planCancelHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.'**
+  String get planCancelHint;
+
+  /// No description provided for @planCancelError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível abrir a loja. Tente novamente.'**
+  String get planCancelError;
 
   /// No description provided for @fxStudentsCount.
   ///
@@ -8965,6 +9229,18 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.'**
   String get rnStaffPermissionsDesc;
+
+  /// No description provided for @rnColoredDegreesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get rnColoredDegreesTitle;
+
+  /// No description provided for @rnColoredDegreesDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.'**
+  String get rnColoredDegreesDesc;
 
   /// No description provided for @rpTitle.
   ///

@@ -1791,6 +1791,52 @@
   "fxDescHint": "Ex.: Observações sobre a faixa...",
   "fxBeltColor": "Cor da Faixa",
   "fxCreateBtn": "Criar Faixa",
+  "fxHasDegrees": "Tem graus",
+  "fxHasDegreesSub": "Mostra marcadores de grau na ponteira da faixa (ex.: listras antes de trocar de faixa)",
+  "fxMaxDegrees": "Graus até trocar de faixa",
+  "fxDegreeTipColor": "Cor da ponteira",
+  "fxColoredDegrees": "Graus coloridos",
+  "fxColoredDegreesSub": "Em vez de uma cor única pra todos os graus, cada grau pode ter a própria cor (ex.: sistema infantil da IBJJF/CBJJ)",
+  "fxPresetOfficial": "Oficial IBJJF/CBJJ",
+  "fxPresetOfficialShort": "Oficial",
+  "fxPresetSimplified": "Simplificado",
+  "fxPresetCustom": "Personalizado",
+  "fxPresetOfficialHint": "4 primeiros graus brancos, 4 seguintes vermelhos, os demais usam a cor da próxima faixa na sequência.",
+  "fxPresetOfficialHintNoNext": "4 primeiros graus brancos, 4 seguintes vermelhos. Esta é a última faixa cadastrada — cadastre a próxima faixa primeiro pra definir a cor dos graus finais, ou troque pro preset Personalizado.",
+  "fxPresetSimplifiedPickColors": "Escolha as cores, na ordem — elas se repetem em blocos iguais até completar os graus",
+  "fxPresetSimplifiedHint": "As cores vêm em blocos, um atrás do outro — nunca uma cor sobreposta à outra. Ex.: com branco/vermelho/amarelo e 12 graus, o aluno ganha primeiro os 4 graus brancos, só depois os 4 vermelhos, e só depois os 4 amarelos.",
+  "fxPresetCustomPickPerDegree": "Toque em cada grau pra escolher a cor dele",
+  "fxPresetCustomHint": "Pra ter mais de um grau no total, ajuste o campo \"Graus até trocar de faixa\" ali em cima primeiro. Aqui embaixo você escolhe a cor de cada grau individualmente, sem seguir nenhum padrão fixo de blocos.",
+  "fxPickColorForDegree": "Cor do {numero}º grau",
+  "fxTapToChange": "Toque pra mudar",
+  "fxSimplifiedWarningColorsNeverShow": "Com o número de graus atual, nem toda cor escolhida vai aparecer — algumas nunca serão alcançadas. Pra ver todas, defina pelo menos {numero} graus (4 por cor, acima).",
+  "@fxSimplifiedWarningColorsNeverShow": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxFixAutomatically": "Ajustar automaticamente",
+  "turmaColoredDegrees": "Graus coloridos nesta turma",
+  "turmaColoredDegreesSub": "Alunos matriculados aqui veem as cores configuradas na faixa (se houver). Útil pra ligar só em turmas infantis, por exemplo, mesmo compartilhando a modalidade com turmas de adulto.",
+  "@fxPickColorForDegree": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxPreview": "Pré-visualização",
+  "fxPreviewDragHint": "Arraste pra simular o grau do aluno e ver as cores entrando em sequência, uma de cada vez",
+  "fxPreviewDegreeLabel": "{numero}º grau",
+  "@fxPreviewDegreeLabel": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
   "cfgTitle": "Configurações da Academia",
   "cfgSubtitle": "Gerencie as informações e preferências da sua academia.",
   "cfgIdentitySection": "Identidade da Academia",
@@ -1849,6 +1895,15 @@
   "cfgManualCheckinWindowBefore": "Antes do início da aula",
   "cfgManualCheckinWindowAfter": "Depois do início da aula",
   "cfgManualCheckinWindowZero": "No horário",
+  "cfgColoredDegrees": "Graus coloridos",
+  "cfgColoredDegreesSub": "Libera, na tela de Faixas, a opção de configurar cores por grau (ex.: sistema infantil da IBJJF/CBJJ). Desativado: cada faixa continua mostrando os graus do jeito de sempre.",
+  "grauColoridoHelpTitle": "Como funciona o grau colorido?",
+  "grauColoridoStep1Title": "Cada grau pode ter sua própria cor",
+  "grauColoridoStep1Body": "Em vez de todos os graus serem marcados só com listras brancas, você escolhe uma cor diferente pra cada grau — do jeito que a IBJJF/CBJJ usa no infantil.",
+  "grauColoridoStep2Title": "As cores vêm em sequência",
+  "grauColoridoStep2Body": "Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.",
+  "grauColoridoStep3Title": "Configure isso por faixa",
+  "grauColoridoStep3Body": "Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
   "cfgManualCheckinWindowMinutes": "{min}min",
   "@cfgManualCheckinWindowMinutes": {
     "placeholders": {
@@ -1988,6 +2043,16 @@
     }
   },
   "cfgPlanFreeDesc": "3 turmas · 10 alunos/turma · anúncios",
+  "planTitle": "Minha assinatura",
+  "planSubscribedSince": "Assinante desde",
+  "planRenewsOn": "Renova em",
+  "planRenewsOnHint": "Data controlada pela loja (Apple/Google) — pode variar.",
+  "planViaAppStore": "Assinado via App Store",
+  "planViaPlayStore": "Assinado via Google Play",
+  "planChangePlan": "Trocar de plano",
+  "planCancelSubscription": "Cancelar assinatura",
+  "planCancelHint": "O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.",
+  "planCancelError": "Não foi possível abrir a loja. Tente novamente.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {
@@ -2570,6 +2635,8 @@
   "rnManualCheckinDesc": "Quem ativar nas configurações permite que o aluno confirme presença sem escanear o QR, útil quando outra pessoa leva a criança ao treino.",
   "rnStaffPermissionsTitle": "Mais controle sobre a equipe",
   "rnStaffPermissionsDesc": "Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.",
+  "rnColoredDegreesTitle": "Graus coloridos",
+  "rnColoredDegreesDesc": "Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.",
   "rpTitle": "Relatório de Presenças",
   "rpNoAccess": "Você não tem acesso a este relatório.",
   "rpAllClasses": "Todas as turmas",

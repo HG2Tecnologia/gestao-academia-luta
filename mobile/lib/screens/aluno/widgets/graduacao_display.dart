@@ -20,6 +20,11 @@ class GraduacaoView {
   /// assumimos 4.
   final int maxGraus;
 
+  /// Cor individual de cada grau (índice 0 = 1º grau), pro recurso opcional
+  /// de "graus coloridos". Vazia = faixa não configurou isso, mantém o
+  /// visual de sempre (uma única cor de ponteira).
+  final List<String> grauCoresHex;
+
   const GraduacaoView({
     required this.modalidadeNome,
     required this.graduacaoNome,
@@ -28,10 +33,12 @@ class GraduacaoView {
     this.temGraus = false,
     this.grau = 0,
     this.maxGraus = 0,
+    this.grauCoresHex = const [],
   });
 
   factory GraduacaoView.fromMap(Map<String, dynamic> g) {
     int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+    final grauCoresRaw = g['grauCoresFaixa'] ?? g['faixaGrauCores'];
     return GraduacaoView(
       modalidadeNome:
           (g['nomeModalidade'] ?? g['modalidadeNome'] ?? g['modalidade'] ?? '')
@@ -44,6 +51,9 @@ class GraduacaoView {
       temGraus: g['faixaTemGraus'] == true || asInt(g['grau']) > 0,
       grau: asInt(g['grau']),
       maxGraus: asInt(g['faixaMaxGraus']),
+      grauCoresHex: grauCoresRaw is List
+          ? grauCoresRaw.map((e) => e.toString()).toList()
+          : const [],
     );
   }
 
@@ -129,6 +139,9 @@ class GraduacaoDisplay extends StatelessWidget {
                     parseGraduationColor(graduacao.corBarraHex) ?? Colors.black,
                 grau: graduacao.mostrarGraus ? graduacao.grau : 0,
                 maxGraus: graduacao._maxEfetivo,
+                grauCores: graduacao.grauCoresHex
+                    .map(parseGraduationColor)
+                    .toList(),
                 height: _full ? 24 : 16,
                 width: _full ? 58 : 44,
               ),
@@ -170,6 +183,10 @@ class _BeltVisual extends StatelessWidget {
   final double height;
   final double width;
 
+  /// Cor individual de cada marcador (índice 0 = 1º grau). `null`/vazia
+  /// mantém o visual de sempre (marcador branco fixo).
+  final List<Color?>? grauCores;
+
   const _BeltVisual({
     required this.cor,
     required this.corBarra,
@@ -177,11 +194,19 @@ class _BeltVisual extends StatelessWidget {
     required this.maxGraus,
     required this.height,
     required this.width,
+    this.grauCores,
   });
 
   @override
   Widget build(BuildContext context) {
-    final desenharMarcadores = grau > 0 && maxGraus <= 6;
+    // Faixas sem cor por grau mantêm o limite de 6 marcadores (acima disso
+    // só o texto do _GrauLabel é mostrado, pra não quebrar o layout).
+    // Faixas COM cor por grau configurada (ex.: sistema de 11-12 graus da
+    // IBJJF/CBJJ infantil) precisam desenhar todos os marcadores — é
+    // exatamente o caso de uso da feature — então o limite sobe pra 12.
+    final temCoresPorGrau = grauCores != null && grauCores!.isNotEmpty;
+    final limiteMarcadores = temCoresPorGrau ? 12 : 6;
+    final desenharMarcadores = grau > 0 && maxGraus <= limiteMarcadores;
     return ClipRRect(
       borderRadius: BorderRadius.circular(3),
       child: DecoratedBox(
@@ -206,18 +231,27 @@ class _BeltVisual extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(
-                      maxGraus.clamp(1, 6),
-                      (i) => Container(
-                        width: 3,
-                        height: height * 0.65,
-                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                        decoration: BoxDecoration(
-                          color: i < grau
-                              ? Colors.white.withValues(alpha: 0.9)
-                              : Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
+                      maxGraus.clamp(1, limiteMarcadores),
+                      (i) {
+                        final earned = i < grau;
+                        final corDoGrau =
+                            (grauCores != null && i < grauCores!.length)
+                            ? grauCores![i]
+                            : null;
+                        return Container(
+                          width: 3,
+                          height: height * 0.65,
+                          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                          decoration: BoxDecoration(
+                            color: earned
+                                ? (corDoGrau ?? Colors.white).withValues(
+                                    alpha: corDoGrau != null ? 1.0 : 0.9,
+                                  )
+                                : Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

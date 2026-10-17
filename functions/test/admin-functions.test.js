@@ -8,6 +8,7 @@ const { initializeApp, deleteApp } = require("firebase/app");
 const {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
+  deleteUser,
   getAuth,
   signInWithEmailAndPassword,
   signOut,
@@ -149,6 +150,73 @@ test("admin redefine a senha do aluno: gera senha temporária e força troca", a
     // Depois que a pessoa definiu a própria senha, a temporária some da ficha.
     const aluno = await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").get();
     assert.equal(aluno.data().acesso_senha_temporaria, undefined);
+  });
+});
+
+test("conta Auth removida enquanto o perfil ainda aponta pra ela: autocorrige e provisiona de novo, sem perder o cadastro", async () => {
+  // Bug real reportado por um cliente: redefinir a senha de um aluno dava
+  // só "[firebase_functions/internal] INTERNAL", sem nenhum detalhe. A causa:
+  // o `firebaseUid` salvo no perfil apontava pra uma conta Auth que não
+  // existe mais (drift) — `updateUser`/`revokeRefreshTokens` numa conta
+  // morta quebrava sem tratamento nenhum. Agora `collectRelatedUids`
+  // verifica se o uid ainda existe; se não existir, trata como "sem conta" e
+  // deixa o provisionamento normal (já existente, já testado) criar uma
+  // conta nova e revincular o MESMO perfil — nome/faixa/turma/financeiro do
+  // aluno continuam intactos, só a credencial de login é recriada.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-b@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+  });
+
+  await signOut(auth);
+  await createUserWithEmailAndPassword(auth, "aluno-removido@sensei.app", "SenhaFixtureAluno1");
+  const alunoUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    // Dados realistas (telefone + e-mail), igual ao caso real reportado —
+    // sem isso o provisionamento não tem pra onde criar a conta nova.
+    await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").update({
+      firebaseUid: alunoUid,
+      telefone: "(88) 99931-2667",
+      telefone_digits: "88999312667",
+      email: "aluno-a-real@example.com",
+    });
+    await ctx.firestore().doc(`usuariosFirebase/${alunoUid}`).set({
+      schemaVersion: 2,
+      academiaId: "academy-a",
+      colecao: "usuarios",
+      usuarioId: "aluno-a",
+      profile_refs: [
+        { key: "academy-a|usuarios|aluno-a", academiaId: "academy-a", colecao: "usuarios", usuarioId: "aluno-a", perfil_nome: "Aluno", nome: "Aluno A" },
+      ],
+    });
+  });
+  // Simula o drift: a conta Auth deixa de existir, mas o perfil continua
+  // apontando pro uid dela (ninguém limpou o Firestore).
+  await deleteUser(auth.currentUser);
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-b@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({ academiaId: "academy-a", colecao: "usuarios", usuarioId: "aluno-a" });
+  assert.equal(typeof resultado.data.temporaryPassword, "string");
+  assert.ok(resultado.data.temporaryPassword.length >= 6);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const aluno = await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").get();
+    // Cadastro continua intacto — só o vínculo de login foi trocado pro uid novo.
+    assert.equal(aluno.data().nome, "Aluno A");
+    assert.notEqual(aluno.data().firebaseUid, alunoUid);
+    assert.equal(aluno.data().acesso_senha_temporaria, resultado.data.temporaryPassword);
   });
 });
 
