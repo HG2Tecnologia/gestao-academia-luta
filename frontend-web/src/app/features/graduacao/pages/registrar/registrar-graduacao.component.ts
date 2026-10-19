@@ -6,7 +6,7 @@ import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs
 import { takeUntil } from 'rxjs/operators';
 import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
-import { UsuarioService } from '../../../../core/services/usuario.service';
+import { FuncionarioService } from '../../../../core/services/funcionario.service';
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { FaixaDto } from '../../../../core/models/graduacao.model';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
@@ -22,7 +22,7 @@ import { BadgeFaixaComponent } from '../../../../shared/components/badge-faixa/b
 export class RegistrarGraduacaoComponent implements OnDestroy {
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly modalidadeService = inject(ModalidadeService);
-  private readonly usuarioService = inject(UsuarioService);
+  private readonly funcionarioService = inject(FuncionarioService);
   private readonly alunoService = inject(AlunoService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
@@ -63,7 +63,7 @@ export class RegistrarGraduacaoComponent implements OnDestroy {
 
   constructor() {
     this.modalidadeService.getAll().subscribe({ next: r => this.modalidades.set(r.dados ?? []) });
-    this.usuarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
+    this.funcionarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
 
     this.busca$.pipe(
       debounceTime(400),

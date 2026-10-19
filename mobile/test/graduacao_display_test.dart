@@ -93,6 +93,53 @@ void main() {
     expect(find.textContaining('7º grau de 10'), findsOneWidget);
   });
 
+  testWidgets(
+    'faixa sem grauCoresFaixa (todo o histórico hoje) mantém o visual de sempre',
+    (tester) async {
+      final g = GraduacaoView.fromMap(const {
+        'nomeModalidade': 'Jiu-Jitsu Infantil',
+        'nomeFaixa': 'Branca',
+        'corFaixa': '#FFFFFF',
+        'corBarraFaixa': '#000000',
+        'faixaTemGraus': true,
+        'grau': 2,
+        'faixaMaxGraus': 4,
+      });
+      expect(g.grauCoresHex, isEmpty);
+      await _pump(tester, g);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Branca'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'graus coloridos (12 graus, sistema IBJJF/CBJJ) renderiza sem exceção',
+    (tester) async {
+      final g = GraduacaoView.fromMap(const {
+        'nomeModalidade': 'Jiu-Jitsu Infantil',
+        'nomeFaixa': 'Branca',
+        'corFaixa': '#FFFFFF',
+        'corBarraFaixa': '#000000',
+        'faixaTemGraus': true,
+        'grau': 9,
+        'faixaMaxGraus': 12,
+        'grauCoresFaixa': [
+          '#FFFFFF', '#FFFFFF', '#FFFFFF', '#FFFFFF',
+          '#FF0000', '#FF0000', '#FF0000', '#FF0000',
+          '#FFFF00', '#FFFF00', '#FFFF00', '#FFFF00',
+        ],
+      });
+      expect(g.grauCoresHex.length, 12);
+      await _pump(tester, g);
+      expect(tester.takeException(), isNull);
+      // Acima de 6 graus SEM cor por grau, só o texto aparece (comportamento
+      // de hoje, coberto no teste "suporta maxGraus variável (10)" acima) —
+      // mas aqui, COM grauCoresFaixa preenchido, o rótulo textual também
+      // deve aparecer (o limite de marcadores sobe, mas o label continua).
+      expect(find.textContaining('9º grau de 12'), findsOneWidget);
+    },
+  );
+
   testWidgets('nome de modalidade e graduação longos não estouram layout',
       (tester) async {
     await _pump(

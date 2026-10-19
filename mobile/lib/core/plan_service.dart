@@ -1,5 +1,19 @@
 import 'auth_storage.dart';
 import 'firestore_service.dart';
+import 'iap_service.dart';
+
+String? planoProdutoDisplayName(String? produtoId) {
+  switch (produtoId) {
+    case kIapMensal:
+      return 'Mensal';
+    case kIapTrimestral:
+      return 'Trimestral';
+    case kIapAnual:
+      return 'Anual';
+    default:
+      return null;
+  }
+}
 
 class PlanService {
   static final PlanService instance = PlanService._();
@@ -8,6 +22,9 @@ class PlanService {
   String _planoTipo = 'Gratuito';
   DateTime? _planoExpiracao;
   DateTime? _criadoEm;
+  DateTime? _planoAssinadoEm;
+  String? _planoProdutoId;
+  String? _planoPlataforma;
   bool _loaded = false;
 
   bool get isPro {
@@ -32,6 +49,11 @@ class PlanService {
     return diff.clamp(0, 7);
   }
 
+  DateTime? get planoExpiracao => _planoExpiracao;
+  DateTime? get planoAssinadoEm => _planoAssinadoEm;
+  String? get planoProdutoId => _planoProdutoId;
+  String? get planoPlataforma => _planoPlataforma;
+
   Future<void> load() async {
     try {
       final user = await AuthStorage.getUser();
@@ -45,6 +67,12 @@ class PlanService {
       _planoExpiracao = expStr != null ? DateTime.tryParse(expStr) : null;
       final criadoStr = d['criado_em']?.toString();
       _criadoEm = criadoStr != null ? DateTime.tryParse(criadoStr) : null;
+      final assinadoStr = d['plano_assinado_em']?.toString();
+      _planoAssinadoEm = assinadoStr != null
+          ? DateTime.tryParse(assinadoStr)
+          : null;
+      _planoProdutoId = d['plano_produto_id']?.toString();
+      _planoPlataforma = d['plano_plataforma']?.toString();
       _loaded = true;
     } catch (_) {}
   }
@@ -59,6 +87,9 @@ class PlanService {
     _planoTipo = 'Gratuito';
     _planoExpiracao = null;
     _criadoEm = null;
+    _planoAssinadoEm = null;
+    _planoProdutoId = null;
+    _planoPlataforma = null;
   }
 
   bool get isLoaded => _loaded;

@@ -599,6 +599,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'The new password must be different from the current one';
 
   @override
+  String get changePwErrMinLength => 'Minimum 6 characters';
+
+  @override
+  String get changePwErrMismatch => 'Passwords don\'t match';
+
+  @override
   String get changePwSuccess => 'Password changed successfully!';
 
   @override
@@ -610,6 +616,202 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get changePwErrGeneric =>
       'Couldn\'t change the password. Please try again.';
+
+  @override
+  String get tsoTitle => 'Set your permanent password';
+
+  @override
+  String get tsoSubtitle =>
+      'Your gym generated a temporary password for you. Before continuing, set a permanent password that only you know.';
+
+  @override
+  String get tsoNewPasswordHint => 'New password';
+
+  @override
+  String get tsoConfirmPasswordHint => 'Confirm the new password';
+
+  @override
+  String get tsoConfirmButton => 'Save and continue';
+
+  @override
+  String get tsoErrSessionExpired => 'Session expired.';
+
+  @override
+  String get tsoErrRequiresRecentLogin =>
+      'For security, sign out and sign back in with the temporary password before changing it.';
+
+  @override
+  String tsoErrGeneric(String codigo) {
+    return 'Error setting the new password ($codigo).';
+  }
+
+  @override
+  String get tsoErrUnexpected => 'Unexpected error. Please try again.';
+
+  @override
+  String get fpTitle => 'Forgot my password';
+
+  @override
+  String get fpHeading => 'Recover access';
+
+  @override
+  String get fpSubtitle =>
+      'Enter your email and we\'ll send you a link to create a new password.';
+
+  @override
+  String get fpEmailLabel => 'Email';
+
+  @override
+  String get fpEmailHint => 'you@email.com';
+
+  @override
+  String get fpErrInvalidEmail => 'Enter a valid email.';
+
+  @override
+  String get fpErrTooManyRequests =>
+      'Too many attempts. Please wait a few minutes.';
+
+  @override
+  String get fpErrGeneric => 'Error sending email. Please try again.';
+
+  @override
+  String get fpErrUnexpected => 'Unexpected error. Please try again.';
+
+  @override
+  String get fpSendButton => 'Send recovery link';
+
+  @override
+  String get fpSentTitle => 'Email sent!';
+
+  @override
+  String get fpSentBody =>
+      'Check your inbox (and spam folder). Click the link you received to create your new password.';
+
+  @override
+  String get fpBackToLogin => 'Back to login';
+
+  @override
+  String get fpAlunoSubtitle =>
+      'Enter your registered phone or email. Your gym will get an alert and generate a new password for you.';
+
+  @override
+  String get fpIdentifierLabel => 'Phone or email';
+
+  @override
+  String get fpIdentifierHint => '(11) 99999-0000 or you@email.com';
+
+  @override
+  String get fpErrInvalidIdentifier => 'Enter a valid phone number or email.';
+
+  @override
+  String get fpAlunoSendButton => 'Send request';
+
+  @override
+  String get fpRequestSentTitle => 'Request sent!';
+
+  @override
+  String get fpRequestSentBody =>
+      'If we find your record, your gym has been notified and will generate a new access password for you shortly.';
+
+  @override
+  String resetPwDialogTitle(String nome) {
+    return 'Reset $nome\'s password?';
+  }
+
+  @override
+  String get resetPwDialogBody =>
+      'A new temporary password will be generated and this person\'s current session will be ended. They\'ll need to use the temporary password to sign in and set a permanent one.';
+
+  @override
+  String get resetPwDialogConfirm => 'Reset';
+
+  @override
+  String resetPwErrReset(String erro) {
+    return 'Couldn\'t reset the password: $erro';
+  }
+
+  @override
+  String resetPwErrProvision(String erro) {
+    return 'Couldn\'t generate access: $erro';
+  }
+
+  @override
+  String get conflictDialogTitle => 'This phone or email is already in use';
+
+  @override
+  String conflictDialogBody(String nome) {
+    return 'There\'s already another registration with the same phone/email as $nome, and that person has already signed in and set their own password.\n\n• Keep current password: $nome will sign in with the same password that person already set — nothing changes for whoever already uses the app.\n• Generate new temporary password: replaces access for everyone using that phone/email. Whoever already had their own password will need to set it again on their next login.';
+  }
+
+  @override
+  String get conflictDialogKeepCurrent => 'Keep current password';
+
+  @override
+  String get conflictDialogGenerateNew => 'Generate new temporary';
+
+  @override
+  String get linkedDialogTitle => 'Linked';
+
+  @override
+  String linkedDialogBody(String nome, String comoEntrar) {
+    return '$nome will access the app with $comoEntrar and the password already set by whoever uses this contact. No new password was generated.';
+  }
+
+  @override
+  String tempPwTitle(String nome) {
+    return '$nome\'s temporary password';
+  }
+
+  @override
+  String get tempPwHint =>
+      'Copy or share it now. You can also see this password on the student\'s profile (App Access) until they sign in for the first time.';
+
+  @override
+  String tempPwExplainTitle(String nome) {
+    return 'Explain to $nome:';
+  }
+
+  @override
+  String get tempPwStep1 =>
+      'Open the app and tap \"I\'m a student or guardian\".';
+
+  @override
+  String tempPwStep2(String comoEntrar) {
+    return 'Enter $comoEntrar + this temporary password.';
+  }
+
+  @override
+  String get tempPwStep3 =>
+      'The app asks them to set a permanent password — done, no \"first access\" needed.';
+
+  @override
+  String get tempPwCopy => 'Copy';
+
+  @override
+  String get tempPwShare => 'Share';
+
+  @override
+  String get tempPwCopied => 'Password copied.';
+
+  @override
+  String tempPwShareText(String nome, String comoEntrar, String senha) {
+    return 'Sensei Manager — $nome\'s access\nSign in with $comoEntrar and the temporary password: $senha\nThe app will ask you to set your permanent password.';
+  }
+
+  @override
+  String get tempPwBoxTitle =>
+      'Temporary password — hasn\'t signed in for the first time yet';
+
+  @override
+  String get tempPwBoxViewSend => 'View / send';
+
+  @override
+  String get tempPwLoginHintFallback => 'the registered phone or email';
+
+  @override
+  String tempPwLoginHintWith(String loginHint) {
+    return 'the $loginHint';
+  }
 
   @override
   String get studentsSearchHint => 'Search students...';
@@ -628,6 +830,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusInactive => 'Inactive';
+
+  @override
+  String get studentsFilterLabel => 'Filter by status';
+
+  @override
+  String get studentsFilterAll => 'All';
+
+  @override
+  String get notifTitle => 'Notifications';
+
+  @override
+  String notifUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread',
+      one: '1 unread',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notifMarkAllRead => 'Mark all';
+
+  @override
+  String get notifEmptyTitle => 'No notifications';
+
+  @override
+  String get notifEmptySubtitle => 'You\'re all caught up!';
 
   @override
   String get finUpToDate => 'Up to date';
@@ -697,6 +928,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdPlanSection => 'Plan';
+
+  @override
+  String get sdPlanByModalitySection => 'Plans by discipline';
 
   @override
   String get sdNoPlan => 'No plan linked.';
@@ -1195,6 +1429,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sdNoClasses => 'Not enrolled in any class.';
 
   @override
+  String get sdUnlinkClassTitle => 'Unlink from this class?';
+
+  @override
+  String sdUnlinkClassBody(String aluno, String turma) {
+    return '$aluno leaves \"$turma\". If this is their only class in that modality, pending, overdue and future charges for that modality are cancelled too — a charge that\'s already paid is never affected.';
+  }
+
+  @override
+  String get sdUnlinkClassButton => 'Unlink';
+
+  @override
+  String sdUnlinkedToast(String turma) {
+    return 'Unlinked from $turma.';
+  }
+
+  @override
+  String get sdUnlinkClassError =>
+      'Couldn\'t unlink the class. Please try again.';
+
+  @override
   String get sdBeltHistory => 'Promotion History';
 
   @override
@@ -1262,6 +1516,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdStatusChangeError => 'Error changing the status.';
+
+  @override
+  String get sdDeleteAlunoAction => 'Delete student';
+
+  @override
+  String sdDeleteAlunoConfirmTitle(Object name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get sdDeleteAlunoConfirmBody =>
+      'This is permanent: it removes this student\'s enrollments, payments, attendance, graduations and notifications. It cannot be undone. If the phone/email is shared with another student, the other student\'s access is not affected.';
+
+  @override
+  String get sdDeleteAlunoSuccess => 'Student deleted.';
+
+  @override
+  String get sdDeleteAlunoError => 'Couldn\'t delete the student.';
 
   @override
   String sdAllowAccessConfirm(Object name) {
@@ -1371,6 +1643,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noInstructor => 'No instructor';
+
+  @override
+  String get classDefaultPlanOptional => 'Default plan (optional)';
+
+  @override
+  String get classNoDefaultPlan => 'No default plan';
+
+  @override
+  String get classDefaultPlanHelper =>
+      'Every student enrolled in this class is automatically linked to this plan, with no need to set it up on their profile.';
 
   @override
   String get maxCapacity => 'Maximum capacity';
@@ -2004,6 +2286,130 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiCurrentMonth => 'Current month';
 
   @override
+  String get fiBackToCurrentMonth => 'Back to current month';
+
+  @override
+  String get fiMoreActions => 'More';
+
+  @override
+  String get fiCleanupRetroactive => 'Clean up backdated';
+
+  @override
+  String get fiCleanupRetroactiveTitle => 'Clean up backdated charges';
+
+  @override
+  String get fiCleanupRetroactiveExplain =>
+      'Dismisses (does not delete) every pending or overdue charge due BEFORE the chosen month, for ALL students. Already-paid charges are never affected, and none of this counts as revenue.';
+
+  @override
+  String get fiCleanupRetroactiveCutoffLabel => 'Keep charges from';
+
+  @override
+  String get fiCleanupRetroactiveConfirmTitle => 'Confirm cleanup?';
+
+  @override
+  String fiCleanupRetroactiveConfirmBody(String mes) {
+    return 'This will dismiss, all at once, every student\'s pending charges before $mes. It can\'t be undone in bulk — only one at a time, manually. Are you sure?';
+  }
+
+  @override
+  String get fiCleanupRetroactiveButton => 'Dismiss backdated charges';
+
+  @override
+  String fiCleanupRetroactiveSuccess(int n) {
+    return '$n backdated charge(s) dismissed.';
+  }
+
+  @override
+  String get fiCleanupRetroactiveError =>
+      'Couldn\'t clean up backdated charges. Please try again.';
+
+  @override
+  String get fiAllModalities => 'All disciplines';
+
+  @override
+  String get fiDueLabel => 'Due date';
+
+  @override
+  String get fiExportReport => 'Export report';
+
+  @override
+  String get fiExportSheetTitle => 'Financial report columns';
+
+  @override
+  String get fiExportColumnType => 'Type';
+
+  @override
+  String get fiExportColumnValue => 'Value';
+
+  @override
+  String get fiExportColumnDueDate => 'Due date';
+
+  @override
+  String get fiExportColumnStatus => 'Status';
+
+  @override
+  String get fiExportColumnPaidDate => 'Paid date';
+
+  @override
+  String get fiMergeDuplicates => 'Fix duplicates';
+
+  @override
+  String get fiCleanOrphans => 'Clean orphans';
+
+  @override
+  String get fiMergeDuplicatesTitle => 'Fix duplicate monthly charges';
+
+  @override
+  String get fiMergeDuplicatesExplain =>
+      'Scans every month for a student with more than one monthly charge for the same period. When it\'s unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.';
+
+  @override
+  String get fiMergeDuplicatesConfirmTitle => 'Fix duplicates now?';
+
+  @override
+  String get fiMergeDuplicatesConfirmBody =>
+      'This will automatically dismiss duplicate monthly charges for every student in this school, keeping one per student/month. It can\'t be undone in bulk — only one at a time, manually. Continue?';
+
+  @override
+  String get fiMergeDuplicatesButton => 'Fix duplicates';
+
+  @override
+  String fiMergeDuplicatesSuccess(int grupos, int resolvidas, int manual) {
+    return '$grupos group(s) with duplicates · $resolvidas fixed automatically · $manual left for manual review.';
+  }
+
+  @override
+  String get fiMergeDuplicatesError =>
+      'Couldn\'t fix the duplicate monthly charges. Please try again.';
+
+  @override
+  String get fiCleanOrphansTitle => 'Clean up orphan charges';
+
+  @override
+  String get fiCleanOrphansExplain =>
+      'Looks for still-pending charges (never paid) stuck on a plan that was deleted, or on a modality the student was unlinked from. When found, it disregards them — never deletes, never marks as paid. A charge that\'s already paid is never touched, even if its plan was deleted afterward.';
+
+  @override
+  String get fiCleanOrphansConfirmTitle => 'Clean up orphan charges now?';
+
+  @override
+  String get fiCleanOrphansConfirmBody =>
+      'This will disregard every pending charge in this academy that\'s stuck on a deleted plan or a modality the student was unlinked from. This can\'t be undone in bulk — only one at a time, manually. Continue?';
+
+  @override
+  String get fiCleanOrphansButton => 'Clean orphans';
+
+  @override
+  String fiCleanOrphansSuccess(int analisadas, int canceladas) {
+    return '$analisadas pending charge(s) analyzed · $canceladas cancelled for being orphaned.';
+  }
+
+  @override
+  String get fiCleanOrphansError =>
+      'Couldn\'t clean up orphan charges. Please try again.';
+
+  @override
   String get fiNoCharges => 'No charges.';
 
   @override
@@ -2088,6 +2494,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fiUpdateError => 'Error updating the payment.';
+
+  @override
+  String get fiSelectMode => 'Select';
+
+  @override
+  String fiSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String fiBatchMarkedPaid(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count charges marked as paid',
+      one: '1 charge marked as paid',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get fiConfirmPayment => 'Confirm payment';
@@ -2489,6 +2920,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get plnMonthlyValueField => 'Monthly amount (R\$) *';
+
+  @override
+  String get plnModalityField => 'Discipline (billing by discipline)';
+
+  @override
+  String get plnModalityNone => 'None (generic plan)';
+
+  @override
+  String get plnWeeklyLimitField => 'Weekly training-day limit (optional)';
+
+  @override
+  String get apmTitle => 'Plans by discipline';
+
+  @override
+  String get apmNewTitle => 'New discipline enrollment';
+
+  @override
+  String get apmEditTitle => 'Edit enrollment';
+
+  @override
+  String get apmModalityField => 'Discipline';
+
+  @override
+  String get apmPlanField => 'Plan';
+
+  @override
+  String get apmDueDayField => 'Due day (1-28)';
+
+  @override
+  String get apmSelectRequired => 'Select the discipline and the plan.';
+
+  @override
+  String get apmInvalidDueDay => 'Enter a due day between 1 and 28.';
+
+  @override
+  String get apmSaveError => 'Couldn\'t save. Please try again.';
+
+  @override
+  String get apmCreateBtn => 'Add';
+
+  @override
+  String get apmEndTitle => 'End enrollment?';
+
+  @override
+  String apmEndBody(Object modalidade) {
+    return 'Stops billing $modalidade for this student. Charges already generated are not deleted.';
+  }
+
+  @override
+  String get apmFeatureDisabled =>
+      'Billing by discipline is not enabled for this school. Enable it in Settings > Finance to use independent plans per discipline.';
+
+  @override
+  String apmEmpty(Object nome) {
+    return '$nome doesn\'t have any discipline with its own plan yet.';
+  }
 
   @override
   String get plnNameRequired => 'Name is required.';
@@ -3006,6 +3493,96 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fxCreateBtn => 'Create Belt';
 
   @override
+  String get fxHasDegrees => 'Has degrees';
+
+  @override
+  String get fxHasDegreesSub =>
+      'Shows degree markers on the belt tip (e.g. stripes before moving to the next belt)';
+
+  @override
+  String get fxMaxDegrees => 'Degrees before next belt';
+
+  @override
+  String get fxDegreeTipColor => 'Tip color';
+
+  @override
+  String get fxColoredDegrees => 'Colored degrees';
+
+  @override
+  String get fxColoredDegreesSub =>
+      'Instead of one color for every degree, each degree can have its own color (e.g. IBJJF/CBJJ kids system)';
+
+  @override
+  String get fxPresetOfficial => 'Official IBJJF/CBJJ';
+
+  @override
+  String get fxPresetOfficialShort => 'Official';
+
+  @override
+  String get fxPresetSimplified => 'Simplified';
+
+  @override
+  String get fxPresetCustom => 'Custom';
+
+  @override
+  String get fxPresetOfficialHint =>
+      'First 4 degrees white, next 4 red, the rest use the next belt\'s color in sequence.';
+
+  @override
+  String get fxPresetOfficialHintNoNext =>
+      'First 4 degrees white, next 4 red. This is the last belt registered — register the next belt first to set the final degrees\' color, or switch to the Custom preset.';
+
+  @override
+  String get fxPresetSimplifiedPickColors =>
+      'Pick the colors, in order — they repeat in equal blocks until all degrees are filled';
+
+  @override
+  String get fxPresetSimplifiedHint =>
+      'Colors come in blocks, one after another — never one color on top of another. E.g. with white/red/yellow and 12 degrees, the student first earns the 4 white degrees, only then the 4 red ones, and only then the 4 yellow ones.';
+
+  @override
+  String get fxPresetCustomPickPerDegree => 'Tap each degree to pick its color';
+
+  @override
+  String get fxPresetCustomHint =>
+      'To have more than one degree in total, adjust the \"Degrees before next belt\" field above first. Below, you pick each degree\'s color individually, with no fixed block pattern.';
+
+  @override
+  String fxPickColorForDegree(int numero) {
+    return 'Color for degree $numero';
+  }
+
+  @override
+  String get fxTapToChange => 'Tap to change';
+
+  @override
+  String fxSimplifiedWarningColorsNeverShow(int numero) {
+    return 'With the current number of degrees, not every chosen color will show up — some will never be reached. To see them all, set at least $numero degrees (4 per color, above).';
+  }
+
+  @override
+  String get fxFixAutomatically => 'Fix automatically';
+
+  @override
+  String get turmaColoredDegrees => 'Colored degrees in this class';
+
+  @override
+  String get turmaColoredDegreesSub =>
+      'Students enrolled here see the colors configured on the belt (if any). Useful to turn on only for kids classes, for example, even when sharing the modality with adult classes.';
+
+  @override
+  String get fxPreview => 'Preview';
+
+  @override
+  String get fxPreviewDragHint =>
+      'Drag to simulate the student\'s degree and see the colors coming in sequence, one at a time';
+
+  @override
+  String fxPreviewDegreeLabel(int numero) {
+    return 'Degree $numero';
+  }
+
+  @override
   String get cfgTitle => 'Academy Settings';
 
   @override
@@ -3101,6 +3678,148 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cfgFeeFixedSub => 'Fixed amount on overdue charges';
+
+  @override
+  String get cfgBillingByModality => 'Billing by discipline';
+
+  @override
+  String get cfgBillingByModalitySub =>
+      'Allows independent plans and monthly fees per discipline (e.g. jiu-jitsu and judo billed separately)';
+
+  @override
+  String get cfgWeeklyLimit => 'Weekly training-day limit';
+
+  @override
+  String get cfgWeeklyLimitSub =>
+      'What happens when a student exceeds their plan\'s weekly training days';
+
+  @override
+  String get cfgWeeklyLimitDesc =>
+      'Some plans limit how many days per week a student can train (e.g. a 2x/week plan). Choose what happens when they try to check in beyond that limit.';
+
+  @override
+  String get cfgWeeklyLimitModeOff => 'Off';
+
+  @override
+  String get cfgWeeklyLimitModeOffSub =>
+      'Doesn\'t enforce a weekly training-day limit';
+
+  @override
+  String get cfgWeeklyLimitModeWarn => 'Warn';
+
+  @override
+  String get cfgWeeklyLimitModeWarnSub =>
+      'Allows check-in but warns that the plan\'s limit was exceeded';
+
+  @override
+  String get cfgWeeklyLimitModeBlock => 'Block';
+
+  @override
+  String get cfgWeeklyLimitModeBlockSub =>
+      'Prevents check-in once the plan\'s weekly limit is reached';
+
+  @override
+  String get cfgWeeklyLimitSaved => 'Weekly training-day limit saved.';
+
+  @override
+  String get cfgAutoAbsence => 'Automatic absence after 24h';
+
+  @override
+  String get cfgAutoAbsenceSub =>
+      'On: the app automatically marks a student absent if no attendance was recorded within 24h of class, and it stays in the student\'s attendance history. Off: the app never infers absence on its own — it\'s up to the instructor to mark attendance; if they don\'t, that day simply doesn\'t show up in the student\'s history (neither as present nor absent).';
+
+  @override
+  String get cfgManualCheckin => 'Manual check-in without QR';
+
+  @override
+  String get cfgManualCheckinSub =>
+      'Lets the student (or guardian) check in through the app without scanning a QR code, only while a class is actually happening for them right now. Off by default — check-in stays QR-only.';
+
+  @override
+  String get cfgManualCheckinWindow => 'Check-in window';
+
+  @override
+  String get cfgManualCheckinWindowSub =>
+      'How long before and after class time the student can confirm attendance';
+
+  @override
+  String get cfgManualCheckinWindowDesc =>
+      'Sets when the check-in button becomes available to the student, relative to the class start time.';
+
+  @override
+  String get cfgManualCheckinWindowBefore => 'Before class starts';
+
+  @override
+  String get cfgManualCheckinWindowAfter => 'After class starts';
+
+  @override
+  String get cfgManualCheckinWindowZero => 'At class time';
+
+  @override
+  String get cfgColoredDegrees => 'Colored degrees';
+
+  @override
+  String get cfgColoredDegreesSub =>
+      'Unlocks, in the Belts screen, the option to configure colors per degree (e.g. IBJJF/CBJJ kids system). Off: every belt keeps showing degrees the usual way.';
+
+  @override
+  String get grauColoridoHelpTitle => 'How do colored degrees work?';
+
+  @override
+  String get grauColoridoStep1Title => 'Each degree can have its own color';
+
+  @override
+  String get grauColoridoStep1Body =>
+      'Instead of every degree being marked with just a white stripe, you pick a different color for each degree — the way IBJJF/CBJJ does it for kids.';
+
+  @override
+  String get grauColoridoStep2Title => 'Colors come in sequence';
+
+  @override
+  String get grauColoridoStep2Body =>
+      'Never one color on top of another. E.g. with 12 degrees and white/red/yellow — the student first earns degrees 1 through 4, all white. Only after that come degrees 5 through 8, red. And only after that come degrees 9 through 12, yellow. At the 12th, they move to the next belt.';
+
+  @override
+  String get grauColoridoStep3Title => 'Set this up per belt';
+
+  @override
+  String get grauColoridoStep3Body =>
+      'Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
+
+  @override
+  String cfgManualCheckinWindowMinutes(int min) {
+    return '${min}min';
+  }
+
+  @override
+  String cfgManualCheckinWindowHours(int h) {
+    String _temp0 = intl.Intl.pluralLogic(
+      h,
+      locale: localeName,
+      other: '${h}h',
+      one: '1h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cfgManualCheckinWindowHoursMinutes(int h, int min) {
+    return '${h}h${min}min';
+  }
+
+  @override
+  String cfgManualCheckinWindowValue(String antes, String depois) {
+    return '$antes before · $depois after';
+  }
+
+  @override
+  String get cfgManualCheckinWindowUnlimited => 'No limit';
+
+  @override
+  String get cfgManualCheckinWindowMinutesSuffix => 'min';
+
+  @override
+  String get cfgManualCheckinWindowSaved => 'Check-in window updated.';
 
   @override
   String get cfgGradSection => 'Belts and Disciplines';
@@ -3330,6 +4049,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgPlanFreeDesc => '3 classes · 10 students/class · ads';
 
   @override
+  String get planTitle => 'My subscription';
+
+  @override
+  String get planSubscribedSince => 'Subscriber since';
+
+  @override
+  String get planRenewsOn => 'Renews on';
+
+  @override
+  String get planRenewsOnHint =>
+      'Date controlled by the store (Apple/Google) — may vary.';
+
+  @override
+  String get planViaAppStore => 'Subscribed via App Store';
+
+  @override
+  String get planViaPlayStore => 'Subscribed via Google Play';
+
+  @override
+  String get planChangePlan => 'Change plan';
+
+  @override
+  String get planCancelSubscription => 'Cancel subscription';
+
+  @override
+  String get planCancelHint =>
+      'Cancellation happens in the store where you subscribed, not inside the app. We\'ll take you straight there.';
+
+  @override
+  String get planCancelError => 'Couldn\'t open the store. Please try again.';
+
+  @override
   String fxStudentsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3349,6 +4100,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authErrUserNotFound =>
       'User not found in the system. Contact the administrator.';
+
+  @override
+  String get authErrUnknownProfile =>
+      'We couldn\'t identify your access profile. Contact the academy administrator.';
 
   @override
   String get authErrDbNotConfigured =>
@@ -3755,6 +4510,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apNoChargesInCategory => 'No charges in this category';
 
   @override
+  String apNoChargesThisMonth(String month) {
+    return 'No charges in $month';
+  }
+
+  @override
+  String apTotalOpenAllMonths(String amount) {
+    return '$amount outstanding in total';
+  }
+
+  @override
+  String get apViewAllOverdue => 'View all overdue';
+
+  @override
+  String get apAllOverdueTitle => 'Overdue charges';
+
+  @override
+  String get apPrevMonth => 'Previous month';
+
+  @override
+  String get apNextMonth => 'Next month';
+
+  @override
   String get apAttendanceTitle => 'Attendance';
 
   @override
@@ -3868,10 +4645,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apRankingsTitle => 'Rankings';
 
   @override
-  String get apQrMyCode => 'My QR Code';
+  String get apQrMyCode => 'My QR';
 
   @override
-  String get apQrScanAcademy => 'Scan Academy';
+  String get apQrScanAcademy => 'Scan';
+
+  @override
+  String get apQrManualCheckin => 'No QR';
+
+  @override
+  String get apManualCheckinLoadError =>
+      'Couldn\'t check your classes right now. Please try again.';
+
+  @override
+  String get apManualCheckinNoClassNow =>
+      'None of your classes is happening right now.';
+
+  @override
+  String get apManualCheckinPick =>
+      'You have more than one class happening now — choose which one to check in to:';
+
+  @override
+  String get apManualCheckinClassFallback => 'Class';
+
+  @override
+  String get apManualCheckinHistoryLabel => 'Manual, no QR';
+
+  @override
+  String apManualCheckinClassAt(String hora) {
+    return 'Today at $hora';
+  }
+
+  @override
+  String get apManualCheckinConfirm => 'Confirm attendance';
+
+  @override
+  String apManualCheckinClassOn(String data, String hora) {
+    return '$data at $hora';
+  }
+
+  @override
+  String apManualCheckinAvailableAtToday(String hora) {
+    return 'Available from $hora';
+  }
+
+  @override
+  String apManualCheckinAvailableAt(String data, String hora) {
+    return 'Available from $data at $hora';
+  }
 
   @override
   String get apQrShowInstructor => 'Show it to the instructor at the entrance';
@@ -4360,4 +5181,149 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rnBillingDesc =>
       'Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned.';
+
+  @override
+  String get rnDeleteStudentTitle => 'Permanently delete a student';
+
+  @override
+  String get rnDeleteStudentDesc =>
+      'You can now delete a student for good: enrollments, charges, attendance and history go with them, without affecting siblings who share the same phone or email.';
+
+  @override
+  String get rnBillingByModalityTitle => 'Billing per discipline';
+
+  @override
+  String get rnBillingByModalityDesc =>
+      'Academies that turn it on in settings can charge each discipline separately — for example, jiu-jitsu and judo with independent prices and due dates.';
+
+  @override
+  String get rnWeeklyLimitTitle => 'Weekly training limit';
+
+  @override
+  String get rnWeeklyLimitDesc =>
+      'Plans with a weekly training limit can now warn or block check-in once a student goes over the quota, and this is already reflected in absence counts.';
+
+  @override
+  String get rnAutoAbsenceTitle => 'Configurable automatic absence';
+
+  @override
+  String get rnAutoAbsenceDesc =>
+      'You can turn off the automatic 24h-after-class absence marking in settings, keeping history to only what the coach marks by hand.';
+
+  @override
+  String get rnAbsenceFixTitle => 'Absence calculation fix';
+
+  @override
+  String get rnAbsenceFixDesc =>
+      'Absences are no longer counted on days a class doesn\'t train — the calculation now follows the actual registered schedule.';
+
+  @override
+  String get rnOfficialReportTitle => 'Official attendance report';
+
+  @override
+  String get rnOfficialReportDesc =>
+      'New attendance report with PDF and Excel export, available to the academy and to front-desk staff with permission.';
+
+  @override
+  String get rnModalityBadgeTitle => 'Discipline badge in Billing';
+
+  @override
+  String get rnModalityBadgeDesc =>
+      'Each per-discipline charge now shows a colored badge with its name, plus filters by discipline and by status to organize the list.';
+
+  @override
+  String get rnBulkPaymentTitle => 'Mark several as paid';
+
+  @override
+  String get rnBulkPaymentDesc =>
+      'In Billing you can now select several pending charges and mark them all as paid at once, without losing your scroll position.';
+
+  @override
+  String get rnManualCheckinTitle => 'Check-in without a QR code';
+
+  @override
+  String get rnManualCheckinDesc =>
+      'Once enabled in settings, students can confirm attendance without scanning the QR code — handy when someone else drops the child off at class.';
+
+  @override
+  String get rnStaffPermissionsTitle => 'More control over staff';
+
+  @override
+  String get rnStaffPermissionsDesc =>
+      'You can now grant a coach permission to view a student\'s medical certificate, PAR-Q and family group, without changing their role.';
+
+  @override
+  String get rnColoredDegreesTitle => 'Colored belt degrees';
+
+  @override
+  String get rnColoredDegreesDesc =>
+      'Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.';
+
+  @override
+  String get rpTitle => 'Attendance Report';
+
+  @override
+  String get rpNoAccess => 'You don\'t have access to this report.';
+
+  @override
+  String get rpAllClasses => 'All classes';
+
+  @override
+  String get rpPeriodMonth => 'Month';
+
+  @override
+  String get rpPeriodYear => 'Year';
+
+  @override
+  String get rpSelectMonth => 'Pick any day in the desired month';
+
+  @override
+  String get rpColumnName => 'Name';
+
+  @override
+  String get rpColumnPhone => 'Phone';
+
+  @override
+  String get rpColumnClass => 'Class';
+
+  @override
+  String get rpColumnBelt => 'Belt';
+
+  @override
+  String get rpColumnPresences => 'Present';
+
+  @override
+  String get rpColumnAbsences => 'Absent';
+
+  @override
+  String get rpColumnTotalClasses => 'Total classes';
+
+  @override
+  String get rpColumnPercent => '% Attendance';
+
+  @override
+  String get rpExport => 'Export';
+
+  @override
+  String get rpExportPdf => 'Export PDF';
+
+  @override
+  String get rpExportExcel => 'Export Excel';
+
+  @override
+  String get rpExportColumnsTitle => 'Report columns';
+
+  @override
+  String get rpEmpty => 'No attendance data for the selected period and class.';
+
+  @override
+  String get rpRowCount => 'Records in period';
+
+  @override
+  String get rpStudentsSection => 'Students';
+
+  @override
+  String rpSummaryLine(int presencas, int faltas, int total) {
+    return '$presencas present · $faltas absent · $total classes in period';
+  }
 }

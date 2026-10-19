@@ -29,16 +29,26 @@
     },
     "singleProjectMode": true
   },
-  "hosting": {
-    "target": "timer",
-    "public": "timer-web",
-    "ignore": ["firebase.json", "**/.*", "database.rules.json", "**/*.apk"],
-    "rewrites": [
-      { "source": "/api/criarCobrancaPix", "function": "criarCobrancaPix", "region": "us-central1" },
-      { "source": "/api/criarSubcontaAcademia", "function": "criarSubcontaAcademia", "region": "us-central1" },
-      { "source": "/api/verificarStatusAsaas", "function": "verificarStatusAsaas", "region": "us-central1" },
-      { "source": "/api/webhookAsaas", "function": "webhookAsaas", "region": "us-central1" },
-      { "source": "/", "destination": "/control.html" }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "timer",
+      "public": "timer-web",
+      "ignore": ["firebase.json", "**/.*", "database.rules.json", "**/*.apk"],
+      "rewrites": [
+        { "source": "/api/criarCobrancaPix", "function": "criarCobrancaPix", "region": "us-central1" },
+        { "source": "/api/criarSubcontaAcademia", "function": "criarSubcontaAcademia", "region": "us-central1" },
+        { "source": "/api/verificarStatusAsaas", "function": "verificarStatusAsaas", "region": "us-central1" },
+        { "source": "/api/webhookAsaas", "function": "webhookAsaas", "region": "us-central1" },
+        { "source": "/", "destination": "/control.html" }
+      ]
+    },
+    {
+      "target": "crm",
+      "public": "frontend-web/dist/academia-fight/browser",
+      "ignore": ["firebase.json", "**/.*"],
+      "rewrites": [
+        { "source": "**", "destination": "/app-shell.html" }
+      ]
+    }
+  ]
 }

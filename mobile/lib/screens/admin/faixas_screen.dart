@@ -6,6 +6,8 @@ import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/grau_colorido.dart';
+import '../../core/widgets.dart';
 
 class AdminFaixasScreen extends StatefulWidget {
   const AdminFaixasScreen({super.key});
@@ -23,6 +25,7 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
   bool _loadingFaixas = false;
   bool _erro = false;
   String? _academiaId;
+  bool _grausColoridosDisponivel = false;
 
   // Contagem de alunos derivada das graduações aprovadas (opcional).
   Map<String, int> _alunosPorFaixa = {};
@@ -47,6 +50,9 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
         setState(() => _loading = false);
         return;
       }
+      final academia = await firestoreService.getAcademia(_academiaId!);
+      _grausColoridosDisponivel =
+          academia?['graus_coloridos_disponivel'] as bool? ?? false;
       final todasModalidades = await firestoreService.getModalidades(
         _academiaId!,
       );
@@ -226,6 +232,8 @@ class _AdminFaixasScreenState extends State<AdminFaixasScreen> {
         proximaOrdem: _faixas.isEmpty
             ? 1
             : (_faixas.last['ordem'] as int? ?? 0) + 1,
+        grausColoridosDisponivel: _grausColoridosDisponivel,
+        faixasIrmas: _faixas,
         onSalvo: _loadFaixas,
       ),
     );
@@ -1042,6 +1050,8 @@ class _FaixaFormSheet extends StatefulWidget {
     required this.modalidadeId,
     required this.onSalvo,
     required this.proximaOrdem,
+    required this.grausColoridosDisponivel,
+    required this.faixasIrmas,
     this.faixa,
   });
 
@@ -1050,6 +1060,15 @@ class _FaixaFormSheet extends StatefulWidget {
   final Map<String, dynamic>? faixa;
   final int proximaOrdem;
   final VoidCallback onSalvo;
+
+  /// Vem do switch em Configurações — só quando ligado a seção de graus
+  /// coloridos aparece neste formulário. Desligado: comportamento idêntico
+  /// ao de hoje, nenhuma UI nova é exibida.
+  final bool grausColoridosDisponivel;
+
+  /// Demais faixas da mesma modalidade, já ordenadas por `ordem` — usado só
+  /// pra resolver a cor da "próxima faixa" no preset Oficial IBJJF/CBJJ.
+  final List<Map<String, dynamic>> faixasIrmas;
 
   @override
   State<_FaixaFormSheet> createState() => _FaixaFormSheetState();
@@ -1063,8 +1082,24 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
   final _mesesCtrl = TextEditingController();
   final _presencasCtrl = TextEditingController();
   final _ordemCtrl = TextEditingController();
+  final _maxGrausCtrl = TextEditingController();
   String _cor = '#FF0000';
   bool _salvando = false;
+
+  // ── Graus ────────────────────────────────────────────────────────────────
+  bool _temGraus = false;
+  String _corBarra = '#000000';
+
+  // ── Graus coloridos (opcional, só com widget.grausColoridosDisponivel) ────
+  bool _grausColoridosAtivo = false;
+  String _preset = kGrauCoresPresetOficialIbjjf;
+  List<String> _coresSimplificado = ['#FFFFFF', '#FF0000', '#FFFF00'];
+  List<String> _coresPersonalizado = [];
+
+  /// Grau "simulado" na pré-visualização (1..maxGraus) — deixa visível que
+  /// as cores entram em SEQUÊNCIA conforme o aluno avança, nunca todas de
+  /// uma vez nem sobrepostas.
+  int _grauPreview = 1;
 
   static const _cores = [
     '#FFFFFF',
@@ -1079,6 +1114,42 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
     '#000000',
   ];
 
+  int get _maxGraus => int.tryParse(_maxGrausCtrl.text.trim()) ?? 0;
+
+  /// Cor da próxima faixa na sequência (mesma modalidade, `ordem` seguinte)
+  /// — usada só pelo preset Oficial IBJJF/CBJJ. `null` quando esta já é a
+  /// última faixa cadastrada.
+  String? get _corProximaFaixa {
+    final ordemAtual = int.tryParse(_ordemCtrl.text.trim()) ?? 0;
+    for (final f in widget.faixasIrmas) {
+      if ((f['ordem'] as int? ?? 0) == ordemAtual + 1) {
+        return f['cor']?.toString();
+      }
+    }
+    return null;
+  }
+
+  List<String> get _grauCoresCalculadas {
+    if (_maxGraus <= 0) return const [];
+    switch (_preset) {
+      case kGrauCoresPresetOficialIbjjf:
+        return calcularGrauCoresOficialIbjjf(
+          maxGraus: _maxGraus,
+          corProximaFaixaHex: _corProximaFaixa,
+        );
+      case kGrauCoresPresetSimplificado:
+        return calcularGrauCoresEmBlocos(
+          maxGraus: _maxGraus,
+          cores: _coresSimplificado,
+        );
+      default:
+        return ajustarGrauCoresPersonalizado(
+          maxGraus: _maxGraus,
+          coresAtuais: _coresPersonalizado,
+        );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1091,10 +1162,38 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
           .toString();
       _ordemCtrl.text = (f['ordem'] as int? ?? 1).toString();
       _cor = f['cor']?.toString() ?? '#FF0000';
+      _temGraus = f['tem_graus'] as bool? ?? false;
+      _maxGrausCtrl.text = (f['max_graus'] as int? ?? 4).toString();
+      _corBarra = f['cor_barra']?.toString() ?? '#000000';
+      final grauCores = f['grau_cores'];
+      if (grauCores is List && grauCores.isNotEmpty) {
+        _grausColoridosAtivo = true;
+        // Qual preset foi usado pra CHEGAR nesse resultado — sem isso salvo
+        // à parte, reabrir sempre caía no fallback "Personalizado" com o
+        // array já expandido, perdendo a escolha original do admin (bug
+        // reportado: "Simplificado" virava "Personalizado" ao reabrir).
+        final presetSalvo = f['graus_coloridos_preset'] as String?;
+        if (presetSalvo == kGrauCoresPresetOficialIbjjf) {
+          _preset = kGrauCoresPresetOficialIbjjf;
+        } else if (presetSalvo == kGrauCoresPresetSimplificado) {
+          _preset = kGrauCoresPresetSimplificado;
+          final base = f['graus_coloridos_cores_base'];
+          if (base is List && base.isNotEmpty) {
+            _coresSimplificado = base.map((e) => e.toString()).toList();
+          }
+        } else {
+          // Sem preset salvo (dado antigo, gravado antes dessa correção) ou
+          // 'personalizado' explícito — único caso em que o array cru
+          // continua sendo a fonte da verdade.
+          _preset = kGrauCoresPresetPersonalizado;
+          _coresPersonalizado = grauCores.map((e) => e.toString()).toList();
+        }
+      }
     } else {
       _mesesCtrl.text = '0';
       _presencasCtrl.text = '0';
       _ordemCtrl.text = widget.proximaOrdem.toString();
+      _maxGrausCtrl.text = '4';
     }
   }
 
@@ -1105,6 +1204,7 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
     _mesesCtrl.dispose();
     _presencasCtrl.dispose();
     _ordemCtrl.dispose();
+    _maxGrausCtrl.dispose();
     super.dispose();
   }
 
@@ -1112,6 +1212,8 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _salvando = true);
     try {
+      final usaGrausColoridos =
+          widget.grausColoridosDisponivel && _temGraus && _grausColoridosAtivo;
       final data = {
         'modalidadeId': widget.modalidadeId,
         'nome': _nomeCtrl.text.trim(),
@@ -1123,6 +1225,21 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
         'descricao': _descCtrl.text.trim().isEmpty
             ? null
             : _descCtrl.text.trim(),
+        'tem_graus': _temGraus,
+        'max_graus': _temGraus ? _maxGraus : 0,
+        'cor_barra': _temGraus ? _corBarra : null,
+        // Lista vazia (não null) quando desativado — mantém o documento
+        // sempre com o campo presente, mas o join/leitura já trata lista
+        // vazia como "sem graus coloridos", igual trataria a ausência dele.
+        'grau_cores': usaGrausColoridos ? _grauCoresCalculadas : <String>[],
+        // Preset + "receita" (só pro Simplificado) — sem isso, reabrir o
+        // formulário não tem como saber qual preset gerou o array acima, e
+        // sempre caía no fallback "Personalizado" (bug real reportado).
+        'graus_coloridos_preset': usaGrausColoridos ? _preset : null,
+        'graus_coloridos_cores_base':
+            usaGrausColoridos && _preset == kGrauCoresPresetSimplificado
+            ? _coresSimplificado
+            : null,
       };
       if (widget.faixa != null) {
         await firestoreService.updateFaixa(
@@ -1364,6 +1481,234 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 18),
+
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  _l.fxHasDegrees,
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Text(
+                  _l.fxHasDegreesSub,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                value: _temGraus,
+                onChanged: (v) => setState(() => _temGraus = v),
+                activeColor: context.c.primary,
+              ),
+              if (_temGraus) ...[
+                const SizedBox(height: 8),
+                _Label(_l.fxMaxDegrees),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 120,
+                  child: TextFormField(
+                    controller: _maxGrausCtrl,
+                    style: TextStyle(color: context.c.onSurface),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                    validator: (v) {
+                      final n = int.tryParse((v ?? '').trim());
+                      if (n == null) return _l.fxInvalid;
+                      if (n < 1) return _l.fxMin1;
+                      return null;
+                    },
+                    decoration: _deco('4'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _Label(_l.fxDegreeTipColor),
+                const SizedBox(height: 10),
+                _SeletorDeCorUnica(
+                  opcoes: _cores,
+                  selecionada: _corBarra,
+                  onSelecionar: (hex) => setState(() => _corBarra = hex),
+                ),
+                if (widget.grausColoridosDisponivel) ...[
+                  const SizedBox(height: 18),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Row(
+                      children: [
+                        Text(
+                          _l.fxColoredDegrees,
+                          style: TextStyle(
+                            color: context.c.onSurface,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const AjudaGrausColoridosButton(),
+                      ],
+                    ),
+                    subtitle: Text(
+                      _l.fxColoredDegreesSub,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    value: _grausColoridosAtivo,
+                    onChanged: (v) => setState(() => _grausColoridosAtivo = v),
+                    activeColor: context.c.primary,
+                  ),
+                  if (_grausColoridosAtivo) ...[
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _PresetChip(
+                            label: _l.fxPresetOfficialShort,
+                            selected: _preset == kGrauCoresPresetOficialIbjjf,
+                            onTap: () => setState(
+                              () => _preset = kGrauCoresPresetOficialIbjjf,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _PresetChip(
+                            label: _l.fxPresetSimplified,
+                            selected: _preset == kGrauCoresPresetSimplificado,
+                            onTap: () => setState(
+                              () => _preset = kGrauCoresPresetSimplificado,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _PresetChip(
+                            label: _l.fxPresetCustom,
+                            selected: _preset == kGrauCoresPresetPersonalizado,
+                            onTap: () => setState(
+                              () => _preset = kGrauCoresPresetPersonalizado,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (_preset == kGrauCoresPresetOficialIbjjf)
+                      _Helper(
+                        _corProximaFaixa == null
+                            ? _l.fxPresetOfficialHintNoNext
+                            : _l.fxPresetOfficialHint,
+                      )
+                    else if (_preset == kGrauCoresPresetSimplificado) ...[
+                      _Label(_l.fxPresetSimplifiedPickColors),
+                      const SizedBox(height: 6),
+                      _Helper(_l.fxPresetSimplifiedHint),
+                      const SizedBox(height: 10),
+                      _SeletorDeCoresMultiplas(
+                        opcoes: _cores,
+                        selecionadas: _coresSimplificado,
+                        onMudar: (lista) =>
+                            setState(() => _coresSimplificado = lista),
+                      ),
+                      if (indicesDeCoresIgnoradasEmBlocos(
+                        maxGraus: _maxGraus,
+                        cores: _coresSimplificado,
+                      ).isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: context.sem.warning.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: context.sem.warning.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: context.sem.warning,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _l.fxSimplifiedWarningColorsNeverShow(
+                                        _coresSimplificado.length * 4,
+                                      ),
+                                      style: TextStyle(
+                                        color: context.c.onSurface,
+                                        fontSize: 12.5,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () => setState(() {
+                                    _maxGrausCtrl.text =
+                                        (_coresSimplificado.length * 4)
+                                            .toString();
+                                  }),
+                                  child: Text(_l.fxFixAutomatically),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ] else ...[
+                      _Label(_l.fxPresetCustomPickPerDegree),
+                      const SizedBox(height: 6),
+                      _Helper(_l.fxPresetCustomHint),
+                      const SizedBox(height: 10),
+                      _SeletorDeCorPorGrau(
+                        opcoes: _cores,
+                        maxGraus: _maxGraus,
+                        coresAtuais: _coresPersonalizado,
+                        onMudar: (lista) =>
+                            setState(() => _coresPersonalizado = lista),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    _Label(_l.fxPreview),
+                    const SizedBox(height: 8),
+                    BeltBadge(
+                      cor: _parseCorFaixa(_cor),
+                      corBarra: _parseCorFaixa(_corBarra),
+                      temGraus: true,
+                      grau: _grauPreview.clamp(0, _maxGraus),
+                      maxGraus: _maxGraus,
+                      grauCores: _grauCoresCalculadas
+                          .map(_parseCorFaixa)
+                          .toList(),
+                      height: 22,
+                      minWidth: 56,
+                    ),
+                    const SizedBox(height: 6),
+                    _Helper(_l.fxPreviewDragHint),
+                    Slider(
+                      value: _grauPreview.clamp(0, _maxGraus > 0 ? _maxGraus : 1).toDouble(),
+                      min: 0,
+                      max: (_maxGraus > 0 ? _maxGraus : 1).toDouble(),
+                      divisions: _maxGraus > 0 ? _maxGraus : 1,
+                      label: _l.fxPreviewDegreeLabel(_grauPreview),
+                      activeColor: context.c.primary,
+                      onChanged: (v) => setState(() => _grauPreview = v.round()),
+                    ),
+                  ],
+                ],
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -1436,6 +1781,319 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
       borderSide: BorderSide(color: context.sem.danger, width: 1.5),
     ),
   );
+}
+
+/// Wrap de círculos de cor — escolha única (ex.: cor da ponteira de graus).
+class _SeletorDeCorUnica extends StatelessWidget {
+  const _SeletorDeCorUnica({
+    required this.opcoes,
+    required this.selecionada,
+    required this.onSelecionar,
+  });
+
+  final List<String> opcoes;
+  final String selecionada;
+  final ValueChanged<String> onSelecionar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: opcoes.map((hex) {
+        final selected = hex == selecionada;
+        final color = _parseCorFaixa(hex);
+        return GestureDetector(
+          onTap: () => onSelecionar(hex),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? context.c.primary : context.c.outline,
+                width: selected ? 3 : 1.5,
+              ),
+            ),
+            child: selected
+                ? Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: color.computeLuminance() > 0.5
+                        ? Colors.black
+                        : Colors.white,
+                  )
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+/// Lista ORDENADA de cores escolhidas (preset "Simplificado") — tocar numa
+/// cor da paleta adiciona ao final; tocar numa já escolhida (chip abaixo)
+/// remove. A ordem dos chips é a ordem em que os blocos de grau aparecem.
+class _SeletorDeCoresMultiplas extends StatelessWidget {
+  const _SeletorDeCoresMultiplas({
+    required this.opcoes,
+    required this.selecionadas,
+    required this.onMudar,
+  });
+
+  final List<String> opcoes;
+  final List<String> selecionadas;
+  final ValueChanged<List<String>> onMudar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: opcoes.map((hex) {
+            final color = _parseCorFaixa(hex);
+            return GestureDetector(
+              onTap: () => onMudar([...selecionadas, hex]),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: context.c.outline, width: 1),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        if (selecionadas.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selecionadas.asMap().entries.map((entry) {
+              final i = entry.key;
+              final hex = entry.value;
+              return GestureDetector(
+                onTap: () {
+                  final nova = List<String>.of(selecionadas)..removeAt(i);
+                  onMudar(nova);
+                },
+                child: Chip(
+                  avatar: CircleAvatar(
+                    backgroundColor: _parseCorFaixa(hex),
+                    radius: 8,
+                  ),
+                  label: Text('${i + 1}º'),
+                  deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                  onDeleted: () {
+                    final nova = List<String>.of(selecionadas)..removeAt(i);
+                    onMudar(nova);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Uma cor independente por posição de grau (preset "Personalizado") — toca
+/// num quadradinho pra abrir a paleta e escolher a cor daquele grau.
+class _SeletorDeCorPorGrau extends StatelessWidget {
+  const _SeletorDeCorPorGrau({
+    required this.opcoes,
+    required this.maxGraus,
+    required this.coresAtuais,
+    required this.onMudar,
+  });
+
+  final List<String> opcoes;
+  final int maxGraus;
+  final List<String> coresAtuais;
+  final ValueChanged<List<String>> onMudar;
+
+  Future<void> _escolherCor(
+    BuildContext context,
+    int indice,
+    List<String> cores,
+  ) async {
+    final l = context.l10n;
+    final escolhida = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.c.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          l.fxPickColorForDegree(indice + 1),
+          style: TextStyle(
+            color: ctx.c.onSurface,
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+          ),
+        ),
+        content: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: opcoes.map((hex) {
+            final color = _parseCorFaixa(hex);
+            final selecionada = hex == (indice < cores.length ? cores[indice] : null);
+            return GestureDetector(
+              onTap: () => Navigator.pop(ctx, hex),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selecionada ? ctx.c.primary : ctx.c.outline,
+                    width: selecionada ? 3 : 1.5,
+                  ),
+                ),
+                child: selecionada
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                        color: color.computeLuminance() > 0.5
+                            ? Colors.black
+                            : Colors.white,
+                      )
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.commonCancel),
+          ),
+        ],
+      ),
+    );
+    if (escolhida == null) return;
+    final nova = List<String>.of(cores);
+    nova[indice] = escolhida;
+    onMudar(nova);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final cores = ajustarGrauCoresPersonalizado(
+      maxGraus: maxGraus,
+      coresAtuais: coresAtuais,
+    );
+    return Column(
+      children: List.generate(maxGraus, (i) {
+        final atual = i < cores.length ? cores[i] : '#FFFFFF';
+        final cor = _parseCorFaixa(atual);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: context.c.surface,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => _escolherCor(context, i, cores),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: cor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: context.c.outline),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        l.fxPickColorForDegree(i + 1),
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      l.fxTapToChange,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: context.c.onSurfaceVariant,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+/// Chip de preset — tamanho ajustado ao texto, nunca quebra linha (ao
+/// contrário do `SegmentedButton` de largura igualmente dividida, que
+/// forçava "Oficial IBJJF/CBJJ" a quebrar em 2 linhas).
+class _PresetChip extends StatelessWidget {
+  const _PresetChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? context.c.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? context.c.primary : context.c.outline,
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected ? Colors.black : context.c.onSurface,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CampoCriterio extends StatelessWidget {

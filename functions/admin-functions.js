@@ -12,8 +12,10 @@ const {
   primaryLoginEmail,
   identityForAuthEmail,
   loginHint,
+  decidirAcaoContasCompartilhadas,
 } = require("./domain/access-provisioning");
 const { findProfiles, upsertAccount } = require("./account-functions");
+const { buildSolicitacaoSenhaMensagem } = require("./domain/notifications");
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -98,7 +100,28 @@ async function collectRelatedUids(targetData) {
     }
   }
 
-  return { uids: [...uids], realEmail, phoneCanonical, authEmails };
+  // Autocorreção de drift: um `firebaseUid` salvo no perfil (ou achado em
+  // outro perfil do mesmo contato) pode apontar pra uma conta Auth que não
+  // existe mais (removida manualmente, inconsistência antiga). Sem checar
+  // isso, `adminResetPassword` tentava `updateUser`/`revokeRefreshTokens`
+  // numa conta morta e quebrava com "internal" sem explicação. Verificando
+  // aqui, um uid morto é tratado como "sem conta" — o fluxo normal de
+  // provisionamento (já existente) cria uma conta nova e revincula o mesmo
+  // perfil, sem perder nenhum dado do aluno (nome/faixa/turma/financeiro
+  // continuam intactos, só a credencial de login é recriada).
+  const uidsVerificados = await Promise.all(
+    [...uids].map(async (uid) => {
+      try {
+        await auth.getUser(uid);
+        return uid;
+      } catch (error) {
+        if (error.code === "auth/user-not-found") return null;
+        throw error;
+      }
+    }),
+  );
+
+  return { uids: uidsVerificados.filter(Boolean), realEmail, phoneCanonical, authEmails };
 }
 
 /**
@@ -216,6 +239,50 @@ async function marcarTrocaObrigatoria(uid, authorityNome, callerUid) {
 }
 
 /**
+ * A senha no Firebase Auth é POR CONTA (um único uid) — mas `acesso_senha_temporaria`
+ * fica salvo em cada PERFIL (doc `usuarios`/`funcionarios`) separadamente. Numa
+ * conta compartilhada (grupo familiar — irmãos com o mesmo telefone/e-mail),
+ * redefinir a senha de UM perfil muda a senha real da conta inteira, mas sem
+ * isto só o perfil que a academia estava olhando ficava com o valor novo — o(s)
+ * outro(s) irmão(s) continuavam mostrando uma senha antiga que já não era mais
+ * válida, levando a um "senha incorreta" mesmo copiando certinho o que a ficha
+ * dele mostrava. Grava o mesmo valor em TODO perfil vinculado à conta.
+ */
+async function atualizarSenhaTemporariaEmPerfisVinculados({
+  uid,
+  temporaryPassword,
+  authorityNome,
+  academiaId,
+  colecao,
+  usuarioId,
+}) {
+  const payload = {
+    acesso_senha_temporaria: temporaryPassword,
+    acesso_senha_temporaria_em: FieldValue.serverTimestamp(),
+    acesso_senha_temporaria_por: authorityNome,
+  };
+
+  await db
+    .collection("academias").doc(academiaId)
+    .collection(colecao).doc(usuarioId)
+    .set(payload, { merge: true });
+
+  const contaSnap = await db.collection("usuariosFirebase").doc(uid).get();
+  const refs = Array.isArray(contaSnap.data()?.profile_refs) ? contaSnap.data().profile_refs : [];
+  await Promise.all(
+    refs
+      .filter((r) => !(r.academiaId === academiaId && r.colecao === colecao && r.usuarioId === usuarioId))
+      .map((r) =>
+        db
+          .collection("academias").doc(r.academiaId)
+          .collection(r.colecao).doc(r.usuarioId)
+          .set(payload, { merge: true })
+          .catch(() => {}),
+      ),
+  );
+}
+
+/**
  * Redefine (ou provisiona) a senha de acesso ao app de um aluno/funcionário.
  *
  * - Gera UMA senha temporária e aplica em TODAS as contas Auth do contato
@@ -229,6 +296,46 @@ async function marcarTrocaObrigatoria(uid, authorityNome, callerUid) {
  * A senha só existe na resposta; nunca é persistida em texto claro.
  */
 exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  try {
+    return await executarAdminResetPassword(request);
+  } catch (erro) {
+    if (erro instanceof HttpsError) throw erro;
+    // Qualquer exceção crua do Admin SDK de Auth (conta removida, política
+    // de senha do projeto rejeitando a senha gerada, instabilidade da API)
+    // cai aqui — sem isso, o Functions embrulha num "internal" sem detalhe
+    // nenhum pro cliente E sem nenhum log nosso pra investigar depois, só o
+    // stack automático do Node. Loga com contexto (nunca PII) e devolve uma
+    // mensagem que pelo menos diferencia "sua conta sumiu" de "tente de novo".
+    logger.error("adminResetPassword falhou com erro não tratado", {
+      academiaId: request.data?.academiaId,
+      colecao: request.data?.colecao,
+      usuarioId: request.data?.usuarioId,
+      codigoErro: erro.code || null,
+      mensagemErro: erro.message || String(erro),
+    });
+    if (erro.code === "auth/user-not-found") {
+      throw new HttpsError(
+        "not-found",
+        "A conta de acesso ao app deste perfil não existe mais no Firebase — pode ter sido removida manualmente. Contate o suporte técnico.",
+      );
+    }
+    if (erro.code === "auth/password-does-not-meet-requirements" || erro.code === "auth/invalid-password") {
+      throw new HttpsError(
+        "internal",
+        "A política de senha configurada no projeto está rejeitando a senha temporária gerada pelo sistema — isso precisa de um ajuste de configuração, não é passageiro. Contate o suporte técnico.",
+      );
+    }
+    if (erro.code === "auth/too-many-requests") {
+      throw new HttpsError("resource-exhausted", "Muitas tentativas em sequência. Aguarde alguns minutos e tente novamente.");
+    }
+    throw new HttpsError(
+      "internal",
+      "Não foi possível redefinir a senha agora. Tente novamente em instantes; se persistir, contate o suporte técnico.",
+    );
+  }
+});
+
+async function executarAdminResetPassword(request) {
   if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
     throw new HttpsError("unauthenticated", "É necessário autenticar antes de redefinir uma senha.");
   }
@@ -270,47 +377,100 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
     );
   }
 
-  const temporaryPassword = generateTemporaryPassword((max) => crypto.randomInt(max));
   const alvo = uids.filter((uid) => uid !== request.auth.uid);
-  const contasAtingidas = [];
+  const docUid = targetData.firebaseUid || targetData.firebase_uid;
+  // "outros" são contas de OUTROS cadastros que caíram no grupo só por
+  // coincidência/erro de telefone-e-mail — a própria conta do alvo (se já
+  // provisionada) não conta como conflito.
+  const outros = alvo.filter((uid) => uid !== docUid);
 
-  if (alvo.length === 0) {
-    // Ninguém ainda tem acesso — provisiona.
-    const uid = await provisionAccount({
-      academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical, temporaryPassword,
+  const confirmarSobrescrita = request.data?.confirmarSobrescrita === true;
+  const apenasVincular = request.data?.apenasVincular === true;
+
+  // Bug reportado: cadastrar um aluno novo com o mesmo telefone/e-mail de
+  // outro que já tinha definido a própria senha derrubava o acesso de ambos
+  // (a senha temporária nova sobrescrevia a conta compartilhada sem avisar).
+  // Só checamos isso no provisionamento automático (criação/edição) — nunca
+  // num clique explícito em "Redefinir senha", que já é intencional.
+  let algumJaDefiniuSenha = false;
+  if (outros.length > 0 && motivo !== "redefinicao" && !confirmarSobrescrita && !apenasVincular) {
+    const contas = await Promise.all(
+      outros.map((uid) => db.collection("usuariosFirebase").doc(uid).get()),
+    );
+    algumJaDefiniuSenha = contas.some((snap) => snap.data()?.must_change_password === false);
+  }
+
+  const acao = decidirAcaoContasCompartilhadas({
+    motivo, confirmarSobrescrita, apenasVincular, algumJaDefiniuSenha,
+  });
+
+  if (acao === "bloquear") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Já existe outra pessoa cadastrada com esse telefone ou e-mail, e ela já definiu a própria senha de acesso.",
+      { code: "senha_ja_definida", contas: outros.length },
+    );
+  }
+
+  const contasAtingidas = [];
+  let temporaryPassword = "";
+
+  if (acao === "vincular_sem_senha") {
+    // A academia escolheu não mexer na senha de quem já tem uma — só vincula
+    // este perfil novo à conta existente (compartilham o mesmo login).
+    const uidExistente = outros[0] || alvo[0];
+    const authUserEmail = (await auth.getUser(uidExistente)).email
+      || primaryLoginEmail({ realEmail, phoneCanonical });
+    await linkProfileToAccount({
+      uid: uidExistente, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical,
     });
-    await marcarTrocaObrigatoria(uid, authority.nome, request.auth.uid);
-    contasAtingidas.push(uid);
+    contasAtingidas.push(uidExistente);
   } else {
-    for (const uid of alvo) {
-      await auth.updateUser(uid, { password: temporaryPassword });
-      await auth.revokeRefreshTokens(uid);
+    temporaryPassword = generateTemporaryPassword((max) => crypto.randomInt(max));
+    if (alvo.length === 0) {
+      // Ninguém ainda tem acesso — provisiona.
+      const uid = await provisionAccount({
+        academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical, temporaryPassword,
+      });
       await marcarTrocaObrigatoria(uid, authority.nome, request.auth.uid);
       contasAtingidas.push(uid);
+    } else {
+      for (const uid of alvo) {
+        await auth.updateUser(uid, { password: temporaryPassword });
+        await auth.revokeRefreshTokens(uid);
+        await marcarTrocaObrigatoria(uid, authority.nome, request.auth.uid);
+        contasAtingidas.push(uid);
+      }
+      // O perfil alvo não estava vinculado a nenhuma conta, mas achamos uma
+      // (irmão) — vincula para o login desse perfil funcionar.
+      if (!docUid) {
+        const uid = alvo[0];
+        const authUserEmail = (await auth.getUser(uid)).email || primaryLoginEmail({ realEmail, phoneCanonical });
+        await linkProfileToAccount({
+          uid, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical,
+        });
+      }
     }
-    // O perfil alvo não estava vinculado a nenhuma conta, mas achamos uma
-    // (irmão) — vincula para o login desse perfil funcionar.
-    const docUid = targetData.firebaseUid || targetData.firebase_uid;
-    if (!docUid) {
-      const uid = alvo[0];
-      const authUserEmail = (await auth.getUser(uid)).email || primaryLoginEmail({ realEmail, phoneCanonical });
-      await linkProfileToAccount({
-        uid, authUserEmail, academiaId, colecao, usuarioId, targetData, realEmail, phoneCanonical,
+
+    // A senha temporária fica visível para a academia na ficha do aluno até
+    // ele entrar pela primeira vez e definir a própria senha (quando
+    // `completeMandatoryPasswordChange` a apaga). É forçada a trocar no 1º
+    // login. Atualiza em TODO perfil vinculado a cada conta afetada — numa
+    // conta compartilhada entre irmãos, todos precisam mostrar a senha atual.
+    for (const uidAfetado of contasAtingidas) {
+      await atualizarSenhaTemporariaEmPerfisVinculados({
+        uid: uidAfetado,
+        temporaryPassword,
+        authorityNome: authority.nome,
+        academiaId,
+        colecao,
+        usuarioId,
       });
     }
   }
 
-  // A senha temporária fica visível para a academia na ficha do aluno até ele
-  // entrar pela primeira vez e definir a própria senha (quando
-  // `completeMandatoryPasswordChange` a apaga). É forçada a trocar no 1º login.
-  await targetRef.set({
-    acesso_senha_temporaria: temporaryPassword,
-    acesso_senha_temporaria_em: FieldValue.serverTimestamp(),
-    acesso_senha_temporaria_por: authority.nome,
-  }, { merge: true });
-
   await db.collection("academias").doc(academiaId).collection("auditoria").add({
-    tipo: "redefinicao_senha",
+    tipo: acao === "vincular_sem_senha" ? "vinculo_acesso_sem_senha" : "redefinicao_senha",
     motivo,
     alvo: { colecao, usuarioId, nome: targetData.nome || "" },
     contas_atingidas: contasAtingidas.length,
@@ -324,7 +484,7 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
   });
 
   logger.info("Senha de acesso redefinida/provisionada", {
-    academiaId, colecao, usuarioId, motivo,
+    academiaId, colecao, usuarioId, motivo, acao,
     contasAtingidas: contasAtingidas.length,
     realizadoPor: request.auth.uid,
   });
@@ -334,7 +494,44 @@ exports.adminResetPassword = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) =
     nome: targetData.nome || "",
     loginHint: loginHint({ realEmail, phoneCanonical }, targetData.telefone),
     contas: contasAtingidas.length,
+    vinculadoSemSenha: acao === "vincular_sem_senha",
   };
+}
+
+/**
+ * Verificação PRÉVIA (sem criar/editar nada), usada antes de cadastrar um
+ * aluno: diz se o telefone/e-mail informado já pertence a outra conta que já
+ * completou o primeiro acesso. Existe pra academia poder decidir ANTES de o
+ * cadastro ser criado — cancelar aqui não deixa rastro nenhum, diferente de
+ * cancelar depois do aluno já existir no banco.
+ */
+exports.checkContatoCompartilhado = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar para esta verificação.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+  const authority = await loadCallerAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para esta ação nesta academia.");
+  }
+
+  const telefone = String(request.data?.telefone ?? "").trim();
+  const email = String(request.data?.email ?? "").trim();
+  if (!telefone && !email) return { conflito: false, contas: 0 };
+
+  const { uids } = await collectRelatedUids({ telefone, email });
+  const outros = uids.filter((uid) => uid !== request.auth.uid);
+  if (outros.length === 0) return { conflito: false, contas: 0 };
+
+  const contas = await Promise.all(
+    outros.map((uid) => db.collection("usuariosFirebase").doc(uid).get()),
+  );
+  const conflito = contas.some((snap) => snap.data()?.must_change_password === false);
+  return { conflito, contas: outros.length };
 });
 
 exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
@@ -371,6 +568,76 @@ exports.completeMandatoryPasswordChange = onCall(IDENTITY_FUNCTION_OPTIONS, asyn
         acesso_senha_temporaria_por: FieldValue.delete(),
       }, { merge: true })
       .catch(() => {});
+  }));
+
+  return { ok: true };
+});
+
+/**
+ * Fluxo novo de "esqueci minha senha" do aluno: em vez de mandar e-mail (que
+ * nunca chega pra quem loga por telefone, via e-mail sintético @sensei.app),
+ * vira uma SOLICITAÇÃO que aparece no sino de notificações da academia. A
+ * academia clica, cai na ficha do aluno e usa "Redefinir senha" (já existe).
+ *
+ * Pública de propósito (sem `request.auth`) — a pessoa ainda não tem sessão
+ * nesse ponto, igual a `discoverAccessProfiles`. Nunca revela se o telefone/
+ * e-mail existe: sempre responde `{ ok: true }`.
+ */
+exports.requestPasswordReset = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  const identifier = String(request.data?.identifier ?? "").trim();
+  if (!identifier) return { ok: true };
+
+  let profiles = [];
+  try {
+    ({ profiles } = await findProfiles(identifier));
+  } catch (error) {
+    // Identificador não reconhecido (nem telefone nem e-mail válido) — não
+    // é erro do ponto de vista de quem chamou, só não há o que notificar.
+    if (error.code === "invalid-argument") return { ok: true };
+    throw error;
+  }
+
+  // Só o público que hoje usa esse fluxo (login "aluno"): perfis de aluno na
+  // coleção `usuarios`. Autoatendimento de Admin/Secretaria/Professor fica de
+  // fora por ora — continuam com o link por e-mail já existente.
+  const alunos = profiles.filter(
+    (p) => p.colecao === "usuarios" && p.perfil_nome === "Aluno",
+  );
+  if (alunos.length === 0) return { ok: true };
+
+  // Telefone/e-mail compartilhado por mais de um aluno (irmãos usando o
+  // telefone dos pais, por exemplo) — agrupa numa única notificação por
+  // academia em vez de uma por aluno, senão a academia via 3 alertas
+  // separados pro mesmo pedido.
+  const porAcademia = new Map();
+  for (const perfil of alunos) {
+    if (!porAcademia.has(perfil.academiaId)) porAcademia.set(perfil.academiaId, []);
+    porAcademia.get(perfil.academiaId).push(perfil);
+  }
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const identifierSafe = identifier.replace(/[^A-Za-z0-9_.@-]/g, "_");
+  await Promise.all([...porAcademia.entries()].map(async ([academiaId, perfis]) => {
+    const ref = db
+      .collection("academias").doc(academiaId)
+      .collection("notificacoes").doc(`senha_${identifierSafe}_${hojeStr}`);
+    // ID determinístico por dia (por academia + identificador): se a pessoa
+    // clicar várias vezes, não reabre/duplica a notificação nem desfaz um
+    // "já li" que a academia já tenha dado — só a primeira solicitação do
+    // dia gera o alerta.
+    const existente = await ref.get();
+    if (existente.exists) return;
+    await ref.set({
+      titulo: "Solicitação de nova senha",
+      mensagem: buildSolicitacaoSenhaMensagem(perfis.map((p) => p.nome)),
+      tipo: "solicitacao_senha",
+      colecao: "usuarios",
+      ...(perfis.length === 1
+        ? { usuario_id: perfis[0].usuarioId }
+        : { usuario_ids: perfis.map((p) => p.usuarioId) }),
+      lida: false,
+      criado_em: FieldValue.serverTimestamp(),
+    });
   }));
 
   return { ok: true };

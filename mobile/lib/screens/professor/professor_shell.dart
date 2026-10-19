@@ -261,6 +261,16 @@ class _ProfessorShellState extends State<ProfessorShell>
                       onTap: () => _navegar(item.idx),
                     ),
                   const Divider(height: 24),
+                  if (_temPermissao('tela_relatorio_presencas'))
+                    _DrawerItem(
+                      icon: Icons.fact_check_rounded,
+                      label: context.l10n.rpTitle,
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        context.push('/relatorio-presencas-oficial');
+                      },
+                    ),
                   _DrawerItem(
                     icon: Icons.newspaper_rounded,
                     label: context.l10n.profNewsAcademy,

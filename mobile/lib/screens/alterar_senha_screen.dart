@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/constants.dart';
+import '../core/theme/context_ext.dart';
+import '../l10n/app_localizations.dart';
 
 class AlterarSenhaScreen extends StatefulWidget {
   const AlterarSenhaScreen({super.key});
@@ -31,10 +32,12 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    final l = context.l10n;
     setState(() => _salvando = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null || user.email == null) throw Exception('Não autenticado');
+      if (user == null || user.email == null)
+        throw Exception('Não autenticado');
 
       // Reautentica com a senha atual antes de alterar
       final credential = EmailAuthProvider.credential(
@@ -47,8 +50,8 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Senha alterada com sucesso!'),
-          backgroundColor: kSuccess,
+          content: Text(l.changePwSuccess),
+          backgroundColor: context.sem.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -59,19 +62,27 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
       switch (e.code) {
         case 'wrong-password':
         case 'invalid-credential':
-          msg = 'Senha atual incorreta.';
+          msg = l.changePwErrWrongCurrent;
         case 'weak-password':
-          msg = 'A nova senha é muito fraca.';
+          msg = l.changePwErrWeak;
         default:
-          msg = 'Erro ao alterar senha. Tente novamente.';
+          msg = l.changePwErrGeneric;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: ${e.toString()}'), backgroundColor: kDanger, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text('Erro: ${e.toString()}'),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _salvando = false);
@@ -80,19 +91,28 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: context.c.surface,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: context.c.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: kText1, size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.c.onSurface,
+            size: 20,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Alterar Senha',
-          style: TextStyle(color: kText1, fontSize: 17, fontWeight: FontWeight.w800),
+          l.changePwTitle,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -106,62 +126,72 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: kPrimary.withOpacity(0.08),
+                  color: context.c.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kPrimary.withOpacity(0.2)),
+                  border: Border.all(
+                    color: context.c.primary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.lock_outline_rounded, color: kPrimary, size: 18),
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      color: context.c.primary,
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Use no mínimo 6 caracteres com letras e números.',
-                        style: TextStyle(color: kText2, fontSize: 12),
+                        l.changePwHint,
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 28),
-              _label('Senha atual'),
+              _label(context, l.changePwCurrentLabel),
               const SizedBox(height: 6),
               _SenhaField(
                 controller: _atualCtrl,
-                hint: 'Digite sua senha atual',
+                hint: l.changePwCurrentHint,
                 ocultar: _ocultarAtual,
                 onToggle: () => setState(() => _ocultarAtual = !_ocultarAtual),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Obrigatório';
+                  if (v == null || v.isEmpty) return l.commonRequiredField;
                   return null;
                 },
               ),
               const SizedBox(height: 20),
-              _label('Nova senha'),
+              _label(context, l.changePwNewLabel),
               const SizedBox(height: 6),
               _SenhaField(
                 controller: _novaCtrl,
-                hint: 'Digite a nova senha',
+                hint: l.changePwNewHint,
                 ocultar: _ocultarNova,
                 onToggle: () => setState(() => _ocultarNova = !_ocultarNova),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Obrigatório';
-                  if (v.length < 6) return 'Mínimo 6 caracteres';
-                  if (v == _atualCtrl.text) return 'A nova senha deve ser diferente da atual';
+                  if (v == null || v.isEmpty) return l.commonRequiredField;
+                  if (v.length < 6) return l.changePwErrMinLength;
+                  if (v == _atualCtrl.text) return l.changePwMustBeDifferent;
                   return null;
                 },
               ),
               const SizedBox(height: 20),
-              _label('Confirmar nova senha'),
+              _label(context, l.changePwConfirmLabel),
               const SizedBox(height: 6),
               _SenhaField(
                 controller: _confirmarCtrl,
-                hint: 'Repita a nova senha',
+                hint: l.changePwConfirmHint,
                 ocultar: _ocultarConfirmar,
-                onToggle: () => setState(() => _ocultarConfirmar = !_ocultarConfirmar),
+                onToggle: () =>
+                    setState(() => _ocultarConfirmar = !_ocultarConfirmar),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Obrigatório';
-                  if (v != _novaCtrl.text) return 'As senhas não coincidem';
+                  if (v == null || v.isEmpty) return l.commonRequiredField;
+                  if (v != _novaCtrl.text) return l.changePwErrMismatch;
                   return null;
                 },
               ),
@@ -171,20 +201,28 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
                 child: ElevatedButton(
                   onPressed: _salvando ? null : _salvar,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
+                    backgroundColor: context.c.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: _salvando
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text(
-                          'Alterar Senha',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      : Text(
+                          l.changePwTitle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                 ),
               ),
@@ -195,10 +233,15 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
     );
   }
 
-  Widget _label(String t) => Text(
-        t,
-        style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.3),
-      );
+  Widget _label(BuildContext context, String t) => Text(
+    t,
+    style: TextStyle(
+      color: context.c.onSurfaceVariant,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.3,
+    ),
+  );
 }
 
 class _SenhaField extends StatelessWidget {
@@ -222,27 +265,52 @@ class _SenhaField extends StatelessWidget {
       controller: controller,
       obscureText: ocultar,
       validator: validator,
-      style: TextStyle(color: kText1, fontSize: 15),
+      style: TextStyle(color: context.c.onSurface, fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: kText2.withOpacity(0.6), fontSize: 14),
-        prefixIcon: Icon(Icons.lock_rounded, color: kText2, size: 18),
+        hintStyle: TextStyle(
+          color: context.c.onSurfaceVariant.withValues(alpha: 0.6),
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(
+          Icons.lock_rounded,
+          color: context.c.onSurfaceVariant,
+          size: 18,
+        ),
         suffixIcon: IconButton(
           onPressed: onToggle,
           icon: Icon(
             ocultar ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: kText2,
+            color: context.c.onSurfaceVariant,
             size: 18,
           ),
         ),
         filled: true,
-        fillColor: kSurface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kPrimary, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kDanger, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: context.c.surfaceContainer,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.c.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.c.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.c.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.sem.danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.sem.danger, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }

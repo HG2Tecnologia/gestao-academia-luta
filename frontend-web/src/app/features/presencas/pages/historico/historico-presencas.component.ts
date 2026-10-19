@@ -7,6 +7,7 @@ import { PresencaService } from '../../../../core/services/presenca.service';
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { PresencaDto } from '../../../../core/models/presenca.model';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 
 @Component({
   selector: 'app-historico-presencas',
@@ -24,8 +25,8 @@ export class HistoricoPresencasComponent implements OnDestroy {
   readonly mostrarSugestoes = signal(false);
   readonly buscandoAluno = signal(false);
 
-  readonly de = signal(new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]);
-  readonly ate = signal(new Date().toISOString().split('T')[0]);
+  readonly de = signal(dataLocalISO(new Date(Date.now() - 30 * 86400000)));
+  readonly ate = signal(dataLocalISO());
   readonly presencas = signal<PresencaDto[]>([]);
   readonly carregando = signal(false);
   readonly erro = signal('');

@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/ad_service.dart';
 import 'core/app_settings.dart';
@@ -57,6 +58,7 @@ import 'screens/aluno/aluno_graduacoes_screen.dart';
 import 'screens/aluno/aluno_conquistas_screen.dart';
 import 'screens/alterar_senha_screen.dart';
 import 'screens/shared/qr_scan_screen.dart';
+import 'screens/shared/relatorio_presencas_screen.dart';
 import 'screens/noticias_screen.dart';
 import 'screens/admin/admin_noticias_screen.dart';
 import 'screens/admin/grupos_familiares_screen.dart';
@@ -95,6 +97,7 @@ Future<void> _conectarEmuladores() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting();
   await loadAppSettings();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (_kUseFirebaseEmulator) await _conectarEmuladores();
@@ -134,6 +137,10 @@ final _router = GoRouter(
     ),
     GoRoute(path: '/scan-qr', builder: (_, __) => const QrScanScreen()),
     GoRoute(path: '/noticias', builder: (_, __) => const NoticiasScreen()),
+    GoRoute(
+      path: '/relatorio-presencas-oficial',
+      builder: (_, __) => const RelatorioPresencasScreen(),
+    ),
     GoRoute(
       path: '/admin/noticias',
       builder: (_, __) => const AdminNoticiasScreen(),

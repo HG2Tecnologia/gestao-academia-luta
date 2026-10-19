@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "ttXo8RyfybE=",
+  "dgSpecHash": "C00v3KgrTyM=",
   "success": true,
-  "projectFilePath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj",
+  "projectFilePath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.API/AcademiaFight.API.csproj",
   "expectedPackageFiles": [
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/bcrypt.net-next/4.0.3/bcrypt.net-next.4.0.3.nupkg.sha512",
     "/Users/gabrielfornydesouzamuniz/.nuget/packages/dapper/2.0.123/dapper.2.0.123.nupkg.sha512",

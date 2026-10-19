@@ -481,9 +481,12 @@ class _AdminPesquisaTemplatesScreenState
               ),
               Switch(
                 value: ativa,
-                activeColor: context.c.primary,
                 onChanged: (_) => _toggleAtivo(t),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                activeThumbColor: Colors.white,
+                activeTrackColor: context.c.primary,
+                inactiveThumbColor: context.c.surface,
+                inactiveTrackColor: context.c.outline,
               ),
             ],
           ),

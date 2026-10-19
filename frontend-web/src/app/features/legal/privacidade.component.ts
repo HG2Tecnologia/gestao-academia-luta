@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ConsentService } from '../../core/services/consent.service';
 
 @Component({
   selector: 'app-privacidade',
@@ -10,7 +11,7 @@ import { RouterLink } from '@angular/router';
       <div class="legal-container">
         <a routerLink="/" class="back-link">← Voltar</a>
         <h1>Política de Privacidade</h1>
-        <p class="updated">Última atualização: 17 de junho de 2026</p>
+        <p class="updated">Última atualização: 13 de outubro de 2026</p>
 
         <section>
           <h2>1. Quem somos</h2>
@@ -33,6 +34,16 @@ import { RouterLink } from '@angular/router';
             <li>Logs de acesso (data/hora de login, IP)</li>
             <li>Dados de presença e frequência nas aulas</li>
           </ul>
+          <h3>2.3 Cookies, armazenamento local e mensuração de campanhas</h3>
+          <p>No site público do Sensei Manager (<strong>sensei-crm.web.app</strong>), usamos:</p>
+          <ul>
+            <li><strong>Essenciais (sempre ativos):</strong> mantêm sua sessão de login e preferências básicas do sistema. Não exigem consentimento porque o site não funciona sem eles.</li>
+            <li><strong>Análise (Google Analytics), opcional:</strong> usados só com sua permissão, pra entender quantas pessoas visitam o site e quais páginas usam.</li>
+            <li><strong>Publicidade (Google Ads), opcional:</strong> usados só com sua permissão, pra medir se uma campanha de anúncio resultou num cadastro.</li>
+            <li><strong>Personalização, opcional:</strong> hoje não é usado para nenhum tratamento ativo — a opção existe no painel de preferências para cobrir usos futuros, caso venham a existir.</li>
+          </ul>
+          <p>Quando você chega ao site a partir de um link de campanha (ex.: um anúncio), podemos guardar, só com sua permissão de análise, informações sobre a origem dessa visita (de qual campanha e canal você veio) associadas à academia que você cadastrar — nunca ao seu nome, e-mail ou telefone. Essa informação fica numa área separada e restrita do nosso banco de dados, sem acesso nem pela própria equipe da academia, e é mantida por até <strong>90 dias</strong>, depois excluída automaticamente.</p>
+          <p>Você escolhe suas preferências no banner que aparece na primeira visita, pode recusar tudo que for opcional, e pode mudar de ideia a qualquer momento pelo botão <button type="button" class="link-btn" (click)="consent.abrirPreferencias()">Revisar preferências de cookies</button> nesta página.</p>
         </section>
 
         <section>
@@ -152,6 +163,17 @@ import { RouterLink } from '@angular/router';
     }
     li { margin-bottom: 4px; }
     strong { color: #f1f5f9; }
+    .link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #c9a020;
+      text-decoration: underline;
+      font: inherit;
+      cursor: pointer;
+    }
   `],
 })
-export class PrivacidadeComponent {}
+export class PrivacidadeComponent {
+  readonly consent = inject(ConsentService);
+}

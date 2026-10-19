@@ -8,8 +8,11 @@ const { FieldValue } = require("firebase-admin/firestore");
 const {
   addBillingMonths,
   dueDateForPeriod,
+  modalityChargeDocumentId,
+  monthLabelPtBr,
   monthlyChargeDocumentId,
   parseBillingPeriod,
+  resolveDuplicateGroup,
 } = require("./domain/billing");
 
 const db = admin.firestore();
@@ -43,16 +46,45 @@ async function loadFinanceAuthority(callerUid, academiaId) {
  * criação é condicionada, dentro de uma transação, à ausência prévia do
  * documento. Chamar de novo para a mesma competência é sempre seguro.
  */
-async function ensureChargesForPeriodCore(academiaId, periodValue) {
-  const period = parseBillingPeriod(periodValue).value;
+/**
+ * Cria (se ainda não existir) o doc de cobrança em `pagamentos` + a
+ * notificação correspondente, dentro de uma transação — mesmo mecanismo de
+ * idempotência pros dois modos de cobrança (`chargeId` determinístico).
+ */
+async function criarCobrancaSeNecessario(academiaId, chargeId, chargeData) {
+  const chargeRef = db.collection("academias").doc(academiaId).collection("pagamentos").doc(chargeId);
 
-  const [alunosSnap, planosSnap] = await Promise.all([
-    db.collection("academias").doc(academiaId).collection("usuarios").where("ativo", "==", true).get(),
-    db.collection("academias").doc(academiaId).collection("planos").get(),
-  ]);
+  const criado = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(chargeRef);
+    if (snapshot.exists) return false;
+    transaction.create(chargeRef, { id: chargeId, ...chargeData });
+    return true;
+  });
 
-  const planosPorId = new Map();
-  for (const doc of planosSnap.docs) planosPorId.set(doc.id, doc.data());
+  if (criado) {
+    await db
+      .collection("academias").doc(academiaId)
+      .collection("notificacoes").doc(`cobranca_${chargeId}`)
+      .set({
+        titulo: "Nova mensalidade gerada",
+        mensagem: `Sua mensalidade de ${monthLabelPtBr(chargeData.mes_referencia)} (R$ ${Number(chargeData.valor).toFixed(2).replace(".", ",")}) já está disponível.`,
+        tipo: "cobranca_gerada",
+        aluno_id: chargeData.aluno_id,
+        lida: false,
+        criado_em: FieldValue.serverTimestamp(),
+      });
+  }
+  return criado;
+}
+
+/**
+ * Modelo legado: 1 plano escalar por aluno (`aluno.plano_id`), 1 cobrança
+ * por mês. Continua sendo o único caminho pra qualquer academia que não
+ * tenha ativado `cobranca_por_modalidade_ativa` — nada aqui muda.
+ */
+async function ensureChargesLegado(academiaId, period, alunosSnap) {
+  const planosSnap = await db.collection("academias").doc(academiaId).collection("planos").get();
+  const planosPorId = new Map(planosSnap.docs.map((doc) => [doc.id, doc.data()]));
 
   let criadas = 0;
   let ignoradas = 0;
@@ -68,33 +100,101 @@ async function ensureChargesForPeriodCore(academiaId, periodValue) {
     const diaVencimento = Number.isInteger(aluno.dia_vencimento) ? aluno.dia_vencimento : DEFAULT_DUE_DAY;
     const valor = Number(plano.valor_mensal ?? 0);
     const chargeId = monthlyChargeDocumentId(alunoId, period);
-    const chargeRef = db.collection("academias").doc(academiaId).collection("pagamentos").doc(chargeId);
 
-    const criado = await db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(chargeRef);
-      if (snapshot.exists) return false;
-      transaction.create(chargeRef, {
-        id: chargeId,
-        aluno_id: alunoId,
-        aluno_nome: aluno.nome || "",
-        plano_id: planoId,
-        plano_nome: plano.nome || "",
-        tipo: "Mensalidade",
-        valor,
-        data_vencimento: dueDateForPeriod(period, diaVencimento),
-        status: 0,
-        mes_referencia: period,
-        origem: "auto",
-        criado_em: FieldValue.serverTimestamp(),
-      });
-      return true;
+    const criado = await criarCobrancaSeNecessario(academiaId, chargeId, {
+      aluno_id: alunoId,
+      aluno_nome: aluno.nome || "",
+      plano_id: planoId,
+      plano_nome: plano.nome || "",
+      tipo: "Mensalidade",
+      valor,
+      data_vencimento: dueDateForPeriod(period, diaVencimento),
+      status: 0,
+      mes_referencia: period,
+      origem: "auto",
+      criado_em: FieldValue.serverTimestamp(),
     });
-
-    if (criado) criadas++;
-    else ignoradas++;
+    criado ? criadas++ : ignoradas++;
   }
 
-  return { period, criadas, ignoradas };
+  return { criadas, ignoradas };
+}
+
+/**
+ * Modelo opt-in (`cobranca_por_modalidade_ativa == true`): 1 cobrança por
+ * modalidade matriculada em `planos_modalidade`, cada uma com seu próprio
+ * plano/valor/vencimento — nunca lê `aluno.plano_id` nesse modo, pra não
+ * gerar cobrança duplicada combinando os dois modelos.
+ */
+async function ensureChargesPorModalidade(academiaId, period, alunosSnap) {
+  const alunosPorId = new Map(alunosSnap.docs.map((doc) => [doc.id, doc.data()]));
+
+  const [planosSnap, planosModalidadeSnap, modalidadesSnap] = await Promise.all([
+    db.collection("academias").doc(academiaId).collection("planos").get(),
+    db.collection("academias").doc(academiaId).collection("planos_modalidade")
+      .where("ativo", "==", true).get(),
+    db.collection("academias").doc(academiaId).collection("modalidades").get(),
+  ]);
+  const planosPorId = new Map(planosSnap.docs.map((doc) => [doc.id, doc.data()]));
+  const modalidadesPorId = new Map(modalidadesSnap.docs.map((doc) => [doc.id, doc.data()]));
+
+  let criadas = 0;
+  let ignoradas = 0;
+
+  for (const doc of planosModalidadeSnap.docs) {
+    const matricula = doc.data();
+    const alunoId = String(matricula.aluno_id ?? "").trim();
+    const modalidadeId = String(matricula.modalidade_id ?? "").trim();
+    const planoId = String(matricula.plano_id ?? "").trim();
+    if (!alunoId || !modalidadeId || !planoId) continue;
+
+    const aluno = alunosPorId.get(alunoId);
+    if (!aluno) continue; // aluno inativo/inexistente: não cobra.
+    const plano = planosPorId.get(planoId);
+    if (!plano) continue;
+
+    const diaVencimento = Number.isInteger(matricula.dia_vencimento)
+      ? matricula.dia_vencimento
+      : DEFAULT_DUE_DAY;
+    const valor = Number(plano.valor_mensal ?? 0);
+    const chargeId = modalityChargeDocumentId(alunoId, modalidadeId, period);
+    const modalidadeNome = modalidadesPorId.get(modalidadeId)?.nome || "";
+
+    const criado = await criarCobrancaSeNecessario(academiaId, chargeId, {
+      aluno_id: alunoId,
+      aluno_nome: aluno.nome || "",
+      modalidade_id: modalidadeId,
+      modalidade_nome: modalidadeNome,
+      plano_id: planoId,
+      plano_nome: plano.nome || "",
+      tipo: "Mensalidade",
+      valor,
+      data_vencimento: dueDateForPeriod(period, diaVencimento),
+      status: 0,
+      mes_referencia: period,
+      origem: "auto",
+      criado_em: FieldValue.serverTimestamp(),
+    });
+    criado ? criadas++ : ignoradas++;
+  }
+
+  return { criadas, ignoradas };
+}
+
+async function ensureChargesForPeriodCore(academiaId, periodValue) {
+  const period = parseBillingPeriod(periodValue).value;
+
+  const [academiaSnap, alunosSnap] = await Promise.all([
+    db.collection("academias").doc(academiaId).get(),
+    db.collection("academias").doc(academiaId).collection("usuarios").where("ativo", "==", true).get(),
+  ]);
+
+  const cobrancaPorModalidadeAtiva = academiaSnap.data()?.cobranca_por_modalidade_ativa === true;
+  const resultado = cobrancaPorModalidadeAtiva
+    ? await ensureChargesPorModalidade(academiaId, period, alunosSnap)
+    : await ensureChargesLegado(academiaId, period, alunosSnap);
+
+  return { period, ...resultado };
 }
 
 exports.ensureChargesForPeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
@@ -157,4 +257,300 @@ exports.gerarMensalidadesAutomaticas = onSchedule(
   },
 );
 
-exports._test = { ensureChargesForPeriodCore, loadFinanceAuthority };
+/**
+ * Desconsidera (nunca exclui, nunca marca como paga) toda cobrança com
+ * competência ANTERIOR a `periodValue` — usado para "limpar" pendências
+ * retroativas geradas por engano (ex.: bug de geração de mensalidade para
+ * meses em que o aluno nem estava com o plano ativo). Cobrança já paga
+ * (status 1) ou já desconsiderada (status 4) nunca é tocada — preserva
+ * histórico de receita e é idempotente para reprocessamento.
+ */
+async function disregardChargesBeforePeriodCore(academiaId, periodValue) {
+  const period = parseBillingPeriod(periodValue).value;
+
+  const snap = await db
+    .collection("academias")
+    .doc(academiaId)
+    .collection("pagamentos")
+    .where("mes_referencia", "<", period)
+    .get();
+
+  let desconsideradas = 0;
+  let ignoradas = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400; // margem sob o limite de 500 do Firestore
+
+  for (const doc of snap.docs) {
+    const status = doc.data().status;
+    if (status === 1 || status === 4) {
+      ignoradas++;
+      continue;
+    }
+    batch.update(doc.ref, {
+      status: 4,
+      desconsiderado_em: FieldValue.serverTimestamp(),
+      desconsiderado_motivo: "limpeza_retroativa",
+    });
+    desconsideradas++;
+    opsNoBatch++;
+    if (opsNoBatch >= TAMANHO_LOTE) {
+      await batch.commit();
+      batch = db.batch();
+      opsNoBatch = 0;
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { period, desconsideradas, ignoradas };
+}
+
+exports.disregardChargesBeforePeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de limpar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  const periodValue = String(request.data?.period ?? "").trim();
+  if (!academiaId || !periodValue) {
+    throw new HttpsError("invalid-argument", "Informe a academia e a competência de corte (YYYY-MM).");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  let result;
+  try {
+    result = await disregardChargesBeforePeriodCore(academiaId, periodValue);
+  } catch (error) {
+    if (error instanceof TypeError) throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+
+  logger.info("Cobranças retroativas desconsideradas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
+function mesReferenciaEfetiva(pagamento) {
+  const direto = String(pagamento.mes_referencia ?? "").trim();
+  if (/^\d{4}-\d{2}$/.test(direto)) return direto;
+  const venc = String(pagamento.data_vencimento ?? "");
+  const match = /^(\d{4}-\d{2})/.exec(venc);
+  return match ? match[1] : null;
+}
+
+// Mensalidade "de verdade" — o que pode duplicar por engano. Cobrança avulsa
+// (`tipo` como "Taxa de Matrícula") ou taxa de graduação (`tipo` numérico)
+// legitimamente coexiste com a mensalidade no mesmo mês; nunca é considerada
+// duplicata. Documentos antigos, gerados pelo caminho ad-hoc já removido do
+// app (sem `tipo` nenhum), são tratados como mensalidade — é exatamente o
+// formato do bug que gerou as duplicatas reais em produção.
+function eMensalidade(pagamento) {
+  const tipo = pagamento.tipo;
+  return tipo === undefined || tipo === null || tipo === "Mensalidade";
+}
+
+/**
+ * Acha grupos de mensalidade duplicada (mesmo aluno + mesma competência, mais
+ * de um documento ativo) e resolve automaticamente os casos inequívocos,
+ * mantendo sempre UM documento por aluno/mês e desconsiderando (nunca
+ * excluindo, nunca marcando como paga) os demais:
+ *
+ *  * Se exatamente um dos duplicados está `Pago`, esse é o que fica — os
+ *    outros (nunca pagos de verdade) viram Desconsiderado.
+ *  * Se nenhum está pago, fica o de ID determinístico
+ *    (`mensalidade__{aluno}__{mês}`, o gerado pelo caminho oficial) ou, na
+ *    falta desse, o mais antigo — os demais viram Desconsiderado.
+ *  * Se DOIS OU MAIS estão `Pago`, o grupo é ignorado (fica para revisão
+ *    manual) — decidir sozinho ali apagaria receita já recebida de verdade,
+ *    o que exige critério humano, não automação.
+ */
+async function mergeDuplicateChargesCore(academiaId) {
+  const snap = await db.collection("academias").doc(academiaId).collection("pagamentos").get();
+
+  const grupos = new Map(); // "alunoId|mes[|modalidadeId]" -> [{ref, data}]
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (data.status === 4) continue; // já desconsiderada: não conta pra duplicidade
+    if (!eMensalidade(data)) continue;
+    const alunoId = String(data.aluno_id ?? "").trim();
+    const mes = mesReferenciaEfetiva(data);
+    if (!alunoId || !mes) continue;
+    // Com cobrança por modalidade ativa, o mesmo aluno pode ter várias
+    // cobranças legítimas no mesmo mês (uma por modalidade) — sem o segmento
+    // de modalidade na chave, elas seriam tratadas como duplicata uma da
+    // outra e uma delas seria desconsiderada por engano.
+    const modalidadeId = String(data.modalidade_id ?? "").trim();
+    const chave = modalidadeId ? `${alunoId}|${mes}|${modalidadeId}` : `${alunoId}|${mes}`;
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push({ ref: doc.ref, data });
+  }
+
+  let gruposComDuplicata = 0;
+  let resolvidasAutomaticamente = 0;
+  let ignoradasRevisaoManual = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400;
+
+  for (const docs of grupos.values()) {
+    if (docs.length < 2) continue;
+    gruposComDuplicata++;
+
+    const refPorId = new Map(docs.map((d) => [d.ref.id, d.ref]));
+    const decisao = resolveDuplicateGroup(
+      docs.map((d) => ({
+        id: d.ref.id,
+        status: d.data.status,
+        criadoEmMillis: d.data.criado_em?.toMillis?.() ?? 0,
+      })),
+    );
+
+    if (decisao.ignorar) {
+      ignoradasRevisaoManual++;
+      continue;
+    }
+
+    for (const id of decisao.desconsiderarIds) {
+      batch.update(refPorId.get(id), {
+        status: 4,
+        desconsiderado_em: FieldValue.serverTimestamp(),
+        desconsiderado_motivo: "duplicata_mensalidade",
+      });
+      resolvidasAutomaticamente++;
+      opsNoBatch++;
+      if (opsNoBatch >= TAMANHO_LOTE) {
+        await batch.commit();
+        batch = db.batch();
+        opsNoBatch = 0;
+      }
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { gruposComDuplicata, resolvidasAutomaticamente, ignoradasRevisaoManual };
+}
+
+/**
+ * Varre cobranças ainda PENDENTES (`status === 0`, inclui as já vencidas —
+ * "Atrasado" é só um estado derivado, nunca persistido) e desconsidera as
+ * que ficaram órfãs:
+ *
+ *  * `plano_id` preenchido mas o plano foi excluído (`ativo !== true` ou o
+ *    doc nem existe mais).
+ *  * `modalidade_id` preenchido mas o aluno não tem mais um
+ *    `planos_modalidade` ativo pra essa modalidade (foi desvinculado).
+ *
+ * Nunca toca em cobrança paga, prevista, desconsiderada, ou em cobrança
+ * avulsa sem plano (`tipo === "Taxa de Matrícula"`) — só mensalidade
+ * pendente realmente travada num plano/vínculo que não existe mais.
+ */
+async function limparCobrancasOrfasCore(academiaId) {
+  const academiaRef = db.collection("academias").doc(academiaId);
+  const [pagamentosSnap, planosSnap, planosModalidadeSnap] = await Promise.all([
+    academiaRef.collection("pagamentos").where("status", "==", 0).get(),
+    academiaRef.collection("planos").get(),
+    academiaRef.collection("planos_modalidade").where("ativo", "==", true).get(),
+  ]);
+
+  const planosAtivos = new Set(
+    planosSnap.docs.filter((d) => d.data().ativo === true).map((d) => d.id),
+  );
+  const vinculosAtivos = new Set(
+    planosModalidadeSnap.docs.map(
+      (d) => `${String(d.data().aluno_id ?? "")}|${String(d.data().modalidade_id ?? "")}`,
+    ),
+  );
+
+  let analisadas = 0;
+  let canceladas = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400;
+
+  for (const doc of pagamentosSnap.docs) {
+    const data = doc.data();
+    if (!eMensalidade(data)) continue;
+    analisadas++;
+
+    const planoId = String(data.plano_id ?? "").trim();
+    const modalidadeId = String(data.modalidade_id ?? "").trim();
+    const alunoId = String(data.aluno_id ?? "").trim();
+
+    let motivo = null;
+    if (planoId && !planosAtivos.has(planoId)) {
+      motivo = "plano_removido";
+    } else if (modalidadeId && alunoId && !vinculosAtivos.has(`${alunoId}|${modalidadeId}`)) {
+      motivo = "aluno_desvinculado_modalidade";
+    }
+    if (!motivo) continue;
+
+    batch.update(doc.ref, {
+      status: 4,
+      desconsiderado_em: FieldValue.serverTimestamp(),
+      desconsiderado_motivo: motivo,
+    });
+    canceladas++;
+    opsNoBatch++;
+    if (opsNoBatch >= TAMANHO_LOTE) {
+      await batch.commit();
+      batch = db.batch();
+      opsNoBatch = 0;
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { cobrancasAnalisadas: analisadas, cobrancasCanceladas: canceladas };
+}
+
+exports.limparCobrancasOrfas = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de limpar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await limparCobrancasOrfasCore(academiaId);
+
+  logger.info("Cobranças órfãs limpas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
+exports.mergeDuplicateCharges = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de corrigir duplicatas.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await mergeDuplicateChargesCore(academiaId);
+
+  logger.info("Mensalidades duplicadas corrigidas", { academiaId, ...result, chamadoPor: request.auth.uid });
+  return { ok: true, ...result };
+});
+
+exports._test = {
+  ensureChargesForPeriodCore,
+  disregardChargesBeforePeriodCore,
+  mergeDuplicateChargesCore,
+  limparCobrancasOrfasCore,
+  loadFinanceAuthority,
+};

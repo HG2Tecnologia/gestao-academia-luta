@@ -1,0 +1,1300 @@
+{
+  "totals": {
+    "academias": 3,
+    "alunosSemPlano": 84,
+    "auto": 53,
+    "manual": 31
+  },
+  "detalhes": [
+    {
+      "academiaId": "6QYvMKt54gHjWh0NoUGY",
+      "nome": "equipe Costa viu",
+      "alunos": [
+        {
+          "alunoId": "8ghQAS01nHcwE6AaPHt0",
+          "nome": "Giovani de Sá Milhar",
+          "modalidades": [
+            {
+              "id": "htKll1anLy7SOyBBKgbt",
+              "nome": "Jiu-Jitsu Infantil"
+            }
+          ],
+          "planoLegado": {
+            "id": "izA4blheDaOwUamQcgTK",
+            "nome": "jiu-jítsu adulto (17-60) anos",
+            "valorMensal": 90
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "QkhqUIYKwCVaT473EFwC",
+          "nome": "Theo Boaventura de Figueiredo",
+          "modalidades": [
+            {
+              "id": "htKll1anLy7SOyBBKgbt",
+              "nome": "Jiu-Jitsu Infantil"
+            }
+          ],
+          "planoLegado": {
+            "id": "tFhntgl4VzWm0ghmtmdu",
+            "nome": "jiu-jítsu Infantil (04-16)",
+            "valorMensal": 80
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "k1pZyvQz6FtpgTobrazh",
+          "nome": "Marcus Costa",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        }
+      ]
+    },
+    {
+      "academiaId": "NfJLlek5nNTDhr9iW82G",
+      "nome": "Forny School",
+      "alunos": [
+        {
+          "alunoId": "11mklC7ViXDyvRn5E0jW",
+          "nome": "Gabriel Forny",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "DRfArLvQCZSXqn8ckfHs",
+          "nome": "Henrique Muniz",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "FOOoYXKiVTJlYY0mINy6",
+          "nome": "Bruno Muniz",
+          "modalidades": [],
+          "planoLegado": {
+            "id": "PUOMttpQ9oMzAUHkAASl",
+            "nome": "Mensal",
+            "valorMensal": 250
+          },
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "LuXnNYOgPgtMqRxpDffo",
+          "nome": "Fernando Alonso",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "PcSUYdorp0Mtql5Vh0as",
+          "nome": "Fernando Lisboa",
+          "modalidades": [],
+          "planoLegado": {
+            "id": "PUOMttpQ9oMzAUHkAASl",
+            "nome": "Mensal",
+            "valorMensal": 250
+          },
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "ReP5KoooqF9Y9CYYXeFm",
+          "nome": "Luciano",
+          "modalidades": [
+            {
+              "id": "lyNX8uXqVI9zL5iiCC90",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "Tz2J0vg22AelhUV4d727",
+          "nome": "Elisa Forny",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "XDvj3pKxulhl7LR3f4Df",
+          "nome": "Fernanda Lisboa",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "YbnlF3AGLV4JQOi7sNAt",
+          "nome": "Julia Muniz",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "cGIcEFX413Ig39P2jkFC",
+          "nome": "Gabriel",
+          "modalidades": [
+            {
+              "id": "lyNX8uXqVI9zL5iiCC90",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PUOMttpQ9oMzAUHkAASl",
+            "nome": "Mensal",
+            "valorMensal": 250
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "fqZjuwTTVoCiOiG5lEn8",
+          "nome": "Marcela Vitorino",
+          "modalidades": [
+            {
+              "id": "lyNX8uXqVI9zL5iiCC90",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "gQPReC5rVAriHvl1dqNx",
+          "nome": "Victoria Daldegan",
+          "modalidades": [
+            {
+              "id": "lyNX8uXqVI9zL5iiCC90",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PUOMttpQ9oMzAUHkAASl",
+            "nome": "Mensal",
+            "valorMensal": 250
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "uKxM2Bf1ouaChBUJFbNB",
+          "nome": "Claudia",
+          "modalidades": [],
+          "planoLegado": {
+            "id": "PUOMttpQ9oMzAUHkAASl",
+            "nome": "Mensal",
+            "valorMensal": 250
+          },
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "ugoTE2mOQUJVK48ecjva",
+          "nome": "Gabriel Muniz",
+          "modalidades": [
+            {
+              "id": "lyNX8uXqVI9zL5iiCC90",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        }
+      ]
+    },
+    {
+      "academiaId": "hqaz47RuFrA9lFnlrY2q",
+      "nome": "Instituto Lutando para Crescer",
+      "alunos": [
+        {
+          "alunoId": "28TyBdUJfUroqUwSJwlD",
+          "nome": "Maria Amélia de Farias Oliveira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "3EKk8qRNDX4mBtC8nIAb",
+          "nome": "Isabella Magalhães de Sousa Mesquita",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "48WHDZ5KfR6YXNVOSTeu",
+          "nome": "Cláudio Henrique de Souza Farias",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "5VLzzNKZgopfAjAd8JXW",
+          "nome": "Ruan Santiago do Nascimento",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "5wTQ2WDAsSXG2ibxKDk6",
+          "nome": "Ryan Nascimento",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "6CLQ9xClFmWkZHMdZsXl",
+          "nome": "Derbeth Mororó de Aquino",
+          "modalidades": [
+            {
+              "id": "6hx1jNaof7xhdJwfIVpe",
+              "nome": "Boxe"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "6jHzdMwnXHRB6nAukb4T",
+          "nome": "Rickson Guilherme Rodrigues de Sousa",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "7Y9MvHmYG8A9kjJIfhpp",
+          "nome": "Maria Luiza Magalhães Viana",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "7rFlilUiAB3XnG48yzW8",
+          "nome": "Maria Helena Andrade Carneiro",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "9EkzK6TnqjMFd4hFwOQs",
+          "nome": "Israel Noah Rocha da Silva",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "9ltjzIPotRurhc4LZ4vt",
+          "nome": "Bernardo Albuquerque da Silva",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "AUsi1Hq48lTTES527ILj",
+          "nome": "Gabriel da Costa Morais",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "AXQeeGQY131pBJRuVymf",
+          "nome": "Natália de Maria Vale Rocha",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "BZN6fpmHuEDgxHEcbTJs",
+          "nome": "Francisca Rayane de Mesquita Sousa",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "E92IqlMIYkUSVDKbzIa6",
+          "nome": "Caio Bendô de Lima",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "Eu0jyKx9EsFxq7Z5nj80",
+          "nome": "Walisson Gabriel Bezerra Rodrigues",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "ExkrgETW2UGHwBY4Cec4",
+          "nome": "João Vitor Lima Pinto",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "FQrm7oFxOWHmmazGBxJG",
+          "nome": "Expedito Rian Siqueira Farias",
+          "modalidades": [],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "HDEDIsdv24UtLjOq91Tu",
+          "nome": "Laura Farias de Sousa",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "I2WFYak9q2sDsireh9yG",
+          "nome": "Ismael de Paula Silva",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "K2zNFhQ0xcwV60nryMGd",
+          "nome": "Maria Ísis Gomes de Mesquita",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "NGwmNYxKGWpFLswTt8lN",
+          "nome": "João Otávio Cordeiro Vieira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "Ny6zISQNBfSLmuw2tDvk",
+          "nome": "Luiz Guilherme Guerra de Oliveira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "OmKA6VBBsFce0jx3LFPe",
+          "nome": "Maria Cecílya Duarte Nascimento",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "P2O3jVziSP7AwSYNlgZ3",
+          "nome": "Francisco Wesley Maciel de Souza",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "PKLfLy4akJSzRgXoT4n5",
+          "nome": "Ângelo Gabriel Oliveira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "PzmivXAQBoThy00Y2pzm",
+          "nome": "Francisco José Mesquita Ribeiro",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "RiUKydn5XkONavxVAZbL",
+          "nome": "Anitta Maria Magalhaes",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "SInQzcBhiznackWEnDeB",
+          "nome": "José Eudes Gonçalves Sales Paula",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "SN84DbRnwTbIZuJqGyhl",
+          "nome": "Nadson Magalhães de França",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "TNRQz1PiMtyhILvaBard",
+          "nome": "Carlos Andrei da Silva Lopes",
+          "modalidades": [
+            {
+              "id": "6hx1jNaof7xhdJwfIVpe",
+              "nome": "Boxe"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "UuaXZFgwo88JdX5mB8eI",
+          "nome": "Gessica da Silva Oliveira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "VOuvmLrPE6rQ3ngvyfre",
+          "nome": "Clara Paiva",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "Vj6g4HvzSkDD4Ne9IW6T",
+          "nome": "Francisco Jonas Borges de Sousa",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "WotaM0MojG9MT1gQ6lOr",
+          "nome": "Anna Talita Rodrigues Oliveira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "XF1VvSgCyhx2Ri395bWF",
+          "nome": "Jorge Luiz Pontes Melo",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            },
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "7h0j7xX25hdFvQz14jt4",
+            "nome": "Bolsa 100%",
+            "valorMensal": 0.01
+          },
+          "categoria": "manual",
+          "motivo": "multiplas_modalidades"
+        },
+        {
+          "alunoId": "YsxAIqIoQeCTZum4olBS",
+          "nome": "Anna Victória Lôbo Magalhães",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "ZzIZSKnkAhpPKTHMG6Yc",
+          "nome": "Lis Lisandra Magalhães Gomes",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "ao3oFonKMR1WgMoFXCe1",
+          "nome": "Samuel Levi Martins Abreu",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "bHSm9PaOS7Wos9NN8I5I",
+          "nome": "Maria Luíza Magalhães",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "bQxs7Ho6p0Ic4gnLSW8W",
+          "nome": "Ian Glauber Matos e Duarte",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "cLxyb1j1REILPt4ESi3q",
+          "nome": "Ana Clara Santos Monteiro",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "dVkNz4m61LrfPYjcEMsu",
+          "nome": "Yan Victor Braga Santos",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "eHsVAtUcv7rCxh59bwt3",
+          "nome": "Karine Moreno Viana",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "fl0nOoY89ZnnAcZWv6xI",
+          "nome": "Aleksander Mesquita da Silva",
+          "modalidades": [
+            {
+              "id": "6hx1jNaof7xhdJwfIVpe",
+              "nome": "Boxe"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "gIgqQpao1gRny4ZaXYtc",
+          "nome": "Rosa Mayara Barros Bezerra",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "gyWZoNrLqrmcmJY3NSKu",
+          "nome": "Theo Monteiro Inácio",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "i628ZUPUpHJ3gYCGgYP8",
+          "nome": "Carlos Henry Vieira Martins",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "iTJZ8WyKfXsL3M0dWrWO",
+          "nome": "Maria Cecília Barbosa de Aragão",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "jNd3hGImryMaxC6svibm",
+          "nome": "Jordana Dark Pontes Melo",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            }
+          ],
+          "planoLegado": {
+            "id": "7h0j7xX25hdFvQz14jt4",
+            "nome": "Bolsa 100%",
+            "valorMensal": 0.01
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "kJr4iMXQRbHKL4ZMHdG0",
+          "nome": "Maria Yasmim Arújo de Mesquita",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "koOMZUFCasujdmlyBvak",
+          "nome": "Demetrio Castro Felix",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "PYP2ilxT3dfeomyueJoj",
+            "nome": "Jiu Jitsu Social Adulto",
+            "valorMensal": 35
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "ktT2jsq7ktla51E3WDXt",
+          "nome": "Helana Rodrigues Sabino",
+          "modalidades": [],
+          "planoLegado": {
+            "id": "7h0j7xX25hdFvQz14jt4",
+            "nome": "Bolsa 100%",
+            "valorMensal": 0.01
+          },
+          "categoria": "manual",
+          "motivo": "sem_matricula_com_modalidade"
+        },
+        {
+          "alunoId": "lDNQR0lypfB2pOsh1EQY",
+          "nome": "Maria Fernanda de Medeiros e Almeida Carvalho",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "lO9eFfwZjcLhc2knCxSf",
+          "nome": "Álvaro Bernardo dos Santos Alencar",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "lt9q75zC8S0kspEyVKbt",
+          "nome": "Maria Larissa Nascimento dos Santos",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "lzobg4OC01AnywDavx9G",
+          "nome": "Maria Eduarda Oliveira Lima",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "bljdrtPjB9JhNPXF97hS",
+            "nome": "Jiu Jitsu Adulto",
+            "valorMensal": 50
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "neBk0UYx7anu4v9LPQNU",
+          "nome": "Luna Sophia de Sousa Vieira",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "piOyZKaatWvpP2YZI4GZ",
+          "nome": "Helena Rodrigues Sabino",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "qKanDbcM9C05yEvq3Tuc",
+          "nome": "Gerson Guilherme Damasceno Pereira",
+          "modalidades": [
+            {
+              "id": "6hx1jNaof7xhdJwfIVpe",
+              "nome": "Boxe"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "qQimWnXDNSTcZWId4fIk",
+          "nome": "Théo Gonçalves Santiago",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "w5XQm8I5aq4wUc5RQtwC",
+          "nome": "Beatriz Albuquerque Andrade",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "y60f9wX3bp2Pw6Z30Lck",
+          "nome": "Ana Clara do Nascimento Silvestre",
+          "modalidades": [
+            {
+              "id": "sOtEAJz5wwkh6arh5Om8",
+              "nome": "Judô"
+            },
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "multiplas_modalidades"
+        },
+        {
+          "alunoId": "y8S8Njof8FDIdgVt1Oxr",
+          "nome": "Maria Vitória Melo Lima",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "yiRpBZWJwK2Kp7aYcWsV",
+          "nome": "João Carlos Braga Brandão",
+          "modalidades": [
+            {
+              "id": "6hx1jNaof7xhdJwfIVpe",
+              "nome": "Boxe"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        },
+        {
+          "alunoId": "z0U8BFdNFXCvbVZoRSnF",
+          "nome": "João Mesquita de Maria Neto",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": {
+            "id": "38LN2EVQZM9YYUnZ5RpT",
+            "nome": "Jiu Jitsu Infantil",
+            "valorMensal": 65
+          },
+          "categoria": "auto",
+          "aplicado": true
+        },
+        {
+          "alunoId": "zC4UND4U59OYCZXHd4Ns",
+          "nome": "José Henrique Alves de Morais",
+          "modalidades": [
+            {
+              "id": "p43SqQMsn35lCyw2LF6k",
+              "nome": "Jiu-Jitsu Adulto"
+            }
+          ],
+          "planoLegado": null,
+          "categoria": "manual",
+          "motivo": "sem_plano_legado_valido"
+        }
+      ]
+    }
+  ]
+}

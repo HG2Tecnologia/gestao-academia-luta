@@ -43,6 +43,16 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
       # Swift 6 strict concurrency breaks several pods — force Swift 5 compat
       config.build_settings['SWIFT_VERSION'] = '5.0'
+
+      # O macOS (Sequoia+) marca arquivos baixados pela rede (inclusive os pods
+      # baixados pelo CocoaPods) com o atributo `com.apple.provenance`, que não
+      # pode ser removido via xattr e faz o `codesign` recusar assinar os
+      # frameworks no build de simulador ("resource fork ... not allowed").
+      # Frameworks individuais dos Pods não precisam de assinatura própria —
+      # só o app final embarcado precisa — então desligamos a exigência só
+      # pro simulador, sem afetar build de dispositivo/release.
+      config.build_settings['CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]'] = 'NO'
+      config.build_settings['CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]'] = 'NO'
     end
   end
 end

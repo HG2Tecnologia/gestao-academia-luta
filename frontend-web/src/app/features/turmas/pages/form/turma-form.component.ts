@@ -4,7 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { TurmaService } from '../../../../core/services/turma.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
-import { UsuarioService } from '../../../../core/services/usuario.service';
+import { FuncionarioService } from '../../../../core/services/funcionario.service';
 import { UsuarioResumoDto } from '../../../../core/models/usuario.model';
 
 @Component({
@@ -17,7 +17,7 @@ export class TurmaFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly turmaService = inject(TurmaService);
   private readonly modalidadeService = inject(ModalidadeService);
-  private readonly usuarioService = inject(UsuarioService);
+  private readonly funcionarioService = inject(FuncionarioService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -46,7 +46,7 @@ export class TurmaFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.modalidadeService.getAll().subscribe({ next: (r) => this.modalidades.set(r.dados ?? []) });
-    this.usuarioService.getProfessores().subscribe({ next: (r) => this.professores.set(r.dados ?? []) });
+    this.funcionarioService.getProfessores().subscribe({ next: (r) => this.professores.set(r.dados ?? []) });
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.turmaId.set(id);

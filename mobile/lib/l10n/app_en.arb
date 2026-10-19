@@ -175,16 +175,131 @@
   "changePwConfirmLabel": "Confirm new password",
   "changePwConfirmHint": "Repeat the new password",
   "changePwMustBeDifferent": "The new password must be different from the current one",
+  "changePwErrMinLength": "Minimum 6 characters",
+  "changePwErrMismatch": "Passwords don't match",
   "changePwSuccess": "Password changed successfully!",
   "changePwErrWrongCurrent": "Current password is incorrect.",
   "changePwErrWeak": "The new password is too weak.",
   "changePwErrGeneric": "Couldn't change the password. Please try again.",
+
+  "tsoTitle": "Set your permanent password",
+  "tsoSubtitle": "Your gym generated a temporary password for you. Before continuing, set a permanent password that only you know.",
+  "tsoNewPasswordHint": "New password",
+  "tsoConfirmPasswordHint": "Confirm the new password",
+  "tsoConfirmButton": "Save and continue",
+  "tsoErrSessionExpired": "Session expired.",
+  "tsoErrRequiresRecentLogin": "For security, sign out and sign back in with the temporary password before changing it.",
+  "tsoErrGeneric": "Error setting the new password ({codigo}).",
+  "@tsoErrGeneric": {
+    "placeholders": { "codigo": { "type": "String" } }
+  },
+  "tsoErrUnexpected": "Unexpected error. Please try again.",
+
+  "fpTitle": "Forgot my password",
+  "fpHeading": "Recover access",
+  "fpSubtitle": "Enter your email and we'll send you a link to create a new password.",
+  "fpEmailLabel": "Email",
+  "fpEmailHint": "you@email.com",
+  "fpErrInvalidEmail": "Enter a valid email.",
+  "fpErrTooManyRequests": "Too many attempts. Please wait a few minutes.",
+  "fpErrGeneric": "Error sending email. Please try again.",
+  "fpErrUnexpected": "Unexpected error. Please try again.",
+  "fpSendButton": "Send recovery link",
+  "fpSentTitle": "Email sent!",
+  "fpSentBody": "Check your inbox (and spam folder). Click the link you received to create your new password.",
+  "fpBackToLogin": "Back to login",
+
+  "fpAlunoSubtitle": "Enter your registered phone or email. Your gym will get an alert and generate a new password for you.",
+  "fpIdentifierLabel": "Phone or email",
+  "fpIdentifierHint": "(11) 99999-0000 or you@email.com",
+  "fpErrInvalidIdentifier": "Enter a valid phone number or email.",
+  "fpAlunoSendButton": "Send request",
+  "fpRequestSentTitle": "Request sent!",
+  "fpRequestSentBody": "If we find your record, your gym has been notified and will generate a new access password for you shortly.",
+
+  "resetPwDialogTitle": "Reset {nome}'s password?",
+  "@resetPwDialogTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "resetPwDialogBody": "A new temporary password will be generated and this person's current session will be ended. They'll need to use the temporary password to sign in and set a permanent one.",
+  "resetPwDialogConfirm": "Reset",
+  "resetPwErrReset": "Couldn't reset the password: {erro}",
+  "@resetPwErrReset": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+  "resetPwErrProvision": "Couldn't generate access: {erro}",
+  "@resetPwErrProvision": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+
+  "conflictDialogTitle": "This phone or email is already in use",
+  "conflictDialogBody": "There's already another registration with the same phone/email as {nome}, and that person has already signed in and set their own password.\n\n• Keep current password: {nome} will sign in with the same password that person already set — nothing changes for whoever already uses the app.\n• Generate new temporary password: replaces access for everyone using that phone/email. Whoever already had their own password will need to set it again on their next login.",
+  "@conflictDialogBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "conflictDialogKeepCurrent": "Keep current password",
+  "conflictDialogGenerateNew": "Generate new temporary",
+  "linkedDialogTitle": "Linked",
+  "linkedDialogBody": "{nome} will access the app with {comoEntrar} and the password already set by whoever uses this contact. No new password was generated.",
+  "@linkedDialogBody": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" }
+    }
+  },
+
+  "tempPwTitle": "{nome}'s temporary password",
+  "@tempPwTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwHint": "Copy or share it now. You can also see this password on the student's profile (App Access) until they sign in for the first time.",
+  "tempPwExplainTitle": "Explain to {nome}:",
+  "@tempPwExplainTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwStep1": "Open the app and tap \"I'm a student or guardian\".",
+  "tempPwStep2": "Enter {comoEntrar} + this temporary password.",
+  "@tempPwStep2": {
+    "placeholders": { "comoEntrar": { "type": "String" } }
+  },
+  "tempPwStep3": "The app asks them to set a permanent password — done, no \"first access\" needed.",
+  "tempPwCopy": "Copy",
+  "tempPwShare": "Share",
+  "tempPwCopied": "Password copied.",
+  "tempPwShareText": "Sensei Manager — {nome}'s access\nSign in with {comoEntrar} and the temporary password: {senha}\nThe app will ask you to set your permanent password.",
+  "@tempPwShareText": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" },
+      "senha": { "type": "String" }
+    }
+  },
+  "tempPwBoxTitle": "Temporary password — hasn't signed in for the first time yet",
+  "tempPwBoxViewSend": "View / send",
+  "tempPwLoginHintFallback": "the registered phone or email",
+  "tempPwLoginHintWith": "the {loginHint}",
+  "@tempPwLoginHintWith": {
+    "placeholders": { "loginHint": { "type": "String" } }
+  },
   "studentsSearchHint": "Search students...",
   "studentsEmpty": "No students found.",
   "studentsLoadError": "Couldn't load students.",
   "studentNoBelt": "No belt yet",
   "statusActive": "Active",
   "statusInactive": "Inactive",
+  "studentsFilterLabel": "Filter by status",
+  "studentsFilterAll": "All",
+
+  "notifTitle": "Notifications",
+  "notifUnreadCount": "{count, plural, one{1 unread} other{{count} unread}}",
+  "@notifUnreadCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notifMarkAllRead": "Mark all",
+  "notifEmptyTitle": "No notifications",
+  "notifEmptySubtitle": "You're all caught up!",
   "finUpToDate": "Up to date",
   "finPending": "Pending",
   "finOverdue": "Overdue",
@@ -207,6 +322,7 @@
   "sdNoGraduation": "No promotions yet",
   "sdLevelXp": "Level / XP",
   "sdPlanSection": "Plan",
+  "sdPlanByModalitySection": "Plans by discipline",
   "sdNoPlan": "No plan linked.",
   "sdMonthlyValue": "Monthly amount",
   "sdDueDate": "Due date",
@@ -355,6 +471,22 @@
   "sdPointsError": "Error adding points.",
   "sdEmergencyContact": "Emergency Contact",
   "sdNoClasses": "Not enrolled in any class.",
+  "sdUnlinkClassTitle": "Unlink from this class?",
+  "sdUnlinkClassBody": "{aluno} leaves \"{turma}\". If this is their only class in that modality, pending, overdue and future charges for that modality are cancelled too — a charge that's already paid is never affected.",
+  "@sdUnlinkClassBody": {
+    "placeholders": {
+      "aluno": {"type": "String"},
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassButton": "Unlink",
+  "sdUnlinkedToast": "Unlinked from {turma}.",
+  "@sdUnlinkedToast": {
+    "placeholders": {
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassError": "Couldn't unlink the class. Please try again.",
   "sdBeltHistory": "Promotion History",
   "sdNoBeltHistory": "No promotions on record.",
   "sdRemovePromotionTitle": "Remove promotion?",
@@ -376,6 +508,11 @@
   "sdActivateConfirm": "Activate {name}?",
   "sdDeactivateConfirm": "Deactivate {name}?",
   "sdStatusChangeError": "Error changing the status.",
+  "sdDeleteAlunoAction": "Delete student",
+  "sdDeleteAlunoConfirmTitle": "Delete {name}?",
+  "sdDeleteAlunoConfirmBody": "This is permanent: it removes this student's enrollments, payments, attendance, graduations and notifications. It cannot be undone. If the phone/email is shared with another student, the other student's access is not affected.",
+  "sdDeleteAlunoSuccess": "Student deleted.",
+  "sdDeleteAlunoError": "Couldn't delete the student.",
   "sdAllowAccessConfirm": "Allow app access for {name}?",
   "sdBlockAccessConfirm": "Block app access for {name}?",
   "sdAccessChangeError": "Error changing access.",
@@ -406,6 +543,9 @@
   "level": "Level",
   "instructorOptional": "Instructor (optional)",
   "noInstructor": "No instructor",
+  "classDefaultPlanOptional": "Default plan (optional)",
+  "classNoDefaultPlan": "No default plan",
+  "classDefaultPlanHelper": "Every student enrolled in this class is automatically linked to this plan, with no need to set it up on their profile.",
   "maxCapacity": "Maximum capacity",
   "invalidNumber": "Invalid number",
   "classActiveToggle": "Class active",
@@ -587,6 +727,65 @@
   "fiGenerateCharge": "Generate charge",
   "fiNewCharge": "New charge",
   "fiCurrentMonth": "Current month",
+  "fiBackToCurrentMonth": "Back to current month",
+  "fiMoreActions": "More",
+  "fiCleanupRetroactive": "Clean up backdated",
+  "fiCleanupRetroactiveTitle": "Clean up backdated charges",
+  "fiCleanupRetroactiveExplain": "Dismisses (does not delete) every pending or overdue charge due BEFORE the chosen month, for ALL students. Already-paid charges are never affected, and none of this counts as revenue.",
+  "fiCleanupRetroactiveCutoffLabel": "Keep charges from",
+  "fiCleanupRetroactiveConfirmTitle": "Confirm cleanup?",
+  "fiCleanupRetroactiveConfirmBody": "This will dismiss, all at once, every student's pending charges before {mes}. It can't be undone in bulk — only one at a time, manually. Are you sure?",
+  "@fiCleanupRetroactiveConfirmBody": {
+    "placeholders": {
+      "mes": {"type": "String"}
+    }
+  },
+  "fiCleanupRetroactiveButton": "Dismiss backdated charges",
+  "fiCleanupRetroactiveSuccess": "{n} backdated charge(s) dismissed.",
+  "@fiCleanupRetroactiveSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "fiCleanupRetroactiveError": "Couldn't clean up backdated charges. Please try again.",
+  "fiAllModalities": "All disciplines",
+  "fiDueLabel": "Due date",
+  "fiExportReport": "Export report",
+  "fiExportSheetTitle": "Financial report columns",
+  "fiExportColumnType": "Type",
+  "fiExportColumnValue": "Value",
+  "fiExportColumnDueDate": "Due date",
+  "fiExportColumnStatus": "Status",
+  "fiExportColumnPaidDate": "Paid date",
+  "fiMergeDuplicates": "Fix duplicates",
+  "fiCleanOrphans": "Clean orphans",
+  "fiMergeDuplicatesTitle": "Fix duplicate monthly charges",
+  "fiMergeDuplicatesExplain": "Scans every month for a student with more than one monthly charge for the same period. When it's unambiguous (one paid among the duplicates, or none paid), it keeps one and dismisses the rest — never deletes, never marks as paid. If 2 or more are already marked paid for the same month, that case is left out for you to review by hand.",
+  "fiMergeDuplicatesConfirmTitle": "Fix duplicates now?",
+  "fiMergeDuplicatesConfirmBody": "This will automatically dismiss duplicate monthly charges for every student in this school, keeping one per student/month. It can't be undone in bulk — only one at a time, manually. Continue?",
+  "fiMergeDuplicatesButton": "Fix duplicates",
+  "fiMergeDuplicatesSuccess": "{grupos} group(s) with duplicates · {resolvidas} fixed automatically · {manual} left for manual review.",
+  "@fiMergeDuplicatesSuccess": {
+    "placeholders": {
+      "grupos": {"type": "int"},
+      "resolvidas": {"type": "int"},
+      "manual": {"type": "int"}
+    }
+  },
+  "fiMergeDuplicatesError": "Couldn't fix the duplicate monthly charges. Please try again.",
+  "fiCleanOrphansTitle": "Clean up orphan charges",
+  "fiCleanOrphansExplain": "Looks for still-pending charges (never paid) stuck on a plan that was deleted, or on a modality the student was unlinked from. When found, it disregards them — never deletes, never marks as paid. A charge that's already paid is never touched, even if its plan was deleted afterward.",
+  "fiCleanOrphansConfirmTitle": "Clean up orphan charges now?",
+  "fiCleanOrphansConfirmBody": "This will disregard every pending charge in this academy that's stuck on a deleted plan or a modality the student was unlinked from. This can't be undone in bulk — only one at a time, manually. Continue?",
+  "fiCleanOrphansButton": "Clean orphans",
+  "fiCleanOrphansSuccess": "{analisadas} pending charge(s) analyzed · {canceladas} cancelled for being orphaned.",
+  "@fiCleanOrphansSuccess": {
+    "placeholders": {
+      "analisadas": {"type": "int"},
+      "canceladas": {"type": "int"}
+    }
+  },
+  "fiCleanOrphansError": "Couldn't clean up orphan charges. Please try again.",
   "fiNoCharges": "No charges.",
   "fiChargesCount": "Charges · {count}",
   "fiTabAll": "All",
@@ -610,6 +809,23 @@
   "fiDeleteChargeBody": "Are you sure you want to delete this charge? This can't be undone.",
   "fiMarkedPaid": "{name} marked as paid!",
   "fiUpdateError": "Error updating the payment.",
+  "fiSelectMode": "Select",
+  "fiSelectedCount": "{count, plural, one{1 selected} other{{count} selected}}",
+  "@fiSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiBatchMarkedPaid": "{count, plural, one{1 charge marked as paid} other{{count} charges marked as paid}}",
+  "@fiBatchMarkedPaid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "fiConfirmPayment": "Confirm payment",
   "fiBaseValue": "Base amount",
   "fiToReceive": "To receive",
@@ -730,6 +946,23 @@
   "plnNewTitle": "New Plan",
   "plnNameField": "Plan name *",
   "plnMonthlyValueField": "Monthly amount (R$) *",
+  "plnModalityField": "Discipline (billing by discipline)",
+  "plnModalityNone": "None (generic plan)",
+  "plnWeeklyLimitField": "Weekly training-day limit (optional)",
+  "apmTitle": "Plans by discipline",
+  "apmNewTitle": "New discipline enrollment",
+  "apmEditTitle": "Edit enrollment",
+  "apmModalityField": "Discipline",
+  "apmPlanField": "Plan",
+  "apmDueDayField": "Due day (1-28)",
+  "apmSelectRequired": "Select the discipline and the plan.",
+  "apmInvalidDueDay": "Enter a due day between 1 and 28.",
+  "apmSaveError": "Couldn't save. Please try again.",
+  "apmCreateBtn": "Add",
+  "apmEndTitle": "End enrollment?",
+  "apmEndBody": "Stops billing {modalidade} for this student. Charges already generated are not deleted.",
+  "apmFeatureDisabled": "Billing by discipline is not enabled for this school. Enable it in Settings > Finance to use independent plans per discipline.",
+  "apmEmpty": "{nome} doesn't have any discipline with its own plan yet.",
   "plnNameRequired": "Name is required.",
   "plnInvalidValue": "Enter a valid monthly amount.",
   "plnUpdated": "Plan updated!",
@@ -1005,6 +1238,52 @@
   "fxDescHint": "e.g. Notes about the belt...",
   "fxBeltColor": "Belt Color",
   "fxCreateBtn": "Create Belt",
+  "fxHasDegrees": "Has degrees",
+  "fxHasDegreesSub": "Shows degree markers on the belt tip (e.g. stripes before moving to the next belt)",
+  "fxMaxDegrees": "Degrees before next belt",
+  "fxDegreeTipColor": "Tip color",
+  "fxColoredDegrees": "Colored degrees",
+  "fxColoredDegreesSub": "Instead of one color for every degree, each degree can have its own color (e.g. IBJJF/CBJJ kids system)",
+  "fxPresetOfficial": "Official IBJJF/CBJJ",
+  "fxPresetOfficialShort": "Official",
+  "fxPresetSimplified": "Simplified",
+  "fxPresetCustom": "Custom",
+  "fxPresetOfficialHint": "First 4 degrees white, next 4 red, the rest use the next belt's color in sequence.",
+  "fxPresetOfficialHintNoNext": "First 4 degrees white, next 4 red. This is the last belt registered — register the next belt first to set the final degrees' color, or switch to the Custom preset.",
+  "fxPresetSimplifiedPickColors": "Pick the colors, in order — they repeat in equal blocks until all degrees are filled",
+  "fxPresetSimplifiedHint": "Colors come in blocks, one after another — never one color on top of another. E.g. with white/red/yellow and 12 degrees, the student first earns the 4 white degrees, only then the 4 red ones, and only then the 4 yellow ones.",
+  "fxPresetCustomPickPerDegree": "Tap each degree to pick its color",
+  "fxPresetCustomHint": "To have more than one degree in total, adjust the \"Degrees before next belt\" field above first. Below, you pick each degree's color individually, with no fixed block pattern.",
+  "fxPickColorForDegree": "Color for degree {numero}",
+  "fxTapToChange": "Tap to change",
+  "fxSimplifiedWarningColorsNeverShow": "With the current number of degrees, not every chosen color will show up — some will never be reached. To see them all, set at least {numero} degrees (4 per color, above).",
+  "@fxSimplifiedWarningColorsNeverShow": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxFixAutomatically": "Fix automatically",
+  "turmaColoredDegrees": "Colored degrees in this class",
+  "turmaColoredDegreesSub": "Students enrolled here see the colors configured on the belt (if any). Useful to turn on only for kids classes, for example, even when sharing the modality with adult classes.",
+  "@fxPickColorForDegree": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxPreview": "Preview",
+  "fxPreviewDragHint": "Drag to simulate the student's degree and see the colors coming in sequence, one at a time",
+  "fxPreviewDegreeLabel": "Degree {numero}",
+  "@fxPreviewDegreeLabel": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
   "cfgTitle": "Academy Settings",
   "cfgSubtitle": "Manage your academy's information and preferences.",
   "cfgIdentitySection": "Academy Identity",
@@ -1041,6 +1320,78 @@
   "cfgConfigFee": "Configure fee",
   "cfgFeePercentSub": "Percentage over overdue charges",
   "cfgFeeFixedSub": "Fixed amount on overdue charges",
+  "cfgBillingByModality": "Billing by discipline",
+  "cfgBillingByModalitySub": "Allows independent plans and monthly fees per discipline (e.g. jiu-jitsu and judo billed separately)",
+  "cfgWeeklyLimit": "Weekly training-day limit",
+  "cfgWeeklyLimitSub": "What happens when a student exceeds their plan's weekly training days",
+  "cfgWeeklyLimitDesc": "Some plans limit how many days per week a student can train (e.g. a 2x/week plan). Choose what happens when they try to check in beyond that limit.",
+  "cfgWeeklyLimitModeOff": "Off",
+  "cfgWeeklyLimitModeOffSub": "Doesn't enforce a weekly training-day limit",
+  "cfgWeeklyLimitModeWarn": "Warn",
+  "cfgWeeklyLimitModeWarnSub": "Allows check-in but warns that the plan's limit was exceeded",
+  "cfgWeeklyLimitModeBlock": "Block",
+  "cfgWeeklyLimitModeBlockSub": "Prevents check-in once the plan's weekly limit is reached",
+  "cfgWeeklyLimitSaved": "Weekly training-day limit saved.",
+  "cfgAutoAbsence": "Automatic absence after 24h",
+  "cfgAutoAbsenceSub": "On: the app automatically marks a student absent if no attendance was recorded within 24h of class, and it stays in the student's attendance history. Off: the app never infers absence on its own — it's up to the instructor to mark attendance; if they don't, that day simply doesn't show up in the student's history (neither as present nor absent).",
+  "cfgManualCheckin": "Manual check-in without QR",
+  "cfgManualCheckinSub": "Lets the student (or guardian) check in through the app without scanning a QR code, only while a class is actually happening for them right now. Off by default — check-in stays QR-only.",
+  "cfgManualCheckinWindow": "Check-in window",
+  "cfgManualCheckinWindowSub": "How long before and after class time the student can confirm attendance",
+  "cfgManualCheckinWindowDesc": "Sets when the check-in button becomes available to the student, relative to the class start time.",
+  "cfgManualCheckinWindowBefore": "Before class starts",
+  "cfgManualCheckinWindowAfter": "After class starts",
+  "cfgManualCheckinWindowZero": "At class time",
+  "cfgColoredDegrees": "Colored degrees",
+  "cfgColoredDegreesSub": "Unlocks, in the Belts screen, the option to configure colors per degree (e.g. IBJJF/CBJJ kids system). Off: every belt keeps showing degrees the usual way.",
+  "grauColoridoHelpTitle": "How do colored degrees work?",
+  "grauColoridoStep1Title": "Each degree can have its own color",
+  "grauColoridoStep1Body": "Instead of every degree being marked with just a white stripe, you pick a different color for each degree — the way IBJJF/CBJJ does it for kids.",
+  "grauColoridoStep2Title": "Colors come in sequence",
+  "grauColoridoStep2Body": "Never one color on top of another. E.g. with 12 degrees and white/red/yellow — the student first earns degrees 1 through 4, all white. Only after that come degrees 5 through 8, red. And only after that come degrees 9 through 12, yellow. At the 12th, they move to the next belt.",
+  "grauColoridoStep3Title": "Set this up per belt",
+  "grauColoridoStep3Body": "Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.",
+  "cfgManualCheckinWindowMinutes": "{min}min",
+  "@cfgManualCheckinWindowMinutes": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHours": "{h, plural, one{1h} other{{h}h}}",
+  "@cfgManualCheckinWindowHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHoursMinutes": "{h}h{min}min",
+  "@cfgManualCheckinWindowHoursMinutes": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowValue": "{antes} before · {depois} after",
+  "@cfgManualCheckinWindowValue": {
+    "placeholders": {
+      "antes": {
+        "type": "String"
+      },
+      "depois": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgManualCheckinWindowUnlimited": "No limit",
+  "cfgManualCheckinWindowMinutesSuffix": "min",
+  "cfgManualCheckinWindowSaved": "Check-in window updated.",
   "cfgGradSection": "Belts and Disciplines",
   "cfgGradSub": "Configure belts, promotions and disciplines.",
   "cfgBeltsSub": "Register and edit promotions by discipline",
@@ -1139,6 +1490,16 @@
     }
   },
   "cfgPlanFreeDesc": "3 classes · 10 students/class · ads",
+  "planTitle": "My subscription",
+  "planSubscribedSince": "Subscriber since",
+  "planRenewsOn": "Renews on",
+  "planRenewsOnHint": "Date controlled by the store (Apple/Google) — may vary.",
+  "planViaAppStore": "Subscribed via App Store",
+  "planViaPlayStore": "Subscribed via Google Play",
+  "planChangePlan": "Change plan",
+  "planCancelSubscription": "Cancel subscription",
+  "planCancelHint": "Cancellation happens in the store where you subscribed, not inside the app. We'll take you straight there.",
+  "planCancelError": "Couldn't open the store. Please try again.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {
@@ -1170,6 +1531,7 @@
   "fxZeroNoMin": "0 = no minimum requirement.",
   "authEnterPassword": "Enter your password.",
   "authErrUserNotFound": "User not found in the system. Contact the administrator.",
+  "authErrUnknownProfile": "We couldn't identify your access profile. Contact the academy administrator.",
   "authErrDbNotConfigured": "Database not configured yet. Contact the administrator.",
   "authErrNoPermission": "No permission to access the data. Contact the administrator.",
   "authFirstTimeUsingApp": "Using the app for the first time",
@@ -1360,6 +1722,22 @@
   },
   "apContactSecretary": "Contact the front desk to settle it.",
   "apNoChargesInCategory": "No charges in this category",
+  "apNoChargesThisMonth": "No charges in {month}",
+  "@apNoChargesThisMonth": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
+  "apTotalOpenAllMonths": "{amount} outstanding in total",
+  "@apTotalOpenAllMonths": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "apViewAllOverdue": "View all overdue",
+  "apAllOverdueTitle": "Overdue charges",
+  "apPrevMonth": "Previous month",
+  "apNextMonth": "Next month",
   "apAttendanceTitle": "Attendance",
   "apTrainingHistory": "Your training history",
   "apTotalWorkouts": "Total sessions",
@@ -1422,8 +1800,53 @@
   "apRankNoPeriodData": "No data for this period",
   "apRankTrainMore": "Train more to show up in the ranking!",
   "apRankingsTitle": "Rankings",
-  "apQrMyCode": "My QR Code",
-  "apQrScanAcademy": "Scan Academy",
+  "apQrMyCode": "My QR",
+  "apQrScanAcademy": "Scan",
+  "apQrManualCheckin": "No QR",
+  "apManualCheckinLoadError": "Couldn't check your classes right now. Please try again.",
+  "apManualCheckinNoClassNow": "None of your classes is happening right now.",
+  "apManualCheckinPick": "You have more than one class happening now — choose which one to check in to:",
+  "apManualCheckinClassFallback": "Class",
+  "apManualCheckinHistoryLabel": "Manual, no QR",
+  "apManualCheckinClassAt": "Today at {hora}",
+  "@apManualCheckinClassAt": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinConfirm": "Confirm attendance",
+  "apManualCheckinClassOn": "{data} at {hora}",
+  "@apManualCheckinClassOn": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAtToday": "Available from {hora}",
+  "@apManualCheckinAvailableAtToday": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAt": "Available from {data} at {hora}",
+  "@apManualCheckinAvailableAt": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
   "apQrShowInstructor": "Show it to the instructor at the entrance",
   "apQrGenFailed": "Couldn't generate the QR Code",
   "apQrShowInstructorLong": "Show this QR Code to the instructor to register your attendance.",
@@ -1638,5 +2061,56 @@
   "rnClassesTitle": "Classes and promotions",
   "rnClassesDesc": "Belt promotions entered by mistake can be corrected without rebuilding history, and removing a class no longer deletes students, attendance or records.",
   "rnBillingTitle": "Automatic billing",
-  "rnBillingDesc": "Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned."
+  "rnBillingDesc": "Monthly charges now appear automatically, you can take early payments, and the annual report has been redesigned.",
+  "rnDeleteStudentTitle": "Permanently delete a student",
+  "rnDeleteStudentDesc": "You can now delete a student for good: enrollments, charges, attendance and history go with them, without affecting siblings who share the same phone or email.",
+  "rnBillingByModalityTitle": "Billing per discipline",
+  "rnBillingByModalityDesc": "Academies that turn it on in settings can charge each discipline separately — for example, jiu-jitsu and judo with independent prices and due dates.",
+  "rnWeeklyLimitTitle": "Weekly training limit",
+  "rnWeeklyLimitDesc": "Plans with a weekly training limit can now warn or block check-in once a student goes over the quota, and this is already reflected in absence counts.",
+  "rnAutoAbsenceTitle": "Configurable automatic absence",
+  "rnAutoAbsenceDesc": "You can turn off the automatic 24h-after-class absence marking in settings, keeping history to only what the coach marks by hand.",
+  "rnAbsenceFixTitle": "Absence calculation fix",
+  "rnAbsenceFixDesc": "Absences are no longer counted on days a class doesn't train — the calculation now follows the actual registered schedule.",
+  "rnOfficialReportTitle": "Official attendance report",
+  "rnOfficialReportDesc": "New attendance report with PDF and Excel export, available to the academy and to front-desk staff with permission.",
+  "rnModalityBadgeTitle": "Discipline badge in Billing",
+  "rnModalityBadgeDesc": "Each per-discipline charge now shows a colored badge with its name, plus filters by discipline and by status to organize the list.",
+  "rnBulkPaymentTitle": "Mark several as paid",
+  "rnBulkPaymentDesc": "In Billing you can now select several pending charges and mark them all as paid at once, without losing your scroll position.",
+  "rnManualCheckinTitle": "Check-in without a QR code",
+  "rnManualCheckinDesc": "Once enabled in settings, students can confirm attendance without scanning the QR code — handy when someone else drops the child off at class.",
+  "rnStaffPermissionsTitle": "More control over staff",
+  "rnStaffPermissionsDesc": "You can now grant a coach permission to view a student's medical certificate, PAR-Q and family group, without changing their role.",
+  "rnColoredDegreesTitle": "Colored belt degrees",
+  "rnColoredDegreesDesc": "Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.",
+  "rpTitle": "Attendance Report",
+  "rpNoAccess": "You don't have access to this report.",
+  "rpAllClasses": "All classes",
+  "rpPeriodMonth": "Month",
+  "rpPeriodYear": "Year",
+  "rpSelectMonth": "Pick any day in the desired month",
+  "rpColumnName": "Name",
+  "rpColumnPhone": "Phone",
+  "rpColumnClass": "Class",
+  "rpColumnBelt": "Belt",
+  "rpColumnPresences": "Present",
+  "rpColumnAbsences": "Absent",
+  "rpColumnTotalClasses": "Total classes",
+  "rpColumnPercent": "% Attendance",
+  "rpExport": "Export",
+  "rpExportPdf": "Export PDF",
+  "rpExportExcel": "Export Excel",
+  "rpExportColumnsTitle": "Report columns",
+  "rpEmpty": "No attendance data for the selected period and class.",
+  "rpRowCount": "Records in period",
+  "rpStudentsSection": "Students",
+  "rpSummaryLine": "{presencas} present · {faltas} absent · {total} classes in period",
+  "@rpSummaryLine": {
+    "placeholders": {
+      "presencas": {"type": "int"},
+      "faltas": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

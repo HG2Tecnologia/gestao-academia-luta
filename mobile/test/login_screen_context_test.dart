@@ -48,16 +48,20 @@ void main() {
     );
   }
 
-  testWidgets('contexto aluno esconde a ação empresarial "Criar uma academia"', (
-    tester,
-  ) async {
-    await tester.pumpWidget(wrap(singleLogin('aluno')));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'contexto aluno esconde a ação empresarial "Criar uma academia"',
+    (tester) async {
+      await tester.pumpWidget(wrap(singleLogin('aluno')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Criar uma academia'), findsNothing);
-    expect(find.text('Acessando o app pela primeira vez'), findsOneWidget);
-    expect(find.text('Esqueci minha senha'), findsOneWidget);
-  });
+      expect(find.text('Criar uma academia'), findsNothing);
+      // Removido de propósito: com o fluxo novo, a academia sempre gera a senha
+      // temporária do aluno no cadastro — não existe mais "primeiro acesso"
+      // autoatendido sem essa senha.
+      expect(find.text('Acessando o app pela primeira vez'), findsNothing);
+      expect(find.text('Esqueci minha senha'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'contexto academia mostra a ação renomeada "Criar uma academia"',

@@ -21,6 +21,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   Map<String, dynamic>? _info;
   String? _alunoId;
   String? _horarioId;
+  String? _turmaId;
   bool _registrando = false;
   bool? _sucesso;
   String? _mensagemFinal;
@@ -61,6 +62,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
       // Busca horários das turmas do aluno para hoje
       String? horarioIdAgora;
+      String? turmaIdAgora;
       for (final turmaId in turmaIds) {
         final horarios = await firestoreService.getHorarios(academiaId, turmaId: turmaId);
         for (final h in horarios) {
@@ -71,6 +73,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             final fim = _parseTime(h['hora_fim']?.toString() ?? '');
             if (horaAtual >= inicio - 30 && horaAtual <= fim + 30) {
               horarioIdAgora = h['id'] as String?;
+              turmaIdAgora = turmaId;
               break;
             }
           } catch (_) {}
@@ -112,6 +115,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
         };
         _alunoId = userId;
         _horarioId = horarioIdAgora;
+        _turmaId = turmaIdAgora;
         _carregando = false;
       });
     } catch (e) {
@@ -140,9 +144,19 @@ class _QrScanScreenState extends State<QrScanScreen> {
       final now = DateTime.now();
       final dataStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+      String? aviso;
+      if (_turmaId != null) {
+        aviso = await firestoreService.avisoLimiteDiasSemana(
+          academiaId,
+          _alunoId!,
+          _turmaId!,
+        );
+      }
+
       await firestoreService.addPresenca(academiaId, {
         'aluno_id': _alunoId,
         'horario_id': _horarioId ?? '',
+        'turma_id': _turmaId ?? '',
         'academia_id': academiaId,
         'data': dataStr,
         'hora_checkin': '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00',
@@ -153,7 +167,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
       setState(() {
         _sucesso = true;
-        _mensagemFinal = 'Presença registrada com sucesso!';
+        _mensagemFinal = aviso ?? 'Presença registrada com sucesso!';
         _registrando = false;
       });
     } catch (e) {
@@ -166,7 +180,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   }
 
   Future<void> _reiniciar() async {
-    setState(() { _carregando = false; _info = null; _alunoId = null; _horarioId = null; _sucesso = null; _mensagemFinal = null; _registrando = false; });
+    setState(() { _carregando = false; _info = null; _alunoId = null; _horarioId = null; _turmaId = null; _sucesso = null; _mensagemFinal = null; _registrando = false; });
     await _ctrl.start();
   }
 

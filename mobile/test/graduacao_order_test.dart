@@ -124,4 +124,44 @@ void main() {
     expect(atuais['aluno-1']!['jiu-jitsu']!['faixaNome'], 'Azul');
     expect(montarFaixasAtuaisPorAluno(const []), isEmpty);
   });
+
+  test(
+    'faixaGrauCores vem vazio quando a faixa nunca configurou graus coloridos (não-regressão)',
+    () {
+      final atuais = montarFaixasAtuaisPorAluno([
+        {
+          'id': 'grad-1',
+          'aluno_id': 'aluno-1',
+          'aprovado': true,
+          'modalidadeId': 'jiu-jitsu',
+          'nomeFaixa': 'Branca',
+          'faixaOrdem': 1,
+          'grau': 2,
+          // sem grauCoresFaixa — exatamente o caso de toda faixa hoje
+        },
+      ]);
+
+      expect(atuais['aluno-1']!['jiu-jitsu']!['faixaGrauCores'], isEmpty);
+    },
+  );
+
+  test('faixaGrauCores propaga a lista quando a faixa configurou graus coloridos', () {
+    final atuais = montarFaixasAtuaisPorAluno([
+      {
+        'id': 'grad-1',
+        'aluno_id': 'aluno-1',
+        'aprovado': true,
+        'modalidadeId': 'jiu-jitsu',
+        'nomeFaixa': 'Branca',
+        'faixaOrdem': 1,
+        'grau': 2,
+        'grauCoresFaixa': ['#FFFFFF', '#FFFFFF', '#FF0000', '#FF0000'],
+      },
+    ]);
+
+    expect(
+      atuais['aluno-1']!['jiu-jitsu']!['faixaGrauCores'],
+      ['#FFFFFF', '#FFFFFF', '#FF0000', '#FF0000'],
+    );
+  });
 }

@@ -241,16 +241,133 @@
   "changePwConfirmLabel": "Confirmar nova senha",
   "changePwConfirmHint": "Repita a nova senha",
   "changePwMustBeDifferent": "A nova senha deve ser diferente da atual",
+  "changePwErrMinLength": "Mínimo 6 caracteres",
+  "changePwErrMismatch": "As senhas não coincidem",
   "changePwSuccess": "Senha alterada com sucesso!",
   "changePwErrWrongCurrent": "Senha atual incorreta.",
   "changePwErrWeak": "A nova senha é muito fraca.",
   "changePwErrGeneric": "Erro ao alterar senha. Tente novamente.",
+
+  "tsoTitle": "Defina sua senha definitiva",
+  "tsoSubtitle": "Sua academia gerou uma senha temporária para você. Antes de continuar, defina uma senha definitiva que só você conhece.",
+  "tsoNewPasswordHint": "Nova senha",
+  "tsoConfirmPasswordHint": "Confirme a nova senha",
+  "tsoConfirmButton": "Salvar e continuar",
+  "tsoErrSessionExpired": "Sessão expirada.",
+  "tsoErrRequiresRecentLogin": "Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.",
+  "tsoErrGeneric": "Erro ao definir a nova senha ({codigo}).",
+  "@tsoErrGeneric": {
+    "placeholders": {
+      "codigo": { "type": "String" }
+    }
+  },
+  "tsoErrUnexpected": "Erro inesperado. Tente novamente.",
+
+  "fpTitle": "Esqueci minha senha",
+  "fpHeading": "Recuperar acesso",
+  "fpSubtitle": "Informe seu e-mail e enviaremos um link para você criar uma nova senha.",
+  "fpEmailLabel": "E-mail",
+  "fpEmailHint": "seu@email.com",
+  "fpErrInvalidEmail": "Informe um e-mail válido.",
+  "fpErrTooManyRequests": "Muitas tentativas. Aguarde alguns minutos.",
+  "fpErrGeneric": "Erro ao enviar e-mail. Tente novamente.",
+  "fpErrUnexpected": "Erro inesperado. Tente novamente.",
+  "fpSendButton": "Enviar link de recuperação",
+  "fpSentTitle": "E-mail enviado!",
+  "fpSentBody": "Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.",
+  "fpBackToLogin": "Voltar ao login",
+
+  "fpAlunoSubtitle": "Informe seu telefone ou e-mail cadastrado. Sua academia vai receber um aviso e gerar uma nova senha para você.",
+  "fpIdentifierLabel": "Telefone ou e-mail",
+  "fpIdentifierHint": "(11) 99999-0000 ou seu@email.com",
+  "fpErrInvalidIdentifier": "Informe um telefone ou e-mail válido.",
+  "fpAlunoSendButton": "Enviar solicitação",
+  "fpRequestSentTitle": "Solicitação enviada!",
+  "fpRequestSentBody": "Se encontrarmos seu cadastro, sua academia foi avisada e vai gerar uma nova senha de acesso para você em breve.",
+
+  "resetPwDialogTitle": "Redefinir senha de {nome}?",
+  "@resetPwDialogTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "resetPwDialogBody": "Uma nova senha temporária será gerada e a sessão atual dessa pessoa será encerrada. Ela precisará usar a senha temporária para entrar e trocar por uma senha definitiva.",
+  "resetPwDialogConfirm": "Redefinir",
+  "resetPwErrReset": "Não foi possível redefinir a senha: {erro}",
+  "@resetPwErrReset": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+  "resetPwErrProvision": "Não foi possível gerar a senha de acesso: {erro}",
+  "@resetPwErrProvision": {
+    "placeholders": { "erro": { "type": "String" } }
+  },
+
+  "conflictDialogTitle": "Esse telefone ou e-mail já está em uso",
+  "conflictDialogBody": "Já existe outro cadastro com o mesmo telefone/e-mail de {nome}, e essa pessoa já entrou no app e definiu a própria senha.\n\n• Manter a senha atual: {nome} vai acessar com a mesma senha que essa pessoa já definiu — nada muda para quem já usa o app.\n• Gerar nova senha temporária: substitui o acesso de todo mundo que usa esse telefone/e-mail. Quem já tinha senha própria vai precisar defini-la de novo no próximo login.",
+  "@conflictDialogBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "conflictDialogKeepCurrent": "Manter senha atual",
+  "conflictDialogGenerateNew": "Gerar nova temporária",
+  "linkedDialogTitle": "Vinculado",
+  "linkedDialogBody": "{nome} vai acessar o app com {comoEntrar} e a senha que já foi definida por quem usa esse contato. Nenhuma senha nova foi gerada.",
+  "@linkedDialogBody": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" }
+    }
+  },
+
+  "tempPwTitle": "Senha temporária de {nome}",
+  "@tempPwTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwHint": "Copie ou compartilhe agora. Você também vê esta senha na ficha do aluno (Acesso ao App) até ele entrar pela primeira vez.",
+  "tempPwExplainTitle": "Explique para {nome}:",
+  "@tempPwExplainTitle": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "tempPwStep1": "Abrir o app e tocar em \"Sou aluno ou responsável\".",
+  "tempPwStep2": "Digitar {comoEntrar} + esta senha temporária.",
+  "@tempPwStep2": {
+    "placeholders": { "comoEntrar": { "type": "String" } }
+  },
+  "tempPwStep3": "O app pede para criar a senha definitiva — pronto, sem \"primeiro acesso\".",
+  "tempPwCopy": "Copiar",
+  "tempPwShare": "Compartilhar",
+  "tempPwCopied": "Senha copiada.",
+  "tempPwShareText": "Sensei Manager — acesso de {nome}\nEntre no app com {comoEntrar} e a senha temporária: {senha}\nO app vai pedir para você criar a sua senha definitiva.",
+  "@tempPwShareText": {
+    "placeholders": {
+      "nome": { "type": "String" },
+      "comoEntrar": { "type": "String" },
+      "senha": { "type": "String" }
+    }
+  },
+  "tempPwBoxTitle": "Senha temporária — ainda não entrou pela 1ª vez",
+  "tempPwBoxViewSend": "Ver / enviar",
+  "tempPwLoginHintFallback": "o telefone ou e-mail cadastrado",
+  "tempPwLoginHintWith": "o {loginHint}",
+  "@tempPwLoginHintWith": {
+    "placeholders": { "loginHint": { "type": "String" } }
+  },
   "studentsSearchHint": "Buscar aluno...",
   "studentsEmpty": "Nenhum aluno encontrado.",
   "studentsLoadError": "Não foi possível carregar os alunos.",
   "studentNoBelt": "Sem graduação",
   "statusActive": "Ativo",
   "statusInactive": "Inativo",
+  "studentsFilterLabel": "Filtrar por situação",
+  "studentsFilterAll": "Todos",
+
+  "notifTitle": "Notificações",
+  "notifUnreadCount": "{count, plural, one{1 não lida} other{{count} não lidas}}",
+  "@notifUnreadCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "notifMarkAllRead": "Marcar todas",
+  "notifEmptyTitle": "Nenhuma notificação",
+  "notifEmptySubtitle": "Você está em dia com tudo!",
   "finUpToDate": "Em dia",
   "finPending": "Pendente",
   "finOverdue": "Inadimplente",
@@ -280,6 +397,7 @@
   "sdNoGraduation": "Nenhuma graduação",
   "sdLevelXp": "Nível / XP",
   "sdPlanSection": "Plano",
+  "sdPlanByModalitySection": "Planos por modalidade",
   "sdNoPlan": "Nenhum plano vinculado.",
   "sdMonthlyValue": "Valor mensal",
   "sdDueDate": "Vencimento",
@@ -508,6 +626,22 @@
   "sdPointsError": "Erro ao lançar pontos.",
   "sdEmergencyContact": "Contato de Emergência",
   "sdNoClasses": "Nenhuma turma vinculada.",
+  "sdUnlinkClassTitle": "Desvincular desta turma?",
+  "sdUnlinkClassBody": "{aluno} sai de \"{turma}\". Se essa for a única turma dele(a) nessa modalidade, as cobranças pendentes, atrasadas e futuras dessa modalidade também são canceladas — cobrança já paga nunca é afetada.",
+  "@sdUnlinkClassBody": {
+    "placeholders": {
+      "aluno": {"type": "String"},
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassButton": "Desvincular",
+  "sdUnlinkedToast": "Desvinculado de {turma}.",
+  "@sdUnlinkedToast": {
+    "placeholders": {
+      "turma": {"type": "String"}
+    }
+  },
+  "sdUnlinkClassError": "Não foi possível desvincular a turma. Tente novamente.",
   "sdBeltHistory": "Histórico de Graduações",
   "sdNoBeltHistory": "Nenhuma graduação registrada.",
   "sdRemovePromotionTitle": "Remover graduação?",
@@ -550,6 +684,18 @@
     }
   },
   "sdStatusChangeError": "Erro ao alterar status.",
+  "sdDeleteAlunoAction": "Excluir aluno",
+  "sdDeleteAlunoConfirmTitle": "Excluir {name}?",
+  "@sdDeleteAlunoConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "sdDeleteAlunoConfirmBody": "Essa ação é definitiva: remove matrículas, mensalidades, presenças, graduações e notificações desse aluno. Não pode ser desfeita. Se o telefone/e-mail for compartilhado com outro aluno, o acesso do outro não é afetado.",
+  "sdDeleteAlunoSuccess": "Aluno excluído.",
+  "sdDeleteAlunoError": "Não foi possível excluir o aluno.",
   "sdAllowAccessConfirm": "Liberar o acesso ao app de {name}?",
   "@sdAllowAccessConfirm": {
     "placeholders": {
@@ -615,6 +761,9 @@
   "level": "Nível",
   "instructorOptional": "Professor (opcional)",
   "noInstructor": "Sem professor",
+  "classDefaultPlanOptional": "Plano padrão (opcional)",
+  "classNoDefaultPlan": "Sem plano padrão",
+  "classDefaultPlanHelper": "Todo aluno matriculado nessa turma já é vinculado a este plano automaticamente, sem precisar configurar no perfil dele.",
   "maxCapacity": "Capacidade máxima",
   "invalidNumber": "Número inválido",
   "classActiveToggle": "Turma ativa",
@@ -988,6 +1137,65 @@
   "fiGenerateCharge": "Gerar cobrança",
   "fiNewCharge": "Nova cobrança",
   "fiCurrentMonth": "Mês atual",
+  "fiBackToCurrentMonth": "Voltar ao mês atual",
+  "fiMoreActions": "Mais",
+  "fiCleanupRetroactive": "Limpar retroativas",
+  "fiCleanupRetroactiveTitle": "Limpar cobranças retroativas",
+  "fiCleanupRetroactiveExplain": "Desconsidera (não exclui) toda cobrança pendente ou atrasada com vencimento ANTES do mês escolhido, de TODOS os alunos. Cobranças já pagas nunca são afetadas e nada disso conta como valor recebido.",
+  "fiCleanupRetroactiveCutoffLabel": "Manter cobranças a partir de",
+  "fiCleanupRetroactiveConfirmTitle": "Confirmar limpeza?",
+  "fiCleanupRetroactiveConfirmBody": "Essa ação vai desconsiderar de uma vez as pendências de todos os alunos anteriores a {mes}. Não pode ser desfeita em massa — só uma por uma, manualmente. Tem certeza?",
+  "@fiCleanupRetroactiveConfirmBody": {
+    "placeholders": {
+      "mes": {"type": "String"}
+    }
+  },
+  "fiCleanupRetroactiveButton": "Desconsiderar retroativas",
+  "fiCleanupRetroactiveSuccess": "{n} cobrança(s) retroativa(s) desconsiderada(s).",
+  "@fiCleanupRetroactiveSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "fiCleanupRetroactiveError": "Não foi possível limpar as cobranças retroativas. Tente novamente.",
+  "fiAllModalities": "Todas as modalidades",
+  "fiDueLabel": "Vencimento",
+  "fiExportReport": "Exportar relatório",
+  "fiExportSheetTitle": "Colunas do relatório financeiro",
+  "fiExportColumnType": "Tipo",
+  "fiExportColumnValue": "Valor",
+  "fiExportColumnDueDate": "Vencimento",
+  "fiExportColumnStatus": "Status",
+  "fiExportColumnPaidDate": "Data de pagamento",
+  "fiMergeDuplicates": "Corrigir duplicadas",
+  "fiCleanOrphans": "Limpar órfãs",
+  "fiMergeDuplicatesTitle": "Corrigir mensalidades duplicadas",
+  "fiMergeDuplicatesExplain": "Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.",
+  "fiMergeDuplicatesConfirmTitle": "Corrigir duplicadas agora?",
+  "fiMergeDuplicatesConfirmBody": "Isso vai desconsiderar automaticamente as mensalidades duplicadas de todos os alunos desta academia, mantendo uma por aluno/mês. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?",
+  "fiMergeDuplicatesButton": "Corrigir duplicadas",
+  "fiMergeDuplicatesSuccess": "{grupos} grupo(s) com duplicata · {resolvidas} corrigida(s) automaticamente · {manual} para revisão manual.",
+  "@fiMergeDuplicatesSuccess": {
+    "placeholders": {
+      "grupos": {"type": "int"},
+      "resolvidas": {"type": "int"},
+      "manual": {"type": "int"}
+    }
+  },
+  "fiMergeDuplicatesError": "Não foi possível corrigir as mensalidades duplicadas. Tente novamente.",
+  "fiCleanOrphansTitle": "Limpar cobranças órfãs",
+  "fiCleanOrphansExplain": "Procura cobranças ainda pendentes (nunca pagas) presas num plano que já foi excluído, ou numa modalidade da qual o aluno já foi desvinculado. Quando encontra, desconsidera — nunca exclui, nunca marca como paga. Cobrança já paga nunca é tocada, mesmo que o plano dela tenha sido excluído depois.",
+  "fiCleanOrphansConfirmTitle": "Limpar cobranças órfãs agora?",
+  "fiCleanOrphansConfirmBody": "Isso vai desconsiderar toda cobrança pendente desta academia presa num plano excluído ou numa modalidade da qual o aluno já foi desvinculado. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?",
+  "fiCleanOrphansButton": "Limpar órfãs",
+  "fiCleanOrphansSuccess": "{analisadas} cobrança(s) pendente(s) analisada(s) · {canceladas} cancelada(s) por estarem órfãs.",
+  "@fiCleanOrphansSuccess": {
+    "placeholders": {
+      "analisadas": {"type": "int"},
+      "canceladas": {"type": "int"}
+    }
+  },
+  "fiCleanOrphansError": "Não foi possível limpar as cobranças órfãs. Tente novamente.",
   "fiNoCharges": "Nenhuma cobrança.",
   "fiChargesCount": "Cobranças · {count}",
   "@fiChargesCount": {
@@ -1067,6 +1275,23 @@
     }
   },
   "fiUpdateError": "Erro ao atualizar pagamento.",
+  "fiSelectMode": "Selecionar",
+  "fiSelectedCount": "{count, plural, one{1 selecionado} other{{count} selecionados}}",
+  "@fiSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fiBatchMarkedPaid": "{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
+  "@fiBatchMarkedPaid": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "fiConfirmPayment": "Confirmar pagamento",
   "fiBaseValue": "Valor base",
   "fiToReceive": "A receber",
@@ -1260,6 +1485,37 @@
   "plnNewTitle": "Novo Plano",
   "plnNameField": "Nome do plano *",
   "plnMonthlyValueField": "Valor mensal (R$) *",
+  "plnModalityField": "Modalidade (cobrança por modalidade)",
+  "plnModalityNone": "Nenhuma (plano genérico)",
+  "plnWeeklyLimitField": "Limite de dias por semana (opcional)",
+  "apmTitle": "Planos por modalidade",
+  "apmNewTitle": "Nova matrícula por modalidade",
+  "apmEditTitle": "Editar matrícula",
+  "apmModalityField": "Modalidade",
+  "apmPlanField": "Plano",
+  "apmDueDayField": "Dia de vencimento (1-28)",
+  "apmSelectRequired": "Selecione a modalidade e o plano.",
+  "apmInvalidDueDay": "Informe um dia de vencimento entre 1 e 28.",
+  "apmSaveError": "Não foi possível salvar. Tente novamente.",
+  "apmCreateBtn": "Adicionar",
+  "apmEndTitle": "Encerrar matrícula?",
+  "apmEndBody": "Para de gerar cobrança de {modalidade} para este aluno. O histórico de cobranças já geradas não é apagado.",
+  "@apmEndBody": {
+    "placeholders": {
+      "modalidade": {
+        "type": "Object"
+      }
+    }
+  },
+  "apmFeatureDisabled": "Cobrança por modalidade não está ativada para esta academia. Ative em Configurações > Financeiro para usar planos independentes por modalidade.",
+  "apmEmpty": "{nome} ainda não tem nenhuma modalidade com plano próprio cadastrada.",
+  "@apmEmpty": {
+    "placeholders": {
+      "nome": {
+        "type": "Object"
+      }
+    }
+  },
   "plnNameRequired": "Nome é obrigatório.",
   "plnInvalidValue": "Informe um valor mensal válido.",
   "plnUpdated": "Plano atualizado!",
@@ -1535,6 +1791,52 @@
   "fxDescHint": "Ex.: Observações sobre a faixa...",
   "fxBeltColor": "Cor da Faixa",
   "fxCreateBtn": "Criar Faixa",
+  "fxHasDegrees": "Tem graus",
+  "fxHasDegreesSub": "Mostra marcadores de grau na ponteira da faixa (ex.: listras antes de trocar de faixa)",
+  "fxMaxDegrees": "Graus até trocar de faixa",
+  "fxDegreeTipColor": "Cor da ponteira",
+  "fxColoredDegrees": "Graus coloridos",
+  "fxColoredDegreesSub": "Em vez de uma cor única pra todos os graus, cada grau pode ter a própria cor (ex.: sistema infantil da IBJJF/CBJJ)",
+  "fxPresetOfficial": "Oficial IBJJF/CBJJ",
+  "fxPresetOfficialShort": "Oficial",
+  "fxPresetSimplified": "Simplificado",
+  "fxPresetCustom": "Personalizado",
+  "fxPresetOfficialHint": "4 primeiros graus brancos, 4 seguintes vermelhos, os demais usam a cor da próxima faixa na sequência.",
+  "fxPresetOfficialHintNoNext": "4 primeiros graus brancos, 4 seguintes vermelhos. Esta é a última faixa cadastrada — cadastre a próxima faixa primeiro pra definir a cor dos graus finais, ou troque pro preset Personalizado.",
+  "fxPresetSimplifiedPickColors": "Escolha as cores, na ordem — elas se repetem em blocos iguais até completar os graus",
+  "fxPresetSimplifiedHint": "As cores vêm em blocos, um atrás do outro — nunca uma cor sobreposta à outra. Ex.: com branco/vermelho/amarelo e 12 graus, o aluno ganha primeiro os 4 graus brancos, só depois os 4 vermelhos, e só depois os 4 amarelos.",
+  "fxPresetCustomPickPerDegree": "Toque em cada grau pra escolher a cor dele",
+  "fxPresetCustomHint": "Pra ter mais de um grau no total, ajuste o campo \"Graus até trocar de faixa\" ali em cima primeiro. Aqui embaixo você escolhe a cor de cada grau individualmente, sem seguir nenhum padrão fixo de blocos.",
+  "fxPickColorForDegree": "Cor do {numero}º grau",
+  "fxTapToChange": "Toque pra mudar",
+  "fxSimplifiedWarningColorsNeverShow": "Com o número de graus atual, nem toda cor escolhida vai aparecer — algumas nunca serão alcançadas. Pra ver todas, defina pelo menos {numero} graus (4 por cor, acima).",
+  "@fxSimplifiedWarningColorsNeverShow": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxFixAutomatically": "Ajustar automaticamente",
+  "turmaColoredDegrees": "Graus coloridos nesta turma",
+  "turmaColoredDegreesSub": "Alunos matriculados aqui veem as cores configuradas na faixa (se houver). Útil pra ligar só em turmas infantis, por exemplo, mesmo compartilhando a modalidade com turmas de adulto.",
+  "@fxPickColorForDegree": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
+  "fxPreview": "Pré-visualização",
+  "fxPreviewDragHint": "Arraste pra simular o grau do aluno e ver as cores entrando em sequência, uma de cada vez",
+  "fxPreviewDegreeLabel": "{numero}º grau",
+  "@fxPreviewDegreeLabel": {
+    "placeholders": {
+      "numero": {
+        "type": "int"
+      }
+    }
+  },
   "cfgTitle": "Configurações da Academia",
   "cfgSubtitle": "Gerencie as informações e preferências da sua academia.",
   "cfgIdentitySection": "Identidade da Academia",
@@ -1571,6 +1873,78 @@
   "cfgConfigFee": "Configurar taxa",
   "cfgFeePercentSub": "Percentual sobre cobranças vencidas",
   "cfgFeeFixedSub": "Valor fixo em cobranças vencidas",
+  "cfgBillingByModality": "Cobrança por modalidade",
+  "cfgBillingByModalitySub": "Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)",
+  "cfgWeeklyLimit": "Limite de dias por semana",
+  "cfgWeeklyLimitSub": "O que fazer quando o aluno excede os dias de treino do plano dele",
+  "cfgWeeklyLimitDesc": "Alguns planos limitam quantos dias por semana o aluno pode treinar (ex.: plano de 2x/semana). Escolha o que acontece quando ele tenta um check-in além do limite.",
+  "cfgWeeklyLimitModeOff": "Desativado",
+  "cfgWeeklyLimitModeOffSub": "Não controla limite de dias por semana",
+  "cfgWeeklyLimitModeWarn": "Avisar",
+  "cfgWeeklyLimitModeWarnSub": "Deixa fazer check-in, mas avisa que passou do limite do plano",
+  "cfgWeeklyLimitModeBlock": "Bloquear",
+  "cfgWeeklyLimitModeBlockSub": "Impede o check-in ao atingir o limite semanal do plano",
+  "cfgWeeklyLimitSaved": "Limite de dias por semana salvo.",
+  "cfgAutoAbsence": "Falta automática após 24h",
+  "cfgAutoAbsenceSub": "Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).",
+  "cfgManualCheckin": "Check-in manual sem QR",
+  "cfgManualCheckinSub": "Permite que o aluno (ou responsável) registre a própria presença pelo app sem escanear nenhum QR Code, só quando há aula acontecendo agora pra ele. Desativado por padrão — o check-in continua só por QR Code.",
+  "cfgManualCheckinWindow": "Janela de check-in",
+  "cfgManualCheckinWindowSub": "Quanto tempo antes e depois do horário da aula o aluno pode confirmar presença",
+  "cfgManualCheckinWindowDesc": "Define quando o botão de confirmar presença fica liberado pro aluno, em relação ao horário de início da aula.",
+  "cfgManualCheckinWindowBefore": "Antes do início da aula",
+  "cfgManualCheckinWindowAfter": "Depois do início da aula",
+  "cfgManualCheckinWindowZero": "No horário",
+  "cfgColoredDegrees": "Graus coloridos",
+  "cfgColoredDegreesSub": "Libera, na tela de Faixas, a opção de configurar cores por grau (ex.: sistema infantil da IBJJF/CBJJ). Desativado: cada faixa continua mostrando os graus do jeito de sempre.",
+  "grauColoridoHelpTitle": "Como funciona o grau colorido?",
+  "grauColoridoStep1Title": "Cada grau pode ter sua própria cor",
+  "grauColoridoStep1Body": "Em vez de todos os graus serem marcados só com listras brancas, você escolhe uma cor diferente pra cada grau — do jeito que a IBJJF/CBJJ usa no infantil.",
+  "grauColoridoStep2Title": "As cores vêm em sequência",
+  "grauColoridoStep2Body": "Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.",
+  "grauColoridoStep3Title": "Configure isso por faixa",
+  "grauColoridoStep3Body": "Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
+  "cfgManualCheckinWindowMinutes": "{min}min",
+  "@cfgManualCheckinWindowMinutes": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHours": "{h, plural, one{1h} other{{h}h}}",
+  "@cfgManualCheckinWindowHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowHoursMinutes": "{h}h{min}min",
+  "@cfgManualCheckinWindowHoursMinutes": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "cfgManualCheckinWindowValue": "{antes} antes · {depois} depois",
+  "@cfgManualCheckinWindowValue": {
+    "placeholders": {
+      "antes": {
+        "type": "String"
+      },
+      "depois": {
+        "type": "String"
+      }
+    }
+  },
+  "cfgManualCheckinWindowUnlimited": "Sem limite",
+  "cfgManualCheckinWindowMinutesSuffix": "min",
+  "cfgManualCheckinWindowSaved": "Janela de check-in atualizada.",
   "cfgGradSection": "Graduações e Modalidades",
   "cfgGradSub": "Configure faixas, graduações e modalidades.",
   "cfgBeltsSub": "Cadastrar e editar graduações por modalidade",
@@ -1669,6 +2043,16 @@
     }
   },
   "cfgPlanFreeDesc": "3 turmas · 10 alunos/turma · anúncios",
+  "planTitle": "Minha assinatura",
+  "planSubscribedSince": "Assinante desde",
+  "planRenewsOn": "Renova em",
+  "planRenewsOnHint": "Data controlada pela loja (Apple/Google) — pode variar.",
+  "planViaAppStore": "Assinado via App Store",
+  "planViaPlayStore": "Assinado via Google Play",
+  "planChangePlan": "Trocar de plano",
+  "planCancelSubscription": "Cancelar assinatura",
+  "planCancelHint": "O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.",
+  "planCancelError": "Não foi possível abrir a loja. Tente novamente.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {
@@ -1700,6 +2084,7 @@
   "fxZeroNoMin": "0 = sem exigência mínima.",
   "authEnterPassword": "Informe sua senha.",
   "authErrUserNotFound": "Usuário não encontrado no sistema. Contate o administrador.",
+  "authErrUnknownProfile": "Não foi possível identificar seu perfil de acesso. Contate o administrador da academia.",
   "authErrDbNotConfigured": "Banco de dados ainda não configurado. Contate o administrador.",
   "authErrNoPermission": "Sem permissão para acessar os dados. Contate o administrador.",
   "authFirstTimeUsingApp": "Acessando o app pela primeira vez",
@@ -1890,6 +2275,22 @@
   },
   "apContactSecretary": "Entre em contato com a secretaria para regularizar.",
   "apNoChargesInCategory": "Nenhuma cobrança nessa categoria",
+  "apNoChargesThisMonth": "Nenhuma cobrança em {month}",
+  "@apNoChargesThisMonth": {
+    "placeholders": {
+      "month": { "type": "String" }
+    }
+  },
+  "apTotalOpenAllMonths": "{amount} em aberto no total",
+  "@apTotalOpenAllMonths": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "apViewAllOverdue": "Ver todas as atrasadas",
+  "apAllOverdueTitle": "Mensalidades atrasadas",
+  "apPrevMonth": "Mês anterior",
+  "apNextMonth": "Próximo mês",
   "apAttendanceTitle": "Presenças",
   "apTrainingHistory": "Seu histórico de treinos",
   "apTotalWorkouts": "Total de treinos",
@@ -1952,8 +2353,53 @@
   "apRankNoPeriodData": "Sem dados para este período",
   "apRankTrainMore": "Treine mais para aparecer no ranking!",
   "apRankingsTitle": "Rankings",
-  "apQrMyCode": "Meu QR Code",
-  "apQrScanAcademy": "Escanear Academia",
+  "apQrMyCode": "Meu QR",
+  "apQrScanAcademy": "Escanear",
+  "apQrManualCheckin": "Sem QR",
+  "apManualCheckinLoadError": "Não foi possível verificar suas turmas agora. Tente de novo.",
+  "apManualCheckinNoClassNow": "Nenhuma das suas turmas tem aula no horário de agora.",
+  "apManualCheckinPick": "Você tem mais de uma turma com aula agora — escolha em qual confirmar presença:",
+  "apManualCheckinClassFallback": "Turma",
+  "apManualCheckinHistoryLabel": "Manual, sem QR",
+  "apManualCheckinClassAt": "Hoje às {hora}",
+  "@apManualCheckinClassAt": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinConfirm": "Confirmar presença",
+  "apManualCheckinClassOn": "{data} às {hora}",
+  "@apManualCheckinClassOn": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAtToday": "Disponível a partir das {hora}",
+  "@apManualCheckinAvailableAtToday": {
+    "placeholders": {
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
+  "apManualCheckinAvailableAt": "Disponível a partir de {data} às {hora}",
+  "@apManualCheckinAvailableAt": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      },
+      "hora": {
+        "type": "String"
+      }
+    }
+  },
   "apQrShowInstructor": "Apresente ao professor na entrada",
   "apQrGenFailed": "Não foi possível gerar o QR Code",
   "apQrShowInstructorLong": "Apresente este QR Code ao professor para registrar sua presença.",
@@ -2168,5 +2614,56 @@
   "rnClassesTitle": "Turmas e graduações",
   "rnClassesDesc": "Graduações lançadas por engano podem ser corrigidas sem refazer o histórico, e excluir uma turma não apaga mais alunos, presenças ou registros.",
   "rnBillingTitle": "Financeiro automático",
-  "rnBillingDesc": "As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado."
+  "rnBillingDesc": "As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.",
+  "rnDeleteStudentTitle": "Excluir aluno definitivamente",
+  "rnDeleteStudentDesc": "Agora dá para excluir um aluno de vez: matrículas, mensalidades, presenças e histórico saem junto, sem afetar irmãos que compartilham o mesmo telefone ou e-mail.",
+  "rnBillingByModalityTitle": "Cobrança por modalidade",
+  "rnBillingByModalityDesc": "Quem ativar nas configurações pode cobrar cada modalidade separadamente — por exemplo, jiu-jitsu e judô com valores e vencimentos independentes.",
+  "rnWeeklyLimitTitle": "Limite de dias por semana",
+  "rnWeeklyLimitDesc": "Planos com limite de treinos por semana agora podem avisar ou bloquear o check-in do aluno ao ultrapassar a cota, e isso já entra na conta de faltas.",
+  "rnAutoAbsenceTitle": "Falta automática configurável",
+  "rnAutoAbsenceDesc": "Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.",
+  "rnAbsenceFixTitle": "Correção nas faltas",
+  "rnAbsenceFixDesc": "Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.",
+  "rnOfficialReportTitle": "Relatório oficial de presenças",
+  "rnOfficialReportDesc": "Novo relatório de presenças e faltas com exportação em PDF e Excel, acessível pela academia e por quem tem permissão na secretaria.",
+  "rnModalityBadgeTitle": "Modalidade no Financeiro",
+  "rnModalityBadgeDesc": "Cada cobrança por modalidade agora mostra um badge colorido com o nome dela, além de filtros por modalidade e por status para organizar a lista.",
+  "rnBulkPaymentTitle": "Marcar vários como pago",
+  "rnBulkPaymentDesc": "No Financeiro agora dá para selecionar várias cobranças pendentes e marcar todas como pagas de uma vez, sem perder a posição da rolagem.",
+  "rnManualCheckinTitle": "Check-in sem QR Code",
+  "rnManualCheckinDesc": "Quem ativar nas configurações permite que o aluno confirme presença sem escanear o QR, útil quando outra pessoa leva a criança ao treino.",
+  "rnStaffPermissionsTitle": "Mais controle sobre a equipe",
+  "rnStaffPermissionsDesc": "Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.",
+  "rnColoredDegreesTitle": "Graus coloridos",
+  "rnColoredDegreesDesc": "Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.",
+  "rpTitle": "Relatório de Presenças",
+  "rpNoAccess": "Você não tem acesso a este relatório.",
+  "rpAllClasses": "Todas as turmas",
+  "rpPeriodMonth": "Mês",
+  "rpPeriodYear": "Ano",
+  "rpSelectMonth": "Selecione um dia do mês desejado",
+  "rpColumnName": "Nome",
+  "rpColumnPhone": "Telefone",
+  "rpColumnClass": "Turma",
+  "rpColumnBelt": "Faixa",
+  "rpColumnPresences": "Presenças",
+  "rpColumnAbsences": "Faltas",
+  "rpColumnTotalClasses": "Total de aulas",
+  "rpColumnPercent": "% Frequência",
+  "rpExport": "Exportar",
+  "rpExportPdf": "Exportar PDF",
+  "rpExportExcel": "Exportar Excel",
+  "rpExportColumnsTitle": "Colunas do relatório",
+  "rpEmpty": "Nenhum dado de presença para o período e turma selecionados.",
+  "rpRowCount": "Registros no período",
+  "rpStudentsSection": "Alunos",
+  "rpSummaryLine": "{presencas} presenças · {faltas} faltas · {total} aulas no período",
+  "@rpSummaryLine": {
+    "placeholders": {
+      "presencas": {"type": "int"},
+      "faltas": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  }
 }

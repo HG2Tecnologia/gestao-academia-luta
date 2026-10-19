@@ -189,6 +189,17 @@ class _SplashScreenState extends State<SplashScreen>
       case 'Aluno':
         context.go('/aluno/inicio');
       default:
+        if (user != null) {
+          // Havia uma sessão salva, mas com um perfil que não reconhecemos
+          // (dado corrompido/formato antigo) — antes isso voltava pra
+          // entrada em silêncio, parecendo logout sem explicação. Limpa a
+          // sessão ruim e força um login limpo, em vez de ficar preso num
+          // loop silencioso.
+          await AuthStorage.clear();
+          try {
+            await FirebaseAuth.instance.signOut();
+          } catch (_) {}
+        }
         context.go('/boas-vindas');
     }
   }

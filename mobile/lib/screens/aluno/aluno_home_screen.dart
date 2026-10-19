@@ -4,6 +4,7 @@ import '../../core/auth_storage.dart';
 import '../../core/firestore_service.dart';
 import '../../core/frequencia_treino.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/pagamento_status.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/app_tokens.dart';
@@ -96,6 +97,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         firestoreService
             .getNoticias(academiaId)
             .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getAcademia(academiaId).catchError((_) => null),
       ]);
 
       final aluno = results[0] as Map<String, dynamic>?;
@@ -106,6 +108,9 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
       final presencas = (results[5] as List).cast<Map<String, dynamic>>();
       final pagamentos = (results[6] as List).cast<Map<String, dynamic>>();
       final noticias = (results[7] as List).cast<Map<String, dynamic>>();
+      final academiaDoc = results[8] as Map<String, dynamic>?;
+      final faltaAutomaticaAtiva =
+          academiaDoc?['falta_automatica_ativa'] as bool? ?? true;
 
       final faixasPorId =
           montarFaixasAtuaisPorAluno(graduacoes)[user.id] ?? const {};
@@ -120,6 +125,14 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
         for (final t in turmas)
           t['id'].toString(): (t['nome'] ?? '').toString(),
       };
+
+      Map<String, int> limitesPorTurma = const {};
+      try {
+        limitesPorTurma = await firestoreService.getLimitesDiasSemanaPorTurma(
+          academiaId,
+          matriculas,
+        );
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() {
@@ -137,6 +150,8 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
           presencas: presencas,
           matriculas: matriculas,
           horarios: horarios,
+          limitesPorTurma: limitesPorTurma,
+          contabilizarFaltaAutomatica: faltaAutomaticaAtiva,
         );
         _presencasAno = freq.totalPresencas;
         _faltasAno = freq.totalFaltas;
@@ -245,14 +260,26 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
     return set;
   }
 
+  // Mesma regra do financeiro do aluno (aluno_financeiro_screen.dart): uma
+  // pendência de mês FUTURO (cobrança já gerada com antecedência) não é uma
+  // pendência ATUAL — não deve acender o alerta na Home. Só conta pendência
+  // (ou atraso) do mês corrente ou anterior.
   FinanceiroStatus _statusFinanceiro(List<Map<String, dynamic>> pagamentos) {
     if (pagamentos.isEmpty) return FinanceiroStatus.semCobrancas;
+    final now = DateTime.now();
+    final mesRefHoje =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     var temPendente = false;
     for (final p in pagamentos) {
-      final raw = p['status'];
-      final s = raw is int ? raw : int.tryParse('$raw') ?? 0;
-      if (s == 2) return FinanceiroStatus.atrasado; // 2 = Atrasado
-      if (s == 0) temPendente = true; // 0 = Pendente
+      final status = pagamentoStatusEfetivo(
+        rawStatus: p['status'],
+        dataVencimento: p['data_vencimento'] ?? p['dataVencimento'],
+      );
+      if (!pagamentoEhPendenciaAberta(status)) continue;
+      if (status == PagamentoStatus.atrasado) return FinanceiroStatus.atrasado;
+      if (pagamentoMesReferencia(p).compareTo(mesRefHoje) <= 0) {
+        temPendente = true;
+      }
     }
     return temPendente ? FinanceiroStatus.pendente : FinanceiroStatus.emDia;
   }
@@ -348,7 +375,7 @@ class _AlunoHomeScreenState extends State<AlunoHomeScreen> {
                 primeiroNome: primeiro,
                 fotoBase64: foto,
                 profileSwitcher: _profileSwitcher(),
-                onNotificacoes: () => context.push('/noticias'),
+                usarSinoNotificacoes: true,
                 onAvatar: () => context.go('/aluno/perfil'),
               ),
               const SizedBox(height: AppSpacing.lg),

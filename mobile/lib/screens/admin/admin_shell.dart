@@ -206,6 +206,15 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                   const Divider(height: 24),
                   _DrawerSection(l.menuSectionOther),
                   _DrawerItem(
+                    icon: Icons.fact_check_rounded,
+                    label: l.rpTitle,
+                    selected: false,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/relatorio-presencas-oficial');
+                    },
+                  ),
+                  _DrawerItem(
                     icon: Icons.newspaper_rounded,
                     label: l.menuNews,
                     selected: false,

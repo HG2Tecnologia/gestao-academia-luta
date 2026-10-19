@@ -8,6 +8,7 @@ const { initializeApp, deleteApp } = require("firebase/app");
 const {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
+  deleteUser,
   getAuth,
   signInWithEmailAndPassword,
   signOut,
@@ -149,6 +150,73 @@ test("admin redefine a senha do aluno: gera senha temporária e força troca", a
     // Depois que a pessoa definiu a própria senha, a temporária some da ficha.
     const aluno = await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").get();
     assert.equal(aluno.data().acesso_senha_temporaria, undefined);
+  });
+});
+
+test("conta Auth removida enquanto o perfil ainda aponta pra ela: autocorrige e provisiona de novo, sem perder o cadastro", async () => {
+  // Bug real reportado por um cliente: redefinir a senha de um aluno dava
+  // só "[firebase_functions/internal] INTERNAL", sem nenhum detalhe. A causa:
+  // o `firebaseUid` salvo no perfil apontava pra uma conta Auth que não
+  // existe mais (drift) — `updateUser`/`revokeRefreshTokens` numa conta
+  // morta quebrava sem tratamento nenhum. Agora `collectRelatedUids`
+  // verifica se o uid ainda existe; se não existir, trata como "sem conta" e
+  // deixa o provisionamento normal (já existente, já testado) criar uma
+  // conta nova e revincular o MESMO perfil — nome/faixa/turma/financeiro do
+  // aluno continuam intactos, só a credencial de login é recriada.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-b@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+  });
+
+  await signOut(auth);
+  await createUserWithEmailAndPassword(auth, "aluno-removido@sensei.app", "SenhaFixtureAluno1");
+  const alunoUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    // Dados realistas (telefone + e-mail), igual ao caso real reportado —
+    // sem isso o provisionamento não tem pra onde criar a conta nova.
+    await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").update({
+      firebaseUid: alunoUid,
+      telefone: "(88) 99931-2667",
+      telefone_digits: "88999312667",
+      email: "aluno-a-real@example.com",
+    });
+    await ctx.firestore().doc(`usuariosFirebase/${alunoUid}`).set({
+      schemaVersion: 2,
+      academiaId: "academy-a",
+      colecao: "usuarios",
+      usuarioId: "aluno-a",
+      profile_refs: [
+        { key: "academy-a|usuarios|aluno-a", academiaId: "academy-a", colecao: "usuarios", usuarioId: "aluno-a", perfil_nome: "Aluno", nome: "Aluno A" },
+      ],
+    });
+  });
+  // Simula o drift: a conta Auth deixa de existir, mas o perfil continua
+  // apontando pro uid dela (ninguém limpou o Firestore).
+  await deleteUser(auth.currentUser);
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-b@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({ academiaId: "academy-a", colecao: "usuarios", usuarioId: "aluno-a" });
+  assert.equal(typeof resultado.data.temporaryPassword, "string");
+  assert.ok(resultado.data.temporaryPassword.length >= 6);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const aluno = await ctx.firestore().doc("academias/academy-a/usuarios/aluno-a").get();
+    // Cadastro continua intacto — só o vínculo de login foi trocado pro uid novo.
+    assert.equal(aluno.data().nome, "Aluno A");
+    assert.notEqual(aluno.data().firebaseUid, alunoUid);
+    assert.equal(aluno.data().acesso_senha_temporaria, resultado.data.temporaryPassword);
   });
 });
 
@@ -311,6 +379,251 @@ test("provisão vincula ao irmão que já tem conta no mesmo telefone", async ()
   await signInWithEmailAndPassword(auth, "5521970000003@sensei.app", senha);
 });
 
+test("redefinir a senha de um irmão atualiza a senha temporária exibida no perfil do OUTRO irmão também (conta compartilhada)", async () => {
+  // Bug real reportado por cliente: a senha do Firebase Auth é uma só por
+  // conta, mas antes `acesso_senha_temporaria` só era gravado no perfil que
+  // a academia estava olhando — o irmão ficava com um valor antigo, que já
+  // não era mais a senha de verdade, e dava "senha incorreta" mesmo
+  // copiando certinho o que a ficha dele mostrava.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-compartilhada@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000008@sensei.app", "SenhaAntigaCompartilhada1");
+  const uidCompartilhado = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-x").set({
+      nome: "Irmão X", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0008", telefone_digits: "21970000008",
+      firebaseUid: uidCompartilhado,
+      acesso_senha_temporaria: "senhaAntigaDoIrmaoX",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-y").set({
+      nome: "Irmão Y", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0008", telefone_digits: "21970000008",
+      firebaseUid: uidCompartilhado,
+      acesso_senha_temporaria: "senhaAntigaDoIrmaoY",
+    });
+    await fs.doc(`usuariosFirebase/${uidCompartilhado}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|usuarios|irmao-x", academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-x", perfil_nome: "Aluno", nome: "Irmão X" },
+        { key: "academy-a|usuarios|irmao-y", academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-y", perfil_nome: "Aluno", nome: "Irmão Y" },
+      ],
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-compartilhada@sensei.app", "SenhaFixtureAdmin1");
+
+  // Academia redefine a senha pelo perfil do Irmão X.
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-x", motivo: "redefinicao",
+  });
+  const novaSenha = resultado.data.temporaryPassword;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    const docX = await fs.doc("academias/academy-a/usuarios/irmao-x").get();
+    const docY = await fs.doc("academias/academy-a/usuarios/irmao-y").get();
+    assert.equal(docX.data().acesso_senha_temporaria, novaSenha);
+    assert.equal(
+      docY.data().acesso_senha_temporaria,
+      novaSenha,
+      "o irmão Y precisa mostrar a MESMA senha nova — é a conta compartilhada inteira que mudou",
+    );
+  });
+
+  // E a senha nova realmente funciona pra entrar na conta compartilhada.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000008@sensei.app", novaSenha);
+});
+
+test("provisão bloqueia quando outro aluno com mesmo telefone já definiu a própria senha", async () => {
+  // Bug reportado: cadastrar um aluno novo reaproveitando o telefone/e-mail de
+  // outro que já tinha passado pelo primeiro acesso derrubava a senha desse
+  // outro sem avisar. Agora o provisionamento automático (criação/edição)
+  // bloqueia e devolve pro cliente decidir, em vez de sobrescrever direto.
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-conflito@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000004@sensei.app", "SenhaPropriaJaDefinida1");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-1").set({
+      nome: "Existente 1", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0004", telefone_digits: "21970000004",
+      firebaseUid: uidExistente,
+    });
+    // Já concluiu o primeiro acesso — tem senha própria definida.
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-1", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-1", perfil_nome: "Aluno", nome: "Existente 1" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-mesmo-telefone").set({
+      nome: "Novo Mesmo Telefone", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0004", telefone_digits: "21970000004",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-conflito@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  await assert.rejects(
+    () => resetar({
+      academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-mesmo-telefone", motivo: "provisao_criacao",
+    }),
+    (error) => {
+      assert.equal(error.code, "functions/failed-precondition");
+      assert.equal(error.details?.code, "senha_ja_definida");
+      return true;
+    },
+  );
+
+  // A senha de quem já tinha definido a própria continua valendo.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000004@sensei.app", "SenhaPropriaJaDefinida1");
+});
+
+test("provisão com apenasVincular não mexe na senha existente, só vincula o novo perfil", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-vincular@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000005@sensei.app", "SenhaPropriaJaDefinida2");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-2").set({
+      nome: "Existente 2", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0005", telefone_digits: "21970000005",
+      firebaseUid: uidExistente,
+    });
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-2", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-2", perfil_nome: "Aluno", nome: "Existente 2" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-vinculado").set({
+      nome: "Novo Vinculado", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0005", telefone_digits: "21970000005",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-vincular@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-vinculado",
+    motivo: "provisao_criacao", apenasVincular: true,
+  });
+  assert.equal(resultado.data.vinculadoSemSenha, true);
+  assert.equal(resultado.data.temporaryPassword, "");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const doc = await ctx.firestore().doc("academias/academy-a/usuarios/novo-vinculado").get();
+    assert.equal(doc.data().firebaseUid, uidExistente);
+    // A flag de troca obrigatória não foi mexida.
+    const acc = await ctx.firestore().doc(`usuariosFirebase/${uidExistente}`).get();
+    assert.equal(acc.data().must_change_password, false);
+  });
+
+  // A senha antiga continua valendo — nada foi sobrescrito.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000005@sensei.app", "SenhaPropriaJaDefinida2");
+});
+
+test("provisão com confirmarSobrescrita segue sobrescrevendo mesmo com senha já definida", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-sobrescrever@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await createUserWithEmailAndPassword(auth, "5521970000006@sensei.app", "SenhaPropriaJaDefinida3");
+  const uidExistente = auth.currentUser.uid;
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("usuariosFirebase/uid-admin").delete();
+    await fs.doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/existente-3").set({
+      nome: "Existente 3", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0006", telefone_digits: "21970000006",
+      firebaseUid: uidExistente,
+    });
+    await fs.doc(`usuariosFirebase/${uidExistente}`).set({
+      schemaVersion: 2,
+      must_change_password: false,
+      profile_refs: [
+        { key: "academy-a|usuarios|existente-3", academiaId: "academy-a", colecao: "usuarios", usuarioId: "existente-3", perfil_nome: "Aluno", nome: "Existente 3" },
+      ],
+    });
+    await fs.doc("academias/academy-a/usuarios/novo-sobrescreve").set({
+      nome: "Novo Sobrescreve", perfil: 3, ativo: true,
+      telefone: "(21) 97000-0006", telefone_digits: "21970000006",
+    });
+  });
+
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-sobrescrever@sensei.app", "SenhaFixtureAdmin1");
+
+  const resetar = httpsCallable(getFunctions(app), "adminResetPassword");
+  const resultado = await resetar({
+    academiaId: "academy-a", colecao: "usuarios", usuarioId: "novo-sobrescreve",
+    motivo: "provisao_criacao", confirmarSobrescrita: true,
+  });
+  assert.equal(resultado.data.vinculadoSemSenha, false);
+  assert.ok(resultado.data.temporaryPassword.length >= 6);
+
+  // A senha antiga deixou de valer; a nova sim.
+  await signOut(auth);
+  await assert.rejects(() => signInWithEmailAndPassword(auth, "5521970000006@sensei.app", "SenhaPropriaJaDefinida3"));
+  await signInWithEmailAndPassword(auth, "5521970000006@sensei.app", resultado.data.temporaryPassword);
+});
+
 test("secretaria sem a permissão granular não pode redefinir senha", async () => {
   await environment.withSecurityRulesDisabled((ctx) => seed(ctx, { secretariaPodeRedefinir: false }));
 
@@ -336,4 +649,123 @@ test("secretaria sem a permissão granular não pode redefinir senha", async () 
       return true;
     },
   );
+});
+
+test("requestPasswordReset: sem sessão, cria uma solicitação pro sino da academia", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/aluno-solicitante").set({
+      nome: "Aluno Solicitante",
+      perfil: 3,
+      ativo: true,
+      telefone: "(21) 97000-0008",
+      telefone_digits: "21970000009",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  const resultado = await solicitar({ identifier: "21970000009" });
+  assert.equal(resultado.data.ok, true);
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const notif = await ctx
+      .firestore()
+      .doc("academias/academy-a/notificacoes/senha_21970000009_" + new Date().toISOString().slice(0, 10))
+      .get();
+    assert.equal(notif.exists, true);
+    assert.equal(notif.data().tipo, "solicitacao_senha");
+    assert.equal(notif.data().usuario_id, "aluno-solicitante");
+    assert.equal(notif.data().mensagem, "Aluno Solicitante pediu para redefinir a senha de acesso ao app.");
+    assert.equal(notif.data().lida, false);
+  });
+});
+
+test("requestPasswordReset: identificador sem cadastro nenhum não quebra e não vaza nada", async () => {
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  const resultado = await solicitar({ identifier: "21999999999" });
+  assert.equal(resultado.data.ok, true);
+});
+
+test("requestPasswordReset: chamar duas vezes no mesmo dia não duplica nem reabre a notificação", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/aluno-repete").set({
+      nome: "Aluno Repete",
+      perfil: 3,
+      ativo: true,
+      telefone: "(21) 97000-0010",
+      telefone_digits: "21970000010",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  await solicitar({ identifier: "21970000010" });
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_21970000010_${hojeStr}`)
+      .update({ lida: true });
+  });
+
+  await solicitar({ identifier: "21970000010" });
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const notif = await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_21970000010_${hojeStr}`)
+      .get();
+    // Continua "lida": a segunda chamada não reabriu a notificação.
+    assert.equal(notif.data().lida, true);
+  });
+});
+
+test("requestPasswordReset: telefone compartilhado por vários alunos vira UMA notificação combinada", async () => {
+  // Bug reportado: 3 irmãos com o mesmo telefone geravam 3 notificações
+  // separadas na academia. Agora vira uma só, com os nomes combinados.
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc("academias/academy-a").set({ nome: "Academia A" });
+    await fs.doc("academias/academy-a/usuarios/irmao-a").set({
+      nome: "Júlia Muniz", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-b").set({
+      nome: "Fernando Alonso", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+    await fs.doc("academias/academy-a/usuarios/irmao-c").set({
+      nome: "Henrique Muniz", perfil: 3, ativo: true,
+      telefone: "(29) 99990-0089", telefone_digits: "29999900089",
+    });
+  });
+
+  await signOut(getAuth(app));
+  const solicitar = httpsCallable(getFunctions(app), "requestPasswordReset");
+  await solicitar({ identifier: "29999900089" });
+
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const col = await ctx.firestore().collection("academias/academy-a/notificacoes").get();
+    const solicitacoes = col.docs.filter((d) => d.data().tipo === "solicitacao_senha");
+    assert.equal(solicitacoes.length, 1);
+
+    const notif = await ctx.firestore()
+      .doc(`academias/academy-a/notificacoes/senha_29999900089_${hojeStr}`)
+      .get();
+    assert.equal(notif.exists, true);
+    assert.equal(notif.data().usuario_id, undefined);
+    assert.deepEqual(
+      [...notif.data().usuario_ids].sort(),
+      ["irmao-a", "irmao-b", "irmao-c"].sort(),
+    );
+    assert.equal(
+      notif.data().mensagem,
+      "Os alunos Júlia Muniz, Fernando Alonso e Henrique Muniz pediram para redefinir a senha de acesso ao app.",
+    );
+  });
 });

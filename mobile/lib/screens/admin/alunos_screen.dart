@@ -20,12 +20,71 @@ class AdminAlunosScreen extends StatefulWidget {
   State<AdminAlunosScreen> createState() => _AdminAlunosScreenState();
 }
 
+enum _FiltroStatus { todos, ativos, inativos }
+
 class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
   final _ctrl = TextEditingController();
   List<Map<String, dynamic>> _alunos = [];
   List<Map<String, dynamic>> _todosAlunos = [];
   bool _loading = true;
   bool _erro = false;
+  bool _ordemAZ = true;
+  _FiltroStatus _filtroStatus = _FiltroStatus.todos;
+
+  List<Map<String, dynamic>> _ordenarNome(List<Map<String, dynamic>> src) {
+    final l = List<Map<String, dynamic>>.from(src);
+    int cmp(Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (a['nome'] as String? ?? '').toLowerCase().compareTo(
+          (b['nome'] as String? ?? '').toLowerCase(),
+        );
+    l.sort(_ordemAZ ? cmp : (a, b) => cmp(b, a));
+    return l;
+  }
+
+  List<Map<String, dynamic>> _aplicarFiltroStatus(
+    List<Map<String, dynamic>> src,
+  ) {
+    switch (_filtroStatus) {
+      case _FiltroStatus.ativos:
+        return src.where((a) => a['ativo'] == true).toList();
+      case _FiltroStatus.inativos:
+        return src.where((a) => a['ativo'] != true).toList();
+      case _FiltroStatus.todos:
+        return src;
+    }
+  }
+
+  /// Recalcula a lista exibida a partir de `_todosAlunos`: filtro de situação
+  /// (Ativos/Inativos/Todos) → busca por nome → ordenação A-Z/Z-A. Usado tanto
+  /// ao digitar na busca quanto ao trocar o filtro de situação, pra nenhum dos
+  /// dois pisar no outro.
+  List<Map<String, dynamic>> _recalcular(String q) {
+    final porStatus = _aplicarFiltroStatus(_todosAlunos);
+    final base = q.isEmpty
+        ? porStatus
+        : porStatus
+              .where(
+                (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
+                  q.toLowerCase(),
+                ),
+              )
+              .toList();
+    return _ordenarNome(base);
+  }
+
+  void _alternarOrdem() {
+    setState(() {
+      _ordemAZ = !_ordemAZ;
+      _alunos = _ordenarNome(_alunos);
+    });
+  }
+
+  void _alterarFiltroStatus(_FiltroStatus filtro) {
+    setState(() {
+      _filtroStatus = filtro;
+      _alunos = _recalcular(_ctrl.text);
+    });
+  }
 
   @override
   void initState() {
@@ -45,19 +104,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
 
   void _filtrar(String q) {
     if (!mounted) return;
-    if (q.isEmpty) {
-      setState(() => _alunos = _todosAlunos);
-    } else {
-      setState(
-        () => _alunos = _todosAlunos
-            .where(
-              (a) => (a['nome'] as String? ?? '').toLowerCase().contains(
-                q.toLowerCase(),
-              ),
-            )
-            .toList(),
-      );
-    }
+    setState(() => _alunos = _recalcular(q));
   }
 
   Future<void> _load(String q) async {
@@ -114,15 +161,7 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
       if (mounted) {
         setState(() {
           _todosAlunos = todos;
-          _alunos = q.isEmpty
-              ? todos
-              : todos
-                    .where(
-                      (a) => (a['nome'] as String? ?? '')
-                          .toLowerCase()
-                          .contains(q.toLowerCase()),
-                    )
-                    .toList();
+          _alunos = _recalcular(q);
         });
       }
     } catch (_) {
@@ -214,35 +253,104 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _ctrl,
-                style: TextStyle(color: context.c.onSurface),
-                decoration: InputDecoration(
-                  hintText: l.studentsSearchHint,
-                  hintStyle: TextStyle(color: context.c.onSurfaceVariant),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: context.c.onSurfaceVariant,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      style: TextStyle(color: context.c.onSurface),
+                      decoration: InputDecoration(
+                        hintText: l.studentsSearchHint,
+                        hintStyle: TextStyle(color: context.c.onSurfaceVariant),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: context.c.onSurfaceVariant,
+                        ),
+                        filled: true,
+                        fillColor: context.c.surfaceContainer,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: context.c.primary),
+                        ),
+                      ),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: context.c.surfaceContainer,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: context.c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _filtroStatus == _FiltroStatus.todos
+                            ? context.c.outline
+                            : context.c.primary,
+                      ),
+                    ),
+                    child: PopupMenuButton<_FiltroStatus>(
+                      tooltip: l.studentsFilterLabel,
+                      onSelected: _alterarFiltroStatus,
+                      icon: Icon(
+                        Icons.filter_list_rounded,
+                        color: _filtroStatus == _FiltroStatus.todos
+                            ? context.c.onSurfaceVariant
+                            : context.c.primary,
+                        size: 20,
+                      ),
+                      itemBuilder: (_) => [
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.todos,
+                          checked: _filtroStatus == _FiltroStatus.todos,
+                          child: Text(l.studentsFilterAll),
+                        ),
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.ativos,
+                          checked: _filtroStatus == _FiltroStatus.ativos,
+                          child: Text(l.statusActive),
+                        ),
+                        CheckedPopupMenuItem(
+                          value: _FiltroStatus.inativos,
+                          checked: _filtroStatus == _FiltroStatus.inativos,
+                          child: Text(l.statusInactive),
+                        ),
+                      ],
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.outline),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: context.c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.c.outline),
+                    ),
+                    child: IconButton(
+                      onPressed: _alternarOrdem,
+                      tooltip: _ordemAZ ? l.sortNameDesc : l.sortNameAsc,
+                      icon: Icon(
+                        _ordemAZ
+                            ? Icons.arrow_downward_rounded
+                            : Icons.arrow_upward_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 20,
+                      ),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.outline),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: context.c.primary),
-                  ),
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -313,6 +421,11 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                           final temGraus =
                               primary?['faixaTemGraus'] == true ||
                               grauAtual > 0;
+                          final faixaGrauCores =
+                              (primary?['faixaGrauCores'] as List?)
+                                  ?.map((e) => e.toString())
+                                  .toList() ??
+                              const <String>[];
                           final faixaNome = primary?['faixaNome'] as String?;
                           final foto =
                               a['fotoBase64'] as String? ??
@@ -400,6 +513,9 @@ class _AdminAlunosScreenState extends State<AdminAlunosScreen> {
                                                 temGraus: temGraus,
                                                 grau: grauAtual,
                                                 maxGraus: maxGraus,
+                                                grauCores: faixaGrauCores
+                                                    .map(parseCor)
+                                                    .toList(),
                                                 height: 14,
                                                 minWidth: 32,
                                               ),

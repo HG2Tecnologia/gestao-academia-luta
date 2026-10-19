@@ -1148,6 +1148,18 @@ abstract class AppLocalizations {
   /// **'A nova senha deve ser diferente da atual'**
   String get changePwMustBeDifferent;
 
+  /// No description provided for @changePwErrMinLength.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mínimo 6 caracteres'**
+  String get changePwErrMinLength;
+
+  /// No description provided for @changePwErrMismatch.
+  ///
+  /// In pt, this message translates to:
+  /// **'As senhas não coincidem'**
+  String get changePwErrMismatch;
+
   /// No description provided for @changePwSuccess.
   ///
   /// In pt, this message translates to:
@@ -1171,6 +1183,330 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao alterar senha. Tente novamente.'**
   String get changePwErrGeneric;
+
+  /// No description provided for @tsoTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Defina sua senha definitiva'**
+  String get tsoTitle;
+
+  /// No description provided for @tsoSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua academia gerou uma senha temporária para você. Antes de continuar, defina uma senha definitiva que só você conhece.'**
+  String get tsoSubtitle;
+
+  /// No description provided for @tsoNewPasswordHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova senha'**
+  String get tsoNewPasswordHint;
+
+  /// No description provided for @tsoConfirmPasswordHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirme a nova senha'**
+  String get tsoConfirmPasswordHint;
+
+  /// No description provided for @tsoConfirmButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salvar e continuar'**
+  String get tsoConfirmButton;
+
+  /// No description provided for @tsoErrSessionExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sessão expirada.'**
+  String get tsoErrSessionExpired;
+
+  /// No description provided for @tsoErrRequiresRecentLogin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Por segurança, saia e entre de novo com a senha temporária antes de trocá-la.'**
+  String get tsoErrRequiresRecentLogin;
+
+  /// No description provided for @tsoErrGeneric.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro ao definir a nova senha ({codigo}).'**
+  String tsoErrGeneric(String codigo);
+
+  /// No description provided for @tsoErrUnexpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro inesperado. Tente novamente.'**
+  String get tsoErrUnexpected;
+
+  /// No description provided for @fpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esqueci minha senha'**
+  String get fpTitle;
+
+  /// No description provided for @fpHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Recuperar acesso'**
+  String get fpHeading;
+
+  /// No description provided for @fpSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe seu e-mail e enviaremos um link para você criar uma nova senha.'**
+  String get fpSubtitle;
+
+  /// No description provided for @fpEmailLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'E-mail'**
+  String get fpEmailLabel;
+
+  /// No description provided for @fpEmailHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'seu@email.com'**
+  String get fpEmailHint;
+
+  /// No description provided for @fpErrInvalidEmail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um e-mail válido.'**
+  String get fpErrInvalidEmail;
+
+  /// No description provided for @fpErrTooManyRequests.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muitas tentativas. Aguarde alguns minutos.'**
+  String get fpErrTooManyRequests;
+
+  /// No description provided for @fpErrGeneric.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro ao enviar e-mail. Tente novamente.'**
+  String get fpErrGeneric;
+
+  /// No description provided for @fpErrUnexpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Erro inesperado. Tente novamente.'**
+  String get fpErrUnexpected;
+
+  /// No description provided for @fpSendButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar link de recuperação'**
+  String get fpSendButton;
+
+  /// No description provided for @fpSentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'E-mail enviado!'**
+  String get fpSentTitle;
+
+  /// No description provided for @fpSentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Verifique sua caixa de entrada (e spam). Clique no link recebido para criar sua nova senha.'**
+  String get fpSentBody;
+
+  /// No description provided for @fpBackToLogin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Voltar ao login'**
+  String get fpBackToLogin;
+
+  /// No description provided for @fpAlunoSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe seu telefone ou e-mail cadastrado. Sua academia vai receber um aviso e gerar uma nova senha para você.'**
+  String get fpAlunoSubtitle;
+
+  /// No description provided for @fpIdentifierLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Telefone ou e-mail'**
+  String get fpIdentifierLabel;
+
+  /// No description provided for @fpIdentifierHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'(11) 99999-0000 ou seu@email.com'**
+  String get fpIdentifierHint;
+
+  /// No description provided for @fpErrInvalidIdentifier.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um telefone ou e-mail válido.'**
+  String get fpErrInvalidIdentifier;
+
+  /// No description provided for @fpAlunoSendButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar solicitação'**
+  String get fpAlunoSendButton;
+
+  /// No description provided for @fpRequestSentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Solicitação enviada!'**
+  String get fpRequestSentTitle;
+
+  /// No description provided for @fpRequestSentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se encontrarmos seu cadastro, sua academia foi avisada e vai gerar uma nova senha de acesso para você em breve.'**
+  String get fpRequestSentBody;
+
+  /// No description provided for @resetPwDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Redefinir senha de {nome}?'**
+  String resetPwDialogTitle(String nome);
+
+  /// No description provided for @resetPwDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Uma nova senha temporária será gerada e a sessão atual dessa pessoa será encerrada. Ela precisará usar a senha temporária para entrar e trocar por uma senha definitiva.'**
+  String get resetPwDialogBody;
+
+  /// No description provided for @resetPwDialogConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Redefinir'**
+  String get resetPwDialogConfirm;
+
+  /// No description provided for @resetPwErrReset.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível redefinir a senha: {erro}'**
+  String resetPwErrReset(String erro);
+
+  /// No description provided for @resetPwErrProvision.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível gerar a senha de acesso: {erro}'**
+  String resetPwErrProvision(String erro);
+
+  /// No description provided for @conflictDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esse telefone ou e-mail já está em uso'**
+  String get conflictDialogTitle;
+
+  /// No description provided for @conflictDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Já existe outro cadastro com o mesmo telefone/e-mail de {nome}, e essa pessoa já entrou no app e definiu a própria senha.\n\n• Manter a senha atual: {nome} vai acessar com a mesma senha que essa pessoa já definiu — nada muda para quem já usa o app.\n• Gerar nova senha temporária: substitui o acesso de todo mundo que usa esse telefone/e-mail. Quem já tinha senha própria vai precisar defini-la de novo no próximo login.'**
+  String conflictDialogBody(String nome);
+
+  /// No description provided for @conflictDialogKeepCurrent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manter senha atual'**
+  String get conflictDialogKeepCurrent;
+
+  /// No description provided for @conflictDialogGenerateNew.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar nova temporária'**
+  String get conflictDialogGenerateNew;
+
+  /// No description provided for @linkedDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vinculado'**
+  String get linkedDialogTitle;
+
+  /// No description provided for @linkedDialogBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{nome} vai acessar o app com {comoEntrar} e a senha que já foi definida por quem usa esse contato. Nenhuma senha nova foi gerada.'**
+  String linkedDialogBody(String nome, String comoEntrar);
+
+  /// No description provided for @tempPwTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha temporária de {nome}'**
+  String tempPwTitle(String nome);
+
+  /// No description provided for @tempPwHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copie ou compartilhe agora. Você também vê esta senha na ficha do aluno (Acesso ao App) até ele entrar pela primeira vez.'**
+  String get tempPwHint;
+
+  /// No description provided for @tempPwExplainTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Explique para {nome}:'**
+  String tempPwExplainTitle(String nome);
+
+  /// No description provided for @tempPwStep1.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrir o app e tocar em \"Sou aluno ou responsável\".'**
+  String get tempPwStep1;
+
+  /// No description provided for @tempPwStep2.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digitar {comoEntrar} + esta senha temporária.'**
+  String tempPwStep2(String comoEntrar);
+
+  /// No description provided for @tempPwStep3.
+  ///
+  /// In pt, this message translates to:
+  /// **'O app pede para criar a senha definitiva — pronto, sem \"primeiro acesso\".'**
+  String get tempPwStep3;
+
+  /// No description provided for @tempPwCopy.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copiar'**
+  String get tempPwCopy;
+
+  /// No description provided for @tempPwShare.
+  ///
+  /// In pt, this message translates to:
+  /// **'Compartilhar'**
+  String get tempPwShare;
+
+  /// No description provided for @tempPwCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha copiada.'**
+  String get tempPwCopied;
+
+  /// No description provided for @tempPwShareText.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sensei Manager — acesso de {nome}\nEntre no app com {comoEntrar} e a senha temporária: {senha}\nO app vai pedir para você criar a sua senha definitiva.'**
+  String tempPwShareText(String nome, String comoEntrar, String senha);
+
+  /// No description provided for @tempPwBoxTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha temporária — ainda não entrou pela 1ª vez'**
+  String get tempPwBoxTitle;
+
+  /// No description provided for @tempPwBoxViewSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver / enviar'**
+  String get tempPwBoxViewSend;
+
+  /// No description provided for @tempPwLoginHintFallback.
+  ///
+  /// In pt, this message translates to:
+  /// **'o telefone ou e-mail cadastrado'**
+  String get tempPwLoginHintFallback;
+
+  /// No description provided for @tempPwLoginHintWith.
+  ///
+  /// In pt, this message translates to:
+  /// **'o {loginHint}'**
+  String tempPwLoginHintWith(String loginHint);
 
   /// No description provided for @studentsSearchHint.
   ///
@@ -1207,6 +1543,48 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Inativo'**
   String get statusInactive;
+
+  /// No description provided for @studentsFilterLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Filtrar por situação'**
+  String get studentsFilterLabel;
+
+  /// No description provided for @studentsFilterAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todos'**
+  String get studentsFilterAll;
+
+  /// No description provided for @notifTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Notificações'**
+  String get notifTitle;
+
+  /// No description provided for @notifUnreadCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 não lida} other{{count} não lidas}}'**
+  String notifUnreadCount(int count);
+
+  /// No description provided for @notifMarkAllRead.
+  ///
+  /// In pt, this message translates to:
+  /// **'Marcar todas'**
+  String get notifMarkAllRead;
+
+  /// No description provided for @notifEmptyTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma notificação'**
+  String get notifEmptyTitle;
+
+  /// No description provided for @notifEmptySubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você está em dia com tudo!'**
+  String get notifEmptySubtitle;
 
   /// No description provided for @finUpToDate.
   ///
@@ -1339,6 +1717,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Plano'**
   String get sdPlanSection;
+
+  /// No description provided for @sdPlanByModalitySection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos por modalidade'**
+  String get sdPlanByModalitySection;
 
   /// No description provided for @sdNoPlan.
   ///
@@ -2228,6 +2612,36 @@ abstract class AppLocalizations {
   /// **'Nenhuma turma vinculada.'**
   String get sdNoClasses;
 
+  /// No description provided for @sdUnlinkClassTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvincular desta turma?'**
+  String get sdUnlinkClassTitle;
+
+  /// No description provided for @sdUnlinkClassBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{aluno} sai de \"{turma}\". Se essa for a única turma dele(a) nessa modalidade, as cobranças pendentes, atrasadas e futuras dessa modalidade também são canceladas — cobrança já paga nunca é afetada.'**
+  String sdUnlinkClassBody(String aluno, String turma);
+
+  /// No description provided for @sdUnlinkClassButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvincular'**
+  String get sdUnlinkClassButton;
+
+  /// No description provided for @sdUnlinkedToast.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desvinculado de {turma}.'**
+  String sdUnlinkedToast(String turma);
+
+  /// No description provided for @sdUnlinkClassError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível desvincular a turma. Tente novamente.'**
+  String get sdUnlinkClassError;
+
   /// No description provided for @sdBeltHistory.
   ///
   /// In pt, this message translates to:
@@ -2353,6 +2767,36 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao alterar status.'**
   String get sdStatusChangeError;
+
+  /// No description provided for @sdDeleteAlunoAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir aluno'**
+  String get sdDeleteAlunoAction;
+
+  /// No description provided for @sdDeleteAlunoConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir {name}?'**
+  String sdDeleteAlunoConfirmTitle(Object name);
+
+  /// No description provided for @sdDeleteAlunoConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa ação é definitiva: remove matrículas, mensalidades, presenças, graduações e notificações desse aluno. Não pode ser desfeita. Se o telefone/e-mail for compartilhado com outro aluno, o acesso do outro não é afetado.'**
+  String get sdDeleteAlunoConfirmBody;
+
+  /// No description provided for @sdDeleteAlunoSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aluno excluído.'**
+  String get sdDeleteAlunoSuccess;
+
+  /// No description provided for @sdDeleteAlunoError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível excluir o aluno.'**
+  String get sdDeleteAlunoError;
 
   /// No description provided for @sdAllowAccessConfirm.
   ///
@@ -2533,6 +2977,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Sem professor'**
   String get noInstructor;
+
+  /// No description provided for @classDefaultPlanOptional.
+  ///
+  /// In pt, this message translates to:
+  /// **'Plano padrão (opcional)'**
+  String get classDefaultPlanOptional;
+
+  /// No description provided for @classNoDefaultPlan.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem plano padrão'**
+  String get classNoDefaultPlan;
+
+  /// No description provided for @classDefaultPlanHelper.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todo aluno matriculado nessa turma já é vinculado a este plano automaticamente, sem precisar configurar no perfil dele.'**
+  String get classDefaultPlanHelper;
 
   /// No description provided for @maxCapacity.
   ///
@@ -3626,6 +4088,222 @@ abstract class AppLocalizations {
   /// **'Mês atual'**
   String get fiCurrentMonth;
 
+  /// No description provided for @fiBackToCurrentMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Voltar ao mês atual'**
+  String get fiBackToCurrentMonth;
+
+  /// No description provided for @fiMoreActions.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mais'**
+  String get fiMoreActions;
+
+  /// No description provided for @fiCleanupRetroactive.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar retroativas'**
+  String get fiCleanupRetroactive;
+
+  /// No description provided for @fiCleanupRetroactiveTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças retroativas'**
+  String get fiCleanupRetroactiveTitle;
+
+  /// No description provided for @fiCleanupRetroactiveExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desconsidera (não exclui) toda cobrança pendente ou atrasada com vencimento ANTES do mês escolhido, de TODOS os alunos. Cobranças já pagas nunca são afetadas e nada disso conta como valor recebido.'**
+  String get fiCleanupRetroactiveExplain;
+
+  /// No description provided for @fiCleanupRetroactiveCutoffLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manter cobranças a partir de'**
+  String get fiCleanupRetroactiveCutoffLabel;
+
+  /// No description provided for @fiCleanupRetroactiveConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar limpeza?'**
+  String get fiCleanupRetroactiveConfirmTitle;
+
+  /// No description provided for @fiCleanupRetroactiveConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa ação vai desconsiderar de uma vez as pendências de todos os alunos anteriores a {mes}. Não pode ser desfeita em massa — só uma por uma, manualmente. Tem certeza?'**
+  String fiCleanupRetroactiveConfirmBody(String mes);
+
+  /// No description provided for @fiCleanupRetroactiveButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desconsiderar retroativas'**
+  String get fiCleanupRetroactiveButton;
+
+  /// No description provided for @fiCleanupRetroactiveSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} cobrança(s) retroativa(s) desconsiderada(s).'**
+  String fiCleanupRetroactiveSuccess(int n);
+
+  /// No description provided for @fiCleanupRetroactiveError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível limpar as cobranças retroativas. Tente novamente.'**
+  String get fiCleanupRetroactiveError;
+
+  /// No description provided for @fiAllModalities.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todas as modalidades'**
+  String get fiAllModalities;
+
+  /// No description provided for @fiDueLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vencimento'**
+  String get fiDueLabel;
+
+  /// No description provided for @fiExportReport.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar relatório'**
+  String get fiExportReport;
+
+  /// No description provided for @fiExportSheetTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Colunas do relatório financeiro'**
+  String get fiExportSheetTitle;
+
+  /// No description provided for @fiExportColumnType.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tipo'**
+  String get fiExportColumnType;
+
+  /// No description provided for @fiExportColumnValue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor'**
+  String get fiExportColumnValue;
+
+  /// No description provided for @fiExportColumnDueDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vencimento'**
+  String get fiExportColumnDueDate;
+
+  /// No description provided for @fiExportColumnStatus.
+  ///
+  /// In pt, this message translates to:
+  /// **'Status'**
+  String get fiExportColumnStatus;
+
+  /// No description provided for @fiExportColumnPaidDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Data de pagamento'**
+  String get fiExportColumnPaidDate;
+
+  /// No description provided for @fiMergeDuplicates.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas'**
+  String get fiMergeDuplicates;
+
+  /// No description provided for @fiCleanOrphans.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar órfãs'**
+  String get fiCleanOrphans;
+
+  /// No description provided for @fiMergeDuplicatesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir mensalidades duplicadas'**
+  String get fiMergeDuplicatesTitle;
+
+  /// No description provided for @fiMergeDuplicatesExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procura, em todos os meses, aluno com mais de uma mensalidade lançada para a mesma competência. Quando dá pra decidir sozinho (uma paga entre as duplicadas, ou nenhuma paga), mantém uma e desconsidera as demais — nunca exclui, nunca marca como paga. Se houver 2 ou mais já pagas para o mesmo mês, esse caso fica de fora, para você revisar na mão.'**
+  String get fiMergeDuplicatesExplain;
+
+  /// No description provided for @fiMergeDuplicatesConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas agora?'**
+  String get fiMergeDuplicatesConfirmTitle;
+
+  /// No description provided for @fiMergeDuplicatesConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Isso vai desconsiderar automaticamente as mensalidades duplicadas de todos os alunos desta academia, mantendo uma por aluno/mês. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?'**
+  String get fiMergeDuplicatesConfirmBody;
+
+  /// No description provided for @fiMergeDuplicatesButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigir duplicadas'**
+  String get fiMergeDuplicatesButton;
+
+  /// No description provided for @fiMergeDuplicatesSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{grupos} grupo(s) com duplicata · {resolvidas} corrigida(s) automaticamente · {manual} para revisão manual.'**
+  String fiMergeDuplicatesSuccess(int grupos, int resolvidas, int manual);
+
+  /// No description provided for @fiMergeDuplicatesError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível corrigir as mensalidades duplicadas. Tente novamente.'**
+  String get fiMergeDuplicatesError;
+
+  /// No description provided for @fiCleanOrphansTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças órfãs'**
+  String get fiCleanOrphansTitle;
+
+  /// No description provided for @fiCleanOrphansExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procura cobranças ainda pendentes (nunca pagas) presas num plano que já foi excluído, ou numa modalidade da qual o aluno já foi desvinculado. Quando encontra, desconsidera — nunca exclui, nunca marca como paga. Cobrança já paga nunca é tocada, mesmo que o plano dela tenha sido excluído depois.'**
+  String get fiCleanOrphansExplain;
+
+  /// No description provided for @fiCleanOrphansConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar cobranças órfãs agora?'**
+  String get fiCleanOrphansConfirmTitle;
+
+  /// No description provided for @fiCleanOrphansConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Isso vai desconsiderar toda cobrança pendente desta academia presa num plano excluído ou numa modalidade da qual o aluno já foi desvinculado. Não pode ser desfeito em massa — só uma por uma, manualmente. Continuar?'**
+  String get fiCleanOrphansConfirmBody;
+
+  /// No description provided for @fiCleanOrphansButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar órfãs'**
+  String get fiCleanOrphansButton;
+
+  /// No description provided for @fiCleanOrphansSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{analisadas} cobrança(s) pendente(s) analisada(s) · {canceladas} cancelada(s) por estarem órfãs.'**
+  String fiCleanOrphansSuccess(int analisadas, int canceladas);
+
+  /// No description provided for @fiCleanOrphansError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível limpar as cobranças órfãs. Tente novamente.'**
+  String get fiCleanOrphansError;
+
   /// No description provided for @fiNoCharges.
   ///
   /// In pt, this message translates to:
@@ -3763,6 +4441,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao atualizar pagamento.'**
   String get fiUpdateError;
+
+  /// No description provided for @fiSelectMode.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecionar'**
+  String get fiSelectMode;
+
+  /// No description provided for @fiSelectedCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 selecionado} other{{count} selecionados}}'**
+  String fiSelectedCount(int count);
+
+  /// No description provided for @fiBatchMarkedPaid.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
+  String fiBatchMarkedPaid(int count);
 
   /// No description provided for @fiConfirmPayment.
   ///
@@ -4483,6 +5179,108 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Valor mensal (R\$) *'**
   String get plnMonthlyValueField;
+
+  /// No description provided for @plnModalityField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade (cobrança por modalidade)'**
+  String get plnModalityField;
+
+  /// No description provided for @plnModalityNone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma (plano genérico)'**
+  String get plnModalityNone;
+
+  /// No description provided for @plnWeeklyLimitField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana (opcional)'**
+  String get plnWeeklyLimitField;
+
+  /// No description provided for @apmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos por modalidade'**
+  String get apmTitle;
+
+  /// No description provided for @apmNewTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova matrícula por modalidade'**
+  String get apmNewTitle;
+
+  /// No description provided for @apmEditTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Editar matrícula'**
+  String get apmEditTitle;
+
+  /// No description provided for @apmModalityField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade'**
+  String get apmModalityField;
+
+  /// No description provided for @apmPlanField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Plano'**
+  String get apmPlanField;
+
+  /// No description provided for @apmDueDayField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dia de vencimento (1-28)'**
+  String get apmDueDayField;
+
+  /// No description provided for @apmSelectRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione a modalidade e o plano.'**
+  String get apmSelectRequired;
+
+  /// No description provided for @apmInvalidDueDay.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um dia de vencimento entre 1 e 28.'**
+  String get apmInvalidDueDay;
+
+  /// No description provided for @apmSaveError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível salvar. Tente novamente.'**
+  String get apmSaveError;
+
+  /// No description provided for @apmCreateBtn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionar'**
+  String get apmCreateBtn;
+
+  /// No description provided for @apmEndTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Encerrar matrícula?'**
+  String get apmEndTitle;
+
+  /// No description provided for @apmEndBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para de gerar cobrança de {modalidade} para este aluno. O histórico de cobranças já geradas não é apagado.'**
+  String apmEndBody(Object modalidade);
+
+  /// No description provided for @apmFeatureDisabled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade não está ativada para esta academia. Ative em Configurações > Financeiro para usar planos independentes por modalidade.'**
+  String get apmFeatureDisabled;
+
+  /// No description provided for @apmEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'{nome} ainda não tem nenhuma modalidade com plano próprio cadastrada.'**
+  String apmEmpty(Object nome);
 
   /// No description provided for @plnNameRequired.
   ///
@@ -5378,6 +6176,156 @@ abstract class AppLocalizations {
   /// **'Criar Faixa'**
   String get fxCreateBtn;
 
+  /// No description provided for @fxHasDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tem graus'**
+  String get fxHasDegrees;
+
+  /// No description provided for @fxHasDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostra marcadores de grau na ponteira da faixa (ex.: listras antes de trocar de faixa)'**
+  String get fxHasDegreesSub;
+
+  /// No description provided for @fxMaxDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus até trocar de faixa'**
+  String get fxMaxDegrees;
+
+  /// No description provided for @fxDegreeTipColor.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cor da ponteira'**
+  String get fxDegreeTipColor;
+
+  /// No description provided for @fxColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get fxColoredDegrees;
+
+  /// No description provided for @fxColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em vez de uma cor única pra todos os graus, cada grau pode ter a própria cor (ex.: sistema infantil da IBJJF/CBJJ)'**
+  String get fxColoredDegreesSub;
+
+  /// No description provided for @fxPresetOfficial.
+  ///
+  /// In pt, this message translates to:
+  /// **'Oficial IBJJF/CBJJ'**
+  String get fxPresetOfficial;
+
+  /// No description provided for @fxPresetOfficialShort.
+  ///
+  /// In pt, this message translates to:
+  /// **'Oficial'**
+  String get fxPresetOfficialShort;
+
+  /// No description provided for @fxPresetSimplified.
+  ///
+  /// In pt, this message translates to:
+  /// **'Simplificado'**
+  String get fxPresetSimplified;
+
+  /// No description provided for @fxPresetCustom.
+  ///
+  /// In pt, this message translates to:
+  /// **'Personalizado'**
+  String get fxPresetCustom;
+
+  /// No description provided for @fxPresetOfficialHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'4 primeiros graus brancos, 4 seguintes vermelhos, os demais usam a cor da próxima faixa na sequência.'**
+  String get fxPresetOfficialHint;
+
+  /// No description provided for @fxPresetOfficialHintNoNext.
+  ///
+  /// In pt, this message translates to:
+  /// **'4 primeiros graus brancos, 4 seguintes vermelhos. Esta é a última faixa cadastrada — cadastre a próxima faixa primeiro pra definir a cor dos graus finais, ou troque pro preset Personalizado.'**
+  String get fxPresetOfficialHintNoNext;
+
+  /// No description provided for @fxPresetSimplifiedPickColors.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolha as cores, na ordem — elas se repetem em blocos iguais até completar os graus'**
+  String get fxPresetSimplifiedPickColors;
+
+  /// No description provided for @fxPresetSimplifiedHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'As cores vêm em blocos, um atrás do outro — nunca uma cor sobreposta à outra. Ex.: com branco/vermelho/amarelo e 12 graus, o aluno ganha primeiro os 4 graus brancos, só depois os 4 vermelhos, e só depois os 4 amarelos.'**
+  String get fxPresetSimplifiedHint;
+
+  /// No description provided for @fxPresetCustomPickPerDegree.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque em cada grau pra escolher a cor dele'**
+  String get fxPresetCustomPickPerDegree;
+
+  /// No description provided for @fxPresetCustomHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pra ter mais de um grau no total, ajuste o campo \"Graus até trocar de faixa\" ali em cima primeiro. Aqui embaixo você escolhe a cor de cada grau individualmente, sem seguir nenhum padrão fixo de blocos.'**
+  String get fxPresetCustomHint;
+
+  /// No description provided for @fxPickColorForDegree.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cor do {numero}º grau'**
+  String fxPickColorForDegree(int numero);
+
+  /// No description provided for @fxTapToChange.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque pra mudar'**
+  String get fxTapToChange;
+
+  /// No description provided for @fxSimplifiedWarningColorsNeverShow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Com o número de graus atual, nem toda cor escolhida vai aparecer — algumas nunca serão alcançadas. Pra ver todas, defina pelo menos {numero} graus (4 por cor, acima).'**
+  String fxSimplifiedWarningColorsNeverShow(int numero);
+
+  /// No description provided for @fxFixAutomatically.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar automaticamente'**
+  String get fxFixAutomatically;
+
+  /// No description provided for @turmaColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos nesta turma'**
+  String get turmaColoredDegrees;
+
+  /// No description provided for @turmaColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos matriculados aqui veem as cores configuradas na faixa (se houver). Útil pra ligar só em turmas infantis, por exemplo, mesmo compartilhando a modalidade com turmas de adulto.'**
+  String get turmaColoredDegreesSub;
+
+  /// No description provided for @fxPreview.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pré-visualização'**
+  String get fxPreview;
+
+  /// No description provided for @fxPreviewDragHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Arraste pra simular o grau do aluno e ver as cores entrando em sequência, uma de cada vez'**
+  String get fxPreviewDragHint;
+
+  /// No description provided for @fxPreviewDegreeLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'{numero}º grau'**
+  String fxPreviewDegreeLabel(int numero);
+
   /// No description provided for @cfgTitle.
   ///
   /// In pt, this message translates to:
@@ -5551,6 +6499,234 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Valor fixo em cobranças vencidas'**
   String get cfgFeeFixedSub;
+
+  /// No description provided for @cfgBillingByModality.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade'**
+  String get cfgBillingByModality;
+
+  /// No description provided for @cfgBillingByModalitySub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)'**
+  String get cfgBillingByModalitySub;
+
+  /// No description provided for @cfgWeeklyLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana'**
+  String get cfgWeeklyLimit;
+
+  /// No description provided for @cfgWeeklyLimitSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'O que fazer quando o aluno excede os dias de treino do plano dele'**
+  String get cfgWeeklyLimitSub;
+
+  /// No description provided for @cfgWeeklyLimitDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alguns planos limitam quantos dias por semana o aluno pode treinar (ex.: plano de 2x/semana). Escolha o que acontece quando ele tenta um check-in além do limite.'**
+  String get cfgWeeklyLimitDesc;
+
+  /// No description provided for @cfgWeeklyLimitModeOff.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desativado'**
+  String get cfgWeeklyLimitModeOff;
+
+  /// No description provided for @cfgWeeklyLimitModeOffSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não controla limite de dias por semana'**
+  String get cfgWeeklyLimitModeOffSub;
+
+  /// No description provided for @cfgWeeklyLimitModeWarn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisar'**
+  String get cfgWeeklyLimitModeWarn;
+
+  /// No description provided for @cfgWeeklyLimitModeWarnSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Deixa fazer check-in, mas avisa que passou do limite do plano'**
+  String get cfgWeeklyLimitModeWarnSub;
+
+  /// No description provided for @cfgWeeklyLimitModeBlock.
+  ///
+  /// In pt, this message translates to:
+  /// **'Bloquear'**
+  String get cfgWeeklyLimitModeBlock;
+
+  /// No description provided for @cfgWeeklyLimitModeBlockSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Impede o check-in ao atingir o limite semanal do plano'**
+  String get cfgWeeklyLimitModeBlockSub;
+
+  /// No description provided for @cfgWeeklyLimitSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana salvo.'**
+  String get cfgWeeklyLimitSaved;
+
+  /// No description provided for @cfgAutoAbsence.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falta automática após 24h'**
+  String get cfgAutoAbsence;
+
+  /// No description provided for @cfgAutoAbsenceSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ativado: o app marca falta sozinho pro aluno que não teve presença registrada até 24h depois da aula, e isso fica no histórico de presença dele. Desativado: o app não conta falta automaticamente — fica por conta do professor marcar a presença; se ele não marcar, o dia simplesmente não aparece no histórico do aluno (nem como presença, nem como falta).'**
+  String get cfgAutoAbsenceSub;
+
+  /// No description provided for @cfgManualCheckin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Check-in manual sem QR'**
+  String get cfgManualCheckin;
+
+  /// No description provided for @cfgManualCheckinSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite que o aluno (ou responsável) registre a própria presença pelo app sem escanear nenhum QR Code, só quando há aula acontecendo agora pra ele. Desativado por padrão — o check-in continua só por QR Code.'**
+  String get cfgManualCheckinSub;
+
+  /// No description provided for @cfgManualCheckinWindow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Janela de check-in'**
+  String get cfgManualCheckinWindow;
+
+  /// No description provided for @cfgManualCheckinWindowSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quanto tempo antes e depois do horário da aula o aluno pode confirmar presença'**
+  String get cfgManualCheckinWindowSub;
+
+  /// No description provided for @cfgManualCheckinWindowDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Define quando o botão de confirmar presença fica liberado pro aluno, em relação ao horário de início da aula.'**
+  String get cfgManualCheckinWindowDesc;
+
+  /// No description provided for @cfgManualCheckinWindowBefore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Antes do início da aula'**
+  String get cfgManualCheckinWindowBefore;
+
+  /// No description provided for @cfgManualCheckinWindowAfter.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois do início da aula'**
+  String get cfgManualCheckinWindowAfter;
+
+  /// No description provided for @cfgManualCheckinWindowZero.
+  ///
+  /// In pt, this message translates to:
+  /// **'No horário'**
+  String get cfgManualCheckinWindowZero;
+
+  /// No description provided for @cfgColoredDegrees.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get cfgColoredDegrees;
+
+  /// No description provided for @cfgColoredDegreesSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Libera, na tela de Faixas, a opção de configurar cores por grau (ex.: sistema infantil da IBJJF/CBJJ). Desativado: cada faixa continua mostrando os graus do jeito de sempre.'**
+  String get cfgColoredDegreesSub;
+
+  /// No description provided for @grauColoridoHelpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como funciona o grau colorido?'**
+  String get grauColoridoHelpTitle;
+
+  /// No description provided for @grauColoridoStep1Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada grau pode ter sua própria cor'**
+  String get grauColoridoStep1Title;
+
+  /// No description provided for @grauColoridoStep1Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em vez de todos os graus serem marcados só com listras brancas, você escolhe uma cor diferente pra cada grau — do jeito que a IBJJF/CBJJ usa no infantil.'**
+  String get grauColoridoStep1Body;
+
+  /// No description provided for @grauColoridoStep2Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'As cores vêm em sequência'**
+  String get grauColoridoStep2Title;
+
+  /// No description provided for @grauColoridoStep2Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.'**
+  String get grauColoridoStep2Body;
+
+  /// No description provided for @grauColoridoStep3Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'Configure isso por faixa'**
+  String get grauColoridoStep3Title;
+
+  /// No description provided for @grauColoridoStep3Body.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
+  String get grauColoridoStep3Body;
+
+  /// No description provided for @cfgManualCheckinWindowMinutes.
+  ///
+  /// In pt, this message translates to:
+  /// **'{min}min'**
+  String cfgManualCheckinWindowMinutes(int min);
+
+  /// No description provided for @cfgManualCheckinWindowHours.
+  ///
+  /// In pt, this message translates to:
+  /// **'{h, plural, one{1h} other{{h}h}}'**
+  String cfgManualCheckinWindowHours(int h);
+
+  /// No description provided for @cfgManualCheckinWindowHoursMinutes.
+  ///
+  /// In pt, this message translates to:
+  /// **'{h}h{min}min'**
+  String cfgManualCheckinWindowHoursMinutes(int h, int min);
+
+  /// No description provided for @cfgManualCheckinWindowValue.
+  ///
+  /// In pt, this message translates to:
+  /// **'{antes} antes · {depois} depois'**
+  String cfgManualCheckinWindowValue(String antes, String depois);
+
+  /// No description provided for @cfgManualCheckinWindowUnlimited.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem limite'**
+  String get cfgManualCheckinWindowUnlimited;
+
+  /// No description provided for @cfgManualCheckinWindowMinutesSuffix.
+  ///
+  /// In pt, this message translates to:
+  /// **'min'**
+  String get cfgManualCheckinWindowMinutesSuffix;
+
+  /// No description provided for @cfgManualCheckinWindowSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Janela de check-in atualizada.'**
+  String get cfgManualCheckinWindowSaved;
 
   /// No description provided for @cfgGradSection.
   ///
@@ -5972,6 +7148,66 @@ abstract class AppLocalizations {
   /// **'3 turmas · 10 alunos/turma · anúncios'**
   String get cfgPlanFreeDesc;
 
+  /// No description provided for @planTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Minha assinatura'**
+  String get planTitle;
+
+  /// No description provided for @planSubscribedSince.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinante desde'**
+  String get planSubscribedSince;
+
+  /// No description provided for @planRenewsOn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renova em'**
+  String get planRenewsOn;
+
+  /// No description provided for @planRenewsOnHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Data controlada pela loja (Apple/Google) — pode variar.'**
+  String get planRenewsOnHint;
+
+  /// No description provided for @planViaAppStore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinado via App Store'**
+  String get planViaAppStore;
+
+  /// No description provided for @planViaPlayStore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinado via Google Play'**
+  String get planViaPlayStore;
+
+  /// No description provided for @planChangePlan.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar de plano'**
+  String get planChangePlan;
+
+  /// No description provided for @planCancelSubscription.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelar assinatura'**
+  String get planCancelSubscription;
+
+  /// No description provided for @planCancelHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.'**
+  String get planCancelHint;
+
+  /// No description provided for @planCancelError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível abrir a loja. Tente novamente.'**
+  String get planCancelError;
+
   /// No description provided for @fxStudentsCount.
   ///
   /// In pt, this message translates to:
@@ -5995,6 +7231,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Usuário não encontrado no sistema. Contate o administrador.'**
   String get authErrUserNotFound;
+
+  /// No description provided for @authErrUnknownProfile.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível identificar seu perfil de acesso. Contate o administrador da academia.'**
+  String get authErrUnknownProfile;
 
   /// No description provided for @authErrDbNotConfigured.
   ///
@@ -6674,6 +7916,42 @@ abstract class AppLocalizations {
   /// **'Nenhuma cobrança nessa categoria'**
   String get apNoChargesInCategory;
 
+  /// No description provided for @apNoChargesThisMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma cobrança em {month}'**
+  String apNoChargesThisMonth(String month);
+
+  /// No description provided for @apTotalOpenAllMonths.
+  ///
+  /// In pt, this message translates to:
+  /// **'{amount} em aberto no total'**
+  String apTotalOpenAllMonths(String amount);
+
+  /// No description provided for @apViewAllOverdue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver todas as atrasadas'**
+  String get apViewAllOverdue;
+
+  /// No description provided for @apAllOverdueTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mensalidades atrasadas'**
+  String get apAllOverdueTitle;
+
+  /// No description provided for @apPrevMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mês anterior'**
+  String get apPrevMonth;
+
+  /// No description provided for @apNextMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Próximo mês'**
+  String get apNextMonth;
+
   /// No description provided for @apAttendanceTitle.
   ///
   /// In pt, this message translates to:
@@ -6881,14 +8159,80 @@ abstract class AppLocalizations {
   /// No description provided for @apQrMyCode.
   ///
   /// In pt, this message translates to:
-  /// **'Meu QR Code'**
+  /// **'Meu QR'**
   String get apQrMyCode;
 
   /// No description provided for @apQrScanAcademy.
   ///
   /// In pt, this message translates to:
-  /// **'Escanear Academia'**
+  /// **'Escanear'**
   String get apQrScanAcademy;
+
+  /// No description provided for @apQrManualCheckin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem QR'**
+  String get apQrManualCheckin;
+
+  /// No description provided for @apManualCheckinLoadError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível verificar suas turmas agora. Tente de novo.'**
+  String get apManualCheckinLoadError;
+
+  /// No description provided for @apManualCheckinNoClassNow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma das suas turmas tem aula no horário de agora.'**
+  String get apManualCheckinNoClassNow;
+
+  /// No description provided for @apManualCheckinPick.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você tem mais de uma turma com aula agora — escolha em qual confirmar presença:'**
+  String get apManualCheckinPick;
+
+  /// No description provided for @apManualCheckinClassFallback.
+  ///
+  /// In pt, this message translates to:
+  /// **'Turma'**
+  String get apManualCheckinClassFallback;
+
+  /// No description provided for @apManualCheckinHistoryLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Manual, sem QR'**
+  String get apManualCheckinHistoryLabel;
+
+  /// No description provided for @apManualCheckinClassAt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Hoje às {hora}'**
+  String apManualCheckinClassAt(String hora);
+
+  /// No description provided for @apManualCheckinConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar presença'**
+  String get apManualCheckinConfirm;
+
+  /// No description provided for @apManualCheckinClassOn.
+  ///
+  /// In pt, this message translates to:
+  /// **'{data} às {hora}'**
+  String apManualCheckinClassOn(String data, String hora);
+
+  /// No description provided for @apManualCheckinAvailableAtToday.
+  ///
+  /// In pt, this message translates to:
+  /// **'Disponível a partir das {hora}'**
+  String apManualCheckinAvailableAtToday(String hora);
+
+  /// No description provided for @apManualCheckinAvailableAt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Disponível a partir de {data} às {hora}'**
+  String apManualCheckinAvailableAt(String data, String hora);
 
   /// No description provided for @apQrShowInstructor.
   ///
@@ -7765,6 +9109,270 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'As mensalidades do mês aparecem sozinhas, dá para receber pagamentos antecipados e o relatório anual foi renovado.'**
   String get rnBillingDesc;
+
+  /// No description provided for @rnDeleteStudentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir aluno definitivamente'**
+  String get rnDeleteStudentTitle;
+
+  /// No description provided for @rnDeleteStudentDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora dá para excluir um aluno de vez: matrículas, mensalidades, presenças e histórico saem junto, sem afetar irmãos que compartilham o mesmo telefone ou e-mail.'**
+  String get rnDeleteStudentDesc;
+
+  /// No description provided for @rnBillingByModalityTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cobrança por modalidade'**
+  String get rnBillingByModalityTitle;
+
+  /// No description provided for @rnBillingByModalityDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações pode cobrar cada modalidade separadamente — por exemplo, jiu-jitsu e judô com valores e vencimentos independentes.'**
+  String get rnBillingByModalityDesc;
+
+  /// No description provided for @rnWeeklyLimitTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limite de dias por semana'**
+  String get rnWeeklyLimitTitle;
+
+  /// No description provided for @rnWeeklyLimitDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planos com limite de treinos por semana agora podem avisar ou bloquear o check-in do aluno ao ultrapassar a cota, e isso já entra na conta de faltas.'**
+  String get rnWeeklyLimitDesc;
+
+  /// No description provided for @rnAutoAbsenceTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falta automática configurável'**
+  String get rnAutoAbsenceTitle;
+
+  /// No description provided for @rnAutoAbsenceDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dá para desligar a marcação automática de falta 24h depois do treino nas configurações, deixando o histórico só com o que o professor marcar manualmente.'**
+  String get rnAutoAbsenceDesc;
+
+  /// No description provided for @rnAbsenceFixTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Correção nas faltas'**
+  String get rnAbsenceFixTitle;
+
+  /// No description provided for @rnAbsenceFixDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faltas não são mais contadas em dias que a turma não treina — o cálculo agora respeita os horários realmente cadastrados.'**
+  String get rnAbsenceFixDesc;
+
+  /// No description provided for @rnOfficialReportTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Relatório oficial de presenças'**
+  String get rnOfficialReportTitle;
+
+  /// No description provided for @rnOfficialReportDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo relatório de presenças e faltas com exportação em PDF e Excel, acessível pela academia e por quem tem permissão na secretaria.'**
+  String get rnOfficialReportDesc;
+
+  /// No description provided for @rnModalityBadgeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modalidade no Financeiro'**
+  String get rnModalityBadgeTitle;
+
+  /// No description provided for @rnModalityBadgeDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada cobrança por modalidade agora mostra um badge colorido com o nome dela, além de filtros por modalidade e por status para organizar a lista.'**
+  String get rnModalityBadgeDesc;
+
+  /// No description provided for @rnBulkPaymentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Marcar vários como pago'**
+  String get rnBulkPaymentTitle;
+
+  /// No description provided for @rnBulkPaymentDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'No Financeiro agora dá para selecionar várias cobranças pendentes e marcar todas como pagas de uma vez, sem perder a posição da rolagem.'**
+  String get rnBulkPaymentDesc;
+
+  /// No description provided for @rnManualCheckinTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Check-in sem QR Code'**
+  String get rnManualCheckinTitle;
+
+  /// No description provided for @rnManualCheckinDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações permite que o aluno confirme presença sem escanear o QR, útil quando outra pessoa leva a criança ao treino.'**
+  String get rnManualCheckinDesc;
+
+  /// No description provided for @rnStaffPermissionsTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mais controle sobre a equipe'**
+  String get rnStaffPermissionsTitle;
+
+  /// No description provided for @rnStaffPermissionsDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.'**
+  String get rnStaffPermissionsDesc;
+
+  /// No description provided for @rnColoredDegreesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Graus coloridos'**
+  String get rnColoredDegreesTitle;
+
+  /// No description provided for @rnColoredDegreesDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.'**
+  String get rnColoredDegreesDesc;
+
+  /// No description provided for @rpTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Relatório de Presenças'**
+  String get rpTitle;
+
+  /// No description provided for @rpNoAccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você não tem acesso a este relatório.'**
+  String get rpNoAccess;
+
+  /// No description provided for @rpAllClasses.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todas as turmas'**
+  String get rpAllClasses;
+
+  /// No description provided for @rpPeriodMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mês'**
+  String get rpPeriodMonth;
+
+  /// No description provided for @rpPeriodYear.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ano'**
+  String get rpPeriodYear;
+
+  /// No description provided for @rpSelectMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione um dia do mês desejado'**
+  String get rpSelectMonth;
+
+  /// No description provided for @rpColumnName.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome'**
+  String get rpColumnName;
+
+  /// No description provided for @rpColumnPhone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Telefone'**
+  String get rpColumnPhone;
+
+  /// No description provided for @rpColumnClass.
+  ///
+  /// In pt, this message translates to:
+  /// **'Turma'**
+  String get rpColumnClass;
+
+  /// No description provided for @rpColumnBelt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faixa'**
+  String get rpColumnBelt;
+
+  /// No description provided for @rpColumnPresences.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças'**
+  String get rpColumnPresences;
+
+  /// No description provided for @rpColumnAbsences.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faltas'**
+  String get rpColumnAbsences;
+
+  /// No description provided for @rpColumnTotalClasses.
+  ///
+  /// In pt, this message translates to:
+  /// **'Total de aulas'**
+  String get rpColumnTotalClasses;
+
+  /// No description provided for @rpColumnPercent.
+  ///
+  /// In pt, this message translates to:
+  /// **'% Frequência'**
+  String get rpColumnPercent;
+
+  /// No description provided for @rpExport.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar'**
+  String get rpExport;
+
+  /// No description provided for @rpExportPdf.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar PDF'**
+  String get rpExportPdf;
+
+  /// No description provided for @rpExportExcel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exportar Excel'**
+  String get rpExportExcel;
+
+  /// No description provided for @rpExportColumnsTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Colunas do relatório'**
+  String get rpExportColumnsTitle;
+
+  /// No description provided for @rpEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum dado de presença para o período e turma selecionados.'**
+  String get rpEmpty;
+
+  /// No description provided for @rpRowCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'Registros no período'**
+  String get rpRowCount;
+
+  /// No description provided for @rpStudentsSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos'**
+  String get rpStudentsSection;
+
+  /// No description provided for @rpSummaryLine.
+  ///
+  /// In pt, this message translates to:
+  /// **'{presencas} presenças · {faltas} faltas · {total} aulas no período'**
+  String rpSummaryLine(int presencas, int faltas, int total);
 }
 
 class _AppLocalizationsDelegate

@@ -6,6 +6,8 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
 import { FaixaDto, CreateFaixaRequest } from '../../../../core/models/graduacao.model';
+import { DialogService } from '../../../../core/services/dialog.service';
+import { ToastService } from '../../../../core/services/toast.service';
 interface GrupoModalidade {
   modalidadeId: string;
   nomeModalidade: string;
@@ -22,6 +24,8 @@ export class FaixasComponent implements OnInit {
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly modalidadeService = inject(ModalidadeService);
   private readonly fb = inject(FormBuilder);
+  private readonly dialogService = inject(DialogService);
+  private readonly toastService = inject(ToastService);
 
   readonly modalidades = signal<ModalidadeDto[]>([]);
   readonly modalidadeId = signal('');
@@ -118,7 +122,20 @@ export class FaixasComponent implements OnInit {
       this.form.patchValue({ ...faixa });
     } else {
       this.editandoId.set(null);
-      this.form.reset({ cor: '#FFFFFF', ordem: this.faixas().length + 1 });
+      // `FormGroup.reset(valor)` zera pra `null` qualquer controle que não
+      // apareça explicitamente aqui — faltava `corBarra` (e os outros
+      // defaults), então o campo "Cor da barinha" sempre ficava `null`,
+      // sempre marcado `required`, e travava o Salvar sem erro visível
+      // (campo só aparece com "Esta faixa tem graus" marcado).
+      this.form.reset({
+        cor: '#FFFFFF',
+        corBarra: '#000000',
+        temGraus: false,
+        maxGraus: 4,
+        ordem: this.faixas().length + 1,
+        requisitosMesesMinimos: 0,
+        requisitosPresencasMinimas: 0,
+      });
     }
     this.erro.set('');
     this.modalAberto.set(true);
@@ -161,11 +178,12 @@ export class FaixasComponent implements OnInit {
     });
   }
 
-  remover(id: string): void {
-    if (!confirm('Remover esta faixa?')) return;
+  async remover(id: string): Promise<void> {
+    const confirmado = await this.dialogService.confirm('Remover esta faixa?', { textoConfirmar: 'Remover', perigoso: true });
+    if (!confirmado) return;
     this.graduacaoService.deletarFaixa(id).subscribe({
       next: () => this.carregar(),
-      error: (err) => alert(err.error?.mensagem ?? 'Erro ao remover.'),
+      error: (err) => this.toastService.error(err.error?.mensagem ?? 'Erro ao remover.'),
     });
   }
 

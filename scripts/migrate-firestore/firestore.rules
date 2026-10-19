@@ -182,10 +182,61 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ============================================================
+    // ⚠️ PROTEÇÃO DE _atribuicao — NÃO REMOVER NENHUM DOS DOIS BLOCOS
+    // ABAIXO SEM OS DOIS JUNTOS, NUNCA UM SEM O OUTRO.
+    //
+    // Esta proteção existe em DOIS lugares obrigatoriamente acoplados:
+    // (1) o `match` específico logo abaixo (`allow read, write: if false`)
+    // (2) a exclusão de `_atribuicao` no `match` genérico "resto" mais
+    //     abaixo (`colecao != '_atribuicao'` / `'_atribuicao'` na lista)
+    //
+    // Por quê os dois: regras de `match` sobrepostas em Firestore são
+    // combinadas com OR, não "a mais específica vence". Se um rollback
+    // (manual ou via `git checkout` de um `firestore.rules` anterior a
+    // esta proteção) restaurar o `match` genérico SEM a exclusão, ele
+    // reabre leitura/escrita de `_atribuicao` por cima do bloco (1) —
+    // mesmo que o bloco (1) continue intacto. Os dados de atribuição já
+    // gravados (não só os futuros) ficariam expostos imediatamente.
+    //
+    // GUARDA AUTOMATIZADA (dois testes, ambos em
+    // `functions/test/firestore.rules.test.js`):
+    //   1. "nem o Admin da academia lê ou escreve a subcoleção
+    //      _atribuicao pelo cliente" — confirma que ESTE arquivo bloqueia.
+    //   2. "regressão: se a exclusão de _atribuicao sumir do match
+    //      genérico, o acesso REABRE" — prova de verdade (não só
+    //      descreve) que remover só a exclusão do catch-all reabre
+    //      acesso, mesmo com o bloco específico intacto.
+    //
+    // NUNCA rode `firebase deploy --only firestore:rules` direto — use
+    // `npm run deploy:rules` (dentro de `functions/`), que já roda
+    // `test:rules` antes e só deploya se os dois testes acima passarem.
+    // Isso vale IGUALMENTE pra um deploy novo e pra um rollback — um
+    // rollback de regras é só mais um deploy de um conteúdo diferente,
+    // passa pelo mesmo script, sem exceção.
+    //
+    // Rollback seguro de emergência: nunca restaure um `firestore.rules`
+    // de antes desta proteção existir. Se precisar reverter uma mudança
+    // recente nas regras, edite o arquivo ATUAL removendo só a mudança
+    // problemática, mantendo os dois blocos de `_atribuicao` intactos, e
+    // publique com `npm run deploy:rules` (nunca `firebase deploy` cru).
+    // ============================================================
+
+    // Atribuição de origem do cadastro (UTM/gclid/referrer) — só a Cloud
+    // Function `registrarAtribuicaoCadastro` escreve, com o Admin SDK (que
+    // ignora estas regras). Nenhum perfil client-side lê ou escreve, nem o
+    // próprio Admin da academia: é dado de marketing/atribuição, não um dado
+    // operacional que a equipe da academia precise ver.
+    match /academias/{academiaId}/_atribuicao/{doc} {
+      allow read, write: if false;
+    }
+
     // Resto: admin/secretaria gerencia tudo; membros leem
+    // A exclusão de '_atribuicao' abaixo é a METADE 2/2 da proteção
+    // descrita no bloco de aviso acima — não remover isoladamente.
     match /academias/{academiaId}/{colecao}/{doc} {
-      allow read: if pertenceAcademia(academiaId);
-      allow write: if !(colecao in ['usuarios', 'funcionarios']) &&
+      allow read: if colecao != '_atribuicao' && pertenceAcademia(academiaId);
+      allow write: if !(colecao in ['usuarios', 'funcionarios', '_atribuicao']) &&
         (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
     }
 

@@ -73,11 +73,28 @@ class _AlunoPresencasScreenState extends State<AlunoPresencasScreen> {
           t['id'].toString(): (t['nome']?.toString() ?? ''),
       };
 
+      Map<String, int> limitesPorTurma = const {};
+      try {
+        limitesPorTurma = await firestoreService.getLimitesDiasSemanaPorTurma(
+          academiaId,
+          matriculas,
+        );
+      } catch (_) {}
+
+      var faltaAutomaticaAtiva = true;
+      try {
+        final academiaDoc = await firestoreService.getAcademia(academiaId);
+        faltaAutomaticaAtiva =
+            academiaDoc?['falta_automatica_ativa'] as bool? ?? true;
+      } catch (_) {}
+
       final resumo = calcularFrequencia(
         presencas: presencas,
         matriculas: matriculas,
         horarios: horarios,
         turmaNome: turmaNome,
+        limitesPorTurma: limitesPorTurma,
+        contabilizarFaltaAutomatica: faltaAutomaticaAtiva,
       );
 
       if (mounted) {

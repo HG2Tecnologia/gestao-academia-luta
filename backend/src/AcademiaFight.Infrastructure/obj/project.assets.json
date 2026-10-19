@@ -3288,11 +3288,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
+      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
       "projectName": "AcademiaFight.Infrastructure",
-      "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
+      "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/AcademiaFight.Infrastructure.csproj",
       "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
-      "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/obj/",
+      "outputPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Infrastructure/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
@@ -3307,11 +3307,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj": {
-              "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj"
+            "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj": {
+              "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj"
             },
-            "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
-              "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
+            "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+              "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
             }
           }
         }

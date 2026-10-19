@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TurmaService } from '../../../../core/services/turma.service';
 import { TurmaDto } from '../../../../core/models/turma.model';
+import { DialogService } from '../../../../core/services/dialog.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-turmas-lista',
@@ -13,6 +15,8 @@ import { TurmaDto } from '../../../../core/models/turma.model';
 })
 export class TurmasListaComponent implements OnInit {
   private readonly turmaService = inject(TurmaService);
+  private readonly dialogService = inject(DialogService);
+  private readonly toastService = inject(ToastService);
 
   readonly turmas = signal<TurmaDto[]>([]);
   readonly carregando = signal(true);
@@ -62,11 +66,12 @@ export class TurmasListaComponent implements OnInit {
 
   fecharDropdown(): void { this.dropdownAbertoId.set(null); }
 
-  arquivar(id: string): void {
-    if (!confirm('Tem certeza que deseja arquivar esta turma?')) return;
+  async arquivar(id: string): Promise<void> {
+    const confirmado = await this.dialogService.confirm('Tem certeza que deseja arquivar esta turma?', { textoConfirmar: 'Arquivar', perigoso: true });
+    if (!confirmado) return;
     this.turmaService.delete(id).subscribe({
       next: () => this.carregar(),
-      error: () => alert('Erro ao arquivar turma.'),
+      error: () => this.toastService.error('Erro ao arquivar turma.'),
     });
   }
 }

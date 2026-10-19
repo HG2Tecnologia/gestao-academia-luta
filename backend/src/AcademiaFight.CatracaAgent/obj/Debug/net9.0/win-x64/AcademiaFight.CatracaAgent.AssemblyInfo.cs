@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SenseiManagerCatracaAgent")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ed1e7f654de8975046588b0387365026e8c9ef0f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+44b3ce44be0601b0db4a7a7de7fa552ce3192b91")]
 [assembly: System.Reflection.AssemblyProductAttribute("SenseiManagerCatracaAgent")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SenseiManagerCatracaAgent")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -18,6 +18,11 @@ exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
 
 const adminFunctions = require('./admin-functions');
 exports.adminResetPassword = adminFunctions.adminResetPassword;
+exports.checkContatoCompartilhado = adminFunctions.checkContatoCompartilhado;
+exports.requestPasswordReset = adminFunctions.requestPasswordReset;
+
+const notificationTriggers = require("./notification-triggers");
+exports.onGraduacaoCriada = notificationTriggers.onGraduacaoCriada;
 exports.completeMandatoryPasswordChange = adminFunctions.completeMandatoryPasswordChange;
 
 const graduacaoFunctions = require('./graduacao-functions');
@@ -26,9 +31,28 @@ exports.editarGraduacao = graduacaoFunctions.editarGraduacao;
 const turmaFunctions = require('./turma-functions');
 exports.arquivarTurma = turmaFunctions.arquivarTurma;
 
+const alunoFunctions = require("./aluno-functions");
+exports.excluirAluno = alunoFunctions.excluirAluno;
+
 const financeFunctions = require('./finance-functions');
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
+exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePeriod;
+exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
+exports.limparCobrancasOrfas = financeFunctions.limparCobrancasOrfas;
+
+const contratoFunctions = require("./contrato-functions");
+exports.contratoPublicoObter = contratoFunctions.contratoPublicoObter;
+exports.contratoPublicoAssinar = contratoFunctions.contratoPublicoAssinar;
+
+const attributionFunctions = require("./attribution-functions");
+exports.registrarAtribuicaoCadastro = attributionFunctions.registrarAtribuicaoCadastro;
+
+const modalidadeInitFunctions = require("./modalidade-init-functions");
+exports.inicializarModalidadesPadrao = modalidadeInitFunctions.inicializarModalidadesPadrao;
+
+const analyticsFunctions = require("./analytics-functions");
+exports.registrarEventoAnalytics = analyticsFunctions.registrarEventoAnalytics;
 
 const { processWebhookEvent, sincronizarPagamentosAcademia } = require('./asaas-payment-logic');
 

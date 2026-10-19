@@ -9,7 +9,11 @@ import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/finance_service.dart';
+import '../../core/financeiro_resumo.dart';
 import '../../core/firestore_service.dart';
+import '../../core/modalidade_icones.dart';
+import '../../core/pagamento_status.dart';
+import '../../core/relatorio_financeiro_export.dart';
 import '../../core/tab_refresh.dart';
 
 class AdminFinanceiroScreen extends StatefulWidget {
@@ -45,13 +49,85 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     }
   }
 
-  String _tipoLabel(String? t) =>
-      t == 'Taxa de Matrícula' ? _l.fiTypeEnrollment : _l.fiTypeMonthly;
+  /// Select estilizado (dropdown) pra filtros — usado tanto pro status
+  /// quanto pra modalidade, lado a lado na mesma linha.
+  Widget _selectFiltro<T>({
+    required T valor,
+    required List<(T, String)> itens,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 42,
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.c.outline),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: valor,
+          isExpanded: true,
+          isDense: true,
+          dropdownColor: context.c.surfaceContainer,
+          borderRadius: BorderRadius.circular(10),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: context.c.onSurfaceVariant,
+            size: 18,
+          ),
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          items: [
+            for (final item in itens)
+              DropdownMenuItem<T>(
+                value: item.$1,
+                child: Text(item.$2, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  /// Rótulo de tipo de cobrança, preferindo o nome do plano (quando a
+  /// cobrança é uma mensalidade) ao texto genérico "Mensalidade" — assim
+  /// cobranças de planos diferentes não aparecem todas com o mesmo rótulo.
+  /// Resolve o nome AO VIVO em `_planosPorId` (reflete rename imediato);
+  /// só cai pro `plano_nome` em cache se o plano já tiver sido excluído.
+  String _tipoLabelCompleto(Map<String, dynamic> c) {
+    final tipo = c['tipo']?.toString();
+    if (tipo == 'Taxa de Matrícula') return _l.fiTypeEnrollment;
+    final planoId = c['plano_id']?.toString();
+    final nomeAoVivo = planoId == null
+        ? null
+        : _planosPorId[planoId]?['nome']?.toString().trim();
+    if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) return nomeAoVivo;
+    final planoNome = c['plano_nome']?.toString().trim();
+    if (planoNome != null && planoNome.isNotEmpty) return planoNome;
+    return _l.fiTypeMonthly;
+  }
 
   Map<String, dynamic>? _resumo;
   List<Map<String, dynamic>> _cobrancas = [];
+  // Todos os pagamentos crus da academia (não só o mês navegado) — mantidos
+  // em memória pra permitir recalcular `_cobrancas`/`_resumo` localmente
+  // depois de uma ação pontual (marcar pago, estornar, etc.) sem refazer a
+  // consulta inteira e sem perder a posição de rolagem.
+  List<Map<String, dynamic>> _todosPagamentos = [];
+  Map<String, Map<String, dynamic>> _modalidadesPorId = {};
+  Map<String, Map<String, dynamic>> _planosPorId = {};
+  String? _modalidadeFiltro; // null = todas
   bool _loading = true;
   String? _academiaId;
+
+  // Modo de seleção múltipla — "marcar como pago" em lote.
+  bool _modoSelecao = false;
+  final Set<String> _selecionados = {};
 
   late int _ano;
   late int _mes;
@@ -103,133 +179,144 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
 
       // Garantia server-side: nunca gera mensalidade só no cliente. Falha
       // de rede/permite aqui não trava a tela — só mostra o que já existe.
-      final periodo = '$_ano-${_mes.toString().padLeft(2, '0')}';
+      //
+      // IMPORTANTE: só dispara para a competência REAL de hoje, nunca para o
+      // mês que está sendo navegado/visualizado (_ano/_mes). O agendamento
+      // diário (`gerarMensalidadesAutomaticas`) já cobre o mês atual e o
+      // seguinte para todas as academias; isto aqui é só uma rede de
+      // segurança extra caso ele ainda não tenha rodado hoje. Se disparasse
+      // para o mês navegado, bastaria o admin rolar o histórico para meses
+      // passados (ou futuros) para gerar cobrança retroativa/antecipada para
+      // TODOS os alunos ativos com plano — inclusive os que nem estavam
+      // matriculados naquela época. Bug real já relatado por cliente.
+      final agora = DateTime.now();
+      final periodoHoje =
+          '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
       try {
-        await FinanceService.ensureChargesForPeriod(
+        await financeService.ensureChargesForPeriod(
           academiaId: _academiaId!,
-          period: periodo,
+          period: periodoHoje,
         );
       } catch (_) {}
 
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
+        firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
       final acadData = results[1] as Map<String, dynamic>? ?? {};
+      _modalidadesPorId = {
+        for (final m in results[2] as List<Map<String, dynamic>>)
+          (m['id'] ?? '').toString(): m,
+      };
+      _planosPorId = {
+        for (final p in results[3] as List<Map<String, dynamic>>)
+          (p['id'] ?? '').toString(): p,
+      };
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
       _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
       _taxaAtrasoValor =
           (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
 
-      final now = DateTime.now();
-      final hoje = DateTime(now.year, now.month, now.day);
-
-      // Filter for selected month
-      final doMes = todos.where((p) {
-        final venc = p['data_vencimento'] as String? ?? '';
-        if (venc.isEmpty) return false;
-        try {
-          final dt = DateTime.parse(venc);
-          return dt.year == _ano && dt.month == _mes;
-        } catch (_) {
-          return false;
-        }
-      }).toList();
-
-      // Compute resumo client-side (exclude desconsiderado)
-      double recebido = 0, pendente = 0, atrasado = 0;
-      int recebidoQtd = 0, pendenteQtd = 0, atrasadoQtd = 0;
-      final Set<String> inadimplentesSet = {};
-
-      for (final p in todos) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int
-            ? statusRaw
-            : int.tryParse(statusRaw.toString()) ?? 0;
-        final statusStr = _statusMap[statusInt] ?? 'Pendente';
-        if (statusStr == 'Desconsiderado') continue;
-        final valorPago = (p['valor_pago'] as num?)?.toDouble();
-        final valor = valorPago ?? (p['valor'] as num? ?? 0).toDouble();
-        final venc = p['data_vencimento'] as String? ?? '';
-        DateTime? vencDt;
-        try {
-          vencDt = DateTime.parse(venc);
-        } catch (_) {}
-
-        if (statusStr == 'Pago') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
-            recebido += valor;
-            recebidoQtd++;
-          }
-        } else if (statusStr == 'Pendente' || statusStr == 'Previsto') {
-          if (vencDt != null && vencDt.year == _ano && vencDt.month == _mes) {
-            pendente += valor;
-            pendenteQtd++;
-          }
-          if (vencDt != null &&
-              DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
-            atrasado += valor;
-            atrasadoQtd++;
-            final alunoId = p['aluno_id']?.toString() ?? '';
-            if (alunoId.isNotEmpty) inadimplentesSet.add(alunoId);
-          }
-        }
-      }
-
-      // Convert status for display; compute effective status (Atrasado if pending+overdue)
-      final cobrancasComStatus = doMes.map((p) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int
-            ? statusRaw
-            : int.tryParse(statusRaw.toString()) ?? 0;
-        String statusStr = _statusMap[statusInt] ?? 'Pendente';
-        final venc = p['data_vencimento'] as String? ?? '';
-        DateTime? vencDt;
-        try {
-          vencDt = DateTime.parse(venc);
-        } catch (_) {}
-        // Override Pendente → Atrasado if past due date
-        if ((statusStr == 'Pendente' || statusStr == 'Previsto') &&
-            vencDt != null &&
-            DateTime(vencDt.year, vencDt.month, vencDt.day).isBefore(hoje)) {
-          statusStr = 'Atrasado';
-        }
-        final rawNome =
-            (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
-                .toString();
-        final rawTipo = p['tipo']?.toString() ?? '';
-        return {
-          ...p,
-          'status': statusStr,
-          'nomeAluno': rawNome == 'null' ? '' : rawNome,
-          'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
-          'tipo': (rawTipo.isEmpty || rawTipo == 'null')
-              ? 'Mensalidade'
-              : rawTipo,
-        };
-      }).toList();
-
-      if (mounted) {
-        setState(() {
-          _resumo = {
-            'totalRecebidoMes': recebido,
-            'totalPendenteMes': pendente,
-            'totalAtrasado': atrasado,
-            'alunosInadimplentes': inadimplentesSet.length,
-            'qtdRecebido': recebidoQtd,
-            'qtdPendente': pendenteQtd,
-            'qtdAtrasado': atrasadoQtd,
-          };
-          _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
-        });
-      }
+      _todosPagamentos = todos;
+      if (mounted) setState(_recomputarDerivados);
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Recalcula `_cobrancas` (lista do mês navegado, já com status efetivo
+  /// resolvido) e `_resumo` a partir de `_todosPagamentos` — puramente em
+  /// memória, sem rede. Chamado tanto depois de um `_load()` completo quanto
+  /// depois de uma edição pontual local (`_atualizarLocal`/`_removerLocal`),
+  /// que são os casos que precisam evitar o recarregamento completo da tela
+  /// (e o pulo de rolagem que ele causa).
+  void _recomputarDerivados() {
+    final now = DateTime.now();
+    final hoje = DateTime(now.year, now.month, now.day);
+
+    final doMes = _todosPagamentos.where((p) {
+      final venc = p['data_vencimento'] as String? ?? '';
+      if (venc.isEmpty) return false;
+      try {
+        final dt = DateTime.parse(venc);
+        return dt.year == _ano && dt.month == _mes;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+
+    // Resumo client-side — fonte única compartilhada com os testes
+    // (financeiro_resumo.dart). Ignora Desconsiderado por completo.
+    final resumo = resumoFinanceiroAcademia(
+      _todosPagamentos,
+      ano: _ano,
+      mes: _mes,
+      hoje: hoje,
+    );
+
+    // Convert status for display; compute effective status (Atrasado if pending+overdue)
+    final cobrancasComStatus = doMes.map((p) {
+      // Status efetivo: fonte única compartilhada com o app do aluno
+      // (Pendente/Previsto vencido → Atrasado; Pago/Desconsiderado intactos).
+      final stEf = pagamentoStatusEfetivo(
+        rawStatus: p['status'],
+        dataVencimento: p['data_vencimento'],
+        hoje: hoje,
+      );
+      final statusStr = switch (stEf) {
+        PagamentoStatus.pago => 'Pago',
+        PagamentoStatus.atrasado => 'Atrasado',
+        PagamentoStatus.previsto => 'Previsto',
+        PagamentoStatus.desconsiderado => 'Desconsiderado',
+        PagamentoStatus.pendente => 'Pendente',
+      };
+      final rawNome =
+          (p['nome_aluno'] ?? p['nomeAluno'] ?? p['aluno_nome'] ?? '')
+              .toString();
+      final rawTipo = p['tipo']?.toString() ?? '';
+      return {
+        ...p,
+        'status': statusStr,
+        'nomeAluno': rawNome == 'null' ? '' : rawNome,
+        'dataVencimento': p['data_vencimento'] ?? p['dataVencimento'] ?? '',
+        'tipo': (rawTipo.isEmpty || rawTipo == 'null')
+            ? 'Mensalidade'
+            : rawTipo,
+      };
+    }).toList();
+
+    _resumo = resumo.toMap();
+    _cobrancas = cobrancasComStatus.cast<Map<String, dynamic>>();
+  }
+
+  /// Aplica [alteracoes] (mesmos campos crus escritos no Firestore, ex.:
+  /// `status` como int) ao pagamento [id] só em memória, e recalcula
+  /// `_cobrancas`/`_resumo` — usado depois que a escrita no Firestore já deu
+  /// certo, pra refletir a mudança sem recarregar a lista inteira (o que
+  /// faria a tela pular pro topo, perdendo a posição de rolagem).
+  void _atualizarLocal(String id, Map<String, dynamic> alteracoes) {
+    final idx = _todosPagamentos.indexWhere((p) => p['id']?.toString() == id);
+    if (idx == -1 || !mounted) return;
+    setState(() {
+      _todosPagamentos[idx] = {..._todosPagamentos[idx], ...alteracoes};
+      _recomputarDerivados();
+    });
+  }
+
+  /// Igual a [_atualizarLocal], mas pra exclusão (remove o doc da lista em
+  /// memória em vez de atualizar campos).
+  void _removerLocal(String id) {
+    if (!mounted) return;
+    setState(() {
+      _todosPagamentos.removeWhere((p) => p['id']?.toString() == id);
+      _recomputarDerivados();
+    });
   }
 
   List<Map<String, dynamic>> get _cobrancasFiltradas {
@@ -237,6 +324,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     return _cobrancas.where((c) {
       final nome = (c['nomeAluno'] as String? ?? '').toLowerCase();
       if (busca.isNotEmpty && !nome.contains(busca)) return false;
+      if (_modalidadeFiltro != null &&
+          (c['modalidade_id'] as String?) != _modalidadeFiltro) {
+        return false;
+      }
       final status = c['status'] as String? ?? '';
       switch (_tabFiltro) {
         case 'pendente':
@@ -265,6 +356,16 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         _mes = 12;
         _ano--;
       }
+    });
+    _load();
+  }
+
+  void _irParaMesAtual() {
+    final now = DateTime.now();
+    if (_ano == now.year && _mes == now.month) return;
+    setState(() {
+      _ano = now.year;
+      _mes = now.month;
     });
     _load();
   }
@@ -724,6 +825,434 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final msg = Uri.encodeComponent(_l.fiWhatsappGreeting(nome));
     final url = Uri.parse('https://wa.me/$ddi?text=$msg');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Exporta a lista de cobranças atualmente visível (respeita o filtro de
+  /// aba e a busca por nome) em PDF ou Excel, com colunas que o usuário pode
+  /// marcar/desmarcar — mesmo padrão do relatório de presenças.
+  Future<void> _abrirExportarFinanceiro() async {
+    final l = _l;
+    final box = context.findRenderObject() as RenderBox?;
+    final origem = box == null ? null : (box.localToGlobal(Offset.zero) & box.size);
+
+    String fmtData(dynamic raw) {
+      if (raw == null) return '';
+      try {
+        final dt = DateTime.parse(raw.toString());
+        return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    final linhas = _cobrancasFiltradas.map((c) {
+      final valorPago = (c['valor_pago'] as num?)?.toDouble();
+      final valorBase = (c['valor'] as num? ?? 0).toDouble();
+      return LinhaRelatorioFinanceiro(
+        nomeAluno: (c['nomeAluno'] as String?) ?? '',
+        tipo: _tipoLabelCompleto(c),
+        valorFormatado: _fmtVal(valorPago ?? valorBase),
+        vencimentoFormatado: fmtData(c['dataVencimento'] ?? c['data_vencimento']),
+        status: _statusLabel(c['status'] as String?),
+        dataPagamentoFormatada: fmtData(c['data_pagamento']),
+      );
+    }).toList();
+
+    final rotulos = <ColunaFinanceiro, String>{
+      ColunaFinanceiro.nome: l.rpColumnName,
+      ColunaFinanceiro.tipo: l.fiExportColumnType,
+      ColunaFinanceiro.valor: l.fiExportColumnValue,
+      ColunaFinanceiro.vencimento: l.fiExportColumnDueDate,
+      ColunaFinanceiro.status: l.fiExportColumnStatus,
+      ColunaFinanceiro.dataPagamento: l.fiExportColumnPaidDate,
+    };
+    final colunasSelecionadas = <ColunaFinanceiro>{...ColunaFinanceiro.values};
+    final periodoLabel = '${_mesCurto(_mes)} $_ano';
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.c.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheetContext).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.fiExportSheetTitle,
+                  style: TextStyle(color: context.c.onSurface, fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                for (final c in ColunaFinanceiro.values)
+                  CheckboxListTile(
+                    value: colunasSelecionadas.contains(c),
+                    onChanged: (v) {
+                      setSheetState(() {
+                        if (v == true) {
+                          colunasSelecionadas.add(c);
+                        } else {
+                          colunasSelecionadas.remove(c);
+                        }
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: context.c.primary,
+                    title: Text(rotulos[c] ?? '', style: TextStyle(color: context.c.onSurface, fontSize: 14)),
+                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: colunasSelecionadas.isEmpty || linhas.isEmpty
+                            ? null
+                            : () async {
+                                Navigator.of(sheetContext).pop();
+                                await exportarRelatorioFinanceiroPdf(
+                                  linhas: linhas,
+                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  rotulos: rotulos,
+                                  tituloAcademia: l.navBilling,
+                                  periodoLabel: periodoLabel,
+                                  sharePositionOrigin: origem,
+                                );
+                              },
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                        label: Text(l.rpExportPdf),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.c.primary,
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: colunasSelecionadas.isEmpty || linhas.isEmpty
+                            ? null
+                            : () async {
+                                Navigator.of(sheetContext).pop();
+                                await exportarRelatorioFinanceiroExcel(
+                                  linhas: linhas,
+                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  rotulos: rotulos,
+                                  tituloAcademia: l.navBilling,
+                                  periodoLabel: periodoLabel,
+                                  sharePositionOrigin: origem,
+                                );
+                              },
+                        icon: const Icon(Icons.table_chart_rounded, size: 18),
+                        label: Text(l.rpExportExcel),
+                        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Corrige mensalidade duplicada (mesmo aluno + mesma competência) —
+  /// resquício do bug em que dois caminhos diferentes geravam a cobrança do
+  /// mês com IDs diferentes. Resolve sozinho os casos inequívocos; grupo com
+  /// 2+ pagas fica de fora, para revisão manual.
+  Future<void> _abrirCorrigirDuplicatas() async {
+    if (_academiaId == null) return;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiMergeDuplicatesTitle),
+        content: Text(_l.fiMergeDuplicatesExplain),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiMergeDuplicatesButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final confirmadoDeVerdade = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiMergeDuplicatesConfirmTitle),
+        content: Text(_l.fiMergeDuplicatesConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiMergeDuplicatesButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmadoDeVerdade != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.mergeDuplicateCharges(
+        academiaId: _academiaId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiMergeDuplicatesSuccess(
+              resultado.gruposComDuplicata,
+              resultado.resolvidasAutomaticamente,
+              resultado.ignoradasRevisaoManual,
+            ),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiMergeDuplicatesError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Complementar à correção de duplicatas: limpa cobrança pendente ÚNICA
+  /// (não precisa ser duplicata de nada) presa num plano excluído ou numa
+  /// modalidade da qual o aluno já foi desvinculado. Nunca toca em cobrança
+  /// paga, prevista, desconsiderada, ou avulsa sem plano.
+  Future<void> _abrirLimparOrfas() async {
+    if (_academiaId == null) return;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanOrphansTitle),
+        content: Text(_l.fiCleanOrphansExplain),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanOrphansButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final confirmadoDeVerdade = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanOrphansConfirmTitle),
+        content: Text(_l.fiCleanOrphansConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanOrphansButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmadoDeVerdade != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.limparCobrancasOrfas(
+        academiaId: _academiaId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiCleanOrphansSuccess(
+              resultado.cobrancasAnalisadas,
+              resultado.cobrancasCanceladas,
+            ),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiCleanOrphansError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Ferramenta de "limpeza" — desconsidera em massa toda pendência/atraso
+  /// com vencimento anterior ao mês escolhido, de todos os alunos. Corrige o
+  /// acúmulo de cobrança retroativa (ex.: bug de geração de mensalidade para
+  /// meses anteriores ao cadastro do plano). Nunca toca em cobrança já paga.
+  Future<void> _abrirLimpezaRetroativa() async {
+    if (_academiaId == null) return;
+
+    int ano = _ano;
+    int mes = _mes;
+    final locale = Localizations.localeOf(context).toString();
+
+    String mesLabel(int a, int m) {
+      final s = DateFormat.yMMMM(locale).format(DateTime(a, m));
+      return s.isEmpty ? '$m/$a' : s[0].toUpperCase() + s.substring(1);
+    }
+
+    final corte = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: Text(_l.fiCleanupRetroactiveTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _l.fiCleanupRetroactiveExplain,
+                style: TextStyle(color: context.c.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _l.fiCleanupRetroactiveCutoffLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () => setModal(() {
+                      mes--;
+                      if (mes < 1) {
+                        mes = 12;
+                        ano--;
+                      }
+                    }),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  SizedBox(
+                    width: 160,
+                    child: Text(
+                      mesLabel(ano, mes),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setModal(() {
+                      mes++;
+                      if (mes > 12) {
+                        mes = 1;
+                        ano++;
+                      }
+                    }),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(_l.commonCancel),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: context.sem.danger,
+              ),
+              onPressed: () => Navigator.pop(
+                ctx,
+                '$ano-${mes.toString().padLeft(2, '0')}',
+              ),
+              child: Text(_l.fiCleanupRetroactiveButton),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (corte == null || !mounted) return;
+
+    final confirmMesLabel = mesLabel(ano, mes);
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.fiCleanupRetroactiveConfirmTitle),
+        content: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiCleanupRetroactiveButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    try {
+      final resultado = await financeService.disregardChargesBeforePeriod(
+        academiaId: _academiaId!,
+        period: corte,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
+          ),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiCleanupRetroactiveError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _abrirModalCobrancas() async {
@@ -1343,7 +1872,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       // cobrança já existente na competência.
                                       final periodo =
                                           '$_ano-${_mes.toString().padLeft(2, '0')}';
-                                      await FinanceService.ensureChargesForPeriod(
+                                      await financeService.ensureChargesForPeriod(
                                         academiaId: _academiaId!,
                                         period: periodo,
                                       );
@@ -1578,6 +2107,49 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
   }
 
+  /// Marca todas as cobranças selecionadas no modo de seleção como pagas
+  /// hoje, sem desconto (o fluxo com desconto por item continua disponível
+  /// fora do modo seleção, pra casos pontuais). Escreve uma por uma — mesma
+  /// escrita já usada em [_marcarPago] — e atualiza a lista localmente a
+  /// cada sucesso, preservando a posição de rolagem.
+  Future<void> _marcarPagoEmLote() async {
+    if (_academiaId == null || _selecionados.isEmpty) return;
+    final ids = List<String>.from(_selecionados);
+    final now = DateTime.now();
+    final dataStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    const alteracoes = {'status': 1};
+
+    var sucesso = 0;
+    for (final id in ids) {
+      try {
+        await firestoreService.updatePagamento(_academiaId!, id, {
+          ...alteracoes,
+          'data_pagamento': dataStr,
+        });
+        sucesso++;
+        _atualizarLocal(id, {...alteracoes, 'data_pagamento': dataStr});
+      } catch (_) {
+        // Segue tentando os demais — o snackbar final reflete quantos deram certo.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _selecionados.clear();
+      _modoSelecao = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_l.fiBatchMarkedPaid(sucesso)),
+        backgroundColor: sucesso == ids.length
+            ? context.sem.success
+            : context.sem.warning,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _marcarPago(Map<String, dynamic> c) async {
     final valorBase = (c['valor'] as num? ?? 0).toDouble();
     final descontoCtrl = TextEditingController();
@@ -1757,12 +2329,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final desconto = (result['desconto'] as double? ?? 0.0);
       final valorPago = (result['valorPago'] as double? ?? valorBase);
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+      final alteracoes = {
         'status': 1,
         'data_pagamento': dataStr,
         if (desconto > 0) 'desconto': desconto,
         if (desconto > 0) 'valor_pago': valorPago,
-      });
+      };
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1771,7 +2348,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {
       if (mounted)
@@ -1831,12 +2408,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
+      const alteracoes = {
         'status': 0,
         'data_pagamento': null,
         'desconto': null,
         'valor_pago': null,
-      });
+      };
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1845,7 +2427,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -1896,11 +2478,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         false;
     if (!ok || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
-        'status': 4,
-      });
+      const alteracoes = {'status': 4};
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -1908,11 +2493,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Future<void> _restaurar(Map<String, dynamic> c) async {
     if (!mounted || _academiaId == null) return;
     try {
-      await firestoreService.updatePagamento(_academiaId!, c['id'].toString(), {
-        'status': 0,
-      });
+      const alteracoes = {'status': 0};
+      await firestoreService.updatePagamento(
+        _academiaId!,
+        c['id'].toString(),
+        alteracoes,
+      );
       if (mounted) {
-        _load();
+        _atualizarLocal(c['id'].toString(), alteracoes);
       }
     } catch (_) {}
   }
@@ -1960,7 +2548,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     try {
       await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
       if (mounted) {
-        _load();
+        _removerLocal(c['id'].toString());
       }
     } catch (_) {}
   }
@@ -1971,11 +2559,45 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     final isAtual = DateTime.now().year == _ano && DateTime.now().month == _mes;
     return Scaffold(
       backgroundColor: context.c.surface,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _criarCobrancaAvulsa,
-        backgroundColor: context.c.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _modoSelecao
+          ? null
+          : FloatingActionButton(
+              onPressed: _criarCobrancaAvulsa,
+              backgroundColor: context.c.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+      bottomNavigationBar: _modoSelecao && _selecionados.isNotEmpty
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  color: context.c.surfaceContainer,
+                  border: Border(top: BorderSide(color: context.c.outline)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      _l.fiSelectedCount(_selecionados.length),
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: _marcarPagoEmLote,
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: Text(_l.fiMarkPaid),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: context.sem.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: _load,
         color: context.c.primary,
@@ -2094,30 +2716,143 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: _abrirModalCobrancas,
-                                icon: Icon(
-                                  Icons.receipt_long_rounded,
-                                  size: 16,
-                                  color: context.c.primary,
-                                ),
-                                label: Text(
-                                  _l.fiGenerateCharges,
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                              // "Gerar cobranças" e "Limpar retroativas" são
+                              // ações menos frequentes (ferramentas, não
+                              // navegação do dia a dia) — agrupadas num só
+                              // menu pra não empurrar "Contas"/"Relatório"
+                              // pra fora da tela e exigir rolar pro lado só
+                              // pra achar o botão de gerar cobrança. Rótulo
+                              // "Mais" + ícone de "⋮" (em vez de só um
+                              // ícone com setinha) deixa claro que é um menu
+                              // pra abrir, não um botão de ação direta.
+                              PopupMenuButton<VoidCallback>(
+                                tooltip: _l.fiMoreActions,
+                                onSelected: (acao) => acao(),
+                                itemBuilder: (ctx) => [
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirExportarFinanceiro,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.ios_share_rounded,
+                                          size: 18,
+                                          color: context.c.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiExportReport,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  backgroundColor: context.c.primary
-                                      .withOpacity(0.10),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirModalCobrancas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.receipt_long_rounded,
+                                          size: 18,
+                                          color: context.c.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiGenerateCharges,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirLimpezaRetroativa,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.cleaning_services_rounded,
+                                          size: 18,
+                                          color: context.sem.danger,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiCleanupRetroactive,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirCorrigirDuplicatas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.merge_type_rounded,
+                                          size: 18,
+                                          color: context.sem.warning,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiMergeDuplicates,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem<VoidCallback>(
+                                    value: _abrirLimparOrfas,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.link_off_rounded,
+                                          size: 18,
+                                          color: context.sem.warning,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Flexible(
+                                          child: Text(
+                                            _l.fiCleanOrphans,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                    horizontal: 10,
+                                    vertical: 7,
                                   ),
-                                  shape: RoundedRectangleBorder(
+                                  decoration: BoxDecoration(
+                                    color: context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: context.c.outline),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.more_vert_rounded,
+                                        color: context.c.onSurfaceVariant,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        _l.fiMoreActions,
+                                        style: TextStyle(
+                                          color: context.c.onSurfaceVariant,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -2131,62 +2866,100 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.c.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.c.outline),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: () => _navMes(-1),
-                            icon: Icon(
-                              Icons.chevron_left,
-                              color: context.c.onSurface,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          Column(
+                          decoration: BoxDecoration(
+                            color: context.c.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.c.outline),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                '${_mesCurto(_mes)} $_ano',
-                                style: TextStyle(
+                              IconButton(
+                                onPressed: () => _navMes(-1),
+                                icon: Icon(
+                                  Icons.chevron_left,
                                   color: context.c.onSurface,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
                                 ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
                               ),
-                              if (isAtual)
-                                Text(
-                                  _l.fiCurrentMonth,
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 11,
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${_mesCurto(_mes)} $_ano',
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
+                                  if (isAtual)
+                                    Text(
+                                      _l.fiCurrentMonth,
+                                      style: TextStyle(
+                                        color: context.c.primary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              IconButton(
+                                // Financeiro automático gera a competência
+                                // atual + a próxima (Fase 7) — não faz sentido
+                                // travar a navegação no mês atual.
+                                onPressed: () => _navMes(1),
+                                icon: Icon(
+                                  Icons.chevron_right,
+                                  color: context.c.onSurface,
                                 ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
                             ],
                           ),
-                          IconButton(
-                            // Financeiro automático gera a competência atual
-                            // + a próxima (Fase 7) — não faz sentido travar
-                            // a navegação exatamente no mês atual.
-                            onPressed: () => _navMes(1),
-                            icon: Icon(
-                              Icons.chevron_right,
-                              color: context.c.onSurface,
+                        ),
+                        if (!isAtual)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _irParaMesAtual,
+                                icon: const Icon(
+                                  Icons.keyboard_return_rounded,
+                                  size: 16,
+                                ),
+                                label: Text(_l.fiBackToCurrentMonth),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: context.c.primary,
+                                  side: BorderSide(
+                                    color: context.c.primary.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
                             ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -2197,7 +2970,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 1.55,
+                      childAspectRatio: 2.0,
                       children: [
                         _met(
                           label: _l.raReceived,
@@ -2286,59 +3059,45 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     ),
                   ),
                 ),
-                // ── Tabs de status ──────────────────────────────────────
+                // ── Filtros: status + modalidade (selects lado a lado) ──
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final tab in [
-                            ('todos', _l.fiTabAll),
-                            ('pendente', _l.fiTabPending),
-                            ('atrasado', _l.fiTabOverdue),
-                            ('pago', _l.fiTabPaid),
-                            ('desconsiderado', _l.fiTabDismissed),
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _tabFiltro = tab.$1),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 7,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _selectFiltro<String>(
+                            valor: _tabFiltro,
+                            itens: [
+                              ('todos', _l.fiTabAll),
+                              ('pendente', _l.fiTabPending),
+                              ('atrasado', _l.fiTabOverdue),
+                              ('pago', _l.fiTabPaid),
+                              ('desconsiderado', _l.fiTabDismissed),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _tabFiltro = v ?? 'todos'),
+                          ),
+                        ),
+                        if (_modalidadesPorId.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _selectFiltro<String?>(
+                              valor: _modalidadeFiltro,
+                              itens: [
+                                (null, _l.fiAllModalities),
+                                for (final m in _modalidadesPorId.values)
+                                  (
+                                    m['id']?.toString(),
+                                    m['nome']?.toString() ?? '',
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: _tabFiltro == tab.$1
-                                        ? context.c.primary
-                                        : context.c.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _tabFiltro == tab.$1
-                                          ? context.c.primary
-                                          : context.c.outline,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    tab.$2,
-                                    style: TextStyle(
-                                      color: _tabFiltro == tab.$1
-                                          ? Colors.white
-                                          : context.c.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontWeight: _tabFiltro == tab.$1
-                                          ? FontWeight.w700
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _modalidadeFiltro = v),
                             ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -2348,15 +3107,67 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     child: Builder(
                       builder: (_) {
                         final lista = _cobrancasFiltradas;
-                        return Text(
-                          lista.isEmpty
-                              ? _l.fiNoCharges
-                              : _l.fiChargesCount(lista.length),
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                lista.isEmpty
+                                    ? _l.fiNoCharges
+                                    : _l.fiChargesCount(lista.length),
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() {
+                                _modoSelecao = !_modoSelecao;
+                                if (!_modoSelecao) _selecionados.clear();
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _modoSelecao
+                                      ? context.c.primary
+                                      : context.c.surfaceContainer,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _modoSelecao
+                                        ? context.c.primary
+                                        : context.c.outline,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.checklist_rounded,
+                                      color: _modoSelecao
+                                          ? Colors.black
+                                          : context.c.onSurfaceVariant,
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _l.fiSelectMode,
+                                      style: TextStyle(
+                                        color: _modoSelecao
+                                            ? Colors.black
+                                            : context.c.onSurfaceVariant,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
@@ -2381,6 +3192,17 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
                           } catch (_) {}
                         }
+                        final modalidadeId = c['modalidade_id'] as String?;
+                        final modalidadeDoc = modalidadeId == null
+                            ? null
+                            : _modalidadesPorId[modalidadeId];
+                        final modalidadeNome =
+                            modalidadeDoc?['nome']?.toString() ??
+                            (c['modalidade_nome'] as String?)?.trim() ??
+                            '';
+                        final modalidadeCor = modalidadeDoc != null
+                            ? resolverVisualModalidade(modalidadeDoc).cor
+                            : context.c.primary;
                         final isPago = status == 'Pago';
                         final valorBase = (c['valor'] as num? ?? 0).toDouble();
                         final desconto =
@@ -2418,6 +3240,30 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      if (_modoSelecao &&
+                                          (status == 'Pendente' ||
+                                              status == 'Atrasado'))
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 4,
+                                            top: 2,
+                                          ),
+                                          child: Checkbox(
+                                            value: _selecionados.contains(
+                                              c['id']?.toString(),
+                                            ),
+                                            activeColor: context.c.primary,
+                                            onChanged: (_) => setState(() {
+                                              final id = c['id']?.toString();
+                                              if (id == null) return;
+                                              if (_selecionados.contains(id)) {
+                                                _selecionados.remove(id);
+                                              } else {
+                                                _selecionados.add(id);
+                                              }
+                                            }),
+                                          ),
+                                        ),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -2431,20 +3277,51 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                            Text(
-                                              [
-                                                _tipoLabel(
-                                                  c['tipo']?.toString(),
+                                            if (modalidadeNome.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: modalidadeCor
+                                                      .withValues(alpha: 0.16),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
                                                 ),
-                                                if (dataStr != null)
-                                                  _l.fiDueOn(dataStr),
-                                              ].join(' · '),
+                                                child: Text(
+                                                  modalidadeNome,
+                                                  style: TextStyle(
+                                                    color: modalidadeCor,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _tipoLabelCompleto(c),
                                               style: TextStyle(
                                                 color:
                                                     context.c.onSurfaceVariant,
                                                 fontSize: 12,
                                               ),
                                             ),
+                                            if (dataStr != null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${_l.fiDueLabel} - $dataStr',
+                                                style: TextStyle(
+                                                  color: context
+                                                      .c
+                                                      .onSurfaceVariant,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
                                             // Breakdown (taxa + desconto)
                                             if (taxaValor > 0 ||
                                                 desconto > 0) ...[
@@ -2757,52 +3634,68 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     ),
     padding: const EdgeInsets.all(12),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 16),
+        // linha de cima: ícone à esquerda · valor à direita
+        Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              height: 1,
+        // linha de baixo: rótulo à esquerda · nº de cobranças à direita
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+            if (sub != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                sub,
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        if (sub != null) ...[
-          const SizedBox(height: 3),
-          Text(
-            sub,
-            style: TextStyle(
-              color: context.c.onSurfaceVariant,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ],
     ),
   );

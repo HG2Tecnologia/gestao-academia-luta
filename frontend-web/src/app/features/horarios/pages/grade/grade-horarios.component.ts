@@ -6,6 +6,8 @@ import { HorarioService } from '../../../../core/services/horario.service';
 import { TurmaService } from '../../../../core/services/turma.service';
 import { HorarioDto, GradeHorariosDto } from '../../../../core/models/horario.model';
 import { TurmaDto } from '../../../../core/models/turma.model';
+import { DialogService } from '../../../../core/services/dialog.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-grade-horarios',
@@ -18,6 +20,8 @@ export class GradeHorariosComponent implements OnInit {
   private readonly horarioService = inject(HorarioService);
   private readonly turmaService = inject(TurmaService);
   private readonly fb = inject(FormBuilder);
+  private readonly dialogService = inject(DialogService);
+  private readonly toastService = inject(ToastService);
 
   readonly grade = signal<GradeHorariosDto | null>(null);
   readonly turmas = signal<TurmaDto[]>([]);
@@ -142,11 +146,12 @@ export class GradeHorariosComponent implements OnInit {
     );
   }
 
-  remover(id: string): void {
-    if (!confirm('Remover este horário?')) return;
+  async remover(id: string): Promise<void> {
+    const confirmado = await this.dialogService.confirm('Remover este horário?', { textoConfirmar: 'Remover', perigoso: true });
+    if (!confirmado) return;
     this.horarioService.delete(id).subscribe({
       next: () => { this.fecharModal(); this.carregar(); },
-      error: () => alert('Erro ao remover horário.'),
+      error: () => this.toastService.error('Erro ao remover horário.'),
     });
   }
 

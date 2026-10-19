@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
+import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/senha_temporaria_modal.dart';
@@ -159,6 +160,37 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
         }
       }
 
+      // Checagem PRÉVIA: se telefone/e-mail já pertence a outra conta que já
+      // definiu senha própria, decide ANTES de criar o aluno — cancelar aqui
+      // não deixa nenhum cadastro pela metade (diferente de decidir depois
+      // que o aluno já existe no banco).
+      var confirmarSobrescrita = false;
+      var apenasVincular = false;
+      if (_acessoAppAtivo && (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
+        final checagem = await firebaseIdentityService
+            .checkContatoCompartilhado(
+              academiaId: academiaId,
+              telefone: telDigits,
+              email: emailVal,
+            );
+        if (checagem.conflito) {
+          if (!mounted) return;
+          setState(() => _salvando = false);
+          final escolha = await perguntarComoResolverConflitoSenha(
+            context,
+            nome: _nome.text.trim(),
+          );
+          if (escolha == null)
+            return; // cancelou: formulário intacto, nada criado.
+          setState(() {
+            _salvando = true;
+            _erro = null;
+          });
+          confirmarSobrescrita = escolha == ResolucaoConflitoSenha.gerarNova;
+          apenasVincular = escolha == ResolucaoConflitoSenha.manterAtual;
+        }
+      }
+
       final nascIso = _dataNascimento != null
           ? '${_dataNascimento!.year.toString().padLeft(4, '0')}-'
                 '${_dataNascimento!.month.toString().padLeft(2, '0')}-'
@@ -196,6 +228,8 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
           usuarioId: alunoId,
           nome: _nome.text.trim(),
           motivo: 'provisao_criacao',
+          confirmarSobrescrita: confirmarSobrescrita,
+          apenasVincular: apenasVincular,
         );
       }
       if (mounted) context.pop();

@@ -7,11 +7,15 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'aluno_planos_modalidade_screen.dart';
+import '../../core/aluno_service.dart';
 import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
+import '../../core/grau_colorido.dart';
 import '../../core/graduacao_service.dart';
 import '../../core/phone_normalizer.dart';
 import '../../core/senha_temporaria_modal.dart';
@@ -48,6 +52,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, dynamic>? _grupoFamiliar;
   List<Map<String, dynamic>> _membrosGrupo = [];
   Map<String, dynamic>? _plano;
+  bool _cobrancaPorModalidadeAtiva = false;
+  List<Map<String, dynamic>> _planosModalidade = [];
+  List<Map<String, dynamic>> _modalidadesPorId = [];
   String? _meId;
   String? _academiaId;
   StoredUser? _callerUser;
@@ -63,6 +70,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
 
   // Modo professor
   bool get _pm => widget.professorMode;
+
+  // Admin/Secretaria sempre veem (comportamento de sempre); em modo
+  // professor, só com a permissão granular correspondente ligada.
+  bool get _podeVerSaude =>
+      !_pm || (_callerUser?.temPermissao('acesso_saude_aluno') ?? false);
+  bool get _podeVerGrupoFamiliar =>
+      !_pm || (_callerUser?.temPermissao('acesso_grupo_familiar') ?? false);
+
   bool _podeEditarBasico = false;
   bool _podeGraduar = true;
   bool _acessoNegado = false;
@@ -107,6 +122,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ativasOnly: false,
         ),
         firestoreService.getTurmas(academiaId),
+        firestoreService.getAcademia(academiaId),
+        firestoreService.getPlanosModalidadeDoAluno(academiaId, widget.alunoId),
+        firestoreService.getModalidades(academiaId),
+        firestoreService.getPlanos(academiaId),
       ]);
 
       final alunoRaw = results[0] as Map<String, dynamic>?;
@@ -118,6 +137,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final faixas = (results[5] as List).cast<Map<String, dynamic>>();
       final matriculas = (results[6] as List).cast<Map<String, dynamic>>();
       final todasTurmas = (results[7] as List).cast<Map<String, dynamic>>();
+      final academiaDoc = results[8] as Map<String, dynamic>?;
+      final planosModalidadeDoAluno = (results[9] as List)
+          .cast<Map<String, dynamic>>();
+      final modalidadesLista = (results[10] as List)
+          .cast<Map<String, dynamic>>();
+      final todosPlanos = (results[11] as List).cast<Map<String, dynamic>>();
+      final planosPorId = <String, Map<String, dynamic>>{
+        for (final p in todosPlanos) p['id'].toString(): p,
+      };
 
       // Modo professor: só pode abrir alunos das turmas dele (salvo
       // "ver todas as turmas").
@@ -148,35 +176,44 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final turmaMap = <String, Map<String, dynamic>>{
         for (final t in todasTurmas) t['id'].toString(): t,
       };
+      // Modalidades em que ESTE aluno é elegível pra graus coloridos (ver
+      // core/grau_colorido.dart) — gate aplicado abaixo em
+      // `enrichedGraduacoes`, antes de montar `faixasMod`.
+      final modalidadesElegiveisGrauColorido =
+          montarElegibilidadeGrausColoridosPorAluno(
+            matriculas: matriculas,
+            turmasPorId: turmaMap,
+          )[widget.alunoId] ??
+          const <String>{};
       // Só matrículas ATIVAS contam como "turma atual do aluno" — uma turma
       // excluída (soft delete) encerra a matrícula na mesma transação
       // (arquivarTurma), então sem esse filtro o aluno continuava aparecendo
       // vinculado a turmas que já não existem mais operacionalmente.
-      final matriculaIds = matriculas
+      // Mantém o id da matrícula (não só o id da turma, já deduplicado) pra
+      // dar pra desvincular uma turma específica depois, direto pela ficha
+      // do aluno.
+      final turmasDetails = matriculas
           .where((m) => m['ativo'] == true)
-          .map((m) => m['turma_id']?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      final alunoTurmas = matriculaIds
-          .map((id) => turmaMap[id])
-          .whereType<Map<String, dynamic>>()
-          .where((t) => t['deleted_at'] == null)
-          .toList();
-      final turmaNomes = alunoTurmas
-          .map((t) => t['nome']?.toString() ?? '')
-          .where((n) => n.isNotEmpty)
-          .toList();
-      final turmasDetails = alunoTurmas
-          .map(
-            (t) => <String, dynamic>{
+          .map((m) {
+            final turmaId = m['turma_id']?.toString() ?? '';
+            final t = turmaId.isEmpty ? null : turmaMap[turmaId];
+            if (t == null || t['deleted_at'] != null) return null;
+            return <String, dynamic>{
+              'matriculaId': m['id']?.toString() ?? '',
+              'turmaId': turmaId,
               'modalidadeId':
                   (t['modalidadeId'] ?? t['modalidade_id'])?.toString() ?? '',
               'modalidadeNome':
                   (t['modalidadeNome'] ?? t['modalidade_nome'])?.toString() ??
                   '',
               'nome': t['nome'],
-            },
-          )
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final turmaNomes = turmasDetails
+          .map((t) => t['nome']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
           .toList();
 
       // Normaliza aluno (snake_case → camelCase para compatibilidade com UI)
@@ -199,6 +236,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       final enrichedGraduacoes = graduacoesRaw.map((g) {
         final faixaId = g['faixa_id']?.toString() ?? '';
         final f = faixaMap[faixaId] ?? {};
+        final faixaModalidadeId =
+            (f['modalidadeId'] ?? f['modalidade_id'])?.toString() ?? '';
+        final elegivelGrauColorido = modalidadesElegiveisGrauColorido
+            .contains(faixaModalidadeId);
         return <String, dynamic>{
           ...g,
           'faixaId': faixaId,
@@ -207,6 +248,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           'corBarraFaixa': f['cor_barra'] ?? '#000000',
           'faixaTemGraus': f['tem_graus'] == true,
           'faixaMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+          // Só exposto se o aluno estiver numa turma dessa modalidade que
+          // ligou o recurso — ver core/grau_colorido.dart.
+          'faixaGrauCores': elegivelGrauColorido && f['grau_cores'] is List
+              ? f['grau_cores']
+              : const [],
           'faixaOrdem': (f['ordem'] as num?)?.toInt() ?? 0,
           'nomeModalidade':
               g['nomeModalidade'] ?? f['modalidade_nome'] ?? 'Modalidade',
@@ -236,6 +282,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             'corBarra': g['corBarraFaixa'] ?? '#000000',
             'temGraus': g['faixaTemGraus'] == true,
             'maxGraus': (g['faixaMaxGraus'] as num?)?.toInt() ?? 4,
+            'grauCores': g['faixaGrauCores'] is List ? g['faixaGrauCores'] : const [],
             '_faixaOrdem': faixaOrdem,
             'grau': grau,
           };
@@ -302,6 +349,17 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         } catch (_) {}
       }
 
+      final planosModalidadeEnriquecidos = planosModalidadeDoAluno
+          .map((m) {
+            final plano = planosPorId[m['plano_id']?.toString() ?? ''];
+            return <String, dynamic>{
+              ...m,
+              'planoNome': plano?['nome'] ?? '',
+              'valorMensal': plano?['valor_mensal'],
+            };
+          })
+          .toList();
+
       if (mounted)
         setState(() {
           _aluno = aluno;
@@ -313,6 +371,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           _faixasPorModalidade = faixasMod;
           _graduacoes = List.of(enrichedGraduacoes)
             ..sort(compararGraduacoesCronologicamente);
+          _cobrancaPorModalidadeAtiva =
+              academiaDoc?['cobranca_por_modalidade_ativa'] as bool? ?? false;
+          _planosModalidade = planosModalidadeEnriquecidos;
+          _modalidadesPorId = modalidadesLista;
         });
     } catch (_) {
       if (mounted) setState(() => _erro = _l.sdLoadError);
@@ -373,6 +435,85 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Exclusão definitiva do aluno (Cloud Function `excluirAluno`): apaga
+  /// matrículas, mensalidades, presenças, graduações e notificações, e
+  /// desvincula só este aluno de uma conta de acesso compartilhada (mesmo
+  /// telefone/e-mail de outro aluno), sem afetar o outro.
+  Future<void> _excluirAluno() async {
+    final academiaId = _academiaId;
+    final a = _aluno;
+    if (academiaId == null || a == null) return;
+    final nome = a['nome']?.toString() ?? '';
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              _l.sdDeleteAlunoConfirmTitle(nome),
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: Text(
+              _l.sdDeleteAlunoConfirmBody,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  _l.commonDelete,
+                  style: TextStyle(color: context.sem.danger, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok || !mounted) return;
+
+    // Ver comentário equivalente em turma_detalhe_screen.dart._excluirTurma:
+    // captura o Navigator raiz ANTES do showDialog, pra fechar o loading sem
+    // fechar a própria tela quando ela está num Navigator aninhado.
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await AlunoService.excluirAluno(academiaId: academiaId, alunoId: widget.alunoId);
+      rootNavigator.pop();
+      if (!mounted) return;
+      Navigator.of(context).pop(); // volta pra lista — o aluno não existe mais
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_l.sdDeleteAlunoSuccess),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      rootNavigator.pop();
+      String msg = _l.sdDeleteAlunoError;
+      if (e is FirebaseFunctionsException) msg = e.message ?? msg;
+      messenger.showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: context.sem.danger, behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -1097,12 +1238,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         color: context.c.primary,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _l.sdCreateGroup,
-                        style: TextStyle(
-                          color: context.c.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          _l.sdCreateGroup,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.c.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -1130,12 +1274,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         color: context.c.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _l.sdLinkExisting,
-                        style: TextStyle(
-                          color: context.c.onSurfaceVariant,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          _l.sdLinkExisting,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -1793,13 +1940,81 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   // ── Plano ─────────────────────────────────────────────
 
   Widget _buildPlanoCard(Map<String, dynamic> a) {
+    // Cobrança por modalidade ativa: o campo único "Plano" (legado) deixa de
+    // ser cobrado de verdade (o financeiro ignora `plano_id` nesse modo — ver
+    // `ensureChargesPorModalidade`), então mostrar o valor antigo aqui só
+    // confundiria o admin. Mostra a lista de matrículas por modalidade em
+    // vez disso.
+    if (_cobrancaPorModalidadeAtiva) {
+      return _buildCard([
+        Row(
+          children: [
+            Expanded(child: _sectionTitle(_l.sdPlanByModalitySection)),
+            if (!_pm)
+              GestureDetector(
+                onTap: _abrirPlanosModalidade,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.edit_rounded,
+                    color: context.c.primary,
+                    size: 16,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_planosModalidade.isEmpty)
+          Text(
+            _l.sdNoPlan,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+          )
+        else
+          for (final m in _planosModalidade) ...[
+            _row(
+              _modalidadesPorId.firstWhere(
+                    (mod) => mod['id'] == m['modalidade_id'],
+                    orElse: () => const {},
+                  )['nome']
+                      as String? ??
+                  '',
+              m['planoNome']?.toString() ?? '',
+            ),
+            if (m['valorMensal'] != null)
+              _row(
+                _l.sdMonthlyValue,
+                'R\$ ${(m['valorMensal'] as num).toDouble().toStringAsFixed(2).replaceAll('.', ',')}',
+              ),
+            if (m['dia_vencimento'] != null)
+              _row(_l.sdDueDate, _l.sdEveryDayN(m['dia_vencimento'])),
+            if (m != _planosModalidade.last) const Divider(height: 20),
+          ],
+      ]);
+    }
+
     final planoNome = _plano?['nome'] as String? ?? a['planoNome'] as String?;
     final valorMensal = (_plano?['valor_mensal'] as num?)?.toDouble();
     final diaVenc = a['diaVencimento'];
 
     if (planoNome == null && valorMensal == null && diaVenc == null) {
       return _buildCard([
-        _sectionTitle(_l.sdPlanSection),
+        Row(
+          children: [
+            Expanded(child: _sectionTitle(_l.sdPlanSection)),
+            if (!_pm)
+              GestureDetector(
+                onTap: _abrirPlanosModalidade,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.category_outlined,
+                    color: context.c.onSurfaceVariant,
+                    size: 18,
+                  ),
+                ),
+              ),
+          ],
+        ),
         Text(
           _l.sdNoPlan,
           style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
@@ -1811,6 +2026,18 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       Row(
         children: [
           Expanded(child: _sectionTitle(_l.sdPlanSection)),
+          if (!_pm)
+            GestureDetector(
+              onTap: _abrirPlanosModalidade,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.category_outlined,
+                  color: context.c.onSurfaceVariant,
+                  size: 18,
+                ),
+              ),
+            ),
           GestureDetector(
             onTap: _editarAluno,
             child: Padding(
@@ -1834,6 +2061,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     ]);
   }
 
+  /// Abre a gestão de planos por modalidade (feature opt-in, independente do
+  /// campo "Plano" legado acima) — a própria tela avisa se a academia não
+  /// tiver ativado `cobranca_por_modalidade_ativa` em Configurações.
+  void _abrirPlanosModalidade() {
+    final academiaId = _academiaId;
+    final a = _aluno;
+    if (academiaId == null || a == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AlunoPlanosModalidadeScreen(
+          academiaId: academiaId,
+          alunoId: widget.alunoId,
+          alunoNome: a['nome']?.toString() ?? '',
+        ),
+      ),
+    );
+  }
+
   // ── Acesso ao App ─────────────────────────────────────
 
   Widget _buildAcessoAppCard(Map<String, dynamic> a) {
@@ -1848,6 +2094,9 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         _callerUser != null &&
         (_callerUser!.perfil == 'Admin' ||
             _callerUser!.temPermissao('acesso_redefinir_senha'));
+    final podeGerenciarAcesso =
+        !_pm ||
+        (_callerUser?.temPermissao('acesso_gerenciar_acesso_app') ?? false);
     return _buildCard([
       _sectionTitle(_l.sdAppAccessSection),
       Row(
@@ -1880,7 +2129,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               ],
             ),
           ),
-          if (!_pm)
+          if (podeGerenciarAcesso)
             Switch(
               value: !bloqueado,
               activeColor: context.sem.success,
@@ -3038,8 +3287,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       ),
                       Switch(
                         value: gerarCobranca,
-                        activeColor: context.c.primary,
                         onChanged: (v) => setModal(() => gerarCobranca = v),
+                        activeThumbColor: Colors.white,
+                        activeTrackColor: context.c.primary,
+                        inactiveThumbColor: context.c.surface,
+                        inactiveTrackColor: context.c.outline,
                       ),
                     ],
                   ),
@@ -3313,6 +3565,63 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     );
   }
 
+  // ── Desvincular Turma ────────────────────────────────
+
+  Future<void> _desvincularTurma(Map<String, dynamic> turma) async {
+    final matriculaId = turma['matriculaId']?.toString() ?? '';
+    final nomeTurma = turma['nome']?.toString() ?? '';
+    final modalidadeId = turma['modalidadeId']?.toString() ?? '';
+    if (_academiaId == null || matriculaId.isEmpty) return;
+
+    final nomeAluno = (_aluno?['nome'] ?? '').toString();
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_l.sdUnlinkClassTitle),
+        content: Text(_l.sdUnlinkClassBody(nomeAluno, nomeTurma)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.sdUnlinkClassButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    try {
+      await firestoreService.desvincularTurmaDoAluno(
+        _academiaId!,
+        matriculaId: matriculaId,
+        alunoId: widget.alunoId,
+        modalidadeId: modalidadeId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.sdUnlinkedToast(nomeTurma)),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.sdUnlinkClassError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   // ── Vincular Turma ───────────────────────────────────
 
   Future<void> _abrirVincularTurma() async {
@@ -3472,6 +3781,12 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                     'academia_id': _academiaId!,
                                     'ativo': true,
                                   });
+                              await firestoreService
+                                  .vincularPlanoPadraoDaTurma(
+                                    _academiaId!,
+                                    alunoId: widget.alunoId,
+                                    turmaId: turmaSel!['id'].toString(),
+                                  );
                               if (ctx.mounted) Navigator.of(ctx).pop();
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -4043,7 +4358,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                   'ativo': a['ativo'] == true,
                                 },
                               );
-                              // Auto-gerar cobrança se plano foi definido pela primeira vez
+                              // Auto-gerar cobrança se plano foi definido pela
+                              // primeira vez — sempre pelo mesmo caminho
+                              // idempotente server-side (mesmo ID
+                              // determinístico usado pelo Financeiro e pelo
+                              // agendamento automático). Nunca gerar aqui por
+                              // conta própria com outro esquema de ID: isso
+                              // já causou cobrança duplicada (2 documentos
+                              // para o mesmo aluno/mês) quando o gerador
+                              // automático rodava depois e não reconhecia o
+                              // documento criado por aqui.
                               final diaVencInt = int.tryParse(
                                 diaVencCtrl.text.trim(),
                               );
@@ -4052,14 +4376,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                   planoIdAntes == null &&
                                   diaVencInt != null) {
                                 try {
-                                  await firestoreService
-                                      .gerarPagamentoMesSeNecessario(
-                                        _academiaId!,
-                                        widget.alunoId,
-                                        nomeCtrl.text.trim(),
-                                        planoIdSel!,
-                                        diaVencInt,
-                                      );
+                                  final agora = DateTime.now();
+                                  final periodoAtual =
+                                      '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
+                                  await financeService.ensureChargesForPeriod(
+                                    academiaId: _academiaId!,
+                                    period: periodoAtual,
+                                  );
                                 } catch (_) {}
                               }
                               if (ctx.mounted) {
@@ -4199,6 +4522,16 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+            if (!_pm)
+              IconButton(
+                onPressed: _excluirAluno,
+                icon: Icon(
+                  Icons.delete_forever_rounded,
+                  color: context.sem.danger,
+                  size: 20,
+                ),
+                tooltip: _l.sdDeleteAlunoAction,
               ),
           ],
         ],
@@ -4356,6 +4689,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                         eGrau > 0,
                                     grau: eGrau,
                                     maxGraus: eEffectiveMax,
+                                    grauCores: ((e.value['grauCores'] as List?)
+                                            ?.map((c) => _parseCor(c?.toString()))
+                                            .toList()) ??
+                                        const [],
                                     height: 14,
                                     minWidth: 32,
                                   ),
@@ -4386,11 +4723,15 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                   if (!_pm) ...[const SizedBox(height: 12), _buildPlanoCard(a)],
                   const SizedBox(height: 12),
                   _buildAcessoAppCard(a),
-                  if (!_pm) ...[
+                  if (_podeVerSaude) ...[
                     const SizedBox(height: 12),
                     _buildAtestadoCard(),
+                  ],
+                  if (_podeVerGrupoFamiliar) ...[
                     const SizedBox(height: 12),
                     _buildGrupoFamiliarCard(),
+                  ],
+                  if (_podeVerSaude) ...[
                     const SizedBox(height: 12),
                     _buildParQCard(),
                   ],
@@ -4539,7 +4880,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                           ),
                       ],
                     ),
-                    if ((a['turmas'] as List?)?.isEmpty != false)
+                    if ((a['turmasDetalhes'] as List?)?.isEmpty != false)
                       Text(
                         _l.sdNoClasses,
                         style: TextStyle(
@@ -4548,28 +4889,45 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                         ),
                       )
                     else
-                      ...(a['turmas'] as List).map(
-                        (t) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.circle,
-                                color: context.c.primary,
-                                size: 6,
+                      ...(a['turmasDetalhes'] as List)
+                          .cast<Map<String, dynamic>>()
+                          .map(
+                            (t) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.circle,
+                                    color: context.c.primary,
+                                    size: 6,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      t['nome']?.toString() ?? '',
+                                      style: TextStyle(
+                                        color: context.c.onSurface,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (!_pm)
+                                    InkWell(
+                                      onTap: () => _desvincularTurma(t),
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: context.sem.danger,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                t.toString(),
-                                style: TextStyle(
-                                  color: context.c.onSurface,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
                   ]),
                   if (!_pm) ...[
                     const SizedBox(height: 12),
@@ -4947,6 +5305,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final temGraus = g['faixaTemGraus'] == true || grau > 0;
     final maxGrausRaw = (g['faixaMaxGraus'] as num?)?.toInt() ?? 0;
     final maxGraus = maxGrausRaw > 0 ? maxGrausRaw : (grau > 0 ? grau : 4);
+    final grauCores = ((g['faixaGrauCores'] as List?)
+            ?.map((c) => _parseCor(c?.toString()))
+            .toList()) ??
+        const <Color>[];
     final dataStr = _formatDate(g['dataExame']) ?? '';
     final label = grau > 0 ? '$nomeFaixa · ${_l.stripeLabel(grau)}' : nomeFaixa;
 
@@ -4981,6 +5343,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                       temGraus: temGraus,
                       grau: grau,
                       maxGraus: maxGraus,
+                      grauCores: grauCores,
                       height: 10,
                       minWidth: 20,
                     ),

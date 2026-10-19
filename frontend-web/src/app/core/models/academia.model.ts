@@ -8,7 +8,6 @@ export interface AcademiaDto {
   cnpj?: string;
   ativo: boolean;
   criadoEm: string;
-  templateContrato?: string;
 }
 
 export interface UpdateAcademiaRequest {

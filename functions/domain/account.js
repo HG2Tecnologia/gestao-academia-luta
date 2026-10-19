@@ -108,6 +108,57 @@ function buildAccountDocument({
   };
 }
 
+/**
+ * Remove UM `profile_ref` (pelo `key`) de uma conta compartilhada, sem afetar
+ * os demais perfis — usado ao excluir um aluno cujo telefone/e-mail é
+ * compartilhado com outro aluno (ex.: irmãos com o mesmo responsável), pra
+ * não derrubar o acesso de quem continua ativo. Pura, sem Firestore, pra
+ * poder testar sem emulador.
+ *
+ * Retorna `{ deleted: true }` quando o perfil removido era o único (a conta
+ * inteira deve ser apagada); caso contrário `{ deleted: false, data }` com os
+ * campos recalculados (profile_refs, profile_keys, academy_ids,
+ * roles_by_academy, primary_profile_key e os campos de compatibilidade v1).
+ */
+function removeProfileRef(account, keyToRemove) {
+  const refs = (Array.isArray(account.profile_refs) ? account.profile_refs : [])
+    .filter((ref) => ref.key !== keyToRemove);
+
+  if (refs.length === 0) return { deleted: true };
+
+  const rolesByAcademy = {};
+  for (const profile of refs) {
+    rolesByAcademy[profile.academiaId] ??= [];
+    if (!rolesByAcademy[profile.academiaId].includes(profile.perfil_nome)) {
+      rolesByAcademy[profile.academiaId].push(profile.perfil_nome);
+      rolesByAcademy[profile.academiaId].sort();
+    }
+  }
+
+  const primaryAindaValido = refs.some((ref) => ref.key === account.primary_profile_key);
+  const primary = primaryAindaValido
+    ? refs.find((ref) => ref.key === account.primary_profile_key)
+    : refs[0];
+
+  return {
+    deleted: false,
+    data: {
+      profile_refs: refs,
+      profile_keys: refs.map((ref) => ref.key),
+      academy_ids: Object.keys(rolesByAcademy).sort(),
+      roles_by_academy: rolesByAcademy,
+      primary_profile_key: primary.key,
+      // Compatibilidade v1, mesmo formato de `buildAccountDocument`.
+      academiaId: primary.academiaId,
+      usuarioId: primary.usuarioId,
+      colecao: primary.colecao,
+      perfil: primary.perfil_nome,
+      nome: primary.nome,
+      perfis: refs,
+    },
+  };
+}
+
 function identityFromAuthEmail(authEmail) {
   const email = canonicalizeEmail(authEmail);
   if (!email) return null;
@@ -139,5 +190,6 @@ module.exports = {
   normalizeProfileRef,
   profileKey,
   profileRole,
+  removeProfileRef,
   syntheticAuthEmails,
 };

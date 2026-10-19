@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { FirebaseAuthService } from '../../core/services/firebase-auth.service';
 import { DashboardService, DashboardResumoDto, FrequenciaDiariaDto } from '../../core/services/dashboard.service';
 import { AlunoService } from '../../core/services/aluno.service';
 import { AniversarianteDto } from '../../core/models/aluno.model';
@@ -9,6 +9,8 @@ import { ModalidadeService } from '../../core/services/modalidade.service';
 import { PlanoService } from '../../core/services/plano.service';
 import { FinanceiroService } from '../../core/services/financeiro.service';
 import { ResumoFinanceiroDto, PagamentoDto } from '../../core/models/financeiro.model';
+import { dataLocalISO } from '../../core/utils/date.util';
+import { ModalidadeInitService } from '../../core/services/modalidade-init.service';
 
 type FiltroPag = 'hoje' | 'semana' | 'mes';
 
@@ -20,12 +22,13 @@ type FiltroPag = 'hoje' | 'semana' | 'mes';
   styleUrls: ['./dashboard.component.css'],
 })
 export class DashboardComponent implements OnInit {
-  readonly authService = inject(AuthService);
+  readonly authService = inject(FirebaseAuthService);
   private readonly dashboardService = inject(DashboardService);
   private readonly alunoService = inject(AlunoService);
   private readonly modalidadeService = inject(ModalidadeService);
   private readonly planoService = inject(PlanoService);
   private readonly financeiroService = inject(FinanceiroService);
+  private readonly modalidadeInitService = inject(ModalidadeInitService);
 
   readonly resumo = signal<DashboardResumoDto | null>(null);
   readonly resumoFin = signal<ResumoFinanceiroDto | null>(null);
@@ -38,6 +41,11 @@ export class DashboardComponent implements OnInit {
 
   readonly temModalidades = signal(false);
   readonly temPlanos = signal(false);
+  /** Mensagem não-técnica — nunca expõe `chave`/`motivo` internos da pendência. */
+  readonly avisoModalidadesPendentes = signal(false);
+  /** 'pendente'/'erro' — recuperável com um clique, diferente de pendente_revisao (que não se resolve só tentando de novo). */
+  readonly inicializacaoModalidadesFalhou = signal(false);
+  readonly tentandoNovamenteModalidades = signal(false);
 
   readonly hoje = new Date();
 
@@ -50,14 +58,14 @@ export class DashboardComponent implements OnInit {
   readonly pagamentosFiltrados = computed(() => {
     const pags = this.pagamentosMes().filter(p => p.status === 'Pendente' || p.status === 'Atrasado');
     const filtro = this.filtroPag();
-    const hojeStr = this.hoje.toISOString().split('T')[0];
+    const hojeStr = dataLocalISO(this.hoje);
     if (filtro === 'hoje') {
       return pags.filter(p => p.dataVencimento === hojeStr);
     }
     if (filtro === 'semana') {
       const fim = new Date(this.hoje);
       fim.setDate(fim.getDate() + 7);
-      const fimStr = fim.toISOString().split('T')[0];
+      const fimStr = dataLocalISO(fim);
       return pags.filter(p => p.dataVencimento && p.dataVencimento <= fimStr && p.dataVencimento >= hojeStr);
     }
     return pags;
@@ -127,6 +135,7 @@ export class DashboardComponent implements OnInit {
     this.modalidadeService.getAll().subscribe({
       next: (res) => this.temModalidades.set((res.dados?.length ?? 0) > 0),
     });
+    this.verificarStatusModalidades();
     this.planoService.listar().subscribe({
       next: (res) => this.temPlanos.set((res.dados?.length ?? 0) > 0),
     });
@@ -139,6 +148,47 @@ export class DashboardComponent implements OnInit {
     this.dashboardService.getFrequencia(14).subscribe({
       next: (res) => this.frequencia.set(res.dados ?? []),
     });
+  }
+
+  /**
+   * Checa o status real (`modalidades_status`), não a quantidade de
+   * modalidades — uma inicialização parcial já deixa pelo menos 1
+   * modalidade criada, então "lista vazia" não cobria esse caso. O
+   * `ModalidadeInitService` decide sozinho se vale a pena chamar de novo
+   * (cooldown + limite de tentativas), então aqui só reflete o resultado
+   * na tela, sem nenhuma lógica de quando repetir.
+   */
+  private async verificarStatusModalidades(): Promise<void> {
+    const academiaId = this.authService.currentUser()?.academiaId;
+    if (!academiaId) return;
+
+    await this.modalidadeInitService.verificarERetomarSeNecessario();
+
+    const status = await this.modalidadeInitService.obterStatusAtual(academiaId);
+    this.avisoModalidadesPendentes.set(status === 'pendente_revisao');
+    this.inicializacaoModalidadesFalhou.set(status === 'erro' || status === 'pendente');
+    this.modalidadeService.getAll().subscribe({
+      next: (res) => this.temModalidades.set((res.dados?.length ?? 0) > 0),
+    });
+  }
+
+  /** Botão manual — não espera o cooldown/limite automático, pra não deixar quem teve uma falha temporária preso esperando. */
+  async tentarNovamenteModalidades(): Promise<void> {
+    const academiaId = this.authService.currentUser()?.academiaId;
+    if (!academiaId || this.tentandoNovamenteModalidades()) return;
+
+    this.tentandoNovamenteModalidades.set(true);
+    try {
+      await this.modalidadeInitService.forcarAgora(academiaId);
+      const status = await this.modalidadeInitService.obterStatusAtual(academiaId);
+      this.avisoModalidadesPendentes.set(status === 'pendente_revisao');
+      this.inicializacaoModalidadesFalhou.set(status === 'erro' || status === 'pendente');
+      this.modalidadeService.getAll().subscribe({
+        next: (res) => this.temModalidades.set((res.dados?.length ?? 0) > 0),
+      });
+    } finally {
+      this.tentandoNovamenteModalidades.set(false);
+    }
   }
 
   carregar(): void {

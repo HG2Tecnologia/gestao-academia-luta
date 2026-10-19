@@ -3,17 +3,17 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FuncionarioService } from '../../../../core/services/funcionario.service';
+import { PERMISSOES_INFO, PERMISSOES_DEFAULT, PerfilComPermissoes } from '../../../../core/models/permissoes.model';
 
-const MODULOS = [
-  'Alunos', 'Turmas', 'Horários', 'Presenças', 'Graduação',
-  'Ranking', 'Planos', 'Financeiro', 'Contratos', 'Relatórios',
-  'Catraca', 'Configurações',
-] as const;
-
-type Modulo = typeof MODULOS[number];
-
-const PERMS_PROFESSOR: Modulo[] = ['Alunos', 'Turmas', 'Horários', 'Presenças', 'Graduação'];
-const PERMS_RECEPCIONISTA: Modulo[] = ['Alunos', 'Turmas', 'Horários', 'Presenças', 'Graduação', 'Ranking', 'Planos', 'Financeiro', 'Contratos', 'Catraca'];
+/**
+ * Mesmas chaves de permissão granular do app mobile (`permissoes.model.ts`,
+ * espelho de `mobile/lib/core/permissoes.dart`) — ANTES este form usava uma
+ * lista de "módulos" (Alunos/Turmas/...) que não correspondia a NENHUMA
+ * permissão de verdade checada em lugar nenhum (nem no app, nem nos guards
+ * do próprio CRM). Perfil "Recepcionista" também não existe no app — o
+ * perfil real é "Secretaria".
+ */
+const CHAVES_PERMISSAO = Object.keys(PERMISSOES_INFO);
 
 @Component({
   selector: 'app-funcionario-form',
@@ -31,7 +31,7 @@ export class FuncionarioFormComponent implements OnInit {
   readonly salvando = signal(false);
   readonly carregando = signal(false);
   readonly erro = signal('');
-  readonly modulos = MODULOS;
+  readonly permissoesInfo = CHAVES_PERMISSAO.map((chave) => ({ chave, ...PERMISSOES_INFO[chave] }));
 
   readonly form = this.fb.group({
     nome: ['', [Validators.required, Validators.minLength(3)]],
@@ -40,7 +40,7 @@ export class FuncionarioFormComponent implements OnInit {
     cargo: ['', Validators.required],
     perfil: ['Professor', Validators.required],
     permissoes: this.fb.group(
-      Object.fromEntries(MODULOS.map(m => [m, [false]])) as Record<Modulo, [boolean]>
+      Object.fromEntries(CHAVES_PERMISSAO.map((c) => [c, [false]])) as Record<string, [boolean]>,
     ),
     ativo: [true],
   });
@@ -54,9 +54,7 @@ export class FuncionarioFormComponent implements OnInit {
         next: (res) => {
           if (res.dados) {
             const d = res.dados;
-            const permPatch = Object.fromEntries(
-              MODULOS.map(m => [m, d.permissoes?.[m] ?? false])
-            );
+            const permPatch = Object.fromEntries(CHAVES_PERMISSAO.map((c) => [c, d.permissoes?.[c] ?? false]));
             this.form.patchValue({
               nome: d.nome,
               email: d.email,
@@ -76,17 +74,12 @@ export class FuncionarioFormComponent implements OnInit {
     }
   }
 
+  /** Admin não tem chave nenhuma marcada aqui de propósito — ele ignora `permissoes` e sempre tem acesso total (ver `temPermissao`). */
   onPerfilChange(perfil: string): void {
     if (this.editandoId()) return;
-    let perms: Modulo[];
-    if (perfil === 'Admin') {
-      perms = [...MODULOS];
-    } else if (perfil === 'Professor') {
-      perms = PERMS_PROFESSOR;
-    } else {
-      perms = PERMS_RECEPCIONISTA;
-    }
-    const patch = Object.fromEntries(MODULOS.map(m => [m, perms.includes(m)])) as Record<Modulo, boolean>;
+    const defaults =
+      perfil === 'Admin' ? {} : PERMISSOES_DEFAULT[perfil as PerfilComPermissoes] ?? {};
+    const patch = Object.fromEntries(CHAVES_PERMISSAO.map((c) => [c, defaults[c] === true]));
     this.form.get('permissoes')?.patchValue(patch);
   }
 

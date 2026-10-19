@@ -97,6 +97,7 @@ class _ProfPresencaHistoricoScreenState
       return 'QR Code';
     if (s == '1' || s.contains(context.l10n.profManual) || s.contains('manual'))
       return 'Manual';
+    if (s == '4') return context.l10n.apManualCheckinHistoryLabel;
     return s;
   }
 

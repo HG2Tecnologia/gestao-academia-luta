@@ -31,7 +31,7 @@
           <em>perder alunos.</em>
         </h1>
         <p class="hero-sub lead">
-          O sistema completo pra academias de luta que querem crescer sem virar planilha. Cobrança automática, ranking gamificado e dashboard que mostra exatamente onde você está perdendo dinheiro.
+          O sistema completo pra academias de luta que querem crescer sem virar planilha. Mensalidade gerada automaticamente, ranking gamificado e dashboard que mostra exatamente como está sua academia.
         </p>
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg" routerLink="/cadastro">Começar 30 dias grátis →</a>
@@ -278,8 +278,8 @@
           <div class="feat-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
           </div>
-          <div class="feat-title">Financeiro automático</div>
-          <div class="feat-body">Pix, cartão e boleto na mesma tela. Cobra sozinho no dia 5, manda lembrete no dia 8, suspende acesso no dia 15. Você só conta o dinheiro.</div>
+          <div class="feat-title">Controle financeiro completo</div>
+          <div class="feat-body">Mensalidades geradas automaticamente todo mês, com vencimento por aluno. Você acompanha quem pagou, quem está pendente e quem está em atraso, tudo numa tela só — sem planilha.</div>
         </div>
 
         <div class="feature-card span-2">
@@ -295,7 +295,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18M7 14l4-4 4 4 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           </div>
           <div class="feat-title">Dashboard executivo</div>
-          <div class="feat-body">Receita, churn, frequência, projeção de caixa. Os números que importam, atualizados em tempo real, sem precisar de planilha nenhuma.</div>
+          <div class="feat-body">Receita do mês, frequência diária e alunos sem turma, atualizados em tempo real, sem precisar de planilha nenhuma.</div>
         </div>
       </div>
     </div>
@@ -649,63 +649,16 @@
     </div>
   </section>
 
-  <!-- BENEFITS + ROI -->
+  <!-- POSICIONAMENTO -->
   <section class="section">
     <div class="container">
-      <div class="section-num">11 — Resultado</div>
-      <h2 class="h-1" data-reveal style="max-width: 16ch; margin-bottom: 160px;">
-        Em <em style="font-style:normal;color:var(--accent)">90 dias</em> sua academia<br>não vai parecer a mesma.
+      <div class="section-num">11 — Por que Sensei Manager</div>
+      <h2 class="h-1" data-reveal style="max-width: 20ch; margin-bottom: 40px;">
+        Uma plataforma pensada pra quem vive o tatame, não pra quem só vende software.
       </h2>
-      <div class="benefit-stats" data-reveal>
-        @for (b of beneficios; track b.num) {
-          <div class="benefit-stat">
-            <div class="bnum">{{ b.num }}</div>
-            <div class="blabel">{{ b.label }}</div>
-          </div>
-        }
-      </div>
-
-      <div class="roi-card" data-reveal>
-        <div>
-          <div class="eyebrow" style="margin-bottom: 12px">Calculadora · Quanto você está perdendo</div>
-          <div class="h-2" style="margin-bottom: 28px; font-size: clamp(24px, 3vw, 40px)">Descubra seu ganho mensal.</div>
-
-          <div class="input-row">
-            <label>Alunos hoje <span class="val">{{ roiStudents() }}</span></label>
-            <input class="slider" type="range" min="20" max="500" step="5"
-                   [value]="roiStudents()" (input)="setRoiStudents($event)">
-          </div>
-          <div class="input-row">
-            <label>Mensalidade média <span class="val">R$ {{ roiFee() }}</span></label>
-            <input class="slider" type="range" min="80" max="500" step="10"
-                   [value]="roiFee()" (input)="setRoiFee($event)">
-          </div>
-          <div class="input-row">
-            <label>Inadimplência atual <span class="val">{{ roiDefaultRate() }}%</span></label>
-            <input class="slider" type="range" min="2" max="35" step="1"
-                   [value]="roiDefaultRate()" (input)="setRoiDefault($event)">
-          </div>
-        </div>
-
-        <div class="roi-result">
-          <div class="roi-label">Você ganha por mês</div>
-          <div class="roi-big">{{ fmtBrl(roiResult().total) }}</div>
-          <div style="border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px">
-            <div class="roi-line">
-              <span>Inadimplência recuperada</span>
-              <span>{{ fmtBrl(roiResult().recovered) }}</span>
-            </div>
-            <div class="roi-line">
-              <span>Crescimento ({{ roiResult().newStudents }} novos alunos)</span>
-              <span>{{ fmtBrl(roiResult().growth) }}</span>
-            </div>
-            <div class="roi-line" style="border-top: 1px solid var(--line); color: var(--accent)">
-              <span>Investimento Sensei Manager</span>
-              <span style="font-family:var(--mono)">R$ 99,99</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <p class="lead" data-reveal style="max-width: 60ch">
+        Sensei Manager nasceu pra resolver um problema específico: academias de artes marciais não cabem em sistema de gestão genérico. Cada tela — graduação, faixa, turma, presença — foi pensada pra quem treina, com app e sistema web trabalhando sobre os mesmos dados, em tempo real.
+      </p>
     </div>
   </section>
 
@@ -779,11 +732,11 @@
             </li>
             <li>
               <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-              <span class="plan-feat-locked">Cobrança automática (Black Belt)</span>
+              <span class="plan-feat-locked">Mensalidades automáticas (Black Belt)</span>
             </li>
             <li>
               <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-              <span class="plan-feat-locked">Relatórios avançados (Black Belt)</span>
+              <span class="plan-feat-locked">Relatórios financeiros (Black Belt)</span>
             </li>
             <li>
               <svg class="plan-feat-lock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
@@ -803,7 +756,7 @@
             Black Belt
           </div>
           <div class="plan-name">Black Belt</div>
-          <div class="plan-desc">Para academias que querem crescer com tudo automatizado.</div>
+          <div class="plan-desc">Para academias que querem o app completo e o sistema web juntos.</div>
           <div class="plan-price-row">
             <span class="plan-price-currency">R$</span>
             <span class="plan-price-amount">{{ blackBeltMensalEquiv() }}</span>
@@ -823,7 +776,7 @@
           <div class="plan-divider"></div>
           <p class="plan-upgrade-note" style="margin-bottom:12px">Assine pelo app — <strong>reflete automaticamente no sistema web</strong></p>
           <div class="plan-cta">
-            <a href="https://apps.apple.com/app/id6745397960" target="_blank" rel="noopener" class="plan-cta-primary">
+            <a href="https://apps.apple.com/app/id6777092562" target="_blank" rel="noopener" class="plan-cta-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
               App Store
             </a>

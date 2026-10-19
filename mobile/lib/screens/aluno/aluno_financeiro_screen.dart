@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
+import '../../core/financeiro_resumo.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
 import '../../core/payment_request_service.dart';
+import '../../core/modalidade_icones.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/widgets.dart';
 import 'boleto_pagamento_sheet.dart';
@@ -20,6 +23,8 @@ class AlunoFinanceiroScreen extends StatefulWidget {
 
 class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   List<Map<String, dynamic>> _cobrancas = [];
+  Map<String, Map<String, dynamic>> _modalidadesPorId = {};
+  Map<String, Map<String, dynamic>> _planosPorId = {};
   bool _loading = true;
   bool _erro = false;
   String _filtro = 'Todos';
@@ -32,18 +37,17 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   String? _alunoNome;
   String? _alunoEmail;
   String? _alunoCpf;
+  late int _ano;
+  late int _mes;
 
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
-  static const _statusMap = {
-    0: 'Pendente',
-    1: 'Pago',
-    2: 'Atrasado',
-    3: 'Previsto',
-  };
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _ano = now.year;
+    _mes = now.month;
     alunoTabNotifier.addListener(_onTabChanged);
     _load();
   }
@@ -87,11 +91,21 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
         firestoreService.getAsaasConfig(user.academiaId!).catchError((_) => null),
         firestoreService.getAluno(user.academiaId!, user.id!).catchError((_) => null),
+        firestoreService.getModalidades(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getTodosPlanos(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
       final asaasData = results[2] as Map<String, dynamic>?;
       final alunoData = results[3] as Map<String, dynamic>?;
+      _modalidadesPorId = {
+        for (final m in results[4] as List<Map<String, dynamic>>)
+          (m['id'] ?? '').toString(): m,
+      };
+      _planosPorId = {
+        for (final p in results[5] as List<Map<String, dynamic>>)
+          (p['id'] ?? '').toString(): p,
+      };
 
       _pixDisponivel = asaasData?['status'] == 'ATIVO';
       _alunoNome = user.nome;
@@ -106,19 +120,33 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
           _taxaAtrasoValor =
               (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
         });
-      final converted = list.map((p) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int
-            ? statusRaw
-            : int.tryParse(statusRaw.toString()) ?? 0;
-        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+      // Fonte única (financeiro_resumo.dart): mesmo status efetivo e mesmo
+      // mês de referência usados pelos testes e pela tela da academia.
+      final converted = montarCobrancasAluno(list).map((c) {
+        final p = c.raw;
         return <String, dynamic>{
           ...p,
-          'status': statusStr,
+          'status': c.status,
+          'mesRef': c.mesRef,
           'dataVencimento': _fmtDate(
             p['data_vencimento'] ?? p['dataVencimento'],
           ),
-          'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
+          'tipo': (() {
+            final tipoBruto = p['tipo']?.toString();
+            if (tipoBruto != 'Mensalidade') {
+              return tipoBruto ?? p['plano_nome']?.toString() ?? 'Cobrança';
+            }
+            final planoId = p['plano_id']?.toString();
+            final nomeAoVivo = planoId == null
+                ? null
+                : _planosPorId[planoId]?['nome']?.toString().trim();
+            if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) {
+              return nomeAoVivo;
+            }
+            final planoNome = p['plano_nome']?.toString().trim();
+            if (planoNome != null && planoNome.isNotEmpty) return planoNome;
+            return tipoBruto;
+          })(),
         };
       }).toList();
       if (mounted) setState(() => _cobrancas = converted);
@@ -151,13 +179,13 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     if (!mounted) return;
     try {
       final lista = await firestoreService.getPagamentos(academiaId, alunoId: alunoId);
-      final converted = lista.map((p) {
-        final statusRaw = p['status'];
-        final statusInt = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
-        final statusStr = _statusMap[statusInt] ?? 'Pendente';
+      // Mesma conversão canônica de status usada em _load() (financeiro_resumo.dart).
+      final converted = montarCobrancasAluno(lista).map((c) {
+        final p = c.raw;
         return <String, dynamic>{
           ...p,
-          'status': statusStr,
+          'status': c.status,
+          'mesRef': c.mesRef,
           'dataVencimento': _fmtDate(p['data_vencimento'] ?? p['dataVencimento']),
           'tipo': (p['tipo'] ?? p['plano_nome'] ?? 'Cobrança').toString(),
         };
@@ -171,8 +199,10 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     'Pendente' => l.fiStPending,
     'Atrasado' => l.fiStOverdue,
     'Previsto' => l.fiStForecast,
-    _ => s ?? '',
+    'Desconsiderado' => l.fiStDismissed,
+    _ => l.fiStPending,
   };
+
   String _filtroLabel(String f, AppLocalizations l) => switch (f) {
     'Todos' => l.fiTabAll,
     'Atrasado' => l.fiTabOverdue,
@@ -184,13 +214,18 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   Color _statusCor(String? s) {
     if (s == 'Pago') return context.sem.success;
     if (s == 'Pendente') return context.sem.warning;
-    return context.sem.danger;
+    if (s == 'Atrasado') return context.sem.danger;
+    if (s == 'Previsto') return context.c.onSurfaceVariant;
+    if (s == 'Desconsiderado') return context.c.onSurfaceVariant;
+    return context.sem.warning;
   }
 
   IconData _statusIcon(String? s) {
     if (s == 'Pago') return Icons.check_circle_rounded;
     if (s == 'Pendente') return Icons.schedule_rounded;
-    return Icons.warning_rounded;
+    if (s == 'Atrasado') return Icons.error_rounded;
+    if (s == 'Desconsiderado') return Icons.block_rounded;
+    return Icons.receipt_long_rounded;
   }
 
   String _fmtDate(dynamic s) {
@@ -271,18 +306,101 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     if (pago && mounted) _load();
   }
 
-  List<Map<String, dynamic>> get _filtrados {
-    if (_filtro == 'Todos') return _cobrancas;
-    return _cobrancas.where((c) => c['status'] == _filtro).toList();
+  String get _mesRefSel =>
+      '${_ano.toString().padLeft(4, '0')}-${_mes.toString().padLeft(2, '0')}';
+
+  String _mesLabel(int ano, int mes) {
+    final loc = Localizations.localeOf(context).languageCode;
+    final nome = DateFormat.MMMM(loc).format(DateTime(ano, mes));
+    final cap = nome.isEmpty
+        ? nome
+        : '${nome[0].toUpperCase()}${nome.substring(1)}';
+    return '$cap $ano';
   }
 
-  int get _atrasadas =>
-      _cobrancas.where((c) => c['status'] == 'Atrasado').length;
-  int get _pendentes =>
-      _cobrancas.where((c) => c['status'] == 'Pendente').length;
-  num get _totalPendente => _cobrancas
-      .where((c) => c['status'] != 'Pago')
+  void _mudarMes(int delta) {
+    final base = DateTime(_ano, _mes + delta);
+    setState(() {
+      _ano = base.year;
+      _mes = base.month;
+    });
+  }
+
+  bool get _ehMesAtual {
+    final now = DateTime.now();
+    return _ano == now.year && _mes == now.month;
+  }
+
+  void _irParaMesAtual() {
+    if (_ehMesAtual) return;
+    final now = DateTime.now();
+    setState(() {
+      _ano = now.year;
+      _mes = now.month;
+    });
+  }
+
+  /// Cobranças do mês selecionado (para a lista), ordenadas por vencimento.
+  List<Map<String, dynamic>> get _doMes {
+    final l =
+        _cobrancas.where((c) => (c['mesRef'] as String? ?? '') == _mesRefSel)
+            .toList()
+          ..sort(
+            (a, b) => (a['data_vencimento'] ?? '').toString().compareTo(
+              (b['data_vencimento'] ?? '').toString(),
+            ),
+          );
+    return l;
+  }
+
+  List<Map<String, dynamic>> get _filtrados {
+    if (_filtro == 'Todos') return _doMes;
+    return _doMes.where((c) => c['status'] == _filtro).toList();
+  }
+
+  /// Todas as atrasadas, de qualquer mês.
+  List<Map<String, dynamic>> get _atrasadasTodas =>
+      _cobrancas.where((c) => c['status'] == 'Atrasado').toList()..sort(
+        (a, b) => (a['data_vencimento'] ?? '').toString().compareTo(
+          (b['data_vencimento'] ?? '').toString(),
+        ),
+      );
+
+  /// Competência (`YYYY-MM`) de hoje de verdade — independe do mês que está
+  /// sendo navegado na tela (`_mesRefSel`).
+  String get _mesRefHoje {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  int get _atrasadasGeral => _atrasadasTodas.length;
+
+  // "Pendente" de um mês FUTURO (ex.: cobrança já gerada com antecedência
+  // para daqui a 3 meses) não é uma pendência ATUAL — não venceu, não é o
+  // mês corrente, não deveria assustar o aluno com "Em aberto" hoje. Só
+  // conta aqui o que já é (ou está prestes a ser, no mês corrente) uma
+  // cobrança de verdade: mês atual ou anterior. Atrasado sempre conta, de
+  // qualquer mês, porque por definição já venceu.
+  int get _pendentesGeral => _cobrancas
+      .where(
+        (c) =>
+            c['status'] == 'Pendente' &&
+            ((c['mesRef'] as String?) ?? '').compareTo(_mesRefHoje) <= 0,
+      )
+      .length;
+
+  /// Total em aberto (pendente do mês atual/passado + atrasado de qualquer
+  /// mês) — nunca inclui pendência de mês futuro (ver [_pendentesGeral]).
+  num get _totalEmAberto => _cobrancas
+      .where(
+        (c) =>
+            c['status'] == 'Atrasado' ||
+            (c['status'] == 'Pendente' &&
+                ((c['mesRef'] as String?) ?? '').compareTo(_mesRefHoje) <= 0),
+      )
       .fold<num>(0, (sum, c) => sum + ((c['valor'] as num?) ?? 0));
+
+  bool get _temPendencia => _atrasadasGeral > 0 || _pendentesGeral > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +430,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     }
 
     final filtrados = _filtrados;
-    final temPendencia = _atrasadas > 0 || _pendentes > 0;
+    final temPendencia = _temPendencia;
 
     return Scaffold(
       backgroundColor: context.c.surface,
@@ -338,7 +456,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                 ),
               ),
 
-              // ── Summary card ──────────────────────────────
+              // ── Summary card (todos os meses) ─────────────
               if (_cobrancas.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -366,87 +484,239 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                               : context.sem.success.withOpacity(0.4),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color:
-                                  (temPendencia
-                                          ? context.sem.danger
-                                          : context.sem.success)
-                                      .withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              temPendencia
-                                  ? Icons.account_balance_wallet_rounded
-                                  : Icons.verified_rounded,
-                              color: temPendencia
-                                  ? context.sem.danger
-                                  : context.sem.success,
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  temPendencia
-                                      ? context.l10n.apOutstanding
-                                      : context.l10n.apAllPaid,
-                                  style: TextStyle(
-                                    color: temPendencia
-                                        ? context.sem.danger
-                                        : context.sem.success,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color:
+                                      (temPendencia
+                                              ? context.sem.danger
+                                              : context.sem.success)
+                                          .withOpacity(0.2),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
+                                child: Icon(
                                   temPendencia
-                                      ? context.l10n.apAmountToSettle(
-                                          _fmtMoeda(_totalPendente),
-                                        )
-                                      : context.l10n.apNoPendingNow,
-                                  style: TextStyle(
-                                    color: context.c.onSurfaceVariant,
-                                    fontSize: 13,
-                                  ),
+                                      ? Icons.account_balance_wallet_rounded
+                                      : Icons.verified_rounded,
+                                  color: temPendencia
+                                      ? context.sem.danger
+                                      : context.sem.success,
+                                  size: 26,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      temPendencia
+                                          ? context.l10n.apOutstanding
+                                          : context.l10n.apAllPaid,
+                                      style: TextStyle(
+                                        color: temPendencia
+                                            ? context.sem.danger
+                                            : context.sem.success,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      temPendencia
+                                          ? context.l10n.apTotalOpenAllMonths(
+                                              _fmtMoeda(_totalEmAberto),
+                                            )
+                                          : context.l10n.apNoPendingNow,
+                                      style: TextStyle(
+                                        color: context.c.onSurfaceVariant,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (temPendencia)
+                                Column(
+                                  children: [
+                                    if (_atrasadasGeral > 0)
+                                      _pillCount(
+                                        context.l10n.apOverdueCount(
+                                          _atrasadasGeral,
+                                        ),
+                                        context.sem.danger,
+                                      ),
+                                    if (_pendentesGeral > 0)
+                                      const SizedBox(height: 4),
+                                    if (_pendentesGeral > 0)
+                                      _pillCount(
+                                        context.l10n.apPendingCount(
+                                          _pendentesGeral,
+                                        ),
+                                        context.sem.warning,
+                                      ),
+                                  ],
+                                ),
+                            ],
                           ),
-                          if (temPendencia)
-                            Column(
-                              children: [
-                                if (_atrasadas > 0)
-                                  _pillCount(
-                                    context.l10n.apOverdueCount(_atrasadas),
-                                    context.sem.danger,
-                                  ),
-                                if (_pendentes > 0) const SizedBox(height: 4),
-                                if (_pendentes > 0)
-                                  _pillCount(
-                                    context.l10n.apPendingCount(_pendentes),
-                                    context.sem.warning,
-                                  ),
-                              ],
+                          if (_atrasadasGeral > 0) ...[
+                            const SizedBox(height: 14),
+                            InkWell(
+                              onTap: _abrirAtrasadas,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: context.sem.danger.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.priority_high_rounded,
+                                      size: 16,
+                                      color: context.sem.danger,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        context.l10n.apViewAllOverdue,
+                                        style: TextStyle(
+                                          color: context.sem.danger,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 18,
+                                      color: context.sem.danger,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                 ),
 
-              // ── Filter chips ──────────────────────────────
+              // ── Navegação de mês ─────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.c.surfaceContainer,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: context.c.outline),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => _mudarMes(-1),
+                              tooltip: context.l10n.apPrevMonth,
+                              icon: Icon(
+                                Icons.chevron_left_rounded,
+                                color: context.c.onSurface,
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _mesLabel(_ano, _mes),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  if (_ehMesAtual)
+                                    Text(
+                                      context.l10n.fiCurrentMonth,
+                                      style: TextStyle(
+                                        color: context.c.primary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => _mudarMes(1),
+                              tooltip: context.l10n.apNextMonth,
+                              icon: Icon(
+                                Icons.chevron_right_rounded,
+                                color: context.c.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!_ehMesAtual)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _irParaMesAtual,
+                              icon: const Icon(
+                                Icons.keyboard_return_rounded,
+                                size: 16,
+                              ),
+                              label: Text(context.l10n.fiBackToCurrentMonth),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: context.c.primary,
+                                side: BorderSide(
+                                  color: context.c.primary.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Filter chips ─────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -494,7 +764,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                 ),
               ),
 
-              // ── List ──────────────────────────────────────
+              // ── List label ──────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
@@ -513,183 +783,20 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
               SliverList(
                 delegate: SliverChildBuilderDelegate((_, i) {
                   final c = filtrados[i];
-                  final s = c['status'] as String?;
-                  final cor = _statusCor(s);
-                  final atrasado = s == 'Atrasado';
-
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: context.c.surfaceContainer,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: atrasado
-                              ? context.sem.danger.withOpacity(0.35)
-                              : context.c.outline,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: cor.withOpacity(0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _statusIcon(s),
-                                    color: cor,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        c['tipo'] ??
-                                            context.l10n.apChargeFallback,
-                                        style: TextStyle(
-                                          color: context.c.onSurface,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      if ((c['dataVencimento'] as String)
-                                          .isNotEmpty)
-                                        Text(
-                                          context.l10n.apDueDatePrefix(
-                                            c['dataVencimento'] as String,
-                                          ),
-                                          style: TextStyle(
-                                            color: context.c.onSurfaceVariant,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    if (atrasado &&
-                                        _taxaAtrasoAtiva &&
-                                        (c['valor'] as num?) != null) ...[
-                                      Text(
-                                        _fmtMoeda((c['valor'] as num?)),
-                                        style: TextStyle(
-                                          color: context.c.onSurfaceVariant,
-                                          fontSize: 12,
-                                          decoration:
-                                              TextDecoration.lineThrough,
-                                        ),
-                                      ),
-                                      Text(
-                                        _fmtMoeda(
-                                          _valorComTaxa(c['valor'] as num),
-                                        ),
-                                        style: TextStyle(
-                                          color: context.sem.danger,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ] else
-                                      Text(
-                                        _fmtMoeda(c['valor'] as num?),
-                                        style: TextStyle(
-                                          color: context.c.onSurface,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 4),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: cor.withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        atrasado && _taxaAtrasoAtiva
-                                            ? '${_statusLabel(s, context.l10n)} ${_fmtTaxa()}'
-                                            : _statusLabel(s, context.l10n),
-                                        style: TextStyle(
-                                          color: cor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Botão de pagamento para cobranças pendentes/atrasadas
-                          if (_pixDisponivel && (s == 'Pendente' || s == 'Atrasado'))
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _pagarCobranca(context, c),
-                                  icon: const Icon(Icons.payment_rounded, size: 16),
-                                  label: const Text('Pagar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: context.c.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    elevation: 0,
-                                  ),
-                                ),
-                              ),
-                            )
-                          else if (atrasado)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: context.sem.danger.withOpacity(0.08),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(14),
-                                  bottomRight: Radius.circular(14),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.phone_outlined,
-                                    size: 14,
-                                    color: context.sem.danger,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    context.l10n.apContactSecretary,
-                                    style: TextStyle(
-                                      color: context.sem.danger,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
+                    child: _CobrancaCard(
+                      c: c,
+                      statusCor: _statusCor,
+                      statusIcon: _statusIcon,
+                      statusLabel: (s) => _statusLabel(s, context.l10n),
+                      fmtMoeda: _fmtMoeda,
+                      fmtTaxa: _fmtTaxa,
+                      valorComTaxa: _valorComTaxa,
+                      taxaAtrasoAtiva: _taxaAtrasoAtiva,
+                      modalidadesPorId: _modalidadesPorId,
+                      pixDisponivel: _pixDisponivel,
+                      onPagar: () => _pagarCobranca(context, c),
                     ),
                   );
                 }, childCount: filtrados.length),
@@ -709,7 +816,11 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          context.l10n.apNoChargesInCategory,
+                          _filtro == 'Todos'
+                              ? context.l10n.apNoChargesThisMonth(
+                                  _mesLabel(_ano, _mes),
+                                )
+                              : context.l10n.apNoChargesInCategory,
                           style: TextStyle(
                             color: context.c.onSurfaceVariant,
                             fontSize: 14,
@@ -729,6 +840,93 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
     );
   }
 
+  void _abrirAtrasadas() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.c.surfaceContainer,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final atrasadas = _atrasadasTodas;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: ctx.c.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_rounded,
+                        color: ctx.sem.danger,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          ctx.l10n.apAllOverdueTitle,
+                          style: TextStyle(
+                            color: ctx.c.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        ctx.l10n.apOverdueCount(atrasadas.length),
+                        style: TextStyle(
+                          color: ctx.sem.danger,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    itemCount: atrasadas.length,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _CobrancaCard(
+                        c: atrasadas[i],
+                        statusCor: _statusCor,
+                        statusIcon: _statusIcon,
+                        statusLabel: (s) => _statusLabel(s, ctx.l10n),
+                        fmtMoeda: _fmtMoeda,
+                        fmtTaxa: _fmtTaxa,
+                        valorComTaxa: _valorComTaxa,
+                        taxaAtrasoAtiva: _taxaAtrasoAtiva,
+                        modalidadesPorId: _modalidadesPorId,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _pillCount(String text, Color cor) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
@@ -740,4 +938,242 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
       style: TextStyle(color: cor, fontSize: 11, fontWeight: FontWeight.w700),
     ),
   );
+}
+
+class _CobrancaCard extends StatelessWidget {
+  final Map<String, dynamic> c;
+  final Color Function(String?) statusCor;
+  final IconData Function(String?) statusIcon;
+  final String Function(String?) statusLabel;
+  final String Function(num?) fmtMoeda;
+  final String Function() fmtTaxa;
+  final num Function(num) valorComTaxa;
+  final bool taxaAtrasoAtiva;
+  final Map<String, Map<String, dynamic>> modalidadesPorId;
+  final bool pixDisponivel;
+  final VoidCallback? onPagar;
+
+  const _CobrancaCard({
+    required this.c,
+    required this.statusCor,
+    required this.statusIcon,
+    required this.statusLabel,
+    required this.fmtMoeda,
+    required this.fmtTaxa,
+    required this.valorComTaxa,
+    required this.taxaAtrasoAtiva,
+    this.modalidadesPorId = const {},
+    this.pixDisponivel = false,
+    this.onPagar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = c['status'] as String?;
+    final cor = statusCor(s);
+    final atrasado = s == 'Atrasado';
+    final modalidadeId = c['modalidade_id'] as String?;
+    final modalidadeDoc = modalidadeId == null
+        ? null
+        : modalidadesPorId[modalidadeId];
+    final modalidadeNome =
+        modalidadeDoc?['nome']?.toString() ??
+        (c['modalidade_nome'] as String?)?.trim() ??
+        '';
+    final modalidadeCor = modalidadeDoc != null
+        ? resolverVisualModalidade(modalidadeDoc).cor
+        : context.c.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: atrasado
+              ? context.sem.danger.withOpacity(0.35)
+              : context.c.outline,
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: cor.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(statusIcon(s), color: cor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        c['tipo'] ?? context.l10n.apChargeFallback,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (modalidadeNome.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: modalidadeCor.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            modalidadeNome,
+                            style: TextStyle(
+                              color: modalidadeCor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                      if ((c['dataVencimento'] as String? ?? '').isNotEmpty)
+                        Text(
+                          context.l10n.apDueDatePrefix(
+                            c['dataVencimento'] as String,
+                          ),
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (atrasado &&
+                        taxaAtrasoAtiva &&
+                        (c['valor'] as num?) != null) ...[
+                      Text(
+                        fmtMoeda(c['valor'] as num?),
+                        style: TextStyle(
+                          color: context.c.onSurfaceVariant,
+                          fontSize: 12,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                      Text(
+                        fmtMoeda(valorComTaxa(c['valor'] as num)),
+                        style: TextStyle(
+                          color: context.sem.danger,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ] else
+                      Text(
+                        fmtMoeda(c['valor'] as num?),
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        atrasado && taxaAtrasoAtiva
+                            ? '${statusLabel(s)} ${fmtTaxa()}'
+                            : statusLabel(s),
+                        style: TextStyle(
+                          color: cor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Botão de pagamento para cobranças pendentes/atrasadas
+          if (pixDisponivel && (s == 'Pendente' || s == 'Atrasado'))
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onPagar,
+                  icon: const Icon(Icons.payment_rounded, size: 16),
+                  label: const Text(
+                    'Pagar',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.c.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            )
+          else if (atrasado)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: context.sem.danger.withOpacity(0.08),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.phone_outlined,
+                    size: 14,
+                    color: context.sem.danger,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      context.l10n.apContactSecretary,
+                      style: TextStyle(
+                        color: context.sem.danger,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

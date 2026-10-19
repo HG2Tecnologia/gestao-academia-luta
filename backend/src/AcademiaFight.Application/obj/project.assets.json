@@ -559,11 +559,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
+      "projectUniqueName": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
       "projectName": "AcademiaFight.Application",
-      "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
+      "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Application/AcademiaFight.Application.csproj",
       "packagesPath": "/Users/gabrielfornydesouzamuniz/.nuget/packages/",
-      "outputPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/",
+      "outputPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Application/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/gabrielfornydesouzamuniz/.nuget/NuGet/NuGet.Config"
@@ -578,8 +578,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
-              "projectPath": "/Users/gabrielfornydesouzamuniz/Documents/projetos/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
+            "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj": {
+              "projectPath": "/Users/gabrielfornydesouzamuniz/Developer/gestao-academia-luta/backend/src/AcademiaFight.Domain/AcademiaFight.Domain.csproj"
             }
           }
         }

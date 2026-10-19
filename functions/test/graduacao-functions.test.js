@@ -140,6 +140,53 @@ test("admin corrige uma graduação: transação grava depois, mantém antes na 
   });
 });
 
+test("editarGraduacao congela grauCoresFaixa a partir da faixa, e fica lista vazia quando a faixa não configurou isso (não-regressão)", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-a-grau-cores@sensei.app", "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled((ctx) =>
+    linkAccount(ctx, adminUid, "academy-a", "admin-a", "Admin", "Admin A"),
+  );
+
+  const functions = getFunctions(app);
+  const editar = httpsCallable(functions, "editarGraduacao");
+
+  // faixa-branca (seed) nunca configurou graus coloridos — comportamento de
+  // hoje, continua sendo lista vazia depois da edição.
+  await editar({
+    academiaId: "academy-a",
+    graduacaoId: "grad-1",
+    faixaId: "faixa-branca",
+    grau: 2,
+    dataExame: "2026-01-10",
+  });
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const doc = await ctx.firestore().doc("academias/academy-a/graduacoes/grad-1").get();
+    assert.deepEqual(doc.data().grauCoresFaixa, []);
+  });
+
+  // Agora a academia liga graus coloridos nessa faixa — a PRÓXIMA edição
+  // precisa congelar a lista configurada.
+  await environment.withSecurityRulesDisabled((ctx) =>
+    ctx.firestore().doc("academias/academy-a/faixas/faixa-branca").update({
+      grau_cores: ["#FFFFFF", "#FFFFFF", "#FF0000", "#FF0000"],
+    }),
+  );
+  await editar({
+    academiaId: "academy-a",
+    graduacaoId: "grad-1",
+    faixaId: "faixa-branca",
+    grau: 3,
+    dataExame: "2026-01-10",
+  });
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const doc = await ctx.firestore().doc("academias/academy-a/graduacoes/grad-1").get();
+    assert.deepEqual(doc.data().grauCoresFaixa, ["#FFFFFF", "#FFFFFF", "#FF0000", "#FF0000"]);
+  });
+});
+
 test("correção que inverte a ordem cronológica retorna aviso de conflito sem bloquear a gravação", async () => {
   await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
 

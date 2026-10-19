@@ -1,18 +1,17 @@
 import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
-import { AuthService } from '../services/auth.service';
+import { FirebaseAuthService } from '../services/firebase-auth.service';
 
-export const authGuard: CanActivateFn = (_route, _state) => {
-  const authService = inject(AuthService);
+export const authGuard: CanActivateFn = async (_route, _state) => {
+  const authService = inject(FirebaseAuthService);
   const router = inject(Router);
 
-  if (authService.isAuthenticated()) {
-    return true;
-  }
+  // Espera o Firebase Auth terminar de restaurar a sessão persistida antes
+  // de decidir — sem isso, um F5 na página deslogava todo mundo (o SDK
+  // ainda não tinha confirmado `auth.currentUser` no primeiro tick).
+  await authService.authReady;
 
-  // Access token expired but refresh token still exists → allow entry.
-  // The HTTP interceptor will refresh on the first 401 automatically.
-  if (authService.getRefreshToken()) {
+  if (authService.isAuthenticated()) {
     return true;
   }
 

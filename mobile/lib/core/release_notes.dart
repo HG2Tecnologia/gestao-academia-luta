@@ -118,6 +118,98 @@ final Map<String, AppReleaseNotes> _releaseNotesByVersion = {
       ),
     ],
   ),
+  '1.3.2': AppReleaseNotes(
+    version: '1.3.2',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.bug_report_rounded,
+        tag: ReleaseTag.fix,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnAbsenceFixTitle,
+        description: (l) => l.rnAbsenceFixDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.person_remove_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnDeleteStudentTitle,
+        description: (l) => l.rnDeleteStudentDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.category_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnBillingByModalityTitle,
+        description: (l) => l.rnBillingByModalityDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.event_busy_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnWeeklyLimitTitle,
+        description: (l) => l.rnWeeklyLimitDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.toggle_off_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnAutoAbsenceTitle,
+        description: (l) => l.rnAutoAbsenceDesc,
+      ),
+    ],
+  ),
+  '1.3.5': AppReleaseNotes(
+    version: '1.3.5',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.picture_as_pdf_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnOfficialReportTitle,
+        description: (l) => l.rnOfficialReportDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.category_rounded,
+        tag: ReleaseTag.improvement,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnModalityBadgeTitle,
+        description: (l) => l.rnModalityBadgeDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.checklist_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnBulkPaymentTitle,
+        description: (l) => l.rnBulkPaymentDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.qr_code_2_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.all,
+        title: (l) => l.rnManualCheckinTitle,
+        description: (l) => l.rnManualCheckinDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.admin_panel_settings_rounded,
+        tag: ReleaseTag.improvement,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnStaffPermissionsTitle,
+        description: (l) => l.rnStaffPermissionsDesc,
+      ),
+    ],
+  ),
+  '1.3.7': AppReleaseNotes(
+    version: '1.3.7',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.palette_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnColoredDegreesTitle,
+        description: (l) => l.rnColoredDegreesDesc,
+      ),
+    ],
+  ),
 };
 
 /// Notas da [version] instalada, ou `null` se não houver nada a anunciar.

@@ -4,8 +4,9 @@ import { IsActiveMatchOptions, Router, RouterLink, RouterLinkActive, NavigationE
 import { filter } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Subject } from 'rxjs';
-import { AuthService } from '../../../core/services/auth.service';
-import { AcademiaService } from '../../../core/services/academia.service';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../core/firebase/firebase';
+import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
 import { LayoutService } from '../../../core/services/layout.service';
 
 interface NavItem {
@@ -25,9 +26,8 @@ interface NavItem {
   styleUrls: ['./sidebar.component.css'],
 })
 export class SidebarComponent implements OnInit, OnDestroy {
-  readonly authService = inject(AuthService);
+  readonly authService = inject(FirebaseAuthService);
   readonly layoutService = inject(LayoutService);
-  private readonly academiaService = inject(AcademiaService);
   private readonly router = inject(Router);
   private readonly destroy$ = new Subject<void>();
 
@@ -40,31 +40,39 @@ export class SidebarComponent implements OnInit, OnDestroy {
     paths: 'subset', queryParams: 'ignored', fragment: 'ignored', matrixParams: 'ignored',
   };
 
+  // `permissao` usa as mesmas chaves granulares de `permissoes.model.ts`
+  // (espelho de `mobile/lib/core/permissoes.dart`); itens sem permissão
+  // granular no app (Planos, Financeiro, Contratos, Catraca) usam `roles`
+  // — mesmo critério do `permissaoGuard` em `app.routes.ts`.
   readonly navItems: NavItem[] = [
     { label: 'Dashboard',    rota: '/app/dashboard',    icone: 'home',           linkOptions: this.exactMatch },
-    { label: 'Alunos',       rota: '/app/alunos',       icone: 'user-group',     linkOptions: this.subsetMatch, permissao: 'Alunos' },
-    { label: 'Turmas',       rota: '/app/turmas',       icone: 'users-group',    linkOptions: this.subsetMatch, permissao: 'Turmas' },
-    { label: 'Horários',     rota: '/app/horarios',     icone: 'clock',          linkOptions: this.subsetMatch, permissao: 'Horários' },
-    { label: 'Presenças',    rota: '/app/presencas',    icone: 'check-circle',   linkOptions: this.subsetMatch, permissao: 'Presenças' },
-    { label: 'Graduação',    rota: '/app/graduacao',    icone: 'academic-cap',   linkOptions: this.subsetMatch, permissao: 'Graduação' },
-    { label: 'Ranking',      rota: '/app/ranking',      icone: 'trophy',         linkOptions: this.subsetMatch, permissao: 'Ranking' },
-    { label: 'Planos',       rota: '/app/planos',       icone: 'planos',         linkOptions: this.subsetMatch, permissao: 'Planos' },
-    { label: 'Financeiro',   rota: '/app/financeiro',   icone: 'currency',       linkOptions: this.subsetMatch, permissao: 'Financeiro' },
-    { label: 'Contratos',    rota: '/app/contratos',    icone: 'document-text',  linkOptions: this.subsetMatch, permissao: 'Contratos' },
-    { label: 'Relatórios',   rota: '/app/relatorios',   icone: 'chart-bar',      linkOptions: this.subsetMatch, permissao: 'Relatórios' },
+    { label: 'Alunos',       rota: '/app/alunos',       icone: 'user-group',     linkOptions: this.subsetMatch, permissao: 'tela_alunos' },
+    { label: 'Turmas',       rota: '/app/turmas',       icone: 'users-group',    linkOptions: this.subsetMatch, permissao: 'tela_turmas' },
+    { label: 'Horários',     rota: '/app/horarios',     icone: 'clock',          linkOptions: this.subsetMatch, permissao: 'tela_horarios' },
+    { label: 'Presenças',    rota: '/app/presencas',    icone: 'check-circle',   linkOptions: this.subsetMatch, permissao: 'acao_dar_presenca' },
+    { label: 'Graduação',    rota: '/app/graduacao',    icone: 'academic-cap',   linkOptions: this.subsetMatch, permissao: 'acao_graduar' },
+    { label: 'Ranking',      rota: '/app/ranking',      icone: 'trophy',         linkOptions: this.subsetMatch, permissao: 'tela_rankings' },
+    { label: 'Planos',       rota: '/app/planos',       icone: 'planos',         linkOptions: this.subsetMatch, roles: ['Admin'] },
+    { label: 'Financeiro',   rota: '/app/financeiro',   icone: 'currency',       linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
+    { label: 'Contratos',    rota: '/app/contratos',    icone: 'document-text',  linkOptions: this.subsetMatch, roles: ['Admin'] },
+    { label: 'Relatórios',   rota: '/app/relatorios',   icone: 'chart-bar',      linkOptions: this.subsetMatch, permissao: 'tela_relatorio_presencas' },
   ];
 
   readonly navItemsConfig: NavItem[] = [
-    { label: 'Catraca',           rota: '/app/catraca',           icone: 'lock-open',        linkOptions: this.subsetMatch, permissao: 'Catraca' },
+    { label: 'Catraca',           rota: '/app/catraca',           icone: 'lock-open',        linkOptions: this.subsetMatch, roles: ['Admin'] },
     { label: 'Modalidades',       rota: '/app/modalidades',       icone: 'shield-check',     linkOptions: this.subsetMatch, roles: ['Admin'] },
     { label: 'Funcionários',      rota: '/app/funcionarios',      icone: 'identification',   linkOptions: this.subsetMatch, roles: ['Admin'] },
-    { label: 'Configurações',     rota: '/app/configuracoes',     icone: 'cog',              linkOptions: this.subsetMatch, permissao: 'Configurações' },
+    { label: 'Configurações',     rota: '/app/configuracoes',     icone: 'cog',              linkOptions: this.subsetMatch, roles: ['Admin'] },
   ];
 
   ngOnInit(): void {
-    this.academiaService.getCurrent().subscribe({
-      next: res => { if (res.dados?.nome) this.academiaName.set(res.dados.nome); },
-    });
+    const academiaId = this.authService.currentUser()?.academiaId;
+    if (academiaId) {
+      getDoc(doc(db, 'academias', academiaId)).then((snap) => {
+        const nome = snap.data()?.['nome'];
+        if (nome) this.academiaName.set(nome);
+      });
+    }
 
     // Close sidebar on mobile when navigating
     this.router.events.pipe(

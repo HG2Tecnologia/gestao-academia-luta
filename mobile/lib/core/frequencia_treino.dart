@@ -33,11 +33,22 @@ class ResumoFrequencia {
 
 /// [presencas], [matriculas] e [horarios] vêm crus do `firestoreService`.
 /// [turmaNome] mapeia `turmaId -> nome` (opcional, só enriquece os itens).
+/// [limitesPorTurma] (opcional, vazio por padrão = comportamento idêntico ao
+/// de antes) mapeia `turmaId -> limite semanal de dias` do plano aplicável
+/// àquela turma — quando presente, dias agendados além do limite semanal do
+/// aluno NUNCA viram sessão (nem presença nem falta): o plano dele não
+/// cobre aquele dia, então ele não pode ser cobrado por faltar nele.
+/// [contabilizarFaltaAutomatica] (padrão `true` = comportamento de sempre):
+/// configuração da academia (`academias/{id}.falta_automatica_ativa`) — se
+/// `false`, o app nunca infere falta sozinho; só mostra as presenças que o
+/// professor de fato registrou, sem gerar nenhuma sessão/falta esperada.
 ResumoFrequencia calcularFrequencia({
   required List<Map<String, dynamic>> presencas,
   required List<Map<String, dynamic>> matriculas,
   required List<Map<String, dynamic>> horarios,
   Map<String, String> turmaNome = const {},
+  Map<String, int> limitesPorTurma = const {},
+  bool contabilizarFaltaAutomatica = true,
   DateTime? agora,
 }) {
   final now = agora ?? DateTime.now();
@@ -59,6 +70,17 @@ ResumoFrequencia calcularFrequencia({
       })
       .toList();
 
+  if (!contabilizarFaltaAutomatica) {
+    // Academia optou por não inferir falta sozinha: só mostra presença de
+    // verdade, nunca gera sessão/falta esperada. Um dia sem presença
+    // simplesmente não aparece em lugar nenhum (nem presença, nem falta).
+    return ResumoFrequencia(
+      totalTreinos: presencasAno.length,
+      presencas: presencasAno,
+      faltas: const [],
+    );
+  }
+
   // Por turma: dia da semana (0=Dom..6=Sáb) -> minuto de início mais cedo.
   final horariosPorTurma = <String, Map<int, int>>{};
   for (final h in horarios) {
@@ -78,10 +100,14 @@ ResumoFrequencia calcularFrequencia({
     final turmaId = (m['turma_id'] ?? '').toString();
     final dias = horariosPorTurma[turmaId];
     if (turmaId.isEmpty || dias == null || dias.isEmpty) continue;
+    final limiteSemanal = limitesPorTurma[turmaId];
 
     var desde = _parseDate(m['criado_em']?.toString()) ?? inicioAno;
     desde = DateTime(desde.year, desde.month, desde.day);
     if (desde.isBefore(inicioAno)) desde = inicioAno;
+
+    DateTime? inicioSemanaAtual;
+    var diasContadosNaSemana = 0;
 
     for (var d = desde; !d.isAfter(now); d = d.add(const Duration(days: 1))) {
       final min = dias[d.weekday % 7];
@@ -92,6 +118,25 @@ ResumoFrequencia calcularFrequencia({
         d.day,
       ).add(Duration(minutes: min));
       if (inicioAula.isAfter(now)) continue; // aula ainda não aconteceu
+
+      if (limiteSemanal != null) {
+        // Segunda-feira da semana de `d` — reinicia a contagem a cada nova
+        // semana (weekday: 1=segunda..7=domingo).
+        final inicioSemanaDoDia = DateTime(
+          d.year,
+          d.month,
+          d.day,
+        ).subtract(Duration(days: d.weekday - 1));
+        if (inicioSemanaAtual != inicioSemanaDoDia) {
+          inicioSemanaAtual = inicioSemanaDoDia;
+          diasContadosNaSemana = 0;
+        }
+        // Cota semanal do plano já usada: dia nem vira sessão (não é
+        // presença nem falta) — o plano do aluno não abrange esse dia.
+        if (diasContadosNaSemana >= limiteSemanal) continue;
+        diasContadosNaSemana++;
+      }
+
       sessoes.add({
         'turma_id': turmaId,
         'nomeTurma': turmaNome[turmaId] ?? '',
@@ -121,9 +166,24 @@ ResumoFrequencia calcularFrequencia({
     return true;
   }).toList();
 
-  final total = sessoes.length < presencasAno.length
-      ? presencasAno.length
-      : sessoes.length;
+  // Total = sessões geradas (presença OU falta OU ainda pendente dentro das
+  // 24h) + presenças "órfãs", que não batem com nenhuma sessão gerada (ex.:
+  // aula avulsa fora do horário cadastrado, ou presença de uma turma antiga
+  // que o aluno não está mais matriculado). Soma direta de `presencas +
+  // faltas` parecia mais óbvia, mas some com sessões pendentes (dentro da
+  // janela de 24h) — nem presença nem falta ainda, mas já aconteceram.
+  final diasComSessao = <String>{for (final s in sessoes) s['dia'] as String};
+  final sessoesPorChave = <String>{
+    for (final s in sessoes) '${s['turma_id']}|${s['dia']}',
+  };
+  final presencasOrfas = presencasAno.where((p) {
+    final turmaId = (p['turma_id'] ?? '').toString();
+    final dia = _diaChaveStr(p['data']?.toString());
+    if (turmaId.isEmpty) return !diasComSessao.contains(dia);
+    return !sessoesPorChave.contains('$turmaId|$dia');
+  }).length;
+
+  final total = sessoes.length + presencasOrfas;
 
   return ResumoFrequencia(
     totalTreinos: total,

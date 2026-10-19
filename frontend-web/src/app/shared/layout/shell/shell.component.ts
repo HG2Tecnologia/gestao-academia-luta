@@ -5,11 +5,12 @@ import { TopbarComponent } from '../topbar/topbar.component';
 import { LayoutService } from '../../../core/services/layout.service';
 import { ToastComponent } from '../../components/toast/toast.component';
 import { HelpWidgetComponent } from '../../components/help-widget/help-widget.component';
+import { DialogComponent } from '../../components/dialog/dialog.component';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, TopbarComponent, ToastComponent, HelpWidgetComponent],
+  imports: [RouterOutlet, SidebarComponent, TopbarComponent, ToastComponent, HelpWidgetComponent, DialogComponent],
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.css'],
 })

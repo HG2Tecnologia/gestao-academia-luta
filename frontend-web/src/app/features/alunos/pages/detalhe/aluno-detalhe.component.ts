@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { from } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -10,7 +11,7 @@ import { FinanceiroService } from '../../../../core/services/financeiro.service'
 import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
-import { UsuarioService } from '../../../../core/services/usuario.service';
+import { FuncionarioService } from '../../../../core/services/funcionario.service';
 import { ContratoService } from '../../../../core/services/contrato.service';
 import { ModeloContratoService } from '../../../../core/services/modelo-contrato.service';
 import { AlunoDetalheDto } from '../../../../core/models/aluno.model';
@@ -18,6 +19,7 @@ import { PresencaDto } from '../../../../core/models/presenca.model';
 import { PerfilGamificadoDto } from '../../../../core/models/ranking.model';
 import { PagamentoDto, CreatePagamentoRequest } from '../../../../core/models/financeiro.model';
 import { FaixaDto, GraduacaoDto, RegistrarGraduacaoRequest } from '../../../../core/models/graduacao.model';
+import { dataLocalISO } from '../../../../core/utils/date.util';
 import { UsuarioResumoDto } from '../../../../core/models/usuario.model';
 import { ContratoDto, ContratoDetalheDto, ModeloContratoDto } from '../../../../core/models/contrato.model';
 import { NivelBadgeComponent } from '../../../../shared/components/nivel-badge/nivel-badge.component';
@@ -25,8 +27,9 @@ import { AtestadoService } from '../../../../core/services/atestado.service';
 import { AtestadoMedicoComArquivoDto, AvaliarAtestadoRequest } from '../../../../core/models/atestado.model';
 import { GruposFamiliaresService, GrupoFamiliarDto, MembroDto } from '../../../../core/services/grupos-familiares.service';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../../environments/environment';
+import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
+import { db } from '../../../../core/firebase/firebase';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 
 type Aba = 'info' | 'presencas' | 'financeiro' | 'ranking' | 'contratos' | 'atestado' | 'parq';
 
@@ -44,12 +47,12 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly toastService = inject(ToastService);
   private readonly modalidadeService = inject(ModalidadeService);
-  private readonly usuarioService = inject(UsuarioService);
+  private readonly funcionarioService = inject(FuncionarioService);
   private readonly contratoService = inject(ContratoService);
   private readonly modeloContratoService = inject(ModeloContratoService);
   private readonly atestadoService = inject(AtestadoService);
   private readonly grupoFamiliarService = inject(GruposFamiliaresService);
-  private readonly http = inject(HttpClient);
+  private readonly authService = inject(FirebaseAuthService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -66,7 +69,7 @@ export class AlunoDetalheComponent implements OnInit {
   readonly erro = signal('');
   readonly tabAtiva = signal<Aba>('info');
   readonly presencasDe = signal(this.primeiroDiaMes());
-  readonly presencasAte = signal(new Date().toISOString().split('T')[0]);
+  readonly presencasAte = signal(dataLocalISO());
 
   // Contratos
   readonly contratos = signal<ContratoDto[]>([]);
@@ -142,7 +145,7 @@ export class AlunoDetalheComponent implements OnInit {
   readonly gradModalidadeId = signal('');
   readonly gradFaixaId = signal('');
   readonly gradProfessorId = signal('');
-  readonly gradData = signal(new Date().toISOString().split('T')[0]);
+  readonly gradData = signal(dataLocalISO());
   readonly gradObservacoes = signal('');
   readonly gradGerarCobranca = signal(false);
   readonly gradValorCobranca = signal('');
@@ -167,7 +170,7 @@ export class AlunoDetalheComponent implements OnInit {
       error: () => { this.erro.set('Aluno não encontrado.'); this.carregando.set(false); },
     });
     this.modalidadeService.getAll().subscribe({ next: r => this.modalidades.set(r.dados ?? []) });
-    this.usuarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
+    this.funcionarioService.getProfessores().subscribe({ next: r => this.professores.set(r.dados ?? []) });
     this.modeloContratoService.listar().subscribe({ next: r => this.modelos.set(r.dados ?? []) });
   }
 
@@ -203,7 +206,7 @@ export class AlunoDetalheComponent implements OnInit {
   }
 
   marcarPagamentoPago(p: PagamentoDto): void {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = dataLocalISO();
     this.financeiroService.atualizar(p.id, { status: 1, dataPagamento: hoje }).subscribe({
       next: () => this.carregarPagamentos(this.aluno()!.id),
     });
@@ -341,7 +344,7 @@ export class AlunoDetalheComponent implements OnInit {
     this.gradModalidadeId.set(modalidadePreSelecionada ?? '');
     this.gradFaixaId.set('');
     this.gradProfessorId.set('');
-    this.gradData.set(new Date().toISOString().split('T')[0]);
+    this.gradData.set(dataLocalISO());
     this.gradObservacoes.set('');
     this.gradGerarCobranca.set(false);
     this.gradValorCobranca.set('');
@@ -417,11 +420,38 @@ export class AlunoDetalheComponent implements OnInit {
 
   // ─── PAR-Q ───────────────────────────────────────────────────
 
+  /**
+   * Espelho de `academias/{id}/par_qs` em `firestore_service.dart`.
+   * O CRM só lê (preenchimento é feito pelo aluno no app) — mas o
+   * mobile tem uma inconsistência real: a tela do aluno grava
+   * `nomeCompleto`/`requerAvaliacaoMedica` (camelCase) e a do admin
+   * grava `nome_completo`/`requer_avaliacao_medica` (snake_case). Lê
+   * os dois formatos pra não perder preenchimentos feitos por
+   * qualquer um dos dois caminhos.
+   */
   carregarParQ(alunoId: string): void {
     this.carregandoParQ.set(true);
     this.erroParQ.set('');
-    this.http.get<{ sucesso: boolean; dados: Record<string, unknown> | null }>(`${environment.apiUrl}/api/parq/aluno/${alunoId}`).subscribe({
-      next: res => { this.parq.set(res.dados ?? null); this.carregandoParQ.set(false); },
+    const academiaId = this.authService.currentUser()?.academiaId ?? '';
+    from(
+      getDocs(
+        query(collection(db, 'academias', academiaId, 'par_qs'), where('aluno_id', '==', alunoId), orderBy('criado_em', 'desc'), limit(1)),
+      ),
+    ).subscribe({
+      next: (snap) => {
+        if (snap.empty) {
+          this.parq.set(null);
+        } else {
+          const p = snap.docs[0].data();
+          this.parq.set({
+            ...p,
+            nomeCompleto: p['nome_completo'] ?? p['nomeCompleto'] ?? '',
+            requerAvaliacaoMedica: p['requer_avaliacao_medica'] ?? p['requerAvaliacaoMedica'] ?? false,
+            dataPreenchimento: p['data_preenchimento']?.toDate?.()?.toISOString?.() ?? null,
+          });
+        }
+        this.carregandoParQ.set(false);
+      },
       error: () => { this.erroParQ.set('Erro ao carregar PAR-Q.'); this.carregandoParQ.set(false); },
     });
   }
@@ -667,9 +697,10 @@ export class AlunoDetalheComponent implements OnInit {
 
   faixaCor(cor?: string): string { return cor ?? '#94a3b8'; }
 
+  /** Aceita tanto data pura (`yyyy-MM-dd`, a maioria dos campos) quanto timestamp ISO completo (ex: `contrato.criadoEm`) — corta na parte da data antes de formatar. */
   formatarData(d?: string): string {
     if (!d) return '—';
-    const [y, m, day] = d.split('-');
+    const [y, m, day] = d.split('T')[0].split('-');
     return `${day}/${m}/${y}`;
   }
 

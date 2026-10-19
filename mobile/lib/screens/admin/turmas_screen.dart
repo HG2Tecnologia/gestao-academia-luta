@@ -103,6 +103,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
   bool _loading = true;
   bool _erro = false;
   String? _academiaId;
+  bool _grausColoridosDisponivel = false;
 
   @override
   void initState() {
@@ -127,6 +128,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getMatriculas(_academiaId!, ativasOnly: true),
         firestoreService.getHorarios(_academiaId!),
+        firestoreService.getAcademia(_academiaId!),
       ]);
       // Turmas excluídas (soft delete) somem das listagens operacionais —
       // o histórico continua íntegro, só não aparecem mais aqui.
@@ -136,6 +138,9 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
           .toList();
       final matriculas = (results[1] as List).cast<Map<String, dynamic>>();
       final horarios = (results[2] as List).cast<Map<String, dynamic>>();
+      final academiaDoc = results[3] as Map<String, dynamic>?;
+      _grausColoridosDisponivel =
+          academiaDoc?['graus_coloridos_disponivel'] as bool? ?? false;
 
       final countPorTurma = <String, int>{};
       for (final m in matriculas) {
@@ -175,7 +180,11 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TurmaFormSheet(academiaId: _academiaId!, turma: turma),
+      builder: (_) => TurmaFormSheet(
+        academiaId: _academiaId!,
+        turma: turma,
+        grausColoridosDisponivel: _grausColoridosDisponivel,
+      ),
     );
     if (criou == true) _load();
   }
@@ -313,7 +322,7 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
                 color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
-                  onTap: () => context.push('/admin/turmas/relatorio'),
+                  onTap: () => context.push('/relatorio-presencas-oficial'),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -442,229 +451,252 @@ class _ClassCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.c.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.c.outline),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  t['nome']?.toString() ?? '',
-                  style: TextStyle(
-                    color: context.c.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color:
-                      (ativa ? context.sem.success : context.c.onSurfaceVariant)
-                          .withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  ativa ? l.classStatusActive : l.classStatusInactive,
-                  style: TextStyle(
-                    color: ativa
-                        ? context.sem.success
-                        : context.c.onSurfaceVariant,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (sub.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Text(
-              sub,
-              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          if (prof.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              l.classInstructorPrefix(prof),
-              style: TextStyle(color: context.sem.goldOnSurface, fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 18,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.groups_rounded,
-                    color: context.c.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '$total',
-                          style: TextStyle(
-                            color: context.sem.goldOnSurface,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
+      clipBehavior: Clip.antiAlias,
+      // Card inteiro clicável (não só o botão "Ver detalhes") — o botão de
+      // chamada e o lápis de editar continuam com o próprio toque, o
+      // InkWell só pega o resto da área do card.
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onDetalhes,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        t['nome']?.toString() ?? '',
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                         ),
-                        TextSpan(
-                          text: l.classCapacitySuffix(cap),
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 13,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (ativa
+                                    ? context.sem.success
+                                    : context.c.onSurfaceVariant)
+                                .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        ativa ? l.classStatusActive : l.classStatusInactive,
+                        style: TextStyle(
+                          color: ativa
+                              ? context.sem.success
+                              : context.c.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (sub.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    sub,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (prof.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    l.classInstructorPrefix(prof),
+                    style: TextStyle(
+                      color: context.sem.goldOnSurface,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.groups_rounded,
+                          color: context.c.primary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '$total',
+                                style: TextStyle(
+                                  color: context.sem.goldOnSurface,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextSpan(
+                                text: l.classCapacitySuffix(cap),
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 240),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.calendar_month_rounded,
-                      color: context.c.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Column(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            r.linha1,
-                            style: TextStyle(
-                              color: context.c.onSurface,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
-                            ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
+                          Icon(
+                            Icons.calendar_month_rounded,
+                            color: context.c.primary,
+                            size: 18,
                           ),
-                          if (r.linha2.isNotEmpty)
-                            Text(
-                              r.linha2,
-                              style: TextStyle(
-                                color: context.c.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  r.linha1,
+                                  style: TextStyle(
+                                    color: context.c.onSurface,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.3,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (r.linha2.isNotEmpty)
+                                  Text(
+                                    r.linha2,
+                                    style: TextStyle(
+                                      color: context.c.onSurfaceVariant,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
                             ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: SizedBox(
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    onPressed: onChamada,
-                    icon: const Icon(Icons.how_to_reg_rounded, size: 18),
-                    label: Text(
-                      l.takeAttendance,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: context.c.primary,
-                      foregroundColor: context.c.onPrimary,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: SizedBox(
-                  height: 46,
-                  child: OutlinedButton(
-                    onPressed: onDetalhes,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.c.onSurface,
-                      side: BorderSide(color: context.c.outline),
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            l.viewDetails,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: SizedBox(
+                        height: 46,
+                        child: ElevatedButton.icon(
+                          onPressed: onChamada,
+                          icon: const Icon(Icons.how_to_reg_rounded, size: 18),
+                          label: Text(
+                            l.takeAttendance,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: context.c.primary,
+                            foregroundColor: context.c.onPrimary,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, size: 18),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          onPressed: onDetalhes,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.c.onSurface,
+                            side: BorderSide(color: context.c.outline),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  l.viewDetails,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      onPressed: onEditar,
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        Icons.edit_rounded,
+                        color: context.c.onSurfaceVariant,
+                        size: 18,
+                      ),
+                      tooltip: l.editClass,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 2),
-              IconButton(
-                onPressed: onEditar,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  Icons.edit_rounded,
-                  color: context.c.onSurfaceVariant,
-                  size: 18,
-                ),
-                tooltip: l.editClass,
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -829,9 +861,17 @@ class _EstadoErro extends StatelessWidget {
 // ── Formulário de Turma ──────────────────────────────────────────────────────
 
 class TurmaFormSheet extends StatefulWidget {
-  const TurmaFormSheet({required this.academiaId, this.turma});
+  const TurmaFormSheet({
+    required this.academiaId,
+    this.turma,
+    this.grausColoridosDisponivel = false,
+  });
   final String academiaId;
   final Map<String, dynamic>? turma;
+
+  /// Vem do switch em Configurações — só quando ligado o toggle de graus
+  /// coloridos aparece neste formulário.
+  final bool grausColoridosDisponivel;
 
   @override
   State<TurmaFormSheet> createState() => TurmaFormSheetState();
@@ -844,11 +884,14 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
 
   List<Map<String, dynamic>> _modalidades = [];
   List<Map<String, dynamic>> _professores = [];
+  List<Map<String, dynamic>> _planos = [];
 
   String? _modalidadeId;
   String? _professorId;
+  String? _planoPadraoId;
   String? _nivel;
   bool _ativo = true;
+  bool _usaGrausColoridos = false;
   bool _loading = true;
   bool _salvando = false;
 
@@ -872,6 +915,8 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
           .toString();
       _nivel = t['nivel'] as String?;
       _ativo = t['ativo'] == true;
+      _planoPadraoId = t['planoPadraoId']?.toString();
+      _usaGrausColoridos = t['usa_graus_coloridos'] == true;
     }
     _loadDados();
   }
@@ -888,10 +933,12 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
       final results = await Future.wait([
         firestoreService.getModalidades(widget.academiaId),
         firestoreService.getFuncionarios(widget.academiaId),
+        firestoreService.getPlanos(widget.academiaId),
       ]);
 
       final mods = results[0].cast<Map<String, dynamic>>();
       final funcs = results[1].cast<Map<String, dynamic>>();
+      final planos = results[2].cast<Map<String, dynamic>>();
       final profs = funcs.where((f) {
         final cargo = f['cargo']?.toString().toLowerCase() ?? '';
         final perfil = f['perfil']?.toString().toLowerCase() ?? '';
@@ -902,6 +949,7 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         setState(() {
           _modalidades = mods;
           _professores = profs;
+          _planos = planos;
 
           if (_editando) {
             final t = widget.turma!;
@@ -966,6 +1014,9 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         'capacidadeMaxima': int.tryParse(_capCtrl.text.trim()) ?? 30,
         if (_nivel != null) 'nivel': _nivel,
         'ativo': _ativo,
+        'planoPadraoId': _planoPadraoId,
+        if (widget.grausColoridosDisponivel)
+          'usa_graus_coloridos': _usaGrausColoridos,
       };
 
       if (_editando) {
@@ -998,229 +1049,357 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
     final l = context.l10n;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
       decoration: BoxDecoration(
         color: context.c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: context.c.outline,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Text(
-                _editando ? l.editClassTitle : l.newClassTitle,
-                style: TextStyle(
-                  color: context.c.onSurface,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.c.outline,
+                borderRadius: BorderRadius.circular(2),
               ),
-              const Spacer(),
-              if (_salvando)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                TextButton(
-                  onPressed: _salvar,
-                  style: TextButton.styleFrom(
-                    backgroundColor: context.c.primary.withValues(alpha: 0.12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    l.commonSave,
-                    style: TextStyle(
-                      color: context.sem.goldOnSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
+                  _editando ? l.editClassTitle : l.newClassTitle,
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: CircularProgressIndicator(),
-            )
-          else
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _field(
-                    _nomeCtrl,
-                    l.classNameField,
-                    Icons.groups_rounded,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? l.commonRequiredField
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    value: _modalidadeId,
-                    decoration: _inputDecoration(
-                      l.modality,
-                      Icons.sports_martial_arts_rounded,
-                    ),
-                    dropdownColor: context.c.surfaceContainer,
-                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
-                    items:
-                        (_editando
-                                ? _modalidades
-                                : _modalidades
-                                      .where((m) => m['ativo'] == true)
-                                      .toList())
-                            .map(
-                              (m) => DropdownMenuItem(
-                                value: m['id']?.toString(),
-                                child: Text(
-                                  m['nome']?.toString() ?? '',
-                                  style: TextStyle(color: context.c.onSurface),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (v) => setState(() => _modalidadeId = v),
-                    validator: (v) => v == null ? l.sdSelectModality : null,
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    value: _niveis.contains(_nivel) ? _nivel : null,
-                    decoration: _inputDecoration(
-                      l.level,
-                      Icons.bar_chart_rounded,
-                    ),
-                    dropdownColor: context.c.surfaceContainer,
-                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
-                    items: _niveis
-                        .map(
-                          (n) => DropdownMenuItem(
-                            value: n,
-                            child: Text(
-                              nivelLabel(n, l),
-                              style: TextStyle(color: context.c.onSurface),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _nivel = v),
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    value:
-                        _professores.any(
-                          (p) =>
-                              (p['usuarioId'] ?? p['id'])?.toString() ==
-                              _professorId,
-                        )
-                        ? _professorId
-                        : null,
-                    decoration: _inputDecoration(
-                      l.instructorOptional,
-                      Icons.person_rounded,
-                    ),
-                    dropdownColor: context.c.surfaceContainer,
-                    style: TextStyle(color: context.c.onSurface, fontSize: 15),
-                    items: [
-                      DropdownMenuItem<String>(
-                        value: null,
-                        child: Text(
-                          l.noInstructor,
-                          style: TextStyle(color: context.c.onSurfaceVariant),
-                        ),
+                const Spacer(),
+                if (_salvando)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  TextButton(
+                    onPressed: _salvar,
+                    style: TextButton.styleFrom(
+                      backgroundColor: context.c.primary.withValues(
+                        alpha: 0.12,
                       ),
-                      ..._professores.map((p) {
-                        final id = (p['usuarioId'] ?? p['id'])?.toString();
-                        final nome =
-                            p['nome']?.toString() ??
-                            p['nomeUsuario']?.toString() ??
-                            '';
-                        return DropdownMenuItem(
-                          value: id,
-                          child: Text(
-                            nome,
-                            style: TextStyle(color: context.c.onSurface),
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (v) => setState(() => _professorId = v),
-                  ),
-                  const SizedBox(height: 14),
-                  _field(
-                    _capCtrl,
-                    l.maxCapacity,
-                    Icons.people_rounded,
-                    keyboard: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return l.commonRequiredField;
-                      }
-                      if (int.tryParse(v.trim()) == null) {
-                        return l.invalidNumber;
-                      }
-                      return null;
-                    },
-                  ),
-                  if (_editando) ...[
-                    const SizedBox(height: 14),
-                    Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 4,
+                        vertical: 8,
                       ),
-                      decoration: BoxDecoration(
-                        color: context.c.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.c.outline),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.toggle_on_rounded,
-                            color: context.c.onSurfaceVariant,
-                            size: 18,
+                    ),
+                    child: Text(
+                      l.commonSave,
+                      style: TextStyle(
+                        color: context.sem.goldOnSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: CircularProgressIndicator(),
+              )
+            else
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    _field(
+                      _nomeCtrl,
+                      l.classNameField,
+                      Icons.groups_rounded,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? l.commonRequiredField
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      value: _modalidadeId,
+                      decoration: _inputDecoration(
+                        l.modality,
+                        Icons.sports_martial_arts_rounded,
+                      ),
+                      dropdownColor: context.c.surfaceContainer,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
+                      items:
+                          (_editando
+                                  ? _modalidades
+                                  : _modalidades
+                                        .where((m) => m['ativo'] == true)
+                                        .toList())
+                              .map(
+                                (m) => DropdownMenuItem(
+                                  value: m['id']?.toString(),
+                                  child: Text(
+                                    m['nome']?.toString() ?? '',
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (v) => setState(() => _modalidadeId = v),
+                      validator: (v) => v == null ? l.sdSelectModality : null,
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      value: _niveis.contains(_nivel) ? _nivel : null,
+                      decoration: _inputDecoration(
+                        l.level,
+                        Icons.bar_chart_rounded,
+                      ),
+                      dropdownColor: context.c.surfaceContainer,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
+                      items: _niveis
+                          .map(
+                            (n) => DropdownMenuItem(
+                              value: n,
+                              child: Text(
+                                nivelLabel(n, l),
+                                style: TextStyle(color: context.c.onSurface),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _nivel = v),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      value:
+                          _professores.any(
+                            (p) =>
+                                (p['usuarioId'] ?? p['id'])?.toString() ==
+                                _professorId,
+                          )
+                          ? _professorId
+                          : null,
+                      decoration: _inputDecoration(
+                        l.instructorOptional,
+                        Icons.person_rounded,
+                      ),
+                      dropdownColor: context.c.surfaceContainer,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text(
+                            l.noInstructor,
+                            style: TextStyle(color: context.c.onSurfaceVariant),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
+                        ),
+                        ..._professores.map((p) {
+                          final id = (p['usuarioId'] ?? p['id'])?.toString();
+                          final nome =
+                              p['nome']?.toString() ??
+                              p['nomeUsuario']?.toString() ??
+                              '';
+                          return DropdownMenuItem(
+                            value: id,
                             child: Text(
-                              l.classActiveToggle,
+                              nome,
+                              style: TextStyle(color: context.c.onSurface),
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (v) => setState(() => _professorId = v),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      value:
+                          _planos.any(
+                            (p) => p['id']?.toString() == _planoPadraoId,
+                          )
+                          ? _planoPadraoId
+                          : null,
+                      decoration: _inputDecoration(
+                        l.classDefaultPlanOptional,
+                        Icons.payments_rounded,
+                      ),
+                      dropdownColor: context.c.surfaceContainer,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 15,
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text(
+                            l.classNoDefaultPlan,
+                            style: TextStyle(color: context.c.onSurfaceVariant),
+                          ),
+                        ),
+                        ..._planos.map(
+                          (p) => DropdownMenuItem(
+                            value: p['id']?.toString(),
+                            child: Text(
+                              p['nome']?.toString() ?? '',
                               style: TextStyle(color: context.c.onSurface),
                             ),
                           ),
-                          Switch(
-                            value: _ativo,
-                            onChanged: (v) => setState(() => _ativo = v),
-                            activeThumbColor: context.c.primary,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
+                      onChanged: (v) => setState(() => _planoPadraoId = v),
                     ),
+                    if (_planoPadraoId != null) ...[
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          l.classDefaultPlanHelper,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    _field(
+                      _capCtrl,
+                      l.maxCapacity,
+                      Icons.people_rounded,
+                      keyboard: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return l.commonRequiredField;
+                        }
+                        if (int.tryParse(v.trim()) == null) {
+                          return l.invalidNumber;
+                        }
+                        return null;
+                      },
+                    ),
+                    if (_editando) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.c.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.c.outline),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.toggle_on_rounded,
+                              color: context.c.onSurfaceVariant,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l.classActiveToggle,
+                                style: TextStyle(color: context.c.onSurface),
+                              ),
+                            ),
+                            Switch(
+                              value: _ativo,
+                              onChanged: (v) => setState(() => _ativo = v),
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: context.c.primary,
+                              inactiveThumbColor: context.c.surface,
+                              inactiveTrackColor: context.c.outline,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (widget.grausColoridosDisponivel) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.c.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.c.outline),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.palette_rounded,
+                              color: context.c.onSurfaceVariant,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l.turmaColoredDegrees,
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    l.turmaColoredDegreesSub,
+                                    style: TextStyle(
+                                      color: context.c.onSurfaceVariant,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _usaGrausColoridos,
+                              onChanged: (v) =>
+                                  setState(() => _usaGrausColoridos = v),
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: context.c.primary,
+                              inactiveThumbColor: context.c.surface,
+                              inactiveTrackColor: context.c.outline,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

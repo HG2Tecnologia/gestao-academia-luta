@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
 import '../../core/appearance_controls.dart';
@@ -11,39 +10,7 @@ import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/phone_normalizer.dart';
 import '../../core/push_service.dart';
-
-class _SmartInputFormatter extends TextInputFormatter {
-  static final _onlyDigits = RegExp(r'\D');
-  static final _hasLetter = RegExp(r'[a-zA-Z@]');
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue old,
-    TextEditingValue next,
-  ) {
-    final text = next.text;
-    if (text.isEmpty) return next;
-    if (_hasLetter.hasMatch(text)) return next;
-
-    final raw = text.replaceAll(_onlyDigits, '');
-    final digits = raw.length > 11 ? raw.substring(0, 11) : raw;
-
-    final buf = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i == 0) buf.write('(');
-      if (i == 2) buf.write(') ');
-      if (digits.length == 11 && i == 7) buf.write('-');
-      if (digits.length <= 10 && i == 6) buf.write('-');
-      buf.write(digits[i]);
-    }
-
-    final formatted = buf.toString();
-    return next.copyWith(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
+import '../../core/widgets.dart';
 
 enum _InputMode { indefinido, email, telefone }
 
@@ -375,7 +342,13 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'Aluno':
           context.go('/aluno/inicio');
         default:
-          context.go('/boas-vindas');
+          // Perfil vazio/inesperado: antes voltava pra entrada sem avisar
+          // nada, parecendo que o login "não deu em nada" mesmo tendo
+          // autenticado com sucesso. Agora mostra um erro de verdade.
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          setState(() => _erro = _l.authErrUnknownProfile);
+          return;
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -602,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _idCtrl,
                       onChanged: _onIdChanged,
                       keyboardType: TextInputType.emailAddress,
-                      inputFormatters: [_SmartInputFormatter()],
+                      inputFormatters: [SmartPhoneOrEmailInputFormatter()],
                       style: TextStyle(
                         color: context.c.onSurface,
                         fontSize: 15,
@@ -748,31 +721,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                    // Botão "Acessando o app pela primeira vez" removido: com
+                    // o fluxo novo, a academia sempre gera a senha temporária
+                    // do aluno no cadastro — não existe mais "primeiro acesso"
+                    // autoatendido sem essa senha.
                     const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: () => context.push(
-                        '/primeiro-acesso',
-                        extra: {'contexto': widget.contexto},
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: context.c.primary,
-                        side: BorderSide(
-                          color: context.c.primary.withValues(alpha: 0.4),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        _l.authFirstTimeUsingApp,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     OutlinedButton(
                       onPressed: () => context.push(
                         '/esqueci-senha',

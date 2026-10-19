@@ -20,7 +20,7 @@
           <span class="benefit-check">
             <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
-          Cobrança automática, zero inadimplência
+          Controle financeiro completo, sem planilha
         </li>
         <li>
           <span class="benefit-check">
@@ -49,8 +49,8 @@
       </ul>
 
       <div class="auth-trust">
-        <div class="auth-trust-label">+540 academias confiam</div>
-        <div class="auth-trust-stars">★★★★★ &nbsp;4.9/5 · +50 mil alunos gerenciados</div>
+        <div class="auth-trust-label">Feito por quem treina, para quem treina</div>
+        <div class="auth-trust-stars">Plataforma de gestão para academias de Jiu-Jitsu e artes marciais</div>
       </div>
     </div>
   </div>
@@ -80,18 +80,39 @@
         </div>
       }
 
+      @if (perfisParaEscolher(); as perfis) {
+        <div class="form-group">
+          <div class="form-label">Essa conta tem mais de um perfil. Como você quer entrar?</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom: 16px;">
+          @for (p of perfis; track $index) {
+            <button
+              type="button"
+              class="btn-submit"
+              style="background: var(--surface-container, #f4f4f5); color: inherit; text-align:left; justify-content:flex-start;"
+              [disabled]="carregando()"
+              (click)="escolherPerfil(p)">
+              {{ p['perfil_nome'] }} — {{ p['nome'] || 'Sem nome' }}
+            </button>
+          }
+        </div>
+        <button type="button" class="eye-btn" style="background:none; border:none; cursor:pointer; color: var(--primary-600, #2563eb);" (click)="cancelarEscolhaPerfil()">
+          ← Usar outra conta
+        </button>
+      } @else {
+
       <form [formGroup]="form" (ngSubmit)="entrar()" novalidate>
         <div class="form-group">
-          <div class="form-label">E-mail</div>
+          <div class="form-label">E-mail ou telefone</div>
           <input
             class="form-input"
-            [class.has-error]="emailInvalido"
-            type="email"
-            formControlName="email"
-            placeholder="seu@email.com"
-            autocomplete="email">
-          @if (emailInvalido) {
-            <p class="form-error">Informe um e-mail válido.</p>
+            [class.has-error]="identificadorInvalido"
+            type="text"
+            formControlName="identificador"
+            placeholder="seu@email.com ou (11) 91234-5678"
+            autocomplete="username">
+          @if (identificadorInvalido) {
+            <p class="form-error">Informe seu e-mail ou telefone.</p>
           }
         </div>
 
@@ -132,6 +153,7 @@
           }
         </button>
       </form>
+      }
 
       <div class="auth-footer">© {{ year }} Sensei Manager. Todos os direitos reservados.</div>
     </div>
