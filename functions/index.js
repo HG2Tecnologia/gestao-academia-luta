@@ -50,6 +50,10 @@ exports.inicializarModalidadesPadrao = modalidadeInitFunctions.inicializarModali
 const analyticsFunctions = require("./analytics-functions");
 exports.registrarEventoAnalytics = analyticsFunctions.registrarEventoAnalytics;
 
+const iapFunctions = require("./iap-functions");
+exports.ativarAssinaturaIOS = iapFunctions.ativarAssinaturaIOS;
+exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

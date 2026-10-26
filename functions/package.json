@@ -19,11 +19,15 @@
     "test:modalidades": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/modalidade-init-functions.test.js\"",
     "test:attribution": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/attribution-functions.test.js\"",
     "test:analytics": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/analytics-functions.test.js\"",
+    "test:iap": "firebase emulators:exec --project sensei-manager-test --only firestore,auth \"node --test test/iap-functions.test.js\"",
     "deploy:rules": "npm run test:rules && firebase deploy --only firestore:rules --project sensei-manager-d64c0"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
+    "axios": "^1.7.9",
     "firebase-admin": "^12.7.0",
-    "firebase-functions": "^6.6.0"
+    "firebase-functions": "^6.6.0",
+    "googleapis": "^188.0.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

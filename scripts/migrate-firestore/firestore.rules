@@ -65,10 +65,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Campos de assinatura (Sensei PRO) — nunca escritos pelo cliente. Só as
+    // Cloud Functions `ativarAssinaturaIOS`/`ativarAssinaturaAndroid`
+    // escrevem aqui, via Admin SDK (que ignora estas regras), depois de
+    // validar a compra de verdade junto à Apple/Google. Sem isso, qualquer
+    // Admin/Secretaria poderia se auto-conceder o plano Pro só escrevendo
+    // esses campos direto no documento.
+    function camposPlanoProtegidos() {
+      return ['plano_tipo', 'plano_expiracao', 'plano_produto_id',
+              'plano_plataforma', 'plano_ambiente', 'plano_assinado_em',
+              'plano_transaction_id', 'plano_original_transaction_id'];
+    }
+
     // Dados da academia — qualquer membro pode ler; escrita restrita por role
     match /academias/{academiaId} {
       allow read: if pertenceAcademia(academiaId);
-      allow update: if isAdminOuSecretaria(academiaId);
+      allow update: if isAdminOuSecretaria(academiaId) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(camposPlanoProtegidos());
       allow delete: if false;
       allow create: if isAuth() &&
         request.resource.data.created_by_uid == request.auth.uid;

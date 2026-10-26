@@ -161,6 +161,107 @@ test("nem o Admin da academia lê ou escreve a subcoleção _atribuicao pelo cli
   );
 });
 
+test("Admin não consegue se auto-conceder o plano Pro escrevendo plano_tipo direto na academia", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-plano-fixture").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-plano-fixture").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture").update({ plano_tipo: 1 }),
+  );
+  await assertFails(
+    firestore.doc("academias/academy-fixture").update({
+      plano_tipo: 1,
+      plano_expiracao: "2099-01-01T00:00:00.000Z",
+      plano_plataforma: "ios",
+    }),
+  );
+  // Mistura um campo legítimo com um protegido — ainda tem que barrar, não
+  // basta escrever todos os campos legítimos que quiser desde que nenhum
+  // protegido esteja junto.
+  await assertFails(
+    firestore.doc("academias/academy-fixture").update({
+      nome: "Nome Novo",
+      plano_ambiente: "production",
+    }),
+  );
+});
+
+test("Admin continua editando normalmente os outros campos da academia (não regride)", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-plano-fixture-2").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-plano-fixture-2").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture").update({
+      nome: "Nome Atualizado",
+      telefone: "21999998888",
+    }),
+  );
+});
+
+test("regressão: se a proteção dos campos de plano sumir da regra, a escrita REABRE (prova que ela é necessária)", async () => {
+  // Mesmo espírito do teste de regressão de `_atribuicao` acima: aplica uma
+  // cópia DELIBERADAMENTE REGREDIDA das regras (remove só a condição extra
+  // de `camposPlanoProtegidos()`, voltando ao `allow update` original) pra
+  // provar que, sem ela, qualquer Admin volta a conseguir se auto-conceder
+  // o plano Pro.
+  const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  const rulesRegredidas = rulesOriginais.replace(
+    "allow update: if isAdminOuSecretaria(academiaId) &&\n        !request.resource.data.diff(resource.data).affectedKeys()\n          .hasAny(camposPlanoProtegidos());",
+    "allow update: if isAdminOuSecretaria(academiaId);",
+  );
+
+  if (rulesRegredidas === rulesOriginais) {
+    throw new Error("A regressão simulada não alterou o arquivo de regras — teste inválido.");
+  }
+
+  const projectIdRegressao = "sensei-manager-test-regressao-plano";
+  const ambienteRegredido = await initializeTestEnvironment({
+    projectId: projectIdRegressao,
+    firestore: {
+      host: "127.0.0.1",
+      port: 8080,
+      rules: rulesRegredidas,
+    },
+  });
+
+  try {
+    await ambienteRegredido.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc("academias/academy-fixture").set({ nome: "Academia Fixture" });
+      await context.firestore().doc("usuariosFirebase/admin-regressao-plano").set({
+        schemaVersion: 2,
+        academiaId: "academy-fixture",
+        perfil: "Admin",
+        academy_ids: ["academy-fixture"],
+        roles_by_academy: { "academy-fixture": ["Admin"] },
+      });
+    });
+    const firestore = ambienteRegredido.authenticatedContext("admin-regressao-plano").firestore();
+
+    await assertSucceeds(
+      firestore.doc("academias/academy-fixture").update({ plano_tipo: 1 }),
+    );
+  } finally {
+    await ambienteRegredido.cleanup();
+  }
+});
+
 test("regressão: se a exclusão de _atribuicao sumir do match genérico, o acesso REABRE (prova que a proteção depende dos dois blocos)", async () => {
   // Isto não testa o `firestore.rules` real do projeto — testa uma cópia
   // DELIBERADAMENTE REGREDIDA (remove só a exclusão de '_atribuicao' do
