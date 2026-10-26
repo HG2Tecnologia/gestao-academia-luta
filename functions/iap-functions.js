@@ -501,7 +501,13 @@ exports.webhookGooglePlayNotifications = onMessagePublished(
     try {
       const payload = event.data.message.json;
       const purchaseToken = payload?.subscriptionNotification?.purchaseToken;
-      if (!purchaseToken) return;
+      if (!purchaseToken) {
+        logger.info(
+          "webhookGooglePlayNotifications: evento ignorado (sem subscriptionNotification)",
+          payload
+        );
+        return;
+      }
       await processarNotificacaoGooglePlay(
         purchaseToken,
         GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.value()
