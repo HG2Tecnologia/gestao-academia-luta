@@ -4084,6 +4084,21 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não foi possível abrir a loja. Tente novamente.';
 
   @override
+  String get planStatusCanceledTitle => 'Assinatura cancelada';
+
+  @override
+  String planStatusCanceledBody(String data) {
+    return 'Seu acesso continua ativo até $data. Depois disso, não vai renovar.';
+  }
+
+  @override
+  String get planStatusGracePeriodTitle => 'Problema no pagamento';
+
+  @override
+  String get planStatusGracePeriodBody =>
+      'Não conseguimos confirmar a cobrança da sua renovação. A loja vai tentar de novo automaticamente — verifique seu método de pagamento pra não perder o acesso.';
+
+  @override
   String fxStudentsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

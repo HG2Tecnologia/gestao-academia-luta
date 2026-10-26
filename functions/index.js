@@ -53,6 +53,8 @@ exports.registrarEventoAnalytics = analyticsFunctions.registrarEventoAnalytics;
 const iapFunctions = require("./iap-functions");
 exports.ativarAssinaturaIOS = iapFunctions.ativarAssinaturaIOS;
 exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
+exports.webhookAppStoreNotifications = iapFunctions.webhookAppStoreNotifications;
+exports.webhookGooglePlayNotifications = iapFunctions.webhookGooglePlayNotifications;
 
 const DIAS_ANTECEDENCIA = 3;
 

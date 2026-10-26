@@ -57,6 +57,27 @@ class _PlanoScreenState extends State<PlanoScreen> {
     }
   }
 
+  Widget? _buildAvisoStatus(PlanService plan) {
+    final expiracao = plan.planoExpiracao;
+    if (plan.planoStatus == 'cancelado_ate_expirar' && expiracao != null) {
+      return _AvisoCard(
+        icon: Icons.event_busy_rounded,
+        color: context.sem.warning,
+        titulo: _l.planStatusCanceledTitle,
+        corpo: _l.planStatusCanceledBody(_formatarData(expiracao)),
+      );
+    }
+    if (plan.planoStatus == 'periodo_carencia') {
+      return _AvisoCard(
+        icon: Icons.warning_amber_rounded,
+        color: context.sem.danger,
+        titulo: _l.planStatusGracePeriodTitle,
+        corpo: _l.planStatusGracePeriodBody,
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final plan = PlanService.instance;
@@ -64,6 +85,7 @@ class _PlanoScreenState extends State<PlanoScreen> {
     final expiracao = plan.planoExpiracao;
     final assinadoEm = plan.planoAssinadoEm;
     final plataforma = plan.planoPlataforma;
+    final avisoStatus = _buildAvisoStatus(plan);
 
     return Scaffold(
       backgroundColor: context.c.surface,
@@ -125,6 +147,10 @@ class _PlanoScreenState extends State<PlanoScreen> {
               ],
             ),
           ),
+          if (avisoStatus != null) ...[
+            const SizedBox(height: 12),
+            avisoStatus,
+          ],
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
@@ -192,6 +218,59 @@ class _PlanoScreenState extends State<PlanoScreen> {
             _l.planCancelHint,
             textAlign: TextAlign.center,
             style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvisoCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String titulo;
+  final String corpo;
+
+  const _AvisoCard({
+    required this.icon,
+    required this.color,
+    required this.titulo,
+    required this.corpo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  corpo,
+                  style: TextStyle(color: context.c.onSurface, fontSize: 12.5, height: 1.4),
+                ),
+              ],
+            ),
           ),
         ],
       ),

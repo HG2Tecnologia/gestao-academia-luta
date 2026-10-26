@@ -2053,6 +2053,17 @@
   "planCancelSubscription": "Cancelar assinatura",
   "planCancelHint": "O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.",
   "planCancelError": "Não foi possível abrir a loja. Tente novamente.",
+  "planStatusCanceledTitle": "Assinatura cancelada",
+  "planStatusCanceledBody": "Seu acesso continua ativo até {data}. Depois disso, não vai renovar.",
+  "@planStatusCanceledBody": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      }
+    }
+  },
+  "planStatusGracePeriodTitle": "Problema no pagamento",
+  "planStatusGracePeriodBody": "Não conseguimos confirmar a cobrança da sua renovação. A loja vai tentar de novo automaticamente — verifique seu método de pagamento pra não perder o acesso.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {

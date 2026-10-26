@@ -151,3 +151,235 @@ test("ativação android grava plano_plataforma='android'", async () => {
   const doc = await db.doc(`academias/${academiaId}`).get();
   assert.equal(doc.data().plano_plataforma, "android");
 });
+
+test("ativação grava plano_status='ativo' e plano_renovacao_automatica=true por padrão", async () => {
+  const academiaId = await criarAcademia();
+  await _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "ativo");
+  assert.equal(doc.data().plano_renovacao_automatica, true);
+});
+
+test("buscarAcademiaPorOriginalTransactionId encontra a academia certa", async () => {
+  const academiaId = await criarAcademia();
+  await _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+    originalTransactionId: "original-tx-unica-123",
+  });
+  const encontrado = await _internal.buscarAcademiaPorOriginalTransactionId(
+    "original-tx-unica-123"
+  );
+  assert.equal(encontrado, academiaId);
+});
+
+test("buscarAcademiaPorOriginalTransactionId retorna null quando não encontra", async () => {
+  const encontrado = await _internal.buscarAcademiaPorOriginalTransactionId(
+    "nunca-existiu"
+  );
+  assert.equal(encontrado, null);
+});
+
+test("atualizarStatusAssinatura não mexe em plano_tipo nem plano_expiracao", async () => {
+  const academiaId = await criarAcademia();
+  await _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+  });
+  await _internal.atualizarStatusAssinatura({
+    academiaId,
+    status: "cancelado_ate_expirar",
+    renovacaoAutomatica: false,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "cancelado_ate_expirar");
+  assert.equal(doc.data().plano_renovacao_automatica, false);
+  // acesso continua válido até a data já gravada — cancelar não revoga na hora
+  assert.equal(doc.data().plano_tipo, 1);
+  assert.equal(doc.data().plano_expiracao, new Date(DAQUI_30_DIAS).toISOString());
+});
+
+test("revogarAssinatura derruba plano_tipo imediatamente (reembolso/revogação)", async () => {
+  const academiaId = await criarAcademia();
+  await _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+  });
+  await _internal.revogarAssinatura({ academiaId, status: "reembolsado" });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0);
+  assert.equal(doc.data().plano_status, "reembolsado");
+});
+
+// A partir daqui, os testes cobrem `rotearNotificacaoAssinatura` diretamente
+// — é onde mora 100% da nossa regra de negócio sobre o que cada tipo de
+// notificação deve fazer. A verificação criptográfica em si (decodificar o
+// JWS de verdade) não é testável sem um payload real assinado pela Apple;
+// os testes acima (ativarAssinaturaIOS/Android via SignedDataVerifier já
+// manualmente verificado) cobrem que a lib rejeita token inválido.
+
+async function ativarPara(academiaId, overrides = {}) {
+  await _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+    originalTransactionId: `tx-${academiaId}`,
+    ...overrides,
+  });
+}
+
+test("rotear: notificação sem academia correspondente não quebra, só ignora", async () => {
+  await assert.doesNotReject(
+    _internal.rotearNotificacaoAssinatura({
+      notificationType: "DID_RENEW",
+      originalTransactionId: "tx-que-nao-existe",
+      productId: PRODUTO,
+      plataforma: "ios",
+      ambiente: "production",
+      expiresAtMs: DAQUI_30_DIAS,
+    })
+  );
+});
+
+test("rotear: DID_RENEW atualiza plano_expiracao pra nova data (renovação de verdade)", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+
+  const novaExpiracao = DAQUI_30_DIAS + 30 * 24 * 60 * 60 * 1000;
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "DID_RENEW",
+    originalTransactionId: `tx-${academiaId}`,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: novaExpiracao,
+    transactionId: "tx-renovacao-nova",
+    renovacaoAutomatica: true,
+  });
+
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_expiracao, new Date(novaExpiracao).toISOString());
+  assert.equal(doc.data().plano_status, "ativo");
+  assert.equal(doc.data().plano_tipo, 1);
+});
+
+test("rotear: DID_CHANGE_RENEWAL_STATUS (desligou auto-renew) marca cancelado_ate_expirar sem tocar na expiração", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  const expiracaoAntes = (await db.doc(`academias/${academiaId}`).get()).data()
+    .plano_expiracao;
+
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "DID_CHANGE_RENEWAL_STATUS",
+    originalTransactionId: `tx-${academiaId}`,
+    renovacaoAutomatica: false,
+  });
+
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "cancelado_ate_expirar");
+  assert.equal(doc.data().plano_renovacao_automatica, false);
+  assert.equal(doc.data().plano_tipo, 1, "continua Pro até a data que já tinha");
+  assert.equal(doc.data().plano_expiracao, expiracaoAntes);
+});
+
+test("rotear: DID_CHANGE_RENEWAL_STATUS (religou auto-renew) volta pra 'ativo'", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "DID_CHANGE_RENEWAL_STATUS",
+    originalTransactionId: `tx-${academiaId}`,
+    renovacaoAutomatica: true,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "ativo");
+  assert.equal(doc.data().plano_renovacao_automatica, true);
+});
+
+test("rotear: DID_FAIL_TO_RENEW marca periodo_carencia sem revogar ainda", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "DID_FAIL_TO_RENEW",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "periodo_carencia");
+  assert.equal(doc.data().plano_tipo, 1, "grace period ainda é acesso válido");
+});
+
+test("rotear: GRACE_PERIOD_EXPIRED revoga o Pro na hora", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "GRACE_PERIOD_EXPIRED",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0);
+  assert.equal(doc.data().plano_status, "expirado");
+});
+
+test("rotear: EXPIRED revoga o Pro", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "EXPIRED",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0);
+  assert.equal(doc.data().plano_status, "expirado");
+});
+
+test("rotear: REFUND revoga o Pro imediatamente, mesmo com data de expiração ainda longe", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "REFUND",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0);
+  assert.equal(doc.data().plano_status, "reembolsado");
+});
+
+test("rotear: REVOKE revoga o Pro imediatamente", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "REVOKE",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0);
+  assert.equal(doc.data().plano_status, "reembolsado");
+});
+
+test("rotear: tipo de notificação desconhecido é ignorado sem quebrar nem alterar o estado", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "PRICE_INCREASE",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_status, "ativo");
+  assert.equal(doc.data().plano_tipo, 1);
+});

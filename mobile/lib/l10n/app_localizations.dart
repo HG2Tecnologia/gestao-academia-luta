@@ -7208,6 +7208,30 @@ abstract class AppLocalizations {
   /// **'Não foi possível abrir a loja. Tente novamente.'**
   String get planCancelError;
 
+  /// No description provided for @planStatusCanceledTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinatura cancelada'**
+  String get planStatusCanceledTitle;
+
+  /// No description provided for @planStatusCanceledBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seu acesso continua ativo até {data}. Depois disso, não vai renovar.'**
+  String planStatusCanceledBody(String data);
+
+  /// No description provided for @planStatusGracePeriodTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Problema no pagamento'**
+  String get planStatusGracePeriodTitle;
+
+  /// No description provided for @planStatusGracePeriodBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não conseguimos confirmar a cobrança da sua renovação. A loja vai tentar de novo automaticamente — verifique seu método de pagamento pra não perder o acesso.'**
+  String get planStatusGracePeriodBody;
+
   /// No description provided for @fxStudentsCount.
   ///
   /// In pt, this message translates to:

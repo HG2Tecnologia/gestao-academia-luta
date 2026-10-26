@@ -1500,6 +1500,17 @@
   "planCancelSubscription": "Cancel subscription",
   "planCancelHint": "Cancellation happens in the store where you subscribed, not inside the app. We'll take you straight there.",
   "planCancelError": "Couldn't open the store. Please try again.",
+  "planStatusCanceledTitle": "Subscription canceled",
+  "planStatusCanceledBody": "Your access stays active until {data}. After that, it won't renew.",
+  "@planStatusCanceledBody": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      }
+    }
+  },
+  "planStatusGracePeriodTitle": "Payment issue",
+  "planStatusGracePeriodBody": "We couldn't confirm your renewal charge. The store will retry automatically — check your payment method to avoid losing access.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {

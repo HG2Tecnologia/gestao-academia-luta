@@ -4081,6 +4081,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get planCancelError => 'Couldn\'t open the store. Please try again.';
 
   @override
+  String get planStatusCanceledTitle => 'Subscription canceled';
+
+  @override
+  String planStatusCanceledBody(String data) {
+    return 'Your access stays active until $data. After that, it won\'t renew.';
+  }
+
+  @override
+  String get planStatusGracePeriodTitle => 'Payment issue';
+
+  @override
+  String get planStatusGracePeriodBody =>
+      'We couldn\'t confirm your renewal charge. The store will retry automatically — check your payment method to avoid losing access.';
+
+  @override
   String fxStudentsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
