@@ -1286,16 +1286,38 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     List<Map<String, dynamic>> turmasList = [];
     List<Map<String, dynamic>> todosAlunos = [];
     List<Map<String, dynamic>> todosPagamentos = [];
+    Set<String> alunosComPlano = {};
 
     try {
       final results = await Future.wait([
         firestoreService.getTurmas(_academiaId!),
         firestoreService.getAlunos(_academiaId!, ativosOnly: true),
         firestoreService.getPagamentos(_academiaId!),
+        firestoreService.getAcademia(_academiaId!).catchError((_) => null),
+        firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
       turmasList = List<Map<String, dynamic>>.from(results[0] as List);
       todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
       todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
+      final acadData = results[3] as Map<String, dynamic>? ?? {};
+      final planosModalidadeAtivos = List<Map<String, dynamic>>.from(
+        results[4] as List,
+      );
+      // Mesma regra do backend: aluno sem plano vinculado (legado ou por
+      // modalidade) nunca recebe cobrança automática — a prévia de "Gerar
+      // cobranças" precisa refletir isso, senão mostra um número que o
+      // servidor depois não confirma (ex.: "14 alunos" na prévia, mas só 8
+      // tinham plano e viraram cobrança de verdade).
+      if (acadData['cobranca_por_modalidade_ativa'] == true) {
+        alunosComPlano = planosModalidadeAtivos
+            .map((m) => m['aluno_id']?.toString() ?? '')
+            .toSet();
+      } else {
+        alunosComPlano = todosAlunos
+            .where((a) => (a['plano_id']?.toString() ?? '').trim().isNotEmpty)
+            .map((a) => a['id']?.toString() ?? '')
+            .toSet();
+      }
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1363,7 +1385,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           return base
               .where(
                 (a) =>
-                    !alunosComCobrancaMes.contains(a['id']?.toString() ?? ''),
+                    !alunosComCobrancaMes.contains(a['id']?.toString() ?? '') &&
+                    alunosComPlano.contains(a['id']?.toString() ?? ''),
               )
               .toList();
         case 'atrasados':
