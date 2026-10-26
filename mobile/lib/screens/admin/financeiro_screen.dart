@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -159,15 +160,55 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     _load();
   }
 
+  StreamSubscription? _pagamentosWatchSub;
+  Timer? _pagamentosWatchDebounce;
+
   @override
   void dispose() {
     adminTabNotifier.removeListener(_onTabChanged);
     _buscaCtrl.dispose();
+    _pagamentosWatchSub?.cancel();
+    _pagamentosWatchDebounce?.cancel();
     super.dispose();
   }
 
   void _onTabChanged() {
     if (adminTabNotifier.value == 4) _load();
+  }
+
+  /// Escuta mudanças em pagamentos (ex.: webhook da Asaas confirmando um
+  /// PIX/boleto/cartão) e recarrega sozinho em segundo plano — sem isso, só
+  /// uma recarga manual (puxar pra atualizar) refletiria a confirmação.
+  /// Recarga silenciosa (sem o spinner de tela cheia do `_load()`), pra não
+  /// interromper quem já está olhando a lista. Assinado uma única vez por
+  /// sessão da tela.
+  void _iniciarEscutaTempoReal(String academiaId) {
+    if (_pagamentosWatchSub != null) return;
+    try {
+      _pagamentosWatchSub = firestoreService
+          .watchPagamentosChanged(academiaId)
+          .listen((_) {
+        _pagamentosWatchDebounce?.cancel();
+        _pagamentosWatchDebounce = Timer(
+          const Duration(milliseconds: 400),
+          () {
+            if (mounted) _recarregarPagamentosSilenciosamente();
+          },
+        );
+      }, onError: (_) {});
+    } catch (_) {
+      // Sem a escuta em tempo real, a tela segue funcionando normalmente
+      // via _load()/pull-to-refresh — só perde a atualização automática.
+    }
+  }
+
+  Future<void> _recarregarPagamentosSilenciosamente() async {
+    if (_academiaId == null || _academiaId!.isEmpty) return;
+    try {
+      final todos = await firestoreService.getPagamentos(_academiaId!);
+      _todosPagamentos = todos;
+      if (mounted) setState(_recomputarDerivados);
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -176,6 +217,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
       if (_academiaId!.isEmpty) return;
+      _iniciarEscutaTempoReal(_academiaId!);
 
       // Garantia server-side: nunca gera mensalidade só no cliente. Falha
       // de rede/permite aqui não trava a tela — só mostra o que já existe.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
@@ -40,6 +41,9 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   late int _ano;
   late int _mes;
 
+  StreamSubscription? _pagamentosWatchSub;
+  Timer? _pagamentosWatchDebounce;
+
   static const _filtros = ['Todos', 'Atrasado', 'Pendente', 'Pago'];
 
   @override
@@ -55,7 +59,34 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   @override
   void dispose() {
     alunoTabNotifier.removeListener(_onTabChanged);
+    _pagamentosWatchSub?.cancel();
+    _pagamentosWatchDebounce?.cancel();
     super.dispose();
+  }
+
+  /// Escuta mudanças em pagamentos (ex.: webhook da Asaas confirmando um
+  /// PIX) e recarrega sozinho — sem isso, só uma recarga manual (puxar pra
+  /// atualizar) refletiria a confirmação, mesmo com o pagamento já líquido.
+  /// Assinado uma única vez por sessão da tela (ignora chamadas repetidas de
+  /// _load()).
+  void _iniciarEscutaTempoReal(String academiaId, String alunoId) {
+    if (_pagamentosWatchSub != null) return;
+    try {
+      _pagamentosWatchSub = firestoreService
+          .watchPagamentosChanged(academiaId, alunoId: alunoId)
+          .listen((_) {
+        _pagamentosWatchDebounce?.cancel();
+        _pagamentosWatchDebounce = Timer(
+          const Duration(milliseconds: 400),
+          () {
+            if (mounted) _load();
+          },
+        );
+      }, onError: (_) {});
+    } catch (_) {
+      // Sem a escuta em tempo real, a tela segue funcionando normalmente
+      // via _load()/pull-to-refresh — só perde a atualização automática.
+    }
   }
 
   void _onTabChanged() {
@@ -86,6 +117,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         return;
       }
       _academiaId = user.academiaId;
+      _iniciarEscutaTempoReal(user.academiaId!, user.id!);
       final results = await Future.wait([
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),

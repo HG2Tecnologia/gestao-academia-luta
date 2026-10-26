@@ -297,7 +297,8 @@ class _PixPagamentoSheetState extends State<PixPagamentoSheet> {
         ),
         const SizedBox(height: 8),
         Text(
-          'O pagamento é confirmado automaticamente assim que realizado.',
+          'Depois de pagar, pode levar alguns segundos até confirmar aqui — '
+          'não feche esta tela, ela atualiza sozinha.',
           textAlign: TextAlign.center,
           style: TextStyle(color: kText2, fontSize: 11),
         ),

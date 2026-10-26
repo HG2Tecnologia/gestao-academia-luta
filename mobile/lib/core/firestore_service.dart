@@ -1537,6 +1537,15 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
+  /// Sinal de "algo mudou em pagamentos" — usado só para disparar um novo
+  /// [getPagamentos], não para consumir os docs direto (mantém os joins e
+  /// enriquecimentos de cada tela intactos, sem duplicar essa lógica aqui).
+  Stream<void> watchPagamentosChanged(String academiaId, {String? alunoId}) {
+    Query q = _col(academiaId, 'pagamentos');
+    if (alunoId != null) q = q.where('aluno_id', isEqualTo: alunoId);
+    return q.snapshots().map((_) {});
+  }
+
   /// Gera pagamento do mês corrente para o aluno se não existir ainda.
   ///
   /// NÃO USAR em telas novas: o ID gerado aqui é aleatório e não é
