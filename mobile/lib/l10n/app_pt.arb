@@ -1358,6 +1358,13 @@
   "fiAllActiveHint": "Cobrar todos os alunos ativos da academia",
   "fiRefundShort": "Estornar",
   "fiDismiss": "Desconsiderar",
+  "fiStudentsWithoutPlanTitle": "Alunos sem plano configurado",
+  "fiStudentsWithoutPlanBody": "{n} aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.",
+  "@fiStudentsWithoutPlanBody": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
   "fiBillsShort": "Contas",
   "fiType": "Tipo",
   "rkNoData": "Sem dados no ranking",

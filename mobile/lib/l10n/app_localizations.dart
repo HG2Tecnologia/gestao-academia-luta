@@ -4646,6 +4646,18 @@ abstract class AppLocalizations {
   /// **'Desconsiderar'**
   String get fiDismiss;
 
+  /// No description provided for @fiStudentsWithoutPlanTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos sem plano configurado'**
+  String get fiStudentsWithoutPlanTitle;
+
+  /// No description provided for @fiStudentsWithoutPlanBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.'**
+  String fiStudentsWithoutPlanBody(int n);
+
   /// No description provided for @fiBillsShort.
   ///
   /// In pt, this message translates to:

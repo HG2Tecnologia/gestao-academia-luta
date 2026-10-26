@@ -36,6 +36,8 @@ exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomat
 exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePeriod;
 exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
 exports.limparCobrancasOrfas = financeFunctions.limparCobrancasOrfas;
+exports.gerarCobrancasAoAtribuirPlano = financeFunctions.gerarCobrancasAoAtribuirPlano;
+exports.gerarCobrancasAoMatricular = financeFunctions.gerarCobrancasAoMatricular;
 
 const contratoFunctions = require("./contrato-functions");
 exports.contratoPublicoObter = contratoFunctions.contratoPublicoObter;

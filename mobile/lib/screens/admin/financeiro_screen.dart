@@ -141,6 +141,12 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   int _taxaAtrasoTipo = 0;
   double _taxaAtrasoValor = 0.0;
 
+  // Alunos ativos elegíveis a NUNCA receber cobrança automática porque não
+  // têm nenhum plano vinculado (nem `plano_id` legado, nem matrícula ativa
+  // em `planos_modalidade`) — mostrado como aviso pra equipe notar e
+  // corrigir, em vez de ficar invisível pra sempre.
+  int _alunosSemPlano = 0;
+
   static const _statusMap = {
     0: 'Pendente',
     1: 'Pago',
@@ -204,6 +210,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
         firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
         firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getAlunos(_academiaId!, ativosOnly: true).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
@@ -216,11 +224,28 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         for (final p in results[3] as List<Map<String, dynamic>>)
           (p['id'] ?? '').toString(): p,
       };
+      final alunosAtivos = results[4] as List<Map<String, dynamic>>;
+      final planosModalidadeAtivos = results[5] as List<Map<String, dynamic>>;
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
       _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
       _taxaAtrasoValor =
           (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+
+      final cobrancaPorModalidade =
+          acadData['cobranca_por_modalidade_ativa'] == true;
+      if (cobrancaPorModalidade) {
+        final alunosComMatricula = planosModalidadeAtivos
+            .map((m) => m['aluno_id']?.toString() ?? '')
+            .toSet();
+        _alunosSemPlano = alunosAtivos
+            .where((a) => !alunosComMatricula.contains(a['id']?.toString()))
+            .length;
+      } else {
+        _alunosSemPlano = alunosAtivos
+            .where((a) => (a['plano_id']?.toString() ?? '').trim().isEmpty)
+            .length;
+      }
 
       _todosPagamentos = todos;
       if (mounted) setState(_recomputarDerivados);
@@ -2546,9 +2571,29 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (ok != true || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
-      if (mounted) {
-        _removerLocal(c['id'].toString());
+      // Mensalidade gerada automaticamente tem ID determinístico
+      // (aluno+mês/modalidade) — apagar o documento de verdade só libera o
+      // ID de novo, e a próxima geração automática (job diário ou "+Gerar")
+      // recria o mesmo documento, já que o aluno continua elegível. Por
+      // isso, pra essas, "excluir" precisa desconsiderar (status 4) em vez
+      // de apagar — mesmo mecanismo que "Desconsiderar" já usa. Cobrança
+      // avulsa (sem `origem`, ID aleatório) nunca é regerada, então
+      // continua sendo excluída de verdade.
+      if (c['origem'] == 'auto') {
+        final alteracoes = {'status': 4};
+        await firestoreService.updatePagamento(
+          _academiaId!,
+          c['id'].toString(),
+          alteracoes,
+        );
+        if (mounted) {
+          _atualizarLocal(c['id'].toString(), alteracoes);
+        }
+      } else {
+        await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
+        if (mounted) {
+          _removerLocal(c['id'].toString());
+        }
       }
     } catch (_) {}
   }
@@ -3000,6 +3045,57 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                           icon: Icons.groups_rounded,
                         ),
                       ],
+                    ),
+                  ),
+                if (_alunosSemPlano > 0)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: context.sem.warning.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: context.sem.warning.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: context.sem.warning,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _l.fiStudentsWithoutPlanTitle,
+                                    style: TextStyle(
+                                      color: context.sem.warning,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _l.fiStudentsWithoutPlanBody(_alunosSemPlano),
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 12.5,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 // ── Busca ──────────────────────────────────────────────

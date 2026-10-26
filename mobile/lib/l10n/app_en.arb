@@ -857,6 +857,13 @@
   "fiAllActiveHint": "Charge all active students in the academy",
   "fiRefundShort": "Reverse",
   "fiDismiss": "Dismiss",
+  "fiStudentsWithoutPlanTitle": "Students without a plan",
+  "fiStudentsWithoutPlanBody": "{n} active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.",
+  "@fiStudentsWithoutPlanBody": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
   "fiBillsShort": "Bills",
   "fiType": "Type",
   "rkNoData": "No data in this ranking",

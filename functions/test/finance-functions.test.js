@@ -424,8 +424,15 @@ test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade
   const garantir = httpsCallable(functions, "ensureChargesForPeriod");
   const resultado = await garantir({ academiaId: "academy-c", period: "2026-10" });
 
-  assert.equal(resultado.data.criadas, 2, "1 cobrança pra jiujitsu + 1 pra judô, matrícula inativa não conta");
-  assert.equal(resultado.data.ignoradas, 0);
+  // O gatilho `gerarCobrancasAoMatricular` também reage às matrículas
+  // criadas no setup acima e pode já ter gerado as 2 cobranças antes dessa
+  // chamada explícita rodar — idempotente nos dois casos, então o total
+  // (criadas + ignoradas) é sempre 2, não importa quem gerou primeiro.
+  assert.equal(
+    resultado.data.criadas + resultado.data.ignoradas,
+    2,
+    "1 cobrança pra jiujitsu + 1 pra judô, matrícula inativa não conta",
+  );
 
   await environment.withSecurityRulesDisabled(async (ctx) => {
     const pagamentos = ctx.firestore().collection("academias/academy-c/pagamentos");

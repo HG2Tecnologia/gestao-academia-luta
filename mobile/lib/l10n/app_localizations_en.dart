@@ -2643,6 +2643,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiDismiss => 'Dismiss';
 
   @override
+  String get fiStudentsWithoutPlanTitle => 'Students without a plan';
+
+  @override
+  String fiStudentsWithoutPlanBody(int n) {
+    return '$n active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.';
+  }
+
+  @override
   String get fiBillsShort => 'Bills';
 
   @override

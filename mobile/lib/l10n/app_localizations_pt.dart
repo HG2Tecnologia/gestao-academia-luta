@@ -2643,6 +2643,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiDismiss => 'Desconsiderar';
 
   @override
+  String get fiStudentsWithoutPlanTitle => 'Alunos sem plano configurado';
+
+  @override
+  String fiStudentsWithoutPlanBody(int n) {
+    return '$n aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.';
+  }
+
+  @override
   String get fiBillsShort => 'Contas';
 
   @override
