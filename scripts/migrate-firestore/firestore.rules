@@ -89,13 +89,15 @@ service cloud.firestore {
         request.resource.data.created_by_uid == request.auth.uid;
     }
 
-    // Permite criar o primeiro usuário Admin durante o registro da academia
+    // Permite criar o primeiro usuário Admin durante o registro da academia,
+    // e também Admin/Secretaria cadastrando aluno/funcionário normalmente.
     match /academias/{academiaId}/usuarios/{usuarioId} {
-      allow create: if isAuth() &&
-        request.resource.data.firebase_uid == request.auth.uid &&
-        request.resource.data.perfil == 0 &&
-        getAfter(/databases/$(database)/documents/academias/$(academiaId))
-          .data.created_by_uid == request.auth.uid;
+      allow create: if isAdminOuSecretaria(academiaId) ||
+        (isAuth() &&
+         request.resource.data.firebase_uid == request.auth.uid &&
+         request.resource.data.perfil == 0 &&
+         getAfter(/databases/$(database)/documents/academias/$(academiaId))
+           .data.created_by_uid == request.auth.uid);
       allow read: if pertenceAcademia(academiaId);
       // O próprio aluno só altera campos não privilegiados depois que a
       // Function já confirmou seu vínculo.
