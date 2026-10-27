@@ -65,6 +65,10 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   Map<String, Map<String, dynamic>> _faixasPorModalidade = {};
   List<Map<String, dynamic>> _graduacoes = [];
   String? _histModFiltro; // null = todas as modalidades
+  // Modalidades em que este aluno é elegível a graus coloridos (ver
+  // core/grau_colorido.dart) — guardado pra não recomputar em cada modal
+  // que abre uma lista de faixas fresca (ex.: _abrirGraduar).
+  Set<String> _modalidadesElegiveisGrauColorido = {};
 
   AppLocalizations get _l => context.l10n;
 
@@ -179,10 +183,13 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
       // Modalidades em que ESTE aluno é elegível pra graus coloridos (ver
       // core/grau_colorido.dart) — gate aplicado abaixo em
       // `enrichedGraduacoes`, antes de montar `faixasMod`.
+      final grausColoridosDisponivel =
+          academiaDoc?['graus_coloridos_disponivel'] as bool? ?? false;
       final modalidadesElegiveisGrauColorido =
           montarElegibilidadeGrausColoridosPorAluno(
             matriculas: matriculas,
             turmasPorId: turmaMap,
+            grausColoridosDisponivelNaAcademia: grausColoridosDisponivel,
           )[widget.alunoId] ??
           const <String>{};
       // Só matrículas ATIVAS contam como "turma atual do aluno" — uma turma
@@ -240,6 +247,8 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             (f['modalidadeId'] ?? f['modalidade_id'])?.toString() ?? '';
         final elegivelGrauColorido = modalidadesElegiveisGrauColorido
             .contains(faixaModalidadeId);
+        final temGrauCoresConfigurado =
+            f['grau_cores'] is List && (f['grau_cores'] as List).isNotEmpty;
         return <String, dynamic>{
           ...g,
           'faixaId': faixaId,
@@ -247,7 +256,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           'corFaixa': f['cor'] ?? '#FFFFFF',
           'corBarraFaixa': f['cor_barra'] ?? '#000000',
           'faixaTemGraus': f['tem_graus'] == true,
-          'faixaMaxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+          // Faixa configurada pro sistema colorido mas aluno não elegível
+          // (turma sem o recurso, ou academia com o switch desligado) cai
+          // pro padrão "normal" de 4 graus — ver core/grau_colorido.dart.
+          'faixaMaxGraus': maxGrausEfetivo(
+            maxGrausConfigurado: (f['max_graus'] as num?)?.toInt() ?? 4,
+            temGrauCoresConfigurado: temGrauCoresConfigurado,
+            elegivelGrauColorido: elegivelGrauColorido,
+          ),
           // Só exposto se o aluno estiver numa turma dessa modalidade que
           // ligou o recurso — ver core/grau_colorido.dart.
           'faixaGrauCores': elegivelGrauColorido && f['grau_cores'] is List
@@ -369,6 +385,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
           _membrosGrupo = membrosGrupo;
           _plano = planoData;
           _faixasPorModalidade = faixasMod;
+          _modalidadesElegiveisGrauColorido = modalidadesElegiveisGrauColorido;
           _graduacoes = List.of(enrichedGraduacoes)
             ..sort(compararGraduacoesCronologicamente);
           _cobrancaPorModalidadeAtiva =
@@ -2616,7 +2633,21 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             (f) => <String, dynamic>{
               ...f,
               'temGraus': f['tem_graus'] == true,
-              'maxGraus': (f['max_graus'] as num?)?.toInt() ?? 4,
+              // Faixa configurada pro sistema colorido mas aluno não
+              // elegível (turma sem o recurso, ou academia com o switch
+              // desligado) cai pro padrão "normal" de 4 graus — ver
+              // core/grau_colorido.dart.
+              'maxGraus': maxGrausEfetivo(
+                maxGrausConfigurado: (f['max_graus'] as num?)?.toInt() ?? 4,
+                temGrauCoresConfigurado:
+                    f['grau_cores'] is List &&
+                    (f['grau_cores'] as List).isNotEmpty,
+                elegivelGrauColorido: _modalidadesElegiveisGrauColorido
+                    .contains(
+                      (f['modalidadeId'] ?? f['modalidade_id'])?.toString() ??
+                          '',
+                    ),
+              ),
             },
           )
           .toList();
@@ -5524,10 +5555,25 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
             atual['modalidade_id']?.toString() ??
             '';
       }
-      faixas = await firestoreService.getFaixas(
+      final rawFaixas = await firestoreService.getFaixas(
         academiaId,
         modalidadeId: modalidadeId,
       );
+      final elegivel = _modalidadesElegiveisGrauColorido.contains(
+        modalidadeId,
+      );
+      faixas = rawFaixas.map((f) {
+        // Faixa configurada pro sistema colorido mas aluno não elegível
+        // (turma sem o recurso, ou academia com o switch desligado) cai
+        // pro padrão "normal" de 4 graus — ver core/grau_colorido.dart.
+        final maxEfetivo = maxGrausEfetivo(
+          maxGrausConfigurado: (f['max_graus'] as num?)?.toInt() ?? 0,
+          temGrauCoresConfigurado:
+              f['grau_cores'] is List && (f['grau_cores'] as List).isNotEmpty,
+          elegivelGrauColorido: elegivel,
+        );
+        return <String, dynamic>{...f, 'max_graus': maxEfetivo};
+      }).toList();
       faixas.sort(
         (a, b) => ((a['ordem'] as num?)?.toInt() ?? 0).compareTo(
           (b['ordem'] as num?)?.toInt() ?? 0,

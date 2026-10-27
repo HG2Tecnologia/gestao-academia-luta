@@ -84,13 +84,22 @@ List<int> indicesDeCoresIgnoradasEmBlocos({
 /// que optou por isso — ex.: a mesma modalidade "Jiu-Jitsu" pode ter turma
 /// Kids (colorido) e turma Adulto (sem colorido) ao mesmo tempo.
 ///
+/// `grausColoridosDisponivelNaAcademia` é o switch "pai" (Configurações):
+/// quando a academia desliga o recurso, nenhuma turma pode estar elegível,
+/// mesmo que ela ainda tenha `usa_graus_coloridos: true` salvo de antes —
+/// sem esse gate aqui, desligar o switch pai não tinha efeito nenhum pro
+/// aluno (bug real: aluno continuava vendo os graus coloridos de uma turma
+/// que nunca teve o campo revertido).
+///
 /// Puro: recebe os dados já carregados (matrículas + turmas), nunca lê
 /// Firestore. `turmasPorId` é um mapa id→doc de turma.
 Map<String, Set<String>> montarElegibilidadeGrausColoridosPorAluno({
   required Iterable<Map<String, dynamic>> matriculas,
   required Map<String, Map<String, dynamic>> turmasPorId,
+  required bool grausColoridosDisponivelNaAcademia,
 }) {
   final resultado = <String, Set<String>>{};
+  if (!grausColoridosDisponivelNaAcademia) return resultado;
   for (final m in matriculas) {
     if (m['ativo'] != true) continue;
     final alunoId = (m['aluno_id'] ?? '').toString();
@@ -104,6 +113,26 @@ Map<String, Set<String>> montarElegibilidadeGrausColoridosPorAluno({
     resultado.putIfAbsent(alunoId, () => <String>{}).add(modalidadeId);
   }
   return resultado;
+}
+
+/// Quantos graus "normais" (sem cor) uma faixa mostra pra um aluno que não
+/// é elegível a graus coloridos — usado quando `maxGrausConfigurado` só é
+/// alto (ex. 12) porque a faixa foi configurada pro sistema colorido
+/// infantil, mas o aluno em questão (ou a academia, com o recurso
+/// desligado) não deve ver esse número inflado. Faixa que NUNCA configurou
+/// `grau_cores` não é afetada por isso — `max_graus` dela já é o valor
+/// "normal" de verdade (ex.: graus de faixa preta, sem cor nenhuma).
+const int kMaxGrausPadraoSemCor = 4;
+
+int maxGrausEfetivo({
+  required int maxGrausConfigurado,
+  required bool temGrauCoresConfigurado,
+  required bool elegivelGrauColorido,
+}) {
+  if (temGrauCoresConfigurado && !elegivelGrauColorido) {
+    return kMaxGrausPadraoSemCor;
+  }
+  return maxGrausConfigurado;
 }
 
 /// Ajusta uma lista de cores personalizada ao `maxGraus` atual: trunca se

@@ -1438,12 +1438,16 @@ class FirestoreService {
     );
     var elegibilidade = const <String, Set<String>>{};
     if (algumaFaixaTemGrauCores) {
+      final academia = await getAcademia(academiaId);
+      final grausColoridosDisponivel =
+          academia?['graus_coloridos_disponivel'] as bool? ?? false;
       final turmas = await getTurmas(academiaId);
       final turmasPorId = {for (final t in turmas) t['id'].toString(): t};
       final matriculas = await getMatriculas(academiaId);
       elegibilidade = montarElegibilidadeGrausColoridosPorAluno(
         matriculas: matriculas,
         turmasPorId: turmasPorId,
+        grausColoridosDisponivelNaAcademia: grausColoridosDisponivel,
       );
     }
     return graduacoes.map((g) {
@@ -1458,6 +1462,12 @@ class FirestoreService {
       final alunoId = (g['aluno_id'] ?? '').toString();
       final elegivel =
           elegibilidade[alunoId]?.contains(modalidadeId) ?? false;
+      final temGrauCoresConfigurado =
+          faixa['grau_cores'] is List && (faixa['grau_cores'] as List).isNotEmpty;
+      final maxGrausConfigurado =
+          (faixa['max_graus'] as num?)?.toInt() ??
+          (g['faixaMaxGraus'] as num?)?.toInt() ??
+          0;
       return <String, dynamic>{
         ...g,
         'dataExame': g['data_exame'] ?? g['dataExame'] ?? '',
@@ -1474,20 +1484,27 @@ class FirestoreService {
             0,
         'faixaTemGraus':
             faixa['tem_graus'] == true || g['faixaTemGraus'] == true,
-        'faixaMaxGraus':
-            (faixa['max_graus'] as num?)?.toInt() ??
-            (g['faixaMaxGraus'] as num?)?.toInt() ??
-            0,
+        // Faixa configurada pro sistema colorido (ex.: 12 graus) mas aluno
+        // não elegível (turma sem o recurso, ou academia com o switch
+        // desligado) cai pro padrão "normal" de 4 graus — ver
+        // core/grau_colorido.dart. Faixa que nunca teve `grau_cores` (ex.:
+        // graus de faixa preta) não é afetada, o valor configurado é real.
+        'faixaMaxGraus': maxGrausEfetivo(
+          maxGrausConfigurado: maxGrausConfigurado,
+          temGrauCoresConfigurado: temGrauCoresConfigurado,
+          elegivelGrauColorido: elegivel,
+        ),
         // Graus coloridos (opcional) — prefere a cor ATUAL da faixa (igual
         // já acontece com corFaixa/corBarraFaixa acima); cai pro valor
         // congelado no doc da graduação (gravado por `editarGraduacao`)
         // quando a faixa não tem mais `grau_cores`, e pra lista vazia
         // quando nenhum dos dois existe — aí a UI usa o visual de sempre.
         // SÓ é exposto se o aluno estiver numa turma dessa modalidade que
-        // ligou o recurso (`usa_graus_coloridos`) — a faixa pode ter cores
-        // configuradas e mesmo assim não aparecer pra um aluno de uma
-        // turma que não optou por isso (ex.: turma Adulto vs. turma Kids
-        // na mesma modalidade "Jiu-Jitsu").
+        // ligou o recurso (`usa_graus_coloridos`) E a academia tiver o
+        // switch "pai" ativo — a faixa pode ter cores configuradas e mesmo
+        // assim não aparecer pra um aluno de uma turma que não optou por
+        // isso (ex.: turma Adulto vs. turma Kids na mesma modalidade
+        // "Jiu-Jitsu"), ou quando a academia desligou o recurso todo.
         'grauCoresFaixa': elegivel
             ? (faixa['grau_cores'] is List
                   ? faixa['grau_cores']
