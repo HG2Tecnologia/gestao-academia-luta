@@ -74,7 +74,8 @@ service cloud.firestore {
     function camposPlanoProtegidos() {
       return ['plano_tipo', 'plano_expiracao', 'plano_produto_id',
               'plano_plataforma', 'plano_ambiente', 'plano_assinado_em',
-              'plano_transaction_id', 'plano_original_transaction_id'];
+              'plano_transaction_id', 'plano_original_transaction_id',
+              'cupom_base_plan_android'];
     }
 
     // Dados da academia — qualquer membro pode ler; escrita restrita por role
