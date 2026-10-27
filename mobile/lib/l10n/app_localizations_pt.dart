@@ -2643,7 +2643,19 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiDismiss => 'Desconsiderar';
 
   @override
+  String get fiGenerateChargesExplain =>
+      'Gera a mensalidade do mês atual + 12 meses seguintes, pra todo aluno ativo com plano vinculado que ainda não tenha cobrança nesse mês. Quem já tem cobrança gerada não é afetado — idempotente, pode rodar quantas vezes quiser.';
+
+  @override
+  String fiGenerateChargesSuccess(int n) {
+    return '$n cobrança(s) gerada(s).';
+  }
+
+  @override
   String get fiStudentsWithoutPlanTitle => 'Alunos sem plano configurado';
+
+  @override
+  String get fiStudentsWithoutPlanSeeWho => 'Ver quais são';
 
   @override
   String fiStudentsWithoutPlanBody(int n) {

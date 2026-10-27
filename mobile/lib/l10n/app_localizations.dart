@@ -4646,11 +4646,29 @@ abstract class AppLocalizations {
   /// **'Desconsiderar'**
   String get fiDismiss;
 
+  /// No description provided for @fiGenerateChargesExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gera a mensalidade do mês atual + 12 meses seguintes, pra todo aluno ativo com plano vinculado que ainda não tenha cobrança nesse mês. Quem já tem cobrança gerada não é afetado — idempotente, pode rodar quantas vezes quiser.'**
+  String get fiGenerateChargesExplain;
+
+  /// No description provided for @fiGenerateChargesSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} cobrança(s) gerada(s).'**
+  String fiGenerateChargesSuccess(int n);
+
   /// No description provided for @fiStudentsWithoutPlanTitle.
   ///
   /// In pt, this message translates to:
   /// **'Alunos sem plano configurado'**
   String get fiStudentsWithoutPlanTitle;
+
+  /// No description provided for @fiStudentsWithoutPlanSeeWho.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver quais são'**
+  String get fiStudentsWithoutPlanSeeWho;
 
   /// No description provided for @fiStudentsWithoutPlanBody.
   ///

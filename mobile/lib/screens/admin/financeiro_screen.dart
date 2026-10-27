@@ -145,15 +145,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   // têm nenhum plano vinculado (nem `plano_id` legado, nem matrícula ativa
   // em `planos_modalidade`) — mostrado como aviso pra equipe notar e
   // corrigir, em vez de ficar invisível pra sempre.
-  int _alunosSemPlano = 0;
-
-  static const _statusMap = {
-    0: 'Pendente',
-    1: 'Pago',
-    2: 'Atrasado',
-    3: 'Previsto',
-    4: 'Desconsiderado',
-  };
+  List<Map<String, dynamic>> _alunosSemPlano = [];
 
   @override
   void initState() {
@@ -240,11 +232,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             .toSet();
         _alunosSemPlano = alunosAtivos
             .where((a) => !alunosComMatricula.contains(a['id']?.toString()))
-            .length;
+            .toList();
       } else {
         _alunosSemPlano = alunosAtivos
             .where((a) => (a['plano_id']?.toString() ?? '').trim().isEmpty)
-            .length;
+            .toList();
       }
 
       _todosPagamentos = todos;
@@ -253,6 +245,100 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Abre a lista de alunos sem plano configurado (vindos do aviso no topo
+  /// do Financeiro) com um atalho pra abrir o perfil de cada um e vincular
+  /// um plano.
+  void _abrirAlunosSemPlano() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.c.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: context.c.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                _l.fiStudentsWithoutPlanTitle,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _l.fiStudentsWithoutPlanBody(_alunosSemPlano.length),
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: _alunosSemPlano.length,
+                  separatorBuilder: (context, i) =>
+                      Divider(height: 1, color: context.c.outline),
+                  itemBuilder: (context, i) {
+                    final aluno = _alunosSemPlano[i];
+                    final nome = aluno['nome']?.toString() ?? '';
+                    final id = aluno['id']?.toString() ?? '';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.person_outline_rounded,
+                        color: context.c.onSurfaceVariant,
+                      ),
+                      title: Text(
+                        nome,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.c.onSurfaceVariant,
+                      ),
+                      onTap: id.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(ctx).pop();
+                              context.push('/admin/alunos/$id');
+                            },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Recalcula `_cobrancas` (lista do mês navegado, já com status efetivo
@@ -1283,876 +1369,66 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Future<void> _abrirModalCobrancas() async {
     if (_academiaId == null) return;
 
-    List<Map<String, dynamic>> turmasList = [];
-    List<Map<String, dynamic>> todosAlunos = [];
-    List<Map<String, dynamic>> todosPagamentos = [];
-    Set<String> alunosComPlano = {};
-
-    try {
-      final results = await Future.wait([
-        firestoreService.getTurmas(_academiaId!),
-        firestoreService.getAlunos(_academiaId!, ativosOnly: true),
-        firestoreService.getPagamentos(_academiaId!),
-        firestoreService.getAcademia(_academiaId!).catchError((_) => null),
-        firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
-      ]);
-      turmasList = List<Map<String, dynamic>>.from(results[0] as List);
-      todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
-      todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
-      final acadData = results[3] as Map<String, dynamic>? ?? {};
-      final planosModalidadeAtivos = List<Map<String, dynamic>>.from(
-        results[4] as List,
-      );
-      // Mesma regra do backend: aluno sem plano vinculado (legado ou por
-      // modalidade) nunca recebe cobrança automática — a prévia de "Gerar
-      // cobranças" precisa refletir isso, senão mostra um número que o
-      // servidor depois não confirma (ex.: "14 alunos" na prévia, mas só 8
-      // tinham plano e viraram cobrança de verdade).
-      if (acadData['cobranca_por_modalidade_ativa'] == true) {
-        alunosComPlano = planosModalidadeAtivos
-            .map((m) => m['aluno_id']?.toString() ?? '')
-            .toSet();
-      } else {
-        alunosComPlano = todosAlunos
-            .where((a) => (a['plano_id']?.toString() ?? '').trim().isNotEmpty)
-            .map((a) => a['id']?.toString() ?? '')
-            .toSet();
-      }
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_l.fiLoadError),
-            backgroundColor: context.sem.danger,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      return;
-    }
-    if (!mounted) return;
-
-    final alunosComCobrancaMes = _cobrancas
-        .map((c) => c['aluno_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet();
-
-    const statusPriority = {
-      'Atrasado': 3,
-      'Pendente': 2,
-      'Previsto': 1,
-      'Pago': 0,
-    };
-    final statusMap = <String, String>{};
-    final vencMap = <String, DateTime>{};
-    final now = DateTime.now();
-
-    for (final p in todosPagamentos) {
-      final alunoId = p['aluno_id']?.toString() ?? '';
-      if (alunoId.isEmpty) continue;
-      final statusRaw = p['status'];
-      final statusInt = statusRaw is int
-          ? statusRaw
-          : int.tryParse(statusRaw.toString()) ?? 0;
-      final statusStr = _statusMap[statusInt] ?? 'Pendente';
-      DateTime? vencDt;
-      try {
-        vencDt = DateTime.parse(p['data_vencimento']?.toString() ?? '');
-      } catch (_) {}
-
-      final prev = statusMap[alunoId];
-      if (prev == null ||
-          (statusPriority[statusStr] ?? 0) > (statusPriority[prev] ?? 0)) {
-        statusMap[alunoId] = statusStr;
-      }
-      if (vencDt != null) {
-        final existing = vencMap[alunoId];
-        if (existing == null || vencDt.isBefore(existing))
-          vencMap[alunoId] = vencDt;
-      }
-    }
-
-    int step = 0;
-    String mode = 'turma';
-    String? turmaId;
-    String filtro = 'gerar';
-    List<Map<String, dynamic>> previewAlunos = [];
-    List<Map<String, dynamic>> successAlunos = [];
-    bool stepLoading = false;
-
-    List<Map<String, dynamic>> applyFilter(List<Map<String, dynamic>> base) {
-      switch (filtro) {
-        case 'gerar':
-          return base
-              .where(
-                (a) =>
-                    !alunosComCobrancaMes.contains(a['id']?.toString() ?? '') &&
-                    alunosComPlano.contains(a['id']?.toString() ?? ''),
-              )
-              .toList();
-        case 'atrasados':
-          return base
-              .where((a) => statusMap[a['id']?.toString() ?? ''] == 'Atrasado')
-              .toList();
-        case 'pendentes':
-          return base.where((a) {
-            final s = statusMap[a['id']?.toString() ?? ''];
-            return s == 'Pendente' || s == 'Previsto';
-          }).toList();
-        case 'proximo':
-          return base.where((a) {
-            final venc = vencMap[a['id']?.toString() ?? ''];
-            if (venc == null) return false;
-            final diff = venc.difference(now).inDays;
-            return diff >= -1 && diff <= 7;
-          }).toList();
-        default:
-          return base;
-      }
-    }
-
-    final filtroOpcoes = [
-      {
-        'key': 'gerar',
-        'label': _l.fiOptNoChargeMonth,
-        'icon': Icons.add_circle_outline_rounded,
-      },
-      {
-        'key': 'atrasados',
-        'label': _l.fiTabOverdue,
-        'icon': Icons.warning_rounded,
-      },
-      {
-        'key': 'pendentes',
-        'label': _l.fiTabPending,
-        'icon': Icons.schedule_rounded,
-      },
-      {
-        'key': 'proximo',
-        'label': _l.fiOptDueWithin7,
-        'icon': Icons.event_rounded,
-      },
-    ];
-
-    await showModalBottomSheet(
+    final confirmado = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: context.c.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) {
-          final isGerar = filtro == 'gerar';
-
-          final dragHandle = Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: context.c.outline,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.c.surfaceContainer,
+        title: Text(
+          _l.fiGenerateCharges,
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          _l.fiGenerateChargesExplain,
+          style: TextStyle(
+            color: context.c.onSurfaceVariant,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              _l.commonCancel,
+              style: TextStyle(color: context.c.onSurfaceVariant),
             ),
-          );
-
-          // ── Step 0: escolher modo ─────────────────────
-          if (step == 0) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                0,
-                24,
-                MediaQuery.of(ctx).viewInsets.bottom + 32,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  dragHandle,
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_rounded,
-                        color: context.c.primary,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _l.fiGenerateCharges,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _l.fiChooseWhoToCharge,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _modeCard(
-                    icon: Icons.group_rounded,
-                    title: _l.fiByClass,
-                    subtitle: _l.fiByClassHint,
-                    onTap: () => setModal(() {
-                      mode = 'turma';
-                      step = 1;
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                  _modeCard(
-                    icon: Icons.groups_rounded,
-                    title: _l.fiAllActive,
-                    subtitle: _l.fiAllActiveHint,
-                    onTap: () => setModal(() {
-                      mode = 'todos';
-                      step = 1;
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.c.onSurfaceVariant,
-                      side: BorderSide(color: context.c.outline),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(_l.commonCancel),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ── Step 1: turma + filtro ───────────────────
-          if (step == 1) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                0,
-                24,
-                MediaQuery.of(ctx).viewInsets.bottom + 32,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  dragHandle,
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setModal(() => step = 0),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: context.c.onSurface,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        mode == 'turma' ? _l.fiByClass : _l.fiAllActive,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (mode == 'turma') ...[
-                    Text(
-                      'Turma',
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.c.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: context.c.outline),
-                      ),
-                      child: DropdownButton<String>(
-                        value: turmaId,
-                        isExpanded: true,
-                        dropdownColor: context.c.surfaceContainer,
-                        underline: const SizedBox(),
-                        hint: Text(
-                          _l.fiSelectClass,
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 13,
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: context.c.onSurfaceVariant,
-                        ),
-                        items: turmasList
-                            .map(
-                              (t) => DropdownMenuItem<String>(
-                                value: t['id']?.toString(),
-                                child: Text(
-                                  t['nome']?.toString() ?? '',
-                                  style: TextStyle(
-                                    color: context.c.onSurface,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setModal(() => turmaId = v),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Text(
-                    _l.fiFilterBySituation,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: filtroOpcoes.map((f) {
-                      final sel = filtro == f['key'];
-                      return GestureDetector(
-                        onTap: () =>
-                            setModal(() => filtro = f['key'] as String),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: sel ? context.c.primary : context.c.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: sel
-                                  ? context.c.primary
-                                  : context.c.outline,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                f['icon'] as IconData,
-                                size: 13,
-                                color: sel
-                                    ? Colors.white
-                                    : context.c.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                f['label'] as String,
-                                style: TextStyle(
-                                  color: sel
-                                      ? Colors.white
-                                      : context.c.onSurfaceVariant,
-                                  fontSize: 12,
-                                  fontWeight: sel
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed:
-                        (mode == 'turma' && turmaId == null) || stepLoading
-                        ? null
-                        : () async {
-                            setModal(() => stepLoading = true);
-                            List<Map<String, dynamic>> base = todosAlunos;
-                            if (mode == 'turma' && turmaId != null) {
-                              try {
-                                final matriculas = await firestoreService
-                                    .getMatriculas(
-                                      _academiaId!,
-                                      turmaId: turmaId!,
-                                      ativasOnly: true,
-                                    );
-                                final ids = matriculas
-                                    .map((m) => m['aluno_id']?.toString() ?? '')
-                                    .where((id) => id.isNotEmpty)
-                                    .toSet();
-                                base = todosAlunos
-                                    .where(
-                                      (a) => ids.contains(
-                                        a['id']?.toString() ?? '',
-                                      ),
-                                    )
-                                    .toList();
-                              } catch (_) {
-                                base = [];
-                              }
-                            }
-                            final prev = applyFilter(base);
-                            setModal(() {
-                              previewAlunos = prev;
-                              stepLoading = false;
-                              step = 2;
-                            });
-                          },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: context.c.primary,
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      disabledBackgroundColor: context.c.primary.withOpacity(
-                        0.3,
-                      ),
-                    ),
-                    child: stepLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            _l.fiSeeAffected,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => setModal(() => step = 0),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.c.onSurfaceVariant,
-                      side: BorderSide(color: context.c.outline),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(_l.commonBack),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ── Step 2: preview ──────────────────────────
-          if (step == 2) {
-            final count = previewAlunos.length;
-            final actionLabel = isGerar
-                ? _l.fiGenerateNCharges(count)
-                : _l.fiChargeViaWhatsappN(count);
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                dragHandle,
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setModal(() => step = 1),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: context.c.onSurface,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _l.fiAffectedStudents(count),
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (previewAlunos.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: context.sem.success,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _l.fiNoStudentsForFilter,
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(ctx).size.height * 0.35,
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      itemCount: previewAlunos.length,
-                      itemBuilder: (_, i) {
-                        final a = previewAlunos[i];
-                        final nome = a['nome']?.toString() ?? '';
-                        final tel = a['telefone']?.toString() ?? '';
-                        final s = statusMap[a['id']?.toString() ?? ''];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: context.c.primary.withOpacity(
-                                  0.15,
-                                ),
-                                child: Text(
-                                  nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      nome,
-                                      style: TextStyle(
-                                        color: context.c.onSurface,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (s != null && !isGerar)
-                                      Text(
-                                        s,
-                                        style: TextStyle(
-                                          color: _statusCor(s),
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (!isGerar &&
-                                  tel.replaceAll(RegExp(r'\D'), '').length >=
-                                      10)
-                                const FaIcon(
-                                  FontAwesomeIcons.whatsapp,
-                                  color: Color(0xFF25D366),
-                                  size: 16,
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    12,
-                    24,
-                    MediaQuery.of(ctx).viewInsets.bottom + 32,
-                  ),
-                  child: Column(
-                    children: [
-                      if (previewAlunos.isNotEmpty)
-                        FilledButton(
-                          onPressed: stepLoading
-                              ? null
-                              : () async {
-                                  setModal(() => stepLoading = true);
-                                  try {
-                                    if (isGerar) {
-                                      // Ferramenta manual/excepcional: usa o
-                                      // mesmo caminho idempotente e
-                                      // server-side da garantia automática —
-                                      // nunca duplica nem sobrescreve
-                                      // cobrança já existente na competência.
-                                      final periodo =
-                                          '$_ano-${_mes.toString().padLeft(2, '0')}';
-                                      await financeService.ensureChargesForPeriod(
-                                        academiaId: _academiaId!,
-                                        period: periodo,
-                                      );
-                                      _load();
-                                    }
-                                    successAlunos = previewAlunos;
-                                    setModal(() {
-                                      stepLoading = false;
-                                      step = 3;
-                                    });
-                                  } catch (_) {
-                                    setModal(() => stepLoading = false);
-                                    if (mounted)
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(_l.fiProcessError),
-                                          backgroundColor: context.sem.danger,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                  }
-                                },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: isGerar
-                                ? context.c.primary
-                                : const Color(0xFF25D366),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: stepLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  actionLabel,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                        ),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: () => setModal(() {
-                          step = 1;
-                          stepLoading = false;
-                        }),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: context.c.onSurfaceVariant,
-                          side: BorderSide(color: context.c.outline),
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(_l.commonBack),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }
-
-          // ── Step 3: sucesso + WhatsApp ───────────────
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              0,
-              24,
-              MediaQuery.of(ctx).viewInsets.bottom + 32,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                dragHandle,
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color:
-                              (isGerar
-                                      ? context.sem.success
-                                      : const Color(0xFF25D366))
-                                  .withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: isGerar
-                            ? Icon(
-                                Icons.check_circle_rounded,
-                                color: context.sem.success,
-                                size: 32,
-                              )
-                            : const FaIcon(
-                                FontAwesomeIcons.whatsapp,
-                                color: Color(0xFF25D366),
-                                size: 32,
-                              ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        isGerar
-                            ? _l.fiNChargesGenerated(successAlunos.length)
-                            : _l.fiReadyForWhatsapp,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _l.fiTapEachStudent,
-                        style: TextStyle(
-                          color: context.c.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...successAlunos.map((a) {
-                  final nome = a['nome']?.toString() ?? '';
-                  final tel = a['telefone']?.toString() ?? '';
-                  final hasTel = tel.replaceAll(RegExp(r'\D'), '').length >= 10;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: hasTel ? () => _abrirWhatsApp(tel, nome) : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: hasTel
-                              ? const Color(0xFF25D366).withOpacity(0.08)
-                              : context.c.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: hasTel
-                                ? const Color(0xFF25D366).withOpacity(0.3)
-                                : context.c.outline,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: context.c.primary.withOpacity(
-                                0.15,
-                              ),
-                              child: Text(
-                                nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                                style: TextStyle(
-                                  color: context.c.primary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                nome,
-                                style: TextStyle(
-                                  color: context.c.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            if (hasTel)
-                              Icon(
-                                Icons.chat_rounded,
-                                color: const Color(0xFF25D366),
-                                size: 20,
-                              )
-                            else
-                              Text(
-                                _l.fiNoPhone,
-                                style: TextStyle(
-                                  color: context.c.onSurfaceVariant,
-                                  fontSize: 11,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: context.c.primary,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    _l.commonClose,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_l.fiGenerateCharges),
+          ),
+        ],
       ),
     );
+    if (confirmado != true || !mounted || _academiaId == null) return;
+
+    try {
+      final resultado = await financeService.ensureChargesForNextMonths(
+        academiaId: _academiaId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiGenerateChargesSuccess(resultado.totalCriadas)),
+          backgroundColor: context.sem.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_l.fiProcessError),
+          backgroundColor: context.sem.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   /// Marca todas as cobranças selecionadas no modo de seleção como pagas
@@ -3070,7 +2346,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       ],
                     ),
                   ),
-                if (_alunosSemPlano > 0)
+                if (_alunosSemPlano.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -3106,11 +2382,26 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    _l.fiStudentsWithoutPlanBody(_alunosSemPlano),
+                                    _l.fiStudentsWithoutPlanBody(
+                                      _alunosSemPlano.length,
+                                    ),
                                     style: TextStyle(
                                       color: context.c.onSurface,
                                       fontSize: 12.5,
                                       height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: _abrirAlunosSemPlano,
+                                    child: Text(
+                                      _l.fiStudentsWithoutPlanSeeWho,
+                                      style: TextStyle(
+                                        color: context.sem.warning,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -3672,66 +2963,6 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               ], // end else
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _modeCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.c.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.c.outline),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: context.c.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: context.c.primary, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: context.c.onSurface,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: context.c.onSurfaceVariant,
-              size: 14,
-            ),
-          ],
         ),
       ),
     );

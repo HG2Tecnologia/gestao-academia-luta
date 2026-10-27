@@ -2643,7 +2643,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiDismiss => 'Dismiss';
 
   @override
+  String get fiGenerateChargesExplain =>
+      'Generates charges for the current month + the next 12, for every active student with a plan who doesn\'t have a charge for that month yet. Students who already have a charge are untouched — idempotent, safe to run as many times as you want.';
+
+  @override
+  String fiGenerateChargesSuccess(int n) {
+    return '$n charge(s) generated.';
+  }
+
+  @override
   String get fiStudentsWithoutPlanTitle => 'Students without a plan';
+
+  @override
+  String get fiStudentsWithoutPlanSeeWho => 'See who';
 
   @override
   String fiStudentsWithoutPlanBody(int n) {

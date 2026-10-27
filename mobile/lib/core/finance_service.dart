@@ -6,6 +6,11 @@ class ResultadoGarantiaCobrancas {
   final int ignoradas;
 }
 
+class ResultadoGarantiaProximosMeses {
+  const ResultadoGarantiaProximosMeses({required this.totalCriadas});
+  final int totalCriadas;
+}
+
 class ResultadoLimpezaRetroativa {
   const ResultadoLimpezaRetroativa({
     required this.desconsideradas,
@@ -60,6 +65,22 @@ class FinanceService {
     return ResultadoGarantiaCobrancas(
       criadas: criadas is num ? criadas.toInt() : 0,
       ignoradas: ignoradas is num ? ignoradas.toInt() : 0,
+    );
+  }
+
+  /// Versão "um clique" do botão "Gerar cobranças": garante a competência
+  /// atual + 12 meses seguintes de uma vez, pra todos os alunos com plano
+  /// vinculado — não exige escolher turma nem navegar mês a mês.
+  Future<ResultadoGarantiaProximosMeses> ensureChargesForNextMonths({
+    required String academiaId,
+  }) async {
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('ensureChargesForNextMonths')
+        .call({'academiaId': academiaId});
+    final data = result.data;
+    final totalCriadas = data is Map ? data['totalCriadas'] : null;
+    return ResultadoGarantiaProximosMeses(
+      totalCriadas: totalCriadas is num ? totalCriadas.toInt() : 0,
     );
   }
 

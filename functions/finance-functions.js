@@ -226,6 +226,37 @@ exports.ensureChargesForPeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (reques
   return { ok: true, ...result };
 });
 
+/**
+ * Versão "um clique" chamada pelo botão "Gerar cobranças" do app: garante a
+ * competência atual + 12 meses seguintes de uma vez, pra todos os alunos com
+ * plano vinculado — mesma regra de elegibilidade e mesma função usada pelo
+ * job diário, só que disparada na hora, sob demanda.
+ */
+exports.ensureChargesForNextMonths = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de gerar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await ensureChargesForNextMonths(academiaId);
+
+  logger.info("Mensalidades garantidas (atual+12 meses)", {
+    academiaId,
+    ...result,
+    chamadoPor: request.auth.uid,
+  });
+  return { ok: true, ...result };
+});
+
 const MESES_GERACAO_ANTECIPADA = 12;
 
 function periodoAtualHoje() {

@@ -857,7 +857,15 @@
   "fiAllActiveHint": "Charge all active students in the academy",
   "fiRefundShort": "Reverse",
   "fiDismiss": "Dismiss",
+  "fiGenerateChargesExplain": "Generates charges for the current month + the next 12, for every active student with a plan who doesn't have a charge for that month yet. Students who already have a charge are untouched — idempotent, safe to run as many times as you want.",
+  "fiGenerateChargesSuccess": "{n} charge(s) generated.",
+  "@fiGenerateChargesSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
   "fiStudentsWithoutPlanTitle": "Students without a plan",
+  "fiStudentsWithoutPlanSeeWho": "See who",
   "fiStudentsWithoutPlanBody": "{n} active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.",
   "@fiStudentsWithoutPlanBody": {
     "placeholders": {
