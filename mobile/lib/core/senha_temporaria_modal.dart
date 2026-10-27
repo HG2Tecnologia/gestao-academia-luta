@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -156,9 +157,16 @@ Future<bool> _executarSenhaTemporaria(
     );
   } catch (e) {
     navigator.pop(); // fecha o loading
+    // `'$e'` num FirebaseFunctionsException inclui o stack trace inteiro do
+    // pigeon/method channel (bug conhecido do toString() do plugin) — isso
+    // vazava pra academia como um textão técnico ilegível. `e.message` é só
+    // a mensagem humana que o servidor mandou.
+    final mensagem = e is FirebaseFunctionsException
+        ? (e.message ?? e.code)
+        : '$e';
     messenger.showSnackBar(
       SnackBar(
-        content: Text(erroPrefixo('$e')),
+        content: Text(erroPrefixo(mensagem)),
         backgroundColor: context.sem.danger,
         behavior: SnackBarBehavior.floating,
       ),
