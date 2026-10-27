@@ -6713,7 +6713,7 @@ abstract class AppLocalizations {
   /// No description provided for @grauColoridoStep3Body.
   ///
   /// In pt, this message translates to:
-  /// **'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
+  /// **'Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
   String get grauColoridoStep3Body;
 
   /// No description provided for @cfgManualCheckinWindowMinutes.

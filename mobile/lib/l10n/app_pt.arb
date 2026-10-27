@@ -1918,7 +1918,7 @@
   "grauColoridoStep2Title": "As cores vêm em sequência",
   "grauColoridoStep2Body": "Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.",
   "grauColoridoStep3Title": "Configure isso por faixa",
-  "grauColoridoStep3Body": "Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
+  "grauColoridoStep3Body": "Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
   "cfgManualCheckinWindowMinutes": "{min}min",
   "@cfgManualCheckinWindowMinutes": {
     "placeholders": {

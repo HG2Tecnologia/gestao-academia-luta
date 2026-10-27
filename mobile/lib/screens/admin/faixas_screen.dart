@@ -1504,6 +1504,47 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                 onChanged: (v) => setState(() => _temGraus = v),
                 activeColor: context.c.primary,
               ),
+              // Fica visível assim que o switch "pai" (Configurações) está
+              // ligado, SEM depender de "Tem graus" já estar ativo — antes
+              // ficava escondido dentro do `if (_temGraus)` abaixo, e o
+              // texto de ajuda dizia "vá na faixa, ligue graus coloridos"
+              // sem avisar que era preciso ligar "Tem graus" primeiro (bug
+              // reportado: a opção simplesmente não aparecia). Ligar
+              // "Graus coloridos" aqui já liga "Tem graus" junto, porque um
+              // implica o outro.
+              if (widget.grausColoridosDisponivel) ...[
+                const SizedBox(height: 10),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: Row(
+                    children: [
+                      Text(
+                        _l.fxColoredDegrees,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const AjudaGrausColoridosButton(),
+                    ],
+                  ),
+                  subtitle: Text(
+                    _l.fxColoredDegreesSub,
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                  value: _grausColoridosAtivo,
+                  onChanged: (v) => setState(() {
+                    _grausColoridosAtivo = v;
+                    if (v) _temGraus = true;
+                  }),
+                  activeColor: context.c.primary,
+                ),
+              ],
               if (_temGraus) ...[
                 const SizedBox(height: 8),
                 _Label(_l.fxMaxDegrees),
@@ -1534,34 +1575,6 @@ class _FaixaFormSheetState extends State<_FaixaFormSheet> {
                   onSelecionar: (hex) => setState(() => _corBarra = hex),
                 ),
                 if (widget.grausColoridosDisponivel) ...[
-                  const SizedBox(height: 18),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: Row(
-                      children: [
-                        Text(
-                          _l.fxColoredDegrees,
-                          style: TextStyle(
-                            color: context.c.onSurface,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const AjudaGrausColoridosButton(),
-                      ],
-                    ),
-                    subtitle: Text(
-                      _l.fxColoredDegreesSub,
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                    value: _grausColoridosAtivo,
-                    onChanged: (v) => setState(() => _grausColoridosAtivo = v),
-                    activeColor: context.c.primary,
-                  ),
                   if (_grausColoridosAtivo) ...[
                     const SizedBox(height: 10),
                     SingleChildScrollView(

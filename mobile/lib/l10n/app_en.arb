@@ -1365,7 +1365,7 @@
   "grauColoridoStep2Title": "Colors come in sequence",
   "grauColoridoStep2Body": "Never one color on top of another. E.g. with 12 degrees and white/red/yellow — the student first earns degrees 1 through 4, all white. Only after that come degrees 5 through 8, red. And only after that come degrees 9 through 12, yellow. At the 12th, they move to the next belt.",
   "grauColoridoStep3Title": "Set this up per belt",
-  "grauColoridoStep3Body": "Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.",
+  "grauColoridoStep3Body": "Go to Belt Management → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.",
   "cfgManualCheckinWindowMinutes": "{min}min",
   "@cfgManualCheckinWindowMinutes": {
     "placeholders": {

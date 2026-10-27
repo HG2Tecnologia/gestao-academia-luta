@@ -3804,7 +3804,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get grauColoridoStep3Body =>
-      'Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
+      'Go to Belt Management → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {

@@ -3806,7 +3806,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get grauColoridoStep3Body =>
-      'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.';
+      'Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {
