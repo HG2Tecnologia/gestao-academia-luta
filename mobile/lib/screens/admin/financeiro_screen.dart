@@ -142,13 +142,12 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   int _taxaAtrasoTipo = 0;
   double _taxaAtrasoValor = 0.0;
 
-  static const _statusMap = {
-    0: 'Pendente',
-    1: 'Pago',
-    2: 'Atrasado',
-    3: 'Previsto',
-    4: 'Desconsiderado',
-  };
+  // Alunos ativos elegíveis a NUNCA receber cobrança automática porque não
+  // têm nenhum plano vinculado (nem `plano_id` legado, nem matrícula ativa
+  // em `planos_modalidade`) — mostrado como aviso pra equipe notar e
+  // corrigir, em vez de ficar invisível pra sempre.
+  List<Map<String, dynamic>> _alunosSemPlano = [];
+  bool _avisoAlunosSemPlanoFechado = false;
 
   @override
   void initState() {
@@ -246,6 +245,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
         firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
         firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getAlunos(_academiaId!, ativosOnly: true).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
@@ -258,11 +259,28 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         for (final p in results[3] as List<Map<String, dynamic>>)
           (p['id'] ?? '').toString(): p,
       };
+      final alunosAtivos = results[4] as List<Map<String, dynamic>>;
+      final planosModalidadeAtivos = results[5] as List<Map<String, dynamic>>;
 
       _taxaAtrasoAtiva = acadData['taxa_atraso_ativa'] as bool? ?? false;
       _taxaAtrasoTipo = (acadData['taxa_atraso_tipo'] as num?)?.toInt() ?? 0;
       _taxaAtrasoValor =
           (acadData['taxa_atraso_valor'] as num?)?.toDouble() ?? 0.0;
+
+      final cobrancaPorModalidade =
+          acadData['cobranca_por_modalidade_ativa'] == true;
+      if (cobrancaPorModalidade) {
+        final alunosComMatricula = planosModalidadeAtivos
+            .map((m) => m['aluno_id']?.toString() ?? '')
+            .toSet();
+        _alunosSemPlano = alunosAtivos
+            .where((a) => !alunosComMatricula.contains(a['id']?.toString()))
+            .toList();
+      } else {
+        _alunosSemPlano = alunosAtivos
+            .where((a) => (a['plano_id']?.toString() ?? '').trim().isEmpty)
+            .toList();
+      }
 
       _todosPagamentos = todos;
       if (mounted) setState(_recomputarDerivados);
@@ -270,6 +288,100 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Abre a lista de alunos sem plano configurado (vindos do aviso no topo
+  /// do Financeiro) com um atalho pra abrir o perfil de cada um e vincular
+  /// um plano.
+  void _abrirAlunosSemPlano() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.c.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: context.c.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                _l.fiStudentsWithoutPlanTitle,
+                style: TextStyle(
+                  color: context.c.onSurface,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _l.fiStudentsWithoutPlanBody(_alunosSemPlano.length),
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant,
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: _alunosSemPlano.length,
+                  separatorBuilder: (context, i) =>
+                      Divider(height: 1, color: context.c.outline),
+                  itemBuilder: (context, i) {
+                    final aluno = _alunosSemPlano[i];
+                    final nome = aluno['nome']?.toString() ?? '';
+                    final id = aluno['id']?.toString() ?? '';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.person_outline_rounded,
+                        color: context.c.onSurfaceVariant,
+                      ),
+                      title: Text(
+                        nome,
+                        style: TextStyle(
+                          color: context.c.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.c.onSurfaceVariant,
+                      ),
+                      onTap: id.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(ctx).pop();
+                              context.push('/admin/alunos/$id');
+                            },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Recalcula `_cobrancas` (lista do mês navegado, já com status efetivo
@@ -1008,6 +1120,74 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   /// resquício do bug em que dois caminhos diferentes geravam a cobrança do
   /// mês com IDs diferentes. Resolve sozinho os casos inequívocos; grupo com
   /// 2+ pagas fica de fora, para revisão manual.
+  /// Mostra o dialog final de confirmação de uma ação do Financeiro e, ao
+  /// confirmar, substitui os botões por um spinner enquanto `acao` roda —
+  /// sem isso, o único feedback era o snackbar de sucesso, que só aparece
+  /// bem depois, dando a impressão de que o toque não fez nada.
+  Future<void> _confirmarComLoading({
+    required String titulo,
+    required Widget corpo,
+    required String labelConfirmar,
+    Color? corConfirmar,
+    required Future<void> Function() acao,
+  }) async {
+    var loading = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => PopScope(
+          canPop: !loading,
+          child: AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              titulo,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: corpo,
+            actions: loading
+                ? [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
+                  ]
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        _l.commonCancel,
+                        style: TextStyle(color: context.c.onSurfaceVariant),
+                      ),
+                    ),
+                    FilledButton(
+                      style: corConfirmar != null
+                          ? FilledButton.styleFrom(
+                              backgroundColor: corConfirmar,
+                            )
+                          : null,
+                      onPressed: () async {
+                        setDialogState(() => loading = true);
+                        await acao();
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      child: Text(labelConfirmar),
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _abrirCorrigirDuplicatas() async {
     if (_academiaId == null) return;
 
@@ -1030,55 +1210,44 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (confirmado != true || !mounted) return;
 
-    final confirmadoDeVerdade = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiMergeDuplicatesConfirmTitle),
-        content: Text(_l.fiMergeDuplicatesConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiMergeDuplicatesButton),
-          ),
-        ],
-      ),
-    );
-    if (confirmadoDeVerdade != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.mergeDuplicateCharges(
-        academiaId: _academiaId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiMergeDuplicatesSuccess(
-              resultado.gruposComDuplicata,
-              resultado.resolvidasAutomaticamente,
-              resultado.ignoradasRevisaoManual,
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiMergeDuplicatesConfirmTitle,
+      corpo: Text(_l.fiMergeDuplicatesConfirmBody),
+      labelConfirmar: _l.fiMergeDuplicatesButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.mergeDuplicateCharges(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiMergeDuplicatesSuccess(
+                  resultado.gruposComDuplicata,
+                  resultado.resolvidasAutomaticamente,
+                  resultado.ignoradasRevisaoManual,
+                ),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiMergeDuplicatesError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiMergeDuplicatesError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   /// Complementar à correção de duplicatas: limpa cobrança pendente ÚNICA
@@ -1107,54 +1276,43 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (confirmado != true || !mounted) return;
 
-    final confirmadoDeVerdade = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiCleanOrphansConfirmTitle),
-        content: Text(_l.fiCleanOrphansConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiCleanOrphansButton),
-          ),
-        ],
-      ),
-    );
-    if (confirmadoDeVerdade != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.limparCobrancasOrfas(
-        academiaId: _academiaId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiCleanOrphansSuccess(
-              resultado.cobrancasAnalisadas,
-              resultado.cobrancasCanceladas,
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiCleanOrphansConfirmTitle,
+      corpo: Text(_l.fiCleanOrphansConfirmBody),
+      labelConfirmar: _l.fiCleanOrphansButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.limparCobrancasOrfas(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiCleanOrphansSuccess(
+                  resultado.cobrancasAnalisadas,
+                  resultado.cobrancasCanceladas,
+                ),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiCleanOrphansError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiCleanOrphansError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   /// Ferramenta de "limpeza" — desconsidera em massa toda pendência/atraso
@@ -1249,903 +1407,80 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (corte == null || !mounted) return;
 
     final confirmMesLabel = mesLabel(ano, mes);
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiCleanupRetroactiveConfirmTitle),
-        content: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiCleanupRetroactiveButton),
-          ),
-        ],
-      ),
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiCleanupRetroactiveConfirmTitle,
+      corpo: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
+      labelConfirmar: _l.fiCleanupRetroactiveButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.disregardChargesBeforePeriod(
+            academiaId: _academiaId!,
+            period: corte,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiCleanupRetroactiveError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
     );
-    if (confirmado != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.disregardChargesBeforePeriod(
-        academiaId: _academiaId!,
-        period: corte,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiCleanupRetroactiveError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   Future<void> _abrirModalCobrancas() async {
     if (_academiaId == null) return;
 
-    List<Map<String, dynamic>> turmasList = [];
-    List<Map<String, dynamic>> todosAlunos = [];
-    List<Map<String, dynamic>> todosPagamentos = [];
-
-    try {
-      final results = await Future.wait([
-        firestoreService.getTurmas(_academiaId!),
-        firestoreService.getAlunos(_academiaId!, ativosOnly: true),
-        firestoreService.getPagamentos(_academiaId!),
-      ]);
-      turmasList = List<Map<String, dynamic>>.from(results[0] as List);
-      todosAlunos = List<Map<String, dynamic>>.from(results[1] as List);
-      todosPagamentos = List<Map<String, dynamic>>.from(results[2] as List);
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_l.fiLoadError),
-            backgroundColor: context.sem.danger,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      return;
-    }
-    if (!mounted) return;
-
-    final alunosComCobrancaMes = _cobrancas
-        .map((c) => c['aluno_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet();
-
-    const statusPriority = {
-      'Atrasado': 3,
-      'Pendente': 2,
-      'Previsto': 1,
-      'Pago': 0,
-    };
-    final statusMap = <String, String>{};
-    final vencMap = <String, DateTime>{};
-    final now = DateTime.now();
-
-    for (final p in todosPagamentos) {
-      final alunoId = p['aluno_id']?.toString() ?? '';
-      if (alunoId.isEmpty) continue;
-      final statusRaw = p['status'];
-      final statusInt = statusRaw is int
-          ? statusRaw
-          : int.tryParse(statusRaw.toString()) ?? 0;
-      final statusStr = _statusMap[statusInt] ?? 'Pendente';
-      DateTime? vencDt;
-      try {
-        vencDt = DateTime.parse(p['data_vencimento']?.toString() ?? '');
-      } catch (_) {}
-
-      final prev = statusMap[alunoId];
-      if (prev == null ||
-          (statusPriority[statusStr] ?? 0) > (statusPriority[prev] ?? 0)) {
-        statusMap[alunoId] = statusStr;
-      }
-      if (vencDt != null) {
-        final existing = vencMap[alunoId];
-        if (existing == null || vencDt.isBefore(existing))
-          vencMap[alunoId] = vencDt;
-      }
-    }
-
-    int step = 0;
-    String mode = 'turma';
-    String? turmaId;
-    String filtro = 'gerar';
-    List<Map<String, dynamic>> previewAlunos = [];
-    List<Map<String, dynamic>> successAlunos = [];
-    bool stepLoading = false;
-
-    List<Map<String, dynamic>> applyFilter(List<Map<String, dynamic>> base) {
-      switch (filtro) {
-        case 'gerar':
-          return base
-              .where(
-                (a) =>
-                    !alunosComCobrancaMes.contains(a['id']?.toString() ?? ''),
-              )
-              .toList();
-        case 'atrasados':
-          return base
-              .where((a) => statusMap[a['id']?.toString() ?? ''] == 'Atrasado')
-              .toList();
-        case 'pendentes':
-          return base.where((a) {
-            final s = statusMap[a['id']?.toString() ?? ''];
-            return s == 'Pendente' || s == 'Previsto';
-          }).toList();
-        case 'proximo':
-          return base.where((a) {
-            final venc = vencMap[a['id']?.toString() ?? ''];
-            if (venc == null) return false;
-            final diff = venc.difference(now).inDays;
-            return diff >= -1 && diff <= 7;
-          }).toList();
-        default:
-          return base;
-      }
-    }
-
-    final filtroOpcoes = [
-      {
-        'key': 'gerar',
-        'label': _l.fiOptNoChargeMonth,
-        'icon': Icons.add_circle_outline_rounded,
-      },
-      {
-        'key': 'atrasados',
-        'label': _l.fiTabOverdue,
-        'icon': Icons.warning_rounded,
-      },
-      {
-        'key': 'pendentes',
-        'label': _l.fiTabPending,
-        'icon': Icons.schedule_rounded,
-      },
-      {
-        'key': 'proximo',
-        'label': _l.fiOptDueWithin7,
-        'icon': Icons.event_rounded,
-      },
-    ];
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.c.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    await _confirmarComLoading(
+      titulo: _l.fiGenerateCharges,
+      corpo: Text(
+        _l.fiGenerateChargesExplain,
+        style: TextStyle(color: context.c.onSurfaceVariant, height: 1.4),
       ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) {
-          final isGerar = filtro == 'gerar';
-
-          final dragHandle = Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: context.c.outline,
-                borderRadius: BorderRadius.circular(2),
+      labelConfirmar: _l.fiGenerateCharges,
+      acao: () async {
+        try {
+          final resultado = await financeService.ensureChargesForNextMonths(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiGenerateChargesSuccess(resultado.totalCriadas),
               ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
             ),
           );
-
-          // ── Step 0: escolher modo ─────────────────────
-          if (step == 0) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                0,
-                24,
-                MediaQuery.of(ctx).viewInsets.bottom + 32,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  dragHandle,
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_rounded,
-                        color: context.c.primary,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _l.fiGenerateCharges,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _l.fiChooseWhoToCharge,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _modeCard(
-                    icon: Icons.group_rounded,
-                    title: _l.fiByClass,
-                    subtitle: _l.fiByClassHint,
-                    onTap: () => setModal(() {
-                      mode = 'turma';
-                      step = 1;
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                  _modeCard(
-                    icon: Icons.groups_rounded,
-                    title: _l.fiAllActive,
-                    subtitle: _l.fiAllActiveHint,
-                    onTap: () => setModal(() {
-                      mode = 'todos';
-                      step = 1;
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.c.onSurfaceVariant,
-                      side: BorderSide(color: context.c.outline),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(_l.commonCancel),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ── Step 1: turma + filtro ───────────────────
-          if (step == 1) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                0,
-                24,
-                MediaQuery.of(ctx).viewInsets.bottom + 32,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  dragHandle,
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setModal(() => step = 0),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: context.c.onSurface,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        mode == 'turma' ? _l.fiByClass : _l.fiAllActive,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (mode == 'turma') ...[
-                    Text(
-                      'Turma',
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.c.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: context.c.outline),
-                      ),
-                      child: DropdownButton<String>(
-                        value: turmaId,
-                        isExpanded: true,
-                        dropdownColor: context.c.surfaceContainer,
-                        underline: const SizedBox(),
-                        hint: Text(
-                          _l.fiSelectClass,
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 13,
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: context.c.onSurfaceVariant,
-                        ),
-                        items: turmasList
-                            .map(
-                              (t) => DropdownMenuItem<String>(
-                                value: t['id']?.toString(),
-                                child: Text(
-                                  t['nome']?.toString() ?? '',
-                                  style: TextStyle(
-                                    color: context.c.onSurface,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setModal(() => turmaId = v),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Text(
-                    _l.fiFilterBySituation,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: filtroOpcoes.map((f) {
-                      final sel = filtro == f['key'];
-                      return GestureDetector(
-                        onTap: () =>
-                            setModal(() => filtro = f['key'] as String),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: sel ? context.c.primary : context.c.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: sel
-                                  ? context.c.primary
-                                  : context.c.outline,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                f['icon'] as IconData,
-                                size: 13,
-                                color: sel
-                                    ? Colors.white
-                                    : context.c.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                f['label'] as String,
-                                style: TextStyle(
-                                  color: sel
-                                      ? Colors.white
-                                      : context.c.onSurfaceVariant,
-                                  fontSize: 12,
-                                  fontWeight: sel
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed:
-                        (mode == 'turma' && turmaId == null) || stepLoading
-                        ? null
-                        : () async {
-                            setModal(() => stepLoading = true);
-                            List<Map<String, dynamic>> base = todosAlunos;
-                            if (mode == 'turma' && turmaId != null) {
-                              try {
-                                final matriculas = await firestoreService
-                                    .getMatriculas(
-                                      _academiaId!,
-                                      turmaId: turmaId!,
-                                      ativasOnly: true,
-                                    );
-                                final ids = matriculas
-                                    .map((m) => m['aluno_id']?.toString() ?? '')
-                                    .where((id) => id.isNotEmpty)
-                                    .toSet();
-                                base = todosAlunos
-                                    .where(
-                                      (a) => ids.contains(
-                                        a['id']?.toString() ?? '',
-                                      ),
-                                    )
-                                    .toList();
-                              } catch (_) {
-                                base = [];
-                              }
-                            }
-                            final prev = applyFilter(base);
-                            setModal(() {
-                              previewAlunos = prev;
-                              stepLoading = false;
-                              step = 2;
-                            });
-                          },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: context.c.primary,
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      disabledBackgroundColor: context.c.primary.withOpacity(
-                        0.3,
-                      ),
-                    ),
-                    child: stepLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            _l.fiSeeAffected,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => setModal(() => step = 0),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.c.onSurfaceVariant,
-                      side: BorderSide(color: context.c.outline),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(_l.commonBack),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ── Step 2: preview ──────────────────────────
-          if (step == 2) {
-            final count = previewAlunos.length;
-            final actionLabel = isGerar
-                ? _l.fiGenerateNCharges(count)
-                : _l.fiChargeViaWhatsappN(count);
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                dragHandle,
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => setModal(() => step = 1),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: context.c.onSurface,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _l.fiAffectedStudents(count),
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (previewAlunos.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: context.sem.success,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _l.fiNoStudentsForFilter,
-                          style: TextStyle(
-                            color: context.c.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(ctx).size.height * 0.35,
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      itemCount: previewAlunos.length,
-                      itemBuilder: (_, i) {
-                        final a = previewAlunos[i];
-                        final nome = a['nome']?.toString() ?? '';
-                        final tel = a['telefone']?.toString() ?? '';
-                        final s = statusMap[a['id']?.toString() ?? ''];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: context.c.primary.withOpacity(
-                                  0.15,
-                                ),
-                                child: Text(
-                                  nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      nome,
-                                      style: TextStyle(
-                                        color: context.c.onSurface,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (s != null && !isGerar)
-                                      Text(
-                                        s,
-                                        style: TextStyle(
-                                          color: _statusCor(s),
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (!isGerar &&
-                                  tel.replaceAll(RegExp(r'\D'), '').length >=
-                                      10)
-                                const FaIcon(
-                                  FontAwesomeIcons.whatsapp,
-                                  color: Color(0xFF25D366),
-                                  size: 16,
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    12,
-                    24,
-                    MediaQuery.of(ctx).viewInsets.bottom + 32,
-                  ),
-                  child: Column(
-                    children: [
-                      if (previewAlunos.isNotEmpty)
-                        FilledButton(
-                          onPressed: stepLoading
-                              ? null
-                              : () async {
-                                  setModal(() => stepLoading = true);
-                                  try {
-                                    if (isGerar) {
-                                      // Ferramenta manual/excepcional: usa o
-                                      // mesmo caminho idempotente e
-                                      // server-side da garantia automática —
-                                      // nunca duplica nem sobrescreve
-                                      // cobrança já existente na competência.
-                                      final periodo =
-                                          '$_ano-${_mes.toString().padLeft(2, '0')}';
-                                      await financeService.ensureChargesForPeriod(
-                                        academiaId: _academiaId!,
-                                        period: periodo,
-                                      );
-                                      _load();
-                                    }
-                                    successAlunos = previewAlunos;
-                                    setModal(() {
-                                      stepLoading = false;
-                                      step = 3;
-                                    });
-                                  } catch (_) {
-                                    setModal(() => stepLoading = false);
-                                    if (mounted)
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(_l.fiProcessError),
-                                          backgroundColor: context.sem.danger,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                  }
-                                },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: isGerar
-                                ? context.c.primary
-                                : const Color(0xFF25D366),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: stepLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  actionLabel,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                        ),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: () => setModal(() {
-                          step = 1;
-                          stepLoading = false;
-                        }),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: context.c.onSurfaceVariant,
-                          side: BorderSide(color: context.c.outline),
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(_l.commonBack),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }
-
-          // ── Step 3: sucesso + WhatsApp ───────────────
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              0,
-              24,
-              MediaQuery.of(ctx).viewInsets.bottom + 32,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                dragHandle,
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color:
-                              (isGerar
-                                      ? context.sem.success
-                                      : const Color(0xFF25D366))
-                                  .withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: isGerar
-                            ? Icon(
-                                Icons.check_circle_rounded,
-                                color: context.sem.success,
-                                size: 32,
-                              )
-                            : const FaIcon(
-                                FontAwesomeIcons.whatsapp,
-                                color: Color(0xFF25D366),
-                                size: 32,
-                              ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        isGerar
-                            ? _l.fiNChargesGenerated(successAlunos.length)
-                            : _l.fiReadyForWhatsapp,
-                        style: TextStyle(
-                          color: context.c.onSurface,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _l.fiTapEachStudent,
-                        style: TextStyle(
-                          color: context.c.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...successAlunos.map((a) {
-                  final nome = a['nome']?.toString() ?? '';
-                  final tel = a['telefone']?.toString() ?? '';
-                  final hasTel = tel.replaceAll(RegExp(r'\D'), '').length >= 10;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: hasTel ? () => _abrirWhatsApp(tel, nome) : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: hasTel
-                              ? const Color(0xFF25D366).withOpacity(0.08)
-                              : context.c.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: hasTel
-                                ? const Color(0xFF25D366).withOpacity(0.3)
-                                : context.c.outline,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: context.c.primary.withOpacity(
-                                0.15,
-                              ),
-                              child: Text(
-                                nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                                style: TextStyle(
-                                  color: context.c.primary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                nome,
-                                style: TextStyle(
-                                  color: context.c.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            if (hasTel)
-                              Icon(
-                                Icons.chat_rounded,
-                                color: const Color(0xFF25D366),
-                                size: 20,
-                              )
-                            else
-                              Text(
-                                _l.fiNoPhone,
-                                style: TextStyle(
-                                  color: context.c.onSurfaceVariant,
-                                  fontSize: 11,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: context.c.primary,
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    _l.commonClose,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ],
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiProcessError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
             ),
           );
-        },
-      ),
+        }
+      },
     );
   }
 
@@ -2588,9 +1923,29 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (ok != true || !mounted || _academiaId == null) return;
     try {
-      await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
-      if (mounted) {
-        _removerLocal(c['id'].toString());
+      // Mensalidade gerada automaticamente tem ID determinístico
+      // (aluno+mês/modalidade) — apagar o documento de verdade só libera o
+      // ID de novo, e a próxima geração automática (job diário ou "+Gerar")
+      // recria o mesmo documento, já que o aluno continua elegível. Por
+      // isso, pra essas, "excluir" precisa desconsiderar (status 4) em vez
+      // de apagar — mesmo mecanismo que "Desconsiderar" já usa. Cobrança
+      // avulsa (sem `origem`, ID aleatório) nunca é regerada, então
+      // continua sendo excluída de verdade.
+      if (c['origem'] == 'auto') {
+        final alteracoes = {'status': 4};
+        await firestoreService.updatePagamento(
+          _academiaId!,
+          c['id'].toString(),
+          alteracoes,
+        );
+        if (mounted) {
+          _atualizarLocal(c['id'].toString(), alteracoes);
+        }
+      } else {
+        await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
+        if (mounted) {
+          _removerLocal(c['id'].toString());
+        }
       }
     } catch (_) {}
   }
@@ -3042,6 +2397,98 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                           icon: Icons.groups_rounded,
                         ),
                       ],
+                    ),
+                  ),
+                if (_alunosSemPlano.isNotEmpty && !_avisoAlunosSemPlanoFechado)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: context.sem.warning.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: context.sem.warning.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: context.sem.warning,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _l.fiStudentsWithoutPlanTitle,
+                                    style: TextStyle(
+                                      color: context.sem.warning,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _l.fiStudentsWithoutPlanBody(
+                                      _alunosSemPlano.length,
+                                    ),
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontSize: 12.5,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    height: 32,
+                                    child: OutlinedButton(
+                                      onPressed: _abrirAlunosSemPlano,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: context.sem.warning,
+                                        side: BorderSide(
+                                          color: context.sem.warning,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _l.fiStudentsWithoutPlanSeeWho,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => setState(
+                                () => _avisoAlunosSemPlanoFechado = true,
+                              ),
+                              icon: Icon(
+                                Icons.close,
+                                color: context.c.onSurfaceVariant,
+                                size: 18,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 // ── Busca ──────────────────────────────────────────────
@@ -3595,66 +3042,6 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               ], // end else
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _modeCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.c.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.c.outline),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: context.c.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: context.c.primary, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: context.c.onSurface,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: context.c.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: context.c.onSurfaceVariant,
-              size: 14,
-            ),
-          ],
         ),
       ),
     );

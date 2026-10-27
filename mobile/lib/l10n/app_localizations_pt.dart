@@ -2643,6 +2643,26 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fiDismiss => 'Desconsiderar';
 
   @override
+  String get fiGenerateChargesExplain =>
+      'Gera a mensalidade do mês atual + 12 meses seguintes, pra todo aluno ativo com plano vinculado que ainda não tenha cobrança nesse mês. Quem já tem cobrança gerada não é afetado — idempotente, pode rodar quantas vezes quiser.';
+
+  @override
+  String fiGenerateChargesSuccess(int n) {
+    return '$n cobrança(s) gerada(s).';
+  }
+
+  @override
+  String get fiStudentsWithoutPlanTitle => 'Alunos sem plano configurado';
+
+  @override
+  String get fiStudentsWithoutPlanSeeWho => 'Ver quais são';
+
+  @override
+  String fiStudentsWithoutPlanBody(int n) {
+    return '$n aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.';
+  }
+
+  @override
   String get fiBillsShort => 'Contas';
 
   @override
@@ -4082,6 +4102,21 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get planCancelError =>
       'Não foi possível abrir a loja. Tente novamente.';
+
+  @override
+  String get planStatusCanceledTitle => 'Assinatura cancelada';
+
+  @override
+  String planStatusCanceledBody(String data) {
+    return 'Seu acesso continua ativo até $data. Depois disso, não vai renovar.';
+  }
+
+  @override
+  String get planStatusGracePeriodTitle => 'Problema no pagamento';
+
+  @override
+  String get planStatusGracePeriodBody =>
+      'Não conseguimos confirmar a cobrança da sua renovação. A loja vai tentar de novo automaticamente — verifique seu método de pagamento pra não perder o acesso.';
 
   @override
   String fxStudentsCount(int count) {

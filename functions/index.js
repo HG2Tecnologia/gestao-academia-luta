@@ -36,10 +36,13 @@ exports.excluirAluno = alunoFunctions.excluirAluno;
 
 const financeFunctions = require('./finance-functions');
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
+exports.ensureChargesForNextMonths = financeFunctions.ensureChargesForNextMonths;
 exports.gerarMensalidadesAutomaticas = financeFunctions.gerarMensalidadesAutomaticas;
 exports.disregardChargesBeforePeriod = financeFunctions.disregardChargesBeforePeriod;
 exports.mergeDuplicateCharges = financeFunctions.mergeDuplicateCharges;
 exports.limparCobrancasOrfas = financeFunctions.limparCobrancasOrfas;
+exports.gerarCobrancasAoAtribuirPlano = financeFunctions.gerarCobrancasAoAtribuirPlano;
+exports.gerarCobrancasAoMatricular = financeFunctions.gerarCobrancasAoMatricular;
 
 const contratoFunctions = require("./contrato-functions");
 exports.contratoPublicoObter = contratoFunctions.contratoPublicoObter;
@@ -329,6 +332,12 @@ exports.webhookAsaas = onRequest(
 );
 
 // ── checarVencimentosContasAcademia ──────────────────────────────────────────
+const iapFunctions = require("./iap-functions");
+exports.ativarAssinaturaIOS = iapFunctions.ativarAssinaturaIOS;
+exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
+exports.webhookAppStoreNotifications = iapFunctions.webhookAppStoreNotifications;
+exports.webhookGooglePlayNotifications = iapFunctions.webhookGooglePlayNotifications;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {

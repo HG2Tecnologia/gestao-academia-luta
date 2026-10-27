@@ -4646,6 +4646,36 @@ abstract class AppLocalizations {
   /// **'Desconsiderar'**
   String get fiDismiss;
 
+  /// No description provided for @fiGenerateChargesExplain.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gera a mensalidade do mês atual + 12 meses seguintes, pra todo aluno ativo com plano vinculado que ainda não tenha cobrança nesse mês. Quem já tem cobrança gerada não é afetado — idempotente, pode rodar quantas vezes quiser.'**
+  String get fiGenerateChargesExplain;
+
+  /// No description provided for @fiGenerateChargesSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} cobrança(s) gerada(s).'**
+  String fiGenerateChargesSuccess(int n);
+
+  /// No description provided for @fiStudentsWithoutPlanTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos sem plano configurado'**
+  String get fiStudentsWithoutPlanTitle;
+
+  /// No description provided for @fiStudentsWithoutPlanSeeWho.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver quais são'**
+  String get fiStudentsWithoutPlanSeeWho;
+
+  /// No description provided for @fiStudentsWithoutPlanBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'{n} aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.'**
+  String fiStudentsWithoutPlanBody(int n);
+
   /// No description provided for @fiBillsShort.
   ///
   /// In pt, this message translates to:
@@ -7207,6 +7237,30 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Não foi possível abrir a loja. Tente novamente.'**
   String get planCancelError;
+
+  /// No description provided for @planStatusCanceledTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinatura cancelada'**
+  String get planStatusCanceledTitle;
+
+  /// No description provided for @planStatusCanceledBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seu acesso continua ativo até {data}. Depois disso, não vai renovar.'**
+  String planStatusCanceledBody(String data);
+
+  /// No description provided for @planStatusGracePeriodTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Problema no pagamento'**
+  String get planStatusGracePeriodTitle;
+
+  /// No description provided for @planStatusGracePeriodBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não conseguimos confirmar a cobrança da sua renovação. A loja vai tentar de novo automaticamente — verifique seu método de pagamento pra não perder o acesso.'**
+  String get planStatusGracePeriodBody;
 
   /// No description provided for @fxStudentsCount.
   ///

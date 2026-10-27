@@ -10,6 +10,7 @@ import 'package:tatame/core/finance_service.dart';
 /// `financeService = FinanceService();` no tearDown.
 class FakeFinanceService extends FinanceService {
   final List<String> ensureChargesForPeriodCalls = [];
+  final List<String> ensureChargesForNextMonthsCalls = [];
   final List<String> disregardChargesBeforePeriodCalls = [];
   final List<String> mergeDuplicateChargesCalls = [];
 
@@ -20,6 +21,14 @@ class FakeFinanceService extends FinanceService {
   }) async {
     ensureChargesForPeriodCalls.add(period);
     return const ResultadoGarantiaCobrancas(criadas: 0, ignoradas: 0);
+  }
+
+  @override
+  Future<ResultadoGarantiaProximosMeses> ensureChargesForNextMonths({
+    required String academiaId,
+  }) async {
+    ensureChargesForNextMonthsCalls.add(academiaId);
+    return const ResultadoGarantiaProximosMeses(totalCriadas: 0);
   }
 
   @override

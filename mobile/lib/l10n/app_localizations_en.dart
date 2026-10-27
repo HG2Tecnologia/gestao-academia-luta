@@ -2643,6 +2643,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fiDismiss => 'Dismiss';
 
   @override
+  String get fiGenerateChargesExplain =>
+      'Generates charges for the current month + the next 12, for every active student with a plan who doesn\'t have a charge for that month yet. Students who already have a charge are untouched — idempotent, safe to run as many times as you want.';
+
+  @override
+  String fiGenerateChargesSuccess(int n) {
+    return '$n charge(s) generated.';
+  }
+
+  @override
+  String get fiStudentsWithoutPlanTitle => 'Students without a plan';
+
+  @override
+  String get fiStudentsWithoutPlanSeeWho => 'See who';
+
+  @override
+  String fiStudentsWithoutPlanBody(int n) {
+    return '$n active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.';
+  }
+
+  @override
   String get fiBillsShort => 'Bills';
 
   @override
@@ -4079,6 +4099,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planCancelError => 'Couldn\'t open the store. Please try again.';
+
+  @override
+  String get planStatusCanceledTitle => 'Subscription canceled';
+
+  @override
+  String planStatusCanceledBody(String data) {
+    return 'Your access stays active until $data. After that, it won\'t renew.';
+  }
+
+  @override
+  String get planStatusGracePeriodTitle => 'Payment issue';
+
+  @override
+  String get planStatusGracePeriodBody =>
+      'We couldn\'t confirm your renewal charge. The store will retry automatically — check your payment method to avoid losing access.';
 
   @override
   String fxStudentsCount(int count) {

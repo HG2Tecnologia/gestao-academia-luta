@@ -844,6 +844,19 @@ class FirestoreService {
     return snap.docs.map(_convertDoc).toList();
   }
 
+  /// Todas as matrículas ATIVAS de `planos_modalidade` da academia inteira
+  /// (sem filtrar por aluno) — usado pra descobrir quais alunos têm algum
+  /// plano vinculado no modo de cobrança por modalidade.
+  Future<List<Map<String, dynamic>>> getPlanosModalidadeAtivos(
+    String academiaId,
+  ) async {
+    final snap = await _col(
+      academiaId,
+      'planos_modalidade',
+    ).where('ativo', isEqualTo: true).get();
+    return snap.docs.map(_convertDoc).toList();
+  }
+
   Future<String> addMatricula(
     String academiaId,
     Map<String, dynamic> data,

@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'auth_storage.dart';
-import 'firestore_service.dart';
 
 const kIapMensal = 'br.com.senseimanager.pro.mensal';
 const kIapTrimestral = 'br.com.senseimanager.pro.trimestral';
@@ -71,34 +70,37 @@ class IapService {
     }
   }
 
+  // A ativação do Pro é sempre validada no servidor (ativarAssinaturaIOS /
+  // ativarAssinaturaAndroid) antes de qualquer campo de plano ser gravado —
+  // o app nunca escreve isso direto no Firestore. Isso evita tanto compras
+  // de sandbox/teste quanto gravação manual indevida serem confundidas com
+  // assinatura real (as regras do Firestore também bloqueiam escrita direta
+  // desses campos pelo cliente, como segunda camada).
   Future<void> _ativarBackend(PurchaseDetails purchase) async {
     try {
       final user = await AuthStorage.getUser();
       final academiaId = user?.academiaId;
       if (academiaId == null) throw Exception('Academia não identificada');
 
-      // Calcula expiração com base no produto comprado
-      DateTime expiracao;
-      final now = DateTime.now();
-      if (purchase.productID == kIapAnual) {
-        expiracao = now.add(const Duration(days: 365));
-      } else if (purchase.productID == kIapTrimestral) {
-        expiracao = now.add(const Duration(days: 90));
+      if (Platform.isIOS) {
+        await FirebaseFunctions.instance.httpsCallable('ativarAssinaturaIOS').call({
+          'academiaId': academiaId,
+          'jwsTransaction': purchase.verificationData.serverVerificationData,
+        });
+      } else if (Platform.isAndroid) {
+        await FirebaseFunctions.instance.httpsCallable('ativarAssinaturaAndroid').call({
+          'academiaId': academiaId,
+          'purchaseToken': purchase.verificationData.serverVerificationData,
+        });
       } else {
-        expiracao = now.add(const Duration(days: 30));
+        throw Exception('Plataforma sem validação de compra configurada.');
       }
-
-      final academia = await firestoreService.getAcademia(academiaId) ?? {};
-      final jaTemAssinaturaDesde = academia['plano_assinado_em'] != null;
-
-      await firestoreService.updateAcademia(academiaId, {
-        'plano_tipo': 1, // Pro
-        'plano_expiracao': expiracao.toIso8601String(),
-        'plano_produto_id': purchase.productID,
-        'plano_plataforma': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
-        if (!jaTemAssinaturaDesde) 'plano_assinado_em': now.toIso8601String(),
-      });
       onPurchaseResult?.call(true, null);
+    } on FirebaseFunctionsException catch (e) {
+      onPurchaseResult?.call(
+        false,
+        e.message ?? 'Não foi possível validar sua compra junto à loja.',
+      );
     } catch (_) {
       onPurchaseResult?.call(
         false,

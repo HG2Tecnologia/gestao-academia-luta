@@ -857,6 +857,21 @@
   "fiAllActiveHint": "Charge all active students in the academy",
   "fiRefundShort": "Reverse",
   "fiDismiss": "Dismiss",
+  "fiGenerateChargesExplain": "Generates charges for the current month + the next 12, for every active student with a plan who doesn't have a charge for that month yet. Students who already have a charge are untouched — idempotent, safe to run as many times as you want.",
+  "fiGenerateChargesSuccess": "{n} charge(s) generated.",
+  "@fiGenerateChargesSuccess": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
+  "fiStudentsWithoutPlanTitle": "Students without a plan",
+  "fiStudentsWithoutPlanSeeWho": "See who",
+  "fiStudentsWithoutPlanBody": "{n} active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.",
+  "@fiStudentsWithoutPlanBody": {
+    "placeholders": {
+      "n": {"type": "int"}
+    }
+  },
   "fiBillsShort": "Bills",
   "fiType": "Type",
   "rkNoData": "No data in this ranking",
@@ -1500,6 +1515,17 @@
   "planCancelSubscription": "Cancel subscription",
   "planCancelHint": "Cancellation happens in the store where you subscribed, not inside the app. We'll take you straight there.",
   "planCancelError": "Couldn't open the store. Please try again.",
+  "planStatusCanceledTitle": "Subscription canceled",
+  "planStatusCanceledBody": "Your access stays active until {data}. After that, it won't renew.",
+  "@planStatusCanceledBody": {
+    "placeholders": {
+      "data": {
+        "type": "String"
+      }
+    }
+  },
+  "planStatusGracePeriodTitle": "Payment issue",
+  "planStatusGracePeriodBody": "We couldn't confirm your renewal charge. The store will retry automatically — check your payment method to avoid losing access.",
   "@cfgReturnMsgDefault": {
     "placeholders": {
       "nome": {

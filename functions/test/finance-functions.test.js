@@ -143,6 +143,37 @@ test("chamar de novo para a mesma competência é idempotente — não duplica n
   });
 });
 
+test("ensureChargesForNextMonths (botão 'Gerar cobranças'): garante a competência real de hoje + 12 meses seguintes, só pra quem tem plano", async () => {
+  const functions = getFunctions(app);
+  const garantirProximosMeses = httpsCallable(functions, "ensureChargesForNextMonths");
+  const resultado = await garantirProximosMeses({ academiaId: "academy-a" });
+
+  assert.equal(resultado.data.ok, true);
+  // O gatilho `gerarCobrancasAoAtribuirPlano` já reage à criação do
+  // aluno-1 (com plano) no `seed()` do primeiro teste deste arquivo — pode
+  // ter gerado tudo antes desta chamada explícita rodar. Idempotente nos
+  // dois casos, então só o total é garantido, não o split exato.
+  assert.ok(resultado.data.totalCriadas >= 0);
+
+  const hoje = new Date();
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-a/pagamentos");
+    for (let i = 0; i <= 12; i++) {
+      const data = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth() + i, 1));
+      const periodo = `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`;
+      const doc = await pagamentos.doc(`mensalidade__aluno-1__${periodo}`).get();
+      assert.equal(doc.exists, true, `esperava cobrança gerada pra aluno-1 em ${periodo}`);
+
+      // aluno-2 (sem plano) e aluno-3 (inativo) nunca ganham cobrança,
+      // em nenhum dos 13 meses.
+      const semPlano = await pagamentos.doc(`mensalidade__aluno-2__${periodo}`).get();
+      assert.equal(semPlano.exists, false);
+      const inativo = await pagamentos.doc(`mensalidade__aluno-3__${periodo}`).get();
+      assert.equal(inativo.exists, false);
+    }
+  });
+});
+
 test("desconsidera cobranças retroativas anteriores ao corte, sem tocar em pagas nem já desconsideradas", async () => {
   await environment.withSecurityRulesDisabled(async (ctx) => {
     const pagamentos = ctx.firestore().collection("academias/academy-a/pagamentos");
@@ -424,8 +455,15 @@ test("cobrança por modalidade (opt-in): 1 cobrança independente por modalidade
   const garantir = httpsCallable(functions, "ensureChargesForPeriod");
   const resultado = await garantir({ academiaId: "academy-c", period: "2026-10" });
 
-  assert.equal(resultado.data.criadas, 2, "1 cobrança pra jiujitsu + 1 pra judô, matrícula inativa não conta");
-  assert.equal(resultado.data.ignoradas, 0);
+  // O gatilho `gerarCobrancasAoMatricular` também reage às matrículas
+  // criadas no setup acima e pode já ter gerado as 2 cobranças antes dessa
+  // chamada explícita rodar — idempotente nos dois casos, então o total
+  // (criadas + ignoradas) é sempre 2, não importa quem gerou primeiro.
+  assert.equal(
+    resultado.data.criadas + resultado.data.ignoradas,
+    2,
+    "1 cobrança pra jiujitsu + 1 pra judô, matrícula inativa não conta",
+  );
 
   await environment.withSecurityRulesDisabled(async (ctx) => {
     const pagamentos = ctx.firestore().collection("academias/academy-c/pagamentos");

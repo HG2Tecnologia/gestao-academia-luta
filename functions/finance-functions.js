@@ -2,6 +2,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
@@ -226,34 +227,138 @@ exports.ensureChargesForPeriod = onCall(IDENTITY_FUNCTION_OPTIONS, async (reques
 });
 
 /**
+ * Versão "um clique" chamada pelo botão "Gerar cobranças" do app: garante a
+ * competência atual + 12 meses seguintes de uma vez, pra todos os alunos com
+ * plano vinculado — mesma regra de elegibilidade e mesma função usada pelo
+ * job diário, só que disparada na hora, sob demanda.
+ */
+exports.ensureChargesForNextMonths = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de gerar cobranças.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  if (!academiaId) {
+    throw new HttpsError("invalid-argument", "Informe a academia.");
+  }
+
+  const authority = await loadFinanceAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para gerenciar o financeiro desta academia.");
+  }
+
+  const result = await ensureChargesForNextMonths(academiaId);
+
+  logger.info("Mensalidades garantidas (atual+12 meses)", {
+    academiaId,
+    ...result,
+    chamadoPor: request.auth.uid,
+  });
+  return { ok: true, ...result };
+});
+
+const MESES_GERACAO_ANTECIPADA = 12;
+
+function periodoAtualHoje() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Garante a competência atual + `mesesAFrente` competências seguintes para
+ * UMA academia — usado tanto pelo job diário (todas as academias) quanto
+ * pelos gatilhos que reagem a aluno novo/plano atribuído/matrícula nova
+ * (uma academia só, na hora, sem esperar o job do dia seguinte).
+ */
+async function ensureChargesForNextMonths(academiaId, mesesAFrente = MESES_GERACAO_ANTECIPADA) {
+  const periodoBase = periodoAtualHoje();
+  let totalCriadas = 0;
+  for (let i = 0; i <= mesesAFrente; i++) {
+    const period = addBillingMonths(periodoBase, i);
+    const resultado = await ensureChargesForPeriodCore(academiaId, period);
+    totalCriadas += resultado.criadas;
+  }
+  return { totalCriadas };
+}
+
+/**
  * Roda todo dia às 06:00 (horário de Brasília) e garante a competência atual
- * e a próxima para todas as academias — assim a virada de mês já chega com
- * as mensalidades geradas, sem depender de alguém abrir o Financeiro antes.
+ * + as próximas 12 para todas as academias — assim um aluno com plano já
+ * aparece cobrado em todos os meses futuros visíveis no Financeiro, sem
+ * precisar que alguém abra cada mês e clique em "Gerar".
  */
 exports.gerarMensalidadesAutomaticas = onSchedule(
   { schedule: "0 6 * * *", timeZone: "America/Sao_Paulo" },
   async () => {
-    const hoje = new Date();
-    const periodoAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
-    const periodoSeguinte = addBillingMonths(periodoAtual, 1);
-
     const academiasSnap = await db.collection("academias").get();
     let totalCriadas = 0;
     for (const academiaDoc of academiasSnap.docs) {
-      for (const period of [periodoAtual, periodoSeguinte]) {
-        try {
-          const resultado = await ensureChargesForPeriodCore(academiaDoc.id, period);
-          totalCriadas += resultado.criadas;
-        } catch (error) {
-          logger.error("Falha ao gerar mensalidades automáticas", {
-            academiaId: academiaDoc.id,
-            period,
-            error: String(error),
-          });
-        }
+      try {
+        const resultado = await ensureChargesForNextMonths(academiaDoc.id);
+        totalCriadas += resultado.totalCriadas;
+      } catch (error) {
+        logger.error("Falha ao gerar mensalidades automáticas", {
+          academiaId: academiaDoc.id,
+          error: String(error),
+        });
       }
     }
     logger.info(`Mensalidades automáticas processadas: ${totalCriadas} cobrança(s) criada(s).`);
+  },
+);
+
+/**
+ * Reage a alunos novos ou a um plano atribuído a um aluno existente (modelo
+ * legado): gera na hora a competência atual + 12 meses seguintes, em vez de
+ * esperar o job diário das 06:00. Só dispara quando `plano_id` passa a ter
+ * um valor que não tinha antes — editar nome/telefone/outros campos do
+ * aluno não aciona nada.
+ */
+exports.gerarCobrancasAoAtribuirPlano = onDocumentWritten(
+  "academias/{academiaId}/usuarios/{alunoId}",
+  async (event) => {
+    const antes = event.data?.before?.exists ? event.data.before.data() : null;
+    const depois = event.data?.after?.exists ? event.data.after.data() : null;
+    if (!depois || depois.ativo !== true) return;
+
+    const planoIdAntes = String(antes?.plano_id ?? "").trim();
+    const planoIdDepois = String(depois.plano_id ?? "").trim();
+    if (!planoIdDepois || planoIdDepois === planoIdAntes) return;
+
+    try {
+      await ensureChargesForNextMonths(event.params.academiaId);
+    } catch (error) {
+      logger.error("Falha ao gerar cobranças ao atribuir plano", {
+        academiaId: event.params.academiaId,
+        alunoId: event.params.alunoId,
+        error: String(error),
+      });
+    }
+  },
+);
+
+/**
+ * Reage a uma matrícula nova/reativada em `planos_modalidade` (modelo por
+ * modalidade): mesma lógica do gatilho acima, pro caminho de cobrança por
+ * modalidade.
+ */
+exports.gerarCobrancasAoMatricular = onDocumentWritten(
+  "academias/{academiaId}/planos_modalidade/{matriculaId}",
+  async (event) => {
+    const antes = event.data?.before?.exists ? event.data.before.data() : null;
+    const depois = event.data?.after?.exists ? event.data.after.data() : null;
+    if (!depois || depois.ativo !== true) return;
+    if (antes?.ativo === true) return; // já estava ativa: nada novo a gerar.
+
+    try {
+      await ensureChargesForNextMonths(event.params.academiaId);
+    } catch (error) {
+      logger.error("Falha ao gerar cobranças ao matricular aluno em modalidade", {
+        academiaId: event.params.academiaId,
+        matriculaId: event.params.matriculaId,
+        error: String(error),
+      });
+    }
   },
 );
 
@@ -549,6 +654,7 @@ exports.mergeDuplicateCharges = onCall(IDENTITY_FUNCTION_OPTIONS, async (request
 
 exports._test = {
   ensureChargesForPeriodCore,
+  ensureChargesForNextMonths,
   disregardChargesBeforePeriodCore,
   mergeDuplicateChargesCore,
   limparCobrancasOrfasCore,

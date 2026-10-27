@@ -25,6 +25,8 @@ class PlanService {
   DateTime? _planoAssinadoEm;
   String? _planoProdutoId;
   String? _planoPlataforma;
+  String? _planoStatus;
+  bool? _planoRenovacaoAutomatica;
   bool _loaded = false;
 
   bool get isPro {
@@ -53,6 +55,8 @@ class PlanService {
   DateTime? get planoAssinadoEm => _planoAssinadoEm;
   String? get planoProdutoId => _planoProdutoId;
   String? get planoPlataforma => _planoPlataforma;
+  String? get planoStatus => _planoStatus;
+  bool? get planoRenovacaoAutomatica => _planoRenovacaoAutomatica;
 
   Future<void> load() async {
     try {
@@ -73,6 +77,8 @@ class PlanService {
           : null;
       _planoProdutoId = d['plano_produto_id']?.toString();
       _planoPlataforma = d['plano_plataforma']?.toString();
+      _planoStatus = d['plano_status']?.toString();
+      _planoRenovacaoAutomatica = d['plano_renovacao_automatica'] as bool?;
       _loaded = true;
     } catch (_) {}
   }
@@ -90,6 +96,8 @@ class PlanService {
     _planoAssinadoEm = null;
     _planoProdutoId = null;
     _planoPlataforma = null;
+    _planoStatus = null;
+    _planoRenovacaoAutomatica = null;
   }
 
   bool get isLoaded => _loaded;
