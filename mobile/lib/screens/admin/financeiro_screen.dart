@@ -146,6 +146,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   // em `planos_modalidade`) — mostrado como aviso pra equipe notar e
   // corrigir, em vez de ficar invisível pra sempre.
   List<Map<String, dynamic>> _alunosSemPlano = [];
+  bool _avisoAlunosSemPlanoFechado = false;
 
   @override
   void initState() {
@@ -2356,7 +2357,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       ],
                     ),
                   ),
-                if (_alunosSemPlano.isNotEmpty)
+                if (_alunosSemPlano.isNotEmpty && !_avisoAlunosSemPlanoFechado)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -2401,21 +2402,47 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                       height: 1.4,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  GestureDetector(
-                                    onTap: _abrirAlunosSemPlano,
-                                    child: Text(
-                                      _l.fiStudentsWithoutPlanSeeWho,
-                                      style: TextStyle(
-                                        color: context.sem.warning,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.underline,
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    height: 32,
+                                    child: OutlinedButton(
+                                      onPressed: _abrirAlunosSemPlano,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: context.sem.warning,
+                                        side: BorderSide(
+                                          color: context.sem.warning,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _l.fiStudentsWithoutPlanSeeWho,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
+                            ),
+                            IconButton(
+                              onPressed: () => setState(
+                                () => _avisoAlunosSemPlanoFechado = true,
+                              ),
+                              icon: Icon(
+                                Icons.close,
+                                color: context.c.onSurfaceVariant,
+                                size: 18,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              visualDensity: VisualDensity.compact,
                             ),
                           ],
                         ),
