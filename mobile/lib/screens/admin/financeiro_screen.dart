@@ -1077,6 +1077,74 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   /// resquício do bug em que dois caminhos diferentes geravam a cobrança do
   /// mês com IDs diferentes. Resolve sozinho os casos inequívocos; grupo com
   /// 2+ pagas fica de fora, para revisão manual.
+  /// Mostra o dialog final de confirmação de uma ação do Financeiro e, ao
+  /// confirmar, substitui os botões por um spinner enquanto `acao` roda —
+  /// sem isso, o único feedback era o snackbar de sucesso, que só aparece
+  /// bem depois, dando a impressão de que o toque não fez nada.
+  Future<void> _confirmarComLoading({
+    required String titulo,
+    required Widget corpo,
+    required String labelConfirmar,
+    Color? corConfirmar,
+    required Future<void> Function() acao,
+  }) async {
+    var loading = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => PopScope(
+          canPop: !loading,
+          child: AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              titulo,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            content: corpo,
+            actions: loading
+                ? [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
+                  ]
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        _l.commonCancel,
+                        style: TextStyle(color: context.c.onSurfaceVariant),
+                      ),
+                    ),
+                    FilledButton(
+                      style: corConfirmar != null
+                          ? FilledButton.styleFrom(
+                              backgroundColor: corConfirmar,
+                            )
+                          : null,
+                      onPressed: () async {
+                        setDialogState(() => loading = true);
+                        await acao();
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      child: Text(labelConfirmar),
+                    ),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _abrirCorrigirDuplicatas() async {
     if (_academiaId == null) return;
 
@@ -1099,55 +1167,44 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (confirmado != true || !mounted) return;
 
-    final confirmadoDeVerdade = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiMergeDuplicatesConfirmTitle),
-        content: Text(_l.fiMergeDuplicatesConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiMergeDuplicatesButton),
-          ),
-        ],
-      ),
-    );
-    if (confirmadoDeVerdade != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.mergeDuplicateCharges(
-        academiaId: _academiaId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiMergeDuplicatesSuccess(
-              resultado.gruposComDuplicata,
-              resultado.resolvidasAutomaticamente,
-              resultado.ignoradasRevisaoManual,
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiMergeDuplicatesConfirmTitle,
+      corpo: Text(_l.fiMergeDuplicatesConfirmBody),
+      labelConfirmar: _l.fiMergeDuplicatesButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.mergeDuplicateCharges(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiMergeDuplicatesSuccess(
+                  resultado.gruposComDuplicata,
+                  resultado.resolvidasAutomaticamente,
+                  resultado.ignoradasRevisaoManual,
+                ),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiMergeDuplicatesError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiMergeDuplicatesError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   /// Complementar à correção de duplicatas: limpa cobrança pendente ÚNICA
@@ -1176,54 +1233,43 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     );
     if (confirmado != true || !mounted) return;
 
-    final confirmadoDeVerdade = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiCleanOrphansConfirmTitle),
-        content: Text(_l.fiCleanOrphansConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiCleanOrphansButton),
-          ),
-        ],
-      ),
-    );
-    if (confirmadoDeVerdade != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.limparCobrancasOrfas(
-        academiaId: _academiaId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiCleanOrphansSuccess(
-              resultado.cobrancasAnalisadas,
-              resultado.cobrancasCanceladas,
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiCleanOrphansConfirmTitle,
+      corpo: Text(_l.fiCleanOrphansConfirmBody),
+      labelConfirmar: _l.fiCleanOrphansButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.limparCobrancasOrfas(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiCleanOrphansSuccess(
+                  resultado.cobrancasAnalisadas,
+                  resultado.cobrancasCanceladas,
+                ),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiCleanOrphansError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiCleanOrphansError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   /// Ferramenta de "limpeza" — desconsidera em massa toda pendência/atraso
@@ -1318,117 +1364,81 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
     if (corte == null || !mounted) return;
 
     final confirmMesLabel = mesLabel(ano, mes);
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_l.fiCleanupRetroactiveConfirmTitle),
-        content: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_l.commonCancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.sem.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiCleanupRetroactiveButton),
-          ),
-        ],
-      ),
+    if (!mounted) return;
+    await _confirmarComLoading(
+      titulo: _l.fiCleanupRetroactiveConfirmTitle,
+      corpo: Text(_l.fiCleanupRetroactiveConfirmBody(confirmMesLabel)),
+      labelConfirmar: _l.fiCleanupRetroactiveButton,
+      corConfirmar: context.sem.danger,
+      acao: () async {
+        try {
+          final resultado = await financeService.disregardChargesBeforePeriod(
+            academiaId: _academiaId!,
+            period: corte,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiCleanupRetroactiveError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
     );
-    if (confirmado != true || !mounted) return;
-
-    try {
-      final resultado = await financeService.disregardChargesBeforePeriod(
-        academiaId: _academiaId!,
-        period: corte,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _l.fiCleanupRetroactiveSuccess(resultado.desconsideradas),
-          ),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiCleanupRetroactiveError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   Future<void> _abrirModalCobrancas() async {
     if (_academiaId == null) return;
 
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.c.surfaceContainer,
-        title: Text(
-          _l.fiGenerateCharges,
-          style: TextStyle(
-            color: context.c.onSurface,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-        content: Text(
-          _l.fiGenerateChargesExplain,
-          style: TextStyle(
-            color: context.c.onSurfaceVariant,
-            fontSize: 13,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              _l.commonCancel,
-              style: TextStyle(color: context.c.onSurfaceVariant),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_l.fiGenerateCharges),
-          ),
-        ],
+    await _confirmarComLoading(
+      titulo: _l.fiGenerateCharges,
+      corpo: Text(
+        _l.fiGenerateChargesExplain,
+        style: TextStyle(color: context.c.onSurfaceVariant, height: 1.4),
       ),
+      labelConfirmar: _l.fiGenerateCharges,
+      acao: () async {
+        try {
+          final resultado = await financeService.ensureChargesForNextMonths(
+            academiaId: _academiaId!,
+          );
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _l.fiGenerateChargesSuccess(resultado.totalCriadas),
+              ),
+              backgroundColor: context.sem.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _load();
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_l.fiProcessError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
     );
-    if (confirmado != true || !mounted || _academiaId == null) return;
-
-    try {
-      final resultado = await financeService.ensureChargesForNextMonths(
-        academiaId: _academiaId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiGenerateChargesSuccess(resultado.totalCriadas)),
-          backgroundColor: context.sem.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _load();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.fiProcessError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   /// Marca todas as cobranças selecionadas no modo de seleção como pagas
