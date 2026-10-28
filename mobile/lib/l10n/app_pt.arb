@@ -54,7 +54,7 @@
   "dashMarkAttendance": "Registrar presença",
   "dashTrialActive": "Trial gratuito ativo",
   "dashTrialLastDay": "Último dia do trial!",
-  "dashTrialDaysLeft": "{days, plural, one{1 dia restante} other{{days} dias restantes}}",
+  "dashTrialDaysLeft": "{days, plural, one{{days} dia restante} other{{days} dias restantes}}",
   "@dashTrialDaysLeft": {
     "placeholders": {
       "days": {
@@ -79,7 +79,7 @@
   "dashStepFirstStudent": "Cadastre seu primeiro aluno",
   "dashStepFirstStudentDesc": "Adicione alunos e matricule nas turmas.",
   "dashAttendanceWatch": "Risco de evasão",
-  "dashWatchRedSubtitle": "{count, plural, one{1 aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}",
+  "dashWatchRedSubtitle": "{count, plural, one{{count} aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}",
   "@dashWatchRedSubtitle": {
     "placeholders": {
       "count": {
@@ -87,7 +87,7 @@
       }
     }
   },
-  "dashWatchYellowSubtitle": "{count, plural, one{1 aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}",
+  "dashWatchYellowSubtitle": "{count, plural, one{{count} aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}",
   "@dashWatchYellowSubtitle": {
     "placeholders": {
       "count": {
@@ -95,7 +95,7 @@
       }
     }
   },
-  "dashDaysCount": "{days, plural, one{1 dia} other{{days} dias}}",
+  "dashDaysCount": "{days, plural, one{{days} dia} other{{days} dias}}",
   "@dashDaysCount": {
     "placeholders": {
       "days": {
@@ -359,7 +359,7 @@
   "studentsFilterAll": "Todos",
 
   "notifTitle": "Notificações",
-  "notifUnreadCount": "{count, plural, one{1 não lida} other{{count} não lidas}}",
+  "notifUnreadCount": "{count, plural, one{{count} não lida} other{{count} não lidas}}",
   "@notifUnreadCount": {
     "placeholders": {
       "count": { "type": "int" }
@@ -461,7 +461,7 @@
   "sdCreateGroupError": "Erro ao criar grupo.",
   "sdNoGroupsYet": "Nenhum grupo cadastrado ainda.",
   "sdSelectGroup": "Selecionar Grupo",
-  "sdMemberCount": "{count, plural, one{1 membro} other{{count} membros}}",
+  "sdMemberCount": "{count, plural, one{{count} membro} other{{count} membros}}",
   "@sdMemberCount": {
     "placeholders": {
       "count": {
@@ -615,7 +615,7 @@
   "sdAddPoints": "Lançar Pontos",
   "sdNoManualRankings": "Nenhum ranking com pontos manuais ativo.",
   "sdPointsAmount": "Quantidade de pontos",
-  "sdPointsAddedToast": "{count, plural, one{1 ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}",
+  "sdPointsAddedToast": "{count, plural, one{{count} ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}",
   "@sdPointsAddedToast": {
     "placeholders": {
       "count": {
@@ -746,7 +746,7 @@
   "viewDetails": "Ver detalhes",
   "editClass": "Editar turma",
   "noSchedule": "Sem horários definidos",
-  "scheduleCount": "{count, plural, one{1 horário} other{{count} horários}}",
+  "scheduleCount": "{count, plural, one{{count} horário} other{{count} horários}}",
   "@scheduleCount": {
     "placeholders": {
       "count": {
@@ -809,7 +809,7 @@
   "sortAttendanceAsc": "Menor frequência",
   "sortNameAsc": "Nome (A–Z)",
   "sortNameDesc": "Nome (Z–A)",
-  "presentCount": "{count, plural, one{1 presença} other{{count} presenças}}",
+  "presentCount": "{count, plural, one{{count} presença} other{{count} presenças}}",
   "@presentCount": {
     "placeholders": {
       "count": {
@@ -817,7 +817,7 @@
       }
     }
   },
-  "absentCount": "{count, plural, one{1 falta} other{{count} faltas}}",
+  "absentCount": "{count, plural, one{{count} falta} other{{count} faltas}}",
   "@absentCount": {
     "placeholders": {
       "count": {
@@ -940,7 +940,7 @@
   "tdAttendanceRemoveError": "Erro ao remover presença.",
   "tdToday": "Hoje",
   "tdYesterday": "Ontem",
-  "tdWeeklyScheduleCount": "{count, plural, one{1 horário semanal} other{{count} horários semanais}}",
+  "tdWeeklyScheduleCount": "{count, plural, one{{count} horário semanal} other{{count} horários semanais}}",
   "@tdWeeklyScheduleCount": {
     "placeholders": {
       "count": {
@@ -1077,7 +1077,7 @@
   "raPrevYear": "Ano anterior",
   "raNextYear": "Próximo ano",
   "raReceivedYear": "Recebido no ano",
-  "raChargesCount": "{count, plural, one{1 cobrança} other{{count} cobranças}}",
+  "raChargesCount": "{count, plural, one{{count} cobrança} other{{count} cobranças}}",
   "@raChargesCount": {
     "placeholders": {
       "count": {
@@ -1096,7 +1096,7 @@
       }
     }
   },
-  "raDaysOverdue": "{count, plural, one{1 dia de atraso} other{{count} dias de atraso}}",
+  "raDaysOverdue": "{count, plural, one{{count} dia de atraso} other{{count} dias de atraso}}",
   "@raDaysOverdue": {
     "placeholders": {
       "count": {
@@ -1276,7 +1276,7 @@
   },
   "fiUpdateError": "Erro ao atualizar pagamento.",
   "fiSelectMode": "Selecionar",
-  "fiSelectedCount": "{count, plural, one{1 selecionado} other{{count} selecionados}}",
+  "fiSelectedCount": "{count, plural, one{{count} selecionado} other{{count} selecionados}}",
   "@fiSelectedCount": {
     "placeholders": {
       "count": {
@@ -1284,7 +1284,7 @@
       }
     }
   },
-  "fiBatchMarkedPaid": "{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
+  "fiBatchMarkedPaid": "{count, plural, one{{count} cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
   "@fiBatchMarkedPaid": {
     "placeholders": {
       "count": {
@@ -1317,7 +1317,7 @@
       }
     }
   },
-  "fiAffectedStudents": "{count, plural, one{1 aluno afetado} other{{count} alunos afetados}}",
+  "fiAffectedStudents": "{count, plural, one{{count} aluno afetado} other{{count} alunos afetados}}",
   "@fiAffectedStudents": {
     "placeholders": {
       "count": {
@@ -1327,7 +1327,7 @@
   },
   "fiSeeAffected": "Ver alunos afetados",
   "fiNoStudentsForFilter": "Nenhum aluno corresponde a este filtro.",
-  "fiNChargesGenerated": "{count, plural, one{1 cobrança gerada} other{{count} cobranças geradas}}",
+  "fiNChargesGenerated": "{count, plural, one{{count} cobrança gerada} other{{count} cobranças geradas}}",
   "@fiNChargesGenerated": {
     "placeholders": {
       "count": {
@@ -2163,8 +2163,8 @@
   "apQrAttendance": "QR Presença",
   "apSwitchProfile": "Trocar perfil",
   "apSwitchShort": "Trocar",
-  "apOverdueCount": "{count, plural, one{1 atrasada} other{{count} atrasadas}}",
-  "apPendingCount": "{count, plural, one{1 pendente} other{{count} pendentes}}",
+  "apOverdueCount": "{count, plural, one{{count} atrasada} other{{count} atrasadas}}",
+  "apPendingCount": "{count, plural, one{{count} pendente} other{{count} pendentes}}",
   "apTapToChoose": "Toque para escolher",
   "apTuitionOverdue": "Mensalidade em atraso",
   "apTuitionOverdueHint": "Toque para ver detalhes e regularizar.",
