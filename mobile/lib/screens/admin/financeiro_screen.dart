@@ -216,23 +216,48 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
 
       // "ensureChargesForPeriod" é uma rede de segurança (gera mensalidade
-      // se o agendamento diário ainda não rodou hoje) — não bloqueia o
-      // carregamento da tela, roda em paralelo com as consultas abaixo em
-      // vez de ser aguardada antes delas (evitava cold start da function
-      // somar sequencialmente ao tempo de tela, deixando o carregamento
-      // bem mais lento do que precisava).
+      // se o agendamento diário ainda não rodou hoje). Colocá-la dentro do
+      // Future.wait só paralelizava a CHAMADA — a tela continuava esperando
+      // o cold start da Cloud Function (vários segundos) terminar antes de
+      // mostrar qualquer coisa, porque Future.wait só resolve quando TODAS
+      // as promises terminam. Agora ela roda solta (fire-and-forget): a
+      // tela nunca espera por ela, e se ela de fato gerar cobrança nova,
+      // só então recarrega os pagamentos silenciosamente.
+      unawaited(
+        financeService
+            .ensureChargesForPeriod(
+              academiaId: _academiaId!,
+              period: periodoHoje,
+            )
+            .then((r) {
+              if (r.criadas > 0 && mounted) {
+                firestoreService.getPagamentos(_academiaId!).then((todos) {
+                  if (!mounted) return;
+                  setState(() {
+                    _todosPagamentos = todos;
+                    _recomputarDerivados();
+                  });
+                });
+              }
+            })
+            .catchError((_) {}),
+      );
+
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
-        firestoreService.getModalidades(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getAlunos(_academiaId!, ativosOnly: true).catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
-        financeService
-            .ensureChargesForPeriod(academiaId: _academiaId!, period: periodoHoje)
-            .catchError(
-              (_) => const ResultadoGarantiaCobrancas(criadas: 0, ignoradas: 0),
-            ),
+        firestoreService
+            .getModalidades(_academiaId!)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getTodosPlanos(_academiaId!)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getAlunos(_academiaId!, ativosOnly: true)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getPlanosModalidadeAtivos(_academiaId!)
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
@@ -401,8 +426,31 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       hoje: hoje,
     );
 
+    // O card "Atrasado" soma vencidas de QUALQUER mês (de propósito — dívida
+    // não deve "sumir" só porque navegou pra outro mês). Sem isso, a lista
+    // (que só mostrava `doMes`) ficava vazia mesmo com o card dizendo "1
+    // cobrança" quando a vencida era de um mês diferente do navegado.
+    final atrasadasForaDoMes = _todosPagamentos.where((p) {
+      final venc = p['data_vencimento'] as String? ?? '';
+      if (venc.isEmpty) return false;
+      DateTime dt;
+      try {
+        dt = DateTime.parse(venc);
+      } catch (_) {
+        return false;
+      }
+      if (dt.year == _ano && dt.month == _mes) return false; // já em doMes
+      final status = pagamentoStatusFromInt(p['status']);
+      if (status != PagamentoStatus.pendente &&
+          status != PagamentoStatus.previsto) {
+        return false;
+      }
+      return DateTime(dt.year, dt.month, dt.day).isBefore(hoje);
+    }).toList();
+    final doMesComAtrasadas = [...doMes, ...atrasadasForaDoMes];
+
     // Convert status for display; compute effective status (Atrasado if pending+overdue)
-    final cobrancasComStatus = doMes.map((p) {
+    final cobrancasComStatus = doMesComAtrasadas.map((p) {
       // Status efetivo: fonte única compartilhada com o app do aluno
       // (Pendente/Previsto vencido → Atrasado; Pago/Desconsiderado intactos).
       final stEf = pagamentoStatusEfetivo(
@@ -982,7 +1030,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   Future<void> _abrirExportarFinanceiro() async {
     final l = _l;
     final box = context.findRenderObject() as RenderBox?;
-    final origem = box == null ? null : (box.localToGlobal(Offset.zero) & box.size);
+    final origem = box == null
+        ? null
+        : (box.localToGlobal(Offset.zero) & box.size);
 
     String fmtData(dynamic raw) {
       if (raw == null) return '';
@@ -1001,7 +1051,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         nomeAluno: (c['nomeAluno'] as String?) ?? '',
         tipo: _tipoLabelCompleto(c),
         valorFormatado: _fmtVal(valorPago ?? valorBase),
-        vencimentoFormatado: fmtData(c['dataVencimento'] ?? c['data_vencimento']),
+        vencimentoFormatado: fmtData(
+          c['dataVencimento'] ?? c['data_vencimento'],
+        ),
         status: _statusLabel(c['status'] as String?),
         dataPagamentoFormatada: fmtData(c['data_pagamento']),
       );
@@ -1023,18 +1075,29 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       context: context,
       backgroundColor: context.c.surface,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setSheetState) => SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheetContext).viewInsets.bottom),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   l.fiExportSheetTitle,
-                  style: TextStyle(color: context.c.onSurface, fontSize: 17, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 for (final c in ColunaFinanceiro.values)
@@ -1052,7 +1115,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
                     activeColor: context.c.primary,
-                    title: Text(rotulos[c] ?? '', style: TextStyle(color: context.c.onSurface, fontSize: 14)),
+                    title: Text(
+                      rotulos[c] ?? '',
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
                 const SizedBox(height: 12),
                 Row(
@@ -1065,14 +1134,19 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 Navigator.of(sheetContext).pop();
                                 await exportarRelatorioFinanceiroPdf(
                                   linhas: linhas,
-                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  colunas: ColunaFinanceiro.values
+                                      .where(colunasSelecionadas.contains)
+                                      .toList(),
                                   rotulos: rotulos,
                                   tituloAcademia: l.navBilling,
                                   periodoLabel: periodoLabel,
                                   sharePositionOrigin: origem,
                                 );
                               },
-                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.picture_as_pdf_rounded,
+                          size: 18,
+                        ),
                         label: Text(l.rpExportPdf),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: context.c.primary,
@@ -1089,7 +1163,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 Navigator.of(sheetContext).pop();
                                 await exportarRelatorioFinanceiroExcel(
                                   linhas: linhas,
-                                  colunas: ColunaFinanceiro.values.where(colunasSelecionadas.contains).toList(),
+                                  colunas: ColunaFinanceiro.values
+                                      .where(colunasSelecionadas.contains)
+                                      .toList(),
                                   rotulos: rotulos,
                                   tituloAcademia: l.navBilling,
                                   periodoLabel: periodoLabel,
@@ -1098,7 +1174,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                               },
                         icon: const Icon(Icons.table_chart_rounded, size: 18),
                         label: Text(l.rpExportExcel),
-                        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                        ),
                       ),
                     ),
                   ],
@@ -1389,10 +1467,8 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: context.sem.danger,
               ),
-              onPressed: () => Navigator.pop(
-                ctx,
-                '$ano-${mes.toString().padLeft(2, '0')}',
-              ),
+              onPressed: () =>
+                  Navigator.pop(ctx, '$ano-${mes.toString().padLeft(2, '0')}'),
               child: Text(_l.fiCleanupRetroactiveButton),
             ),
           ],
@@ -1937,7 +2013,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
           _atualizarLocal(c['id'].toString(), alteracoes);
         }
       } else {
-        await firestoreService.deletePagamento(_academiaId!, c['id'].toString());
+        await firestoreService.deletePagamento(
+          _academiaId!,
+          c['id'].toString(),
+        );
         if (mounted) {
           _removerLocal(c['id'].toString());
         }
@@ -2007,6 +2086,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                         const SizedBox(height: 16),
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
+                          // Sem isso, a mensagem antiga e a nova ficam
+                          // empilhadas (padrão do Flutter) durante o
+                          // crossfade — como têm tamanhos diferentes,
+                          // aparecem visualmente sobrepostas por um
+                          // instante. Troca direta: a antiga some assim
+                          // que a nova começa a aparecer.
+                          layoutBuilder: (currentChild, previousChildren) =>
+                              currentChild ?? const SizedBox(),
                           child: Text(
                             _loadingMsgs[_loadingMsgIdx],
                             key: ValueKey(_loadingMsgIdx),
@@ -2249,7 +2336,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                   decoration: BoxDecoration(
                                     color: context.c.surfaceContainer,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: context.c.outline),
+                                    border: Border.all(
+                                      color: context.c.outline,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -3059,7 +3148,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                   },
                 ),
                 const SliverToBoxAdapter(child: AdBannerWidget()),
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                // Espaço reservado pro FAB "+" (~88px com margem). Sem isso,
+                // quando a lista fica curta ou vazia — ex.: plano Free com
+                // 1 cobrança — o botão "Selecionar" vira o último elemento
+                // da tela e acaba atrás do FAB.
+                const SliverToBoxAdapter(child: SizedBox(height: 96)),
               ], // end else
             ],
           ),

@@ -78,8 +78,12 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
       final results = await Future.wait([
         firestoreService.getPagamentos(user.academiaId!, alunoId: user.id),
         firestoreService.getAcademia(user.academiaId!).catchError((_) => null),
-        firestoreService.getModalidades(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
-        firestoreService.getTodosPlanos(user.academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getModalidades(user.academiaId!)
+            .catchError((_) => <Map<String, dynamic>>[]),
+        firestoreService
+            .getTodosPlanos(user.academiaId!)
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
       final list = List<Map<String, dynamic>>.from(results[0] as List);
       final acadData = results[1] as Map<String, dynamic>? ?? {};
@@ -101,33 +105,39 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
         });
       // Fonte única (financeiro_resumo.dart): mesmo status efetivo e mesmo
       // mês de referência usados pelos testes e pela tela da academia.
-      final converted = montarCobrancasAluno(list).map((c) {
-        final p = c.raw;
-        return <String, dynamic>{
-          ...p,
-          'status': c.status,
-          'mesRef': c.mesRef,
-          'dataVencimento': _fmtDate(
-            p['data_vencimento'] ?? p['dataVencimento'],
-          ),
-          'tipo': (() {
-            final tipoBruto = p['tipo']?.toString();
-            if (tipoBruto != 'Mensalidade') {
-              return tipoBruto ?? p['plano_nome']?.toString() ?? 'Cobrança';
-            }
-            final planoId = p['plano_id']?.toString();
-            final nomeAoVivo = planoId == null
-                ? null
-                : _planosPorId[planoId]?['nome']?.toString().trim();
-            if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) {
-              return nomeAoVivo;
-            }
-            final planoNome = p['plano_nome']?.toString().trim();
-            if (planoNome != null && planoNome.isNotEmpty) return planoNome;
-            return tipoBruto;
-          })(),
-        };
-      }).toList();
+      // "Desconsiderado" é decisão interna da academia (ex.: cobrança
+      // duplicada/cancelada) — o aluno nunca deve ver isso, só quem
+      // administra a academia.
+      final converted = montarCobrancasAluno(list)
+          .where((c) => c.status != 'Desconsiderado')
+          .map((c) {
+            final p = c.raw;
+            return <String, dynamic>{
+              ...p,
+              'status': c.status,
+              'mesRef': c.mesRef,
+              'dataVencimento': _fmtDate(
+                p['data_vencimento'] ?? p['dataVencimento'],
+              ),
+              'tipo': (() {
+                final tipoBruto = p['tipo']?.toString();
+                if (tipoBruto != 'Mensalidade') {
+                  return tipoBruto ?? p['plano_nome']?.toString() ?? 'Cobrança';
+                }
+                final planoId = p['plano_id']?.toString();
+                final nomeAoVivo = planoId == null
+                    ? null
+                    : _planosPorId[planoId]?['nome']?.toString().trim();
+                if (nomeAoVivo != null && nomeAoVivo.isNotEmpty) {
+                  return nomeAoVivo;
+                }
+                final planoNome = p['plano_nome']?.toString().trim();
+                if (planoNome != null && planoNome.isNotEmpty) return planoNome;
+                return tipoBruto;
+              })(),
+            };
+          })
+          .toList();
       if (mounted) setState(() => _cobrancas = converted);
     } catch (_) {
       if (mounted) setState(() => _erro = true);
@@ -227,7 +237,8 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
   /// Cobranças do mês selecionado (para a lista), ordenadas por vencimento.
   List<Map<String, dynamic>> get _doMes {
     final l =
-        _cobrancas.where((c) => (c['mesRef'] as String? ?? '') == _mesRefSel)
+        _cobrancas
+            .where((c) => (c['mesRef'] as String? ?? '') == _mesRefSel)
             .toList()
           ..sort(
             (a, b) => (a['data_vencimento'] ?? '').toString().compareTo(
@@ -994,10 +1005,7 @@ class _CobrancaCard extends StatelessWidget {
           ),
           if (atrasado)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: context.sem.danger.withOpacity(0.08),
                 borderRadius: const BorderRadius.only(
@@ -1016,10 +1024,7 @@ class _CobrancaCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       context.l10n.apContactSecretary,
-                      style: TextStyle(
-                        color: context.sem.danger,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: context.sem.danger, fontSize: 12),
                     ),
                   ),
                 ],
