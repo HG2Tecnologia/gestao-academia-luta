@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'constants.dart';
 import 'iap_service.dart';
+import 'theme/context_ext.dart';
 
 Future<bool> mostrarPaywall(BuildContext context) async {
   final result = await showModalBottomSheet<bool>(
@@ -50,7 +51,7 @@ const _planos = [
     id: kIapTrimestral,
     nome: 'Trimestral',
     precoMesFallback: 'R\$49,97',
-    precoTotalFallback: 'R\$149,90 a cada 3 meses',
+    precoTotalFallback: 'R\$149,90',
     desconto: '29% OFF',
     topLabel: 'MAIS POPULAR',
     topLabelColor: Color(0xFFC9A020),
@@ -60,7 +61,7 @@ const _planos = [
     id: kIapAnual,
     nome: 'Anual',
     precoMesFallback: 'R\$41,66',
-    precoTotalFallback: 'R\$499,90 por ano',
+    precoTotalFallback: 'R\$499,90',
     desconto: '40% OFF',
     topLabel: 'MELHOR VALOR',
     topLabelColor: Color(0xFF16A34A),
@@ -103,7 +104,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Sensei PRO ativado com sucesso! Aproveite.'),
-          backgroundColor: kSuccess,
+          backgroundColor: context.sem.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -211,7 +212,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
       maxChildSize: 0.95,
       builder: (_, controller) => Container(
         decoration: BoxDecoration(
-          color: kBg,
+          color: context.c.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: ListView(
@@ -226,7 +227,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: kBorder,
+                  color: context.c.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -240,14 +241,17 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 height: 72,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [kPrimary, kPrimary.withValues(alpha: 0.6)],
+                    colors: [
+                      context.c.primary,
+                      context.c.primary.withValues(alpha: 0.6),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: kPrimary.withValues(alpha: 0.35),
+                      color: context.c.primary.withValues(alpha: 0.35),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                     ),
@@ -257,16 +261,25 @@ class _PaywallSheetState extends State<_PaywallSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Sensei PRO',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               'Desbloqueie tudo e faça sua academia crescer sem limites',
               textAlign: TextAlign.center,
-              style: TextStyle(color: kText2, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: context.c.onSurfaceVariant,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -274,9 +287,9 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kSurface,
+                color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kBorder),
+                border: Border.all(color: context.c.outline),
               ),
               child: Column(
                 children: const [
@@ -292,7 +305,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             // Plan cards
             Text(
               'Escolha seu plano',
-              style: TextStyle(color: kText1, fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -322,18 +339,22 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: kDanger.withValues(alpha: 0.12),
+                  color: context.sem.danger.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(_erro!, style: TextStyle(color: kDanger, fontSize: 13)),
+                child: Text(
+                  _erro!,
+                  style: TextStyle(color: context.sem.danger, fontSize: 13),
+                ),
               ),
 
             // CTA
             FilledButton(
               onPressed: _loading || _initLoading ? null : _assinar,
               style: FilledButton.styleFrom(
-                backgroundColor: kPrimary,
-                disabledBackgroundColor: kPrimary.withValues(alpha: 0.4),
+                backgroundColor: context.c.primary,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: context.c.primary.withValues(alpha: 0.4),
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -341,7 +362,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
                     )
                   : const Text(
                       'Assinar Sensei PRO',
@@ -356,26 +377,36 @@ class _PaywallSheetState extends State<_PaywallSheet> {
               children: [
                 TextButton(
                   onPressed: _loading ? null : _restaurar,
-                  child: Text('Restaurar compra', style: TextStyle(color: kText2, fontSize: 12)),
+                  child: Text(
+                    'Restaurar compra',
+                    style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+                  ),
                 ),
-                Text('·', style: TextStyle(color: kBorder)),
+                Text('·', style: TextStyle(color: context.c.outline)),
                 TextButton(
                   onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-                  child: Text('Agora não', style: TextStyle(color: kText2, fontSize: 12)),
+                  child: Text(
+                    'Agora não',
+                    style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
+                  ),
                 ),
               ],
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: kSurface,
+                color: context.c.surfaceContainer,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kBorder),
+                border: Border.all(color: context.c.outline),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline_rounded, color: kText2, size: 14),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: context.c.onSurfaceVariant,
+                    size: 14,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -388,7 +419,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                       'fora do nosso controle. Cancele quando quiser direto '
                       'nas configurações da sua conta Apple/Google.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: kText2.withValues(alpha: 0.75), fontSize: 10, height: 1.5),
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant.withValues(alpha: 0.75),
+                        fontSize: 10,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ],
@@ -397,19 +432,23 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             const SizedBox(height: 12),
             Text.rich(
               TextSpan(
-                style: TextStyle(color: kText2.withValues(alpha: 0.55), fontSize: 10, height: 1.6),
+                style: TextStyle(
+                  color: context.c.onSurfaceVariant.withValues(alpha: 0.55),
+                  fontSize: 10,
+                  height: 1.6,
+                ),
                 children: [
                   const TextSpan(text: 'Ao assinar, você concorda com os nossos '),
                   TextSpan(
                     text: 'Termos de Uso',
-                    style: TextStyle(color: kPrimary, decoration: TextDecoration.underline),
+                    style: TextStyle(color: context.c.primary, decoration: TextDecoration.underline),
                     recognizer: TapGestureRecognizer()
                       ..onTap = () => launchUrl(Uri.parse(kTermosUrl), mode: LaunchMode.externalApplication),
                   ),
                   const TextSpan(text: ' e '),
                   TextSpan(
                     text: 'Política de Privacidade',
-                    style: TextStyle(color: kPrimary, decoration: TextDecoration.underline),
+                    style: TextStyle(color: context.c.primary, decoration: TextDecoration.underline),
                     recognizer: TapGestureRecognizer()
                       ..onTap = () => launchUrl(Uri.parse(kPrivacidadeUrl), mode: LaunchMode.externalApplication),
                   ),
@@ -454,10 +493,12 @@ class _PlanCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: selected ? kPrimary.withValues(alpha: 0.08) : kSurface,
+          color: selected
+              ? context.c.primary.withValues(alpha: 0.08)
+              : context.c.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? kPrimary : kBorder,
+            color: selected ? context.c.primary : context.c.outline,
             width: selected ? 2 : 1,
           ),
         ),
@@ -496,10 +537,10 @@ class _PlanCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: selected ? kPrimary : kBorder,
+                          color: selected ? context.c.primary : context.c.outline,
                           width: 2,
                         ),
-                        color: selected ? kPrimary : Colors.transparent,
+                        color: selected ? context.c.primary : Colors.transparent,
                       ),
                       child: selected
                           ? const Icon(Icons.check, color: Colors.white, size: 13)
@@ -514,8 +555,10 @@ class _PlanCard extends StatelessWidget {
                         children: [
                           Text(
                             meta.nome,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: kText1,
+                              color: context.c.onSurface,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -523,7 +566,10 @@ class _PlanCard extends StatelessWidget {
                           if (precoTotal.isNotEmpty)
                             Text(
                               precoTotal,
-                              style: TextStyle(color: kText2, fontSize: 12),
+                              style: TextStyle(
+                                color: context.c.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
                             ),
                         ],
                       ),
@@ -539,7 +585,9 @@ class _PlanCard extends StatelessWidget {
                               TextSpan(
                                 text: precoCobrado,
                                 style: TextStyle(
-                                  color: selected ? kPrimary : kText1,
+                                  color: selected
+                                      ? context.c.primary
+                                      : context.c.onSurface,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -547,7 +595,10 @@ class _PlanCard extends StatelessWidget {
                               if (isMensal)
                                 TextSpan(
                                   text: '/mês',
-                                  style: TextStyle(color: kText2, fontSize: 12),
+                                  style: TextStyle(
+                                    color: context.c.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
                                 ),
                             ],
                           ),
@@ -556,7 +607,10 @@ class _PlanCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             'equivale a $precoMesReferencia/mês',
-                            style: TextStyle(color: kText2, fontSize: 10.5),
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 10.5,
+                            ),
                           ),
                         ],
                         if (meta.desconto.isNotEmpty) ...[
@@ -564,14 +618,16 @@ class _PlanCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: kSuccess.withValues(alpha: 0.15),
+                              color: context.sem.success.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: kSuccess.withValues(alpha: 0.4)),
+                              border: Border.all(
+                                color: context.sem.success.withValues(alpha: 0.4),
+                              ),
                             ),
                             child: Text(
                               meta.desconto,
                               style: TextStyle(
-                                color: kSuccess,
+                                color: context.sem.success,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -609,22 +665,32 @@ class _Benefit extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: kPrimary.withValues(alpha: 0.12),
+              color: context.c.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: kPrimary, size: 19),
+            child: Icon(icon, color: context.c.primary, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo, style: TextStyle(color: kText1, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(sub, style: TextStyle(color: kText2, fontSize: 11)),
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  sub,
+                  style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
+                ),
               ],
             ),
           ),
-          Icon(Icons.check_circle_rounded, color: kSuccess, size: 18),
+          Icon(Icons.check_circle_rounded, color: context.sem.success, size: 18),
         ],
       ),
     );
