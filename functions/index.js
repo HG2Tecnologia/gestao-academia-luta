@@ -30,6 +30,11 @@ exports.arquivarTurma = turmaFunctions.arquivarTurma;
 const alunoFunctions = require("./aluno-functions");
 exports.excluirAluno = alunoFunctions.excluirAluno;
 
+const planLimitsFunctions = require("./plan-limits-functions");
+exports.manterContagemTurmasAtivas = planLimitsFunctions.manterContagemTurmasAtivas;
+exports.manterContagemAlunosAtivos = planLimitsFunctions.manterContagemAlunosAtivos;
+exports.manterContagemFuncionarios = planLimitsFunctions.manterContagemFuncionarios;
+
 const financeFunctions = require("./finance-functions");
 exports.ensureChargesForPeriod = financeFunctions.ensureChargesForPeriod;
 exports.ensureChargesForNextMonths = financeFunctions.ensureChargesForNextMonths;

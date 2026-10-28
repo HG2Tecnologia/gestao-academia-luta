@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/permissoes.dart';
+import '../../core/plan_limits.dart';
 import '../../core/senha_temporaria_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
@@ -54,6 +55,24 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   Map<String, bool> _permissoes = permissoesParaPerfil('Professor');
 
   static const _perfis = ['Professor', 'Secretaria', 'Admin'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verificarLimitePlano());
+  }
+
+  Future<void> _verificarLimitePlano() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final pode = await podeCriarDentroDoPlano(
+      context,
+      academiaId: academiaId,
+      tipo: TipoLimitePlano.funcionario,
+    );
+    if (!pode && mounted) context.pop();
+  }
 
   void _onPerfilChanged(String novoPerfil) {
     setState(() {

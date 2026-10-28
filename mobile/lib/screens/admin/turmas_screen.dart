@@ -4,6 +4,7 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/plan_limits.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -176,6 +177,14 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
 
   Future<void> _abrirForm({Map<String, dynamic>? turma}) async {
     if (_academiaId == null) return;
+    if (turma == null) {
+      final pode = await podeCriarDentroDoPlano(
+        context,
+        academiaId: _academiaId!,
+        tipo: TipoLimitePlano.turma,
+      );
+      if (!pode || !mounted) return;
+    }
     final criou = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,

@@ -6,6 +6,7 @@ import '../../core/theme/context_ext.dart';
 import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
+import '../../core/plan_limits.dart';
 import '../../core/senha_temporaria_modal.dart';
 import '../../core/widgets.dart';
 
@@ -73,6 +74,19 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   void initState() {
     super.initState();
     _carregarPlanos();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verificarLimitePlano());
+  }
+
+  Future<void> _verificarLimitePlano() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final pode = await podeCriarDentroDoPlano(
+      context,
+      academiaId: academiaId,
+      tipo: TipoLimitePlano.aluno,
+    );
+    if (!pode && mounted) context.pop();
   }
 
   Future<void> _carregarPlanos() async {

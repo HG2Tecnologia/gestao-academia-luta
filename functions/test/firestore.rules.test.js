@@ -214,6 +214,119 @@ test("Admin continua editando normalmente os outros campos da academia (não reg
   );
 });
 
+test("plano gratuito: Admin cria a 1ª turma mas a 2ª é barrada pelo limite", async () => {
+  // O emulador deste teste só roda Firestore/Auth, não as Cloud Functions —
+  // então o contador não incrementa sozinho como incrementaria em produção
+  // (manterContagemTurmasAtivas). Simula o resultado dessa function direto
+  // via withSecurityRulesDisabled, igual já fazemos pro teste de alunos.
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-limite-turmas").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-turmas").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-1").set({ nome: "Turma 1", ativo: true }),
+  );
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ turmas_ativas_contagem: 1 });
+  });
+  await assertFails(
+    firestore.doc("academias/academy-fixture/turmas/turma-2").set({ nome: "Turma 2", ativo: true }),
+  );
+});
+
+test("plano gratuito: turma extra é permitida quando academia é Pro", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ plano_tipo: 1 });
+    await context.firestore().doc("usuariosFirebase/admin-pro-turmas").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-pro-turmas").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-1").set({ nome: "Turma 1", ativo: true }),
+  );
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-2").set({ nome: "Turma 2", ativo: true }),
+  );
+});
+
+test("plano gratuito: 6º aluno é barrado pelo limite de 5", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ alunos_ativos_contagem: 5 });
+    await context.firestore().doc("usuariosFirebase/admin-limite-alunos").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-alunos").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture/usuarios/aluno-6").set({
+      nome: "Aluno 6",
+      perfil: 3,
+      ativo: true,
+    }),
+  );
+});
+
+test("plano gratuito: funcionário extra é barrado pelo limite de 1", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-limite-equipe").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-equipe").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/funcionarios/func-1").set({ nome: "Func 1" }),
+  );
+  // Mesmo motivo do teste de turmas: simula aqui o que
+  // manterContagemFuncionarios faria em produção.
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ funcionarios_contagem: 1 });
+  });
+  await assertFails(
+    firestore.doc("academias/academy-fixture/funcionarios/func-2").set({ nome: "Func 2" }),
+  );
+});
+
+test("Admin não consegue zerar os contadores de limite de plano direto na academia", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ turmas_ativas_contagem: 1 });
+    await context.firestore().doc("usuariosFirebase/admin-contador-fixture").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-contador-fixture").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture").update({ turmas_ativas_contagem: 0 }),
+  );
+});
+
 test("regressão: se a proteção dos campos de plano sumir da regra, a escrita REABRE (prova que ela é necessária)", async () => {
   // Mesmo espírito do teste de regressão de `_atribuicao` acima: aplica uma
   // cópia DELIBERADAMENTE REGREDIDA das regras (remove só a condição extra

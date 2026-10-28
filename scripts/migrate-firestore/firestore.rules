@@ -34,6 +34,24 @@ service cloud.firestore {
       return possuiPerfilNaAcademia(academiaId, ['Professor']);
     }
 
+    // Plano gratuito: 1 turma ativa, 5 alunos ativos, 1 funcionário. Os
+    // contadores (*_contagem) são mantidos pelas Cloud Functions
+    // manterContagemTurmasAtivas/AlunosAtivos/Funcionarios — regra nenhuma
+    // consegue fazer uma query de contagem ao vivo, só ler um campo já
+    // calculado. `plano_tipo` não confere a data de expiração (só o webhook
+    // de assinatura zera isso quando expira de verdade) — um atraso de
+    // poucos minutos até a sincronização é aceitável aqui.
+    function academiaEhPro(academiaId) {
+      return get(/databases/$(database)/documents/academias/$(academiaId))
+        .data.get('plano_tipo', 0) >= 1;
+    }
+
+    function dentroDoLimiteGratuito(academiaId, campoContagem, limite) {
+      return academiaEhPro(academiaId) ||
+        get(/databases/$(database)/documents/academias/$(academiaId))
+          .data.get(campoContagem, 0) < limite;
+    }
+
     function isSelfRegisteredAcademyAccount(uid) {
       return request.auth.uid == uid &&
         request.resource.data.get('schemaVersion', 0) == 2 &&
@@ -75,7 +93,8 @@ service cloud.firestore {
       return ['plano_tipo', 'plano_expiracao', 'plano_produto_id',
               'plano_plataforma', 'plano_ambiente', 'plano_assinado_em',
               'plano_transaction_id', 'plano_original_transaction_id',
-              'cupom_base_plan_android'];
+              'cupom_base_plan_android', 'turmas_ativas_contagem',
+              'alunos_ativos_contagem', 'funcionarios_contagem'];
     }
 
     // Dados da academia — qualquer membro pode ler; escrita restrita por role
@@ -92,7 +111,9 @@ service cloud.firestore {
     // Permite criar o primeiro usuário Admin durante o registro da academia,
     // e também Admin/Secretaria cadastrando aluno/funcionário normalmente.
     match /academias/{academiaId}/usuarios/{usuarioId} {
-      allow create: if isAdminOuSecretaria(academiaId) ||
+      allow create: if (isAdminOuSecretaria(academiaId) &&
+          (request.resource.data.get('perfil', 3) != 3 ||
+           dentroDoLimiteGratuito(academiaId, 'alunos_ativos_contagem', 5))) ||
         (isAuth() &&
          request.resource.data.firebase_uid == request.auth.uid &&
          request.resource.data.perfil == 0 &&
@@ -110,7 +131,9 @@ service cloud.firestore {
 
     match /academias/{academiaId}/funcionarios/{doc} {
       allow read: if pertenceAcademia(academiaId);
-      allow create, delete: if isAdminOuSecretaria(academiaId);
+      allow create: if isAdminOuSecretaria(academiaId) &&
+        dentroDoLimiteGratuito(academiaId, 'funcionarios_contagem', 1);
+      allow delete: if isAdminOuSecretaria(academiaId);
       allow update: if isAdminOuSecretaria(academiaId);
     }
 
@@ -161,7 +184,14 @@ service cloud.firestore {
     // graduações e horários históricos ligados ao turma_id.
     match /academias/{academiaId}/turmas/{doc} {
       allow read: if pertenceAcademia(academiaId);
-      allow create, update: if isAdminOuSecretaria(academiaId);
+      allow create: if isAdminOuSecretaria(academiaId) &&
+        dentroDoLimiteGratuito(academiaId, 'turmas_ativas_contagem', 1);
+      // Edição normal nunca é barrada pelo limite — só reativar uma turma
+      // arquivada (ativo false -> true) conta como "voltar a ocupar vaga".
+      allow update: if isAdminOuSecretaria(academiaId) &&
+        (resource.data.get('ativo', true) == true ||
+         request.resource.data.get('ativo', true) != true ||
+         dentroDoLimiteGratuito(academiaId, 'turmas_ativas_contagem', 1));
       allow delete: if false;
     }
 
@@ -228,7 +258,7 @@ service cloud.firestore {
     // descrita no bloco de aviso acima — não remover isoladamente.
     match /academias/{academiaId}/{colecao}/{doc} {
       allow read: if colecao != '_atribuicao' && pertenceAcademia(academiaId);
-      allow write: if !(colecao in ['usuarios', 'funcionarios', '_atribuicao']) &&
+      allow write: if !(colecao in ['usuarios', 'funcionarios', 'turmas', '_atribuicao']) &&
         (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
     }
 
