@@ -359,7 +359,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashFreePlanLimits.
   ///
   /// In pt, this message translates to:
-  /// **'Limite: 3 turmas · 10 alunos/turma · anúncios'**
+  /// **'Limite: 1 turma · 5 alunos · 1 funcionário'**
   String get dashFreePlanLimits;
 
   /// No description provided for @dashSubscribePro.
@@ -4658,6 +4658,24 @@ abstract class AppLocalizations {
   /// **'{n} cobrança(s) gerada(s).'**
   String fiGenerateChargesSuccess(int n);
 
+  /// No description provided for @fiLoadingMsg1.
+  ///
+  /// In pt, this message translates to:
+  /// **'Consultando seus alunos e mensalidades…'**
+  String get fiLoadingMsg1;
+
+  /// No description provided for @fiLoadingMsg2.
+  ///
+  /// In pt, this message translates to:
+  /// **'Organizando sua visão financeira…'**
+  String get fiLoadingMsg2;
+
+  /// No description provided for @fiLoadingMsg3.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quase lá…'**
+  String get fiLoadingMsg3;
+
   /// No description provided for @fiStudentsWithoutPlanTitle.
   ///
   /// In pt, this message translates to:
@@ -6878,11 +6896,41 @@ abstract class AppLocalizations {
   /// **'Condições de uso do Sensei Manager'**
   String get cfgTermsSub;
 
+  /// No description provided for @cfgDeleteAccountInfo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exclusão de Conta'**
+  String get cfgDeleteAccountInfo;
+
+  /// No description provided for @cfgDeleteAccountInfoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como solicitar a exclusão da sua conta'**
+  String get cfgDeleteAccountInfoSub;
+
   /// No description provided for @cfgAccountSection.
   ///
   /// In pt, this message translates to:
   /// **'Conta'**
   String get cfgAccountSection;
+
+  /// No description provided for @cfgChangePassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alterar Senha'**
+  String get cfgChangePassword;
+
+  /// No description provided for @cfgChangePasswordSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar sua senha de acesso ao app'**
+  String get cfgChangePasswordSub;
+
+  /// No description provided for @cfgSignOutSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sair'**
+  String get cfgSignOutSection;
 
   /// No description provided for @cfgDangerSection.
   ///
@@ -7175,7 +7223,7 @@ abstract class AppLocalizations {
   /// No description provided for @cfgPlanFreeDesc.
   ///
   /// In pt, this message translates to:
-  /// **'3 turmas · 10 alunos/turma · anúncios'**
+  /// **'1 turma · 5 alunos · 1 funcionário · anúncios'**
   String get cfgPlanFreeDesc;
 
   /// No description provided for @planTitle.

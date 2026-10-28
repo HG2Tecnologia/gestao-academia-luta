@@ -150,8 +150,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dashFreePlan => 'Plano Gratuito';
 
   @override
-  String get dashFreePlanLimits =>
-      'Limite: 3 turmas · 10 alunos/turma · anúncios';
+  String get dashFreePlanLimits => 'Limite: 1 turma · 5 alunos · 1 funcionário';
 
   @override
   String get dashSubscribePro => 'Assinar PRO';
@@ -2652,6 +2651,15 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get fiLoadingMsg1 => 'Consultando seus alunos e mensalidades…';
+
+  @override
+  String get fiLoadingMsg2 => 'Organizando sua visão financeira…';
+
+  @override
+  String get fiLoadingMsg3 => 'Quase lá…';
+
+  @override
   String get fiStudentsWithoutPlanTitle => 'Alunos sem plano configurado';
 
   @override
@@ -3907,7 +3915,23 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgTermsSub => 'Condições de uso do Sensei Manager';
 
   @override
+  String get cfgDeleteAccountInfo => 'Exclusão de Conta';
+
+  @override
+  String get cfgDeleteAccountInfoSub =>
+      'Como solicitar a exclusão da sua conta';
+
+  @override
   String get cfgAccountSection => 'Conta';
+
+  @override
+  String get cfgChangePassword => 'Alterar Senha';
+
+  @override
+  String get cfgChangePasswordSub => 'Trocar sua senha de acesso ao app';
+
+  @override
+  String get cfgSignOutSection => 'Sair';
 
   @override
   String get cfgDangerSection => 'Zona de Perigo';
@@ -4068,7 +4092,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get cfgPlanFreeDesc => '3 turmas · 10 alunos/turma · anúncios';
+  String get cfgPlanFreeDesc => '1 turma · 5 alunos · 1 funcionário · anúncios';
 
   @override
   String get planTitle => 'Minha assinatura';

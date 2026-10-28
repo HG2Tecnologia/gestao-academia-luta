@@ -64,7 +64,7 @@
   },
   "dashSeePlans": "Ver planos",
   "dashFreePlan": "Plano Gratuito",
-  "dashFreePlanLimits": "Limite: 3 turmas · 10 alunos/turma · anúncios",
+  "dashFreePlanLimits": "Limite: 1 turma · 5 alunos · 1 funcionário",
   "dashSubscribePro": "Assinar PRO",
   "dashGettingStarted": "Primeiros passos",
   "dashGettingStartedSubtitle": "Configure sua academia em ordem",
@@ -1365,6 +1365,9 @@
       "n": {"type": "int"}
     }
   },
+  "fiLoadingMsg1": "Consultando seus alunos e mensalidades…",
+  "fiLoadingMsg2": "Organizando sua visão financeira…",
+  "fiLoadingMsg3": "Quase lá…",
   "fiStudentsWithoutPlanTitle": "Alunos sem plano configurado",
   "fiStudentsWithoutPlanSeeWho": "Ver quais são",
   "fiStudentsWithoutPlanBody": "{n} aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.",
@@ -1987,7 +1990,12 @@
   "cfgPrivacySub": "Como tratamos seus dados (LGPD)",
   "cfgTerms": "Termos de Uso",
   "cfgTermsSub": "Condições de uso do Sensei Manager",
+  "cfgDeleteAccountInfo": "Exclusão de Conta",
+  "cfgDeleteAccountInfoSub": "Como solicitar a exclusão da sua conta",
   "cfgAccountSection": "Conta",
+  "cfgChangePassword": "Alterar Senha",
+  "cfgChangePasswordSub": "Trocar sua senha de acesso ao app",
+  "cfgSignOutSection": "Sair",
   "cfgDangerSection": "Zona de Perigo",
   "cfgSaveToggleError": "Não foi possível salvar a alteração.",
   "cfgInfoSaved": "Informações salvas.",
@@ -2057,7 +2065,7 @@
       }
     }
   },
-  "cfgPlanFreeDesc": "3 turmas · 10 alunos/turma · anúncios",
+  "cfgPlanFreeDesc": "1 turma · 5 alunos · 1 funcionário · anúncios",
   "planTitle": "Minha assinatura",
   "planSubscribedSince": "Assinante desde",
   "planRenewsOn": "Renova em",

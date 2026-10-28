@@ -43,7 +43,7 @@
   "dashTrialDaysLeft": "{days, plural, one{1 day left} other{{days} days left}}",
   "dashSeePlans": "View plans",
   "dashFreePlan": "Free plan",
-  "dashFreePlanLimits": "Limit: 3 classes · 10 students/class · ads",
+  "dashFreePlanLimits": "Limit: 1 class · 5 students · 1 staff member",
   "dashSubscribePro": "Get PRO",
   "dashGettingStarted": "Getting started",
   "dashGettingStartedSubtitle": "Set up your academy step by step",
@@ -864,6 +864,9 @@
       "n": {"type": "int"}
     }
   },
+  "fiLoadingMsg1": "Fetching your students and dues…",
+  "fiLoadingMsg2": "Organizing your financial overview…",
+  "fiLoadingMsg3": "Almost there…",
   "fiStudentsWithoutPlanTitle": "Students without a plan",
   "fiStudentsWithoutPlanSeeWho": "See who",
   "fiStudentsWithoutPlanBody": "{n} active student(s) with no plan assigned — they never get automatic charges until a plan is assigned.",
@@ -1433,6 +1436,11 @@
   "cfgPrivacy": "Privacy Policy",
   "cfgPrivacySub": "How we handle your data (LGPD)",
   "cfgTerms": "Terms of Use",
+  "cfgDeleteAccountInfo": "Delete Account",
+  "cfgDeleteAccountInfoSub": "How to request your account deletion",
+  "cfgChangePassword": "Change Password",
+  "cfgChangePasswordSub": "Change your app login password",
+  "cfgSignOutSection": "Sign Out",
   "cfgTermsSub": "Sensei Manager terms of use",
   "cfgAccountSection": "Account",
   "cfgDangerSection": "Danger Zone",
@@ -1504,7 +1512,7 @@
       }
     }
   },
-  "cfgPlanFreeDesc": "3 classes · 10 students/class · ads",
+  "cfgPlanFreeDesc": "1 class · 5 students · 1 staff member · ads",
   "planTitle": "My subscription",
   "planSubscribedSince": "Subscriber since",
   "planRenewsOn": "Renews on",

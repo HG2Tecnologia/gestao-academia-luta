@@ -465,24 +465,51 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     final desc = info.$2;
     final valor = _permissoes[chave] ?? false;
 
-    return SwitchListTile(
-      value: valor,
-      onChanged: (v) => setState(() => _permissoes[chave] = v),
-      activeColor: context.c.primary,
-      title: Text(
-        label,
-        style: TextStyle(
-          color: context.c.onSurface,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+    return Semantics(
+      toggled: valor,
+      label: label,
+      child: InkWell(
+        onTap: () => setState(() => _permissoes[chave] = !valor),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Switch(
+                value: valor,
+                onChanged: (v) => setState(() => _permissoes[chave] = v),
+                activeThumbColor: Colors.white,
+                activeTrackColor: context.c.primary,
+                inactiveThumbColor: context.c.surface,
+                inactiveTrackColor: context.c.outline,
+              ),
+            ],
+          ),
         ),
       ),
-      subtitle: Text(
-        desc,
-        style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      dense: true,
     );
   }
 

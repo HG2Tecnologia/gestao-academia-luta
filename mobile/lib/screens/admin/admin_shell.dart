@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/drawer_helper.dart';
+import '../../core/firestore_service.dart';
+import '../../core/paywall_modal.dart';
 import '../../core/perfil_switch.dart';
+import '../../core/plan_service.dart';
 import '../../core/profile_session_service.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/context_ext.dart';
@@ -22,12 +26,14 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _perfis = [];
   String _nomePerfilAtual = '';
+  String? _logoBase64;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _atualizarPerfis();
+    _carregarLogo();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.academy);
@@ -46,6 +52,26 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
         _nomePerfilAtual = user?.nome ?? '';
       });
     }
+  }
+
+  Future<void> _carregarLogo() async {
+    try {
+      final user = await AuthStorage.getUser();
+      final academiaId = user?.academiaId;
+      if (academiaId == null) return;
+      final dados = await firestoreService.getAcademia(academiaId);
+      final logo = dados?['logoUrl'] as String?;
+      if (mounted) setState(() => _logoBase64 = logo);
+    } catch (_) {}
+  }
+
+  Future<void> _abrirSeNaoForPro(String rota) async {
+    Navigator.of(context).pop();
+    if (!PlanService.instance.isPro) {
+      await mostrarPaywall(context);
+      return;
+    }
+    if (mounted) context.push(rota);
   }
 
   @override
@@ -108,6 +134,8 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     }
   }
 
+  bool _logoValida(String? b64) => b64 != null && b64.contains(',');
+
   Widget _buildDrawer() {
     final l = context.l10n;
     final idx = widget.shell.currentIndex;
@@ -143,6 +171,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                         Container(
                           width: 44,
                           height: 44,
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
@@ -152,11 +181,16 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
-                            Icons.admin_panel_settings_rounded,
-                            color: context.c.onPrimary,
-                            size: 22,
-                          ),
+                          child: _logoValida(_logoBase64)
+                              ? Image.memory(
+                                  base64Decode(_logoBase64!.split(',').last),
+                                  fit: BoxFit.cover,
+                                )
+                              : Icon(
+                                  Icons.admin_panel_settings_rounded,
+                                  color: context.c.onPrimary,
+                                  size: 22,
+                                ),
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -209,19 +243,13 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
                     icon: Icons.fact_check_rounded,
                     label: l.rpTitle,
                     selected: false,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/relatorio-presencas-oficial');
-                    },
+                    onTap: () => _abrirSeNaoForPro('/relatorio-presencas-oficial'),
                   ),
                   _DrawerItem(
                     icon: Icons.newspaper_rounded,
                     label: l.menuNews,
                     selected: false,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/admin/noticias');
-                    },
+                    onTap: () => _abrirSeNaoForPro('/admin/noticias'),
                   ),
                   _DrawerItem(
                     icon: Icons.settings_rounded,
@@ -271,6 +299,12 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
       key: adminShellKey,
       body: widget.shell,
       endDrawer: _buildDrawer(),
+      onEndDrawerChanged: (aberto) {
+        if (aberto) {
+          _atualizarPerfis();
+          _carregarLogo();
+        }
+      },
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navSelectedIndex,
         onDestinationSelected: _onNavTap,

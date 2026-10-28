@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_settings.dart';
 import '../../core/auth_storage.dart';
+import '../../core/constants.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
@@ -851,7 +852,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             size: 16,
                           ),
                           onTap: () => _abrirLink(
-                            'https://senseimanager.com.br/privacidade',
+                            'https://hg2tecnologia.com.br/privacy-policy',
                           ),
                         ),
                         _NavRow(
@@ -863,8 +864,20 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             color: context.c.onSurfaceVariant,
                             size: 16,
                           ),
-                          onTap: () =>
-                              _abrirLink('https://senseimanager.com.br/termos'),
+                          onTap: () => _abrirLink(kTermosUrl),
+                        ),
+                        _NavRow(
+                          icon: Icons.person_remove_rounded,
+                          titulo: _l.cfgDeleteAccountInfo,
+                          subtitulo: _l.cfgDeleteAccountInfoSub,
+                          trailing: Icon(
+                            Icons.open_in_new_rounded,
+                            color: context.c.onSurfaceVariant,
+                            size: 16,
+                          ),
+                          onTap: () => _abrirLink(
+                            'https://hg2tecnologia.com.br/exclusao-de-conta',
+                          ),
                         ),
                       ],
                     ),
@@ -872,6 +885,19 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
 
                   _SettingsSection(
                     titulo: _l.cfgAccountSection,
+                    child: _GroupCard(
+                      children: [
+                        _NavRow(
+                          icon: Icons.lock_reset_rounded,
+                          titulo: _l.cfgChangePassword,
+                          subtitulo: _l.cfgChangePasswordSub,
+                          onTap: () => context.push('/alterar-senha'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _SettingsSection(
+                    titulo: _l.cfgSignOutSection,
                     child: _BotaoSair(),
                   ),
                   _SettingsSection(

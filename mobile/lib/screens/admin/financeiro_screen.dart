@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -127,6 +128,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   String? _modalidadeFiltro; // null = todas
   bool _loading = true;
   String? _academiaId;
+  Timer? _loadingTimer;
+  int _loadingMsgIdx = 0;
+  List<String> get _loadingMsgs => [
+    _l.fiLoadingMsg1,
+    _l.fiLoadingMsg2,
+    _l.fiLoadingMsg3,
+  ];
 
   // Modo de seleção múltipla — "marcar como pago" em lote.
   bool _modoSelecao = false;
@@ -165,6 +173,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   void dispose() {
     adminTabNotifier.removeListener(_onTabChanged);
     _buscaCtrl.dispose();
+    _loadingTimer?.cancel();
     super.dispose();
   }
 
@@ -173,7 +182,18 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadingMsgIdx = 0;
+    });
+    _loadingTimer?.cancel();
+    _loadingTimer = Timer.periodic(const Duration(milliseconds: 1800), (_) {
+      if (mounted) {
+        setState(
+          () => _loadingMsgIdx = (_loadingMsgIdx + 1) % _loadingMsgs.length,
+        );
+      }
+    });
     try {
       final user = await AuthStorage.getUser();
       _academiaId = user?.academiaId ?? '';
@@ -194,13 +214,13 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       final agora = DateTime.now();
       final periodoHoje =
           '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
-      try {
-        await financeService.ensureChargesForPeriod(
-          academiaId: _academiaId!,
-          period: periodoHoje,
-        );
-      } catch (_) {}
 
+      // "ensureChargesForPeriod" é uma rede de segurança (gera mensalidade
+      // se o agendamento diário ainda não rodou hoje) — não bloqueia o
+      // carregamento da tela, roda em paralelo com as consultas abaixo em
+      // vez de ser aguardada antes delas (evitava cold start da function
+      // somar sequencialmente ao tempo de tela, deixando o carregamento
+      // bem mais lento do que precisava).
       final results = await Future.wait([
         firestoreService.getPagamentos(_academiaId!),
         firestoreService.getAcademia(_academiaId!).catchError((_) => null),
@@ -208,6 +228,11 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
         firestoreService.getTodosPlanos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
         firestoreService.getAlunos(_academiaId!, ativosOnly: true).catchError((_) => <Map<String, dynamic>>[]),
         firestoreService.getPlanosModalidadeAtivos(_academiaId!).catchError((_) => <Map<String, dynamic>>[]),
+        financeService
+            .ensureChargesForPeriod(academiaId: _academiaId!, period: periodoHoje)
+            .catchError(
+              (_) => const ResultadoGarantiaCobrancas(criadas: 0, ignoradas: 0),
+            ),
       ]);
 
       final todos = results[0] as List<Map<String, dynamic>>;
@@ -247,6 +272,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
       if (mounted) setState(_recomputarDerivados);
     } catch (_) {
     } finally {
+      _loadingTimer?.cancel();
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -1972,8 +1998,28 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               if (_loading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: context.c.primary),
+                        const SizedBox(height: 16),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Text(
+                            _loadingMsgs[_loadingMsgIdx],
+                            key: ValueKey(_loadingMsgIdx),
+                            style: TextStyle(
+                              color: context.c.onSurfaceVariant,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
               else ...[
                 SliverToBoxAdapter(

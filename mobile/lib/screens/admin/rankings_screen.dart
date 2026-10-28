@@ -475,17 +475,35 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    final mq = MediaQuery.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: context.c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        20 + mq.viewInsets.bottom + mq.padding.bottom,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.c.outline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -495,8 +513,8 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
                           : _l.rkEditRanking,
                       style: TextStyle(
                         color: context.c.onSurface,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
                       ),
                     ),
                   ),
@@ -511,7 +529,7 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
               _field(_nome, _l.rkNameRequired, required: true),
               const SizedBox(height: 10),
               _field(_descricao, _l.commonDescriptionOptional),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
               Text(
                 _l.rkPointsComposition,
@@ -522,57 +540,31 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 12),
-
-              _toggleRow(
-                _l.rkIncludeAttendance,
-                _l.rkEachAttendanceCounts,
-                _incPresencas,
-                (v) => setState(() => _incPresencas = v),
-              ),
-              if (_incPresencas) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      _l.rkAttendanceWeight,
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(width: 60, child: _fieldNum(_pesoPresencas)),
-                  ],
-                ),
-              ],
               const SizedBox(height: 10),
 
-              _toggleRow(
-                _l.rkIncludeManual,
-                _l.rkManualHint,
-                _incManuais,
-                (v) => setState(() => _incManuais = v),
+              _ToggleCard(
+                children: [
+                  _toggleRow(
+                    Icons.fact_check_rounded,
+                    _l.rkIncludeAttendance,
+                    _l.rkEachAttendanceCounts,
+                    _incPresencas,
+                    (v) => setState(() => _incPresencas = v),
+                  ),
+                  if (_incPresencas)
+                    _pesoRow(_l.rkAttendanceWeight, _pesoPresencas),
+                  Divider(height: 1, color: context.c.outline),
+                  _toggleRow(
+                    Icons.edit_note_rounded,
+                    _l.rkIncludeManual,
+                    _l.rkManualHint,
+                    _incManuais,
+                    (v) => setState(() => _incManuais = v),
+                  ),
+                  if (_incManuais) _pesoRow(_l.rkManualWeight, _pesoManuais),
+                ],
               ),
-              if (_incManuais) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      _l.rkManualWeight,
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(width: 60, child: _fieldNum(_pesoManuais)),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
               Text(
                 _l.rkVisibility,
@@ -583,14 +575,19 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 12),
-              _toggleRow(
-                _l.rkVisibleToStudents,
-                _l.rkVisibleHint,
-                _visivel,
-                (v) => setState(() => _visivel = v),
+              const SizedBox(height: 10),
+              _ToggleCard(
+                children: [
+                  _toggleRow(
+                    Icons.visibility_rounded,
+                    _l.rkVisibleToStudents,
+                    _l.rkVisibleHint,
+                    _visivel,
+                    (v) => setState(() => _visivel = v),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
               Text(
                 _l.rkValidityPeriod,
@@ -809,38 +806,97 @@ class _CriarRankingSheetState extends State<CriarRankingSheet> {
   }
 
   Widget _toggleRow(
+    IconData icon,
     String titulo,
     String sub,
     bool value,
     ValueChanged<bool> onChange,
-  ) => Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              titulo,
-              style: TextStyle(
-                color: context.c.onSurface,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+  ) => Semantics(
+    toggled: value,
+    label: titulo,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: context.c.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(9),
             ),
-            Text(
-              sub,
-              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 11),
+            child: Icon(icon, color: context.c.primary, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          Switch(
+            value: value,
+            onChanged: onChange,
+            activeThumbColor: Colors.white,
+            activeTrackColor: context.c.primary,
+            inactiveThumbColor: context.c.surface,
+            inactiveTrackColor: context.c.outline,
+          ),
+        ],
       ),
-      Switch(
-        value: value,
-        onChanged: onChange,
-        activeColor: context.c.primary,
-        inactiveThumbColor: context.c.onSurfaceVariant,
-        inactiveTrackColor: context.c.outline,
-      ),
-    ],
+    ),
   );
+
+  Widget _pesoRow(String label, TextEditingController ctrl) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+    child: Row(
+      children: [
+        const SizedBox(width: 46),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13),
+          ),
+        ),
+        SizedBox(width: 60, child: _fieldNum(ctrl)),
+      ],
+    ),
+  );
+}
+
+/// Card agrupador dos switches do formulário de ranking — mesmo padrão
+/// visual usado em Configurações (_GroupCard).
+class _ToggleCard extends StatelessWidget {
+  const _ToggleCard({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.c.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.c.outline),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
 }

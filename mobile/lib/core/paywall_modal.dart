@@ -150,7 +150,12 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     // resultado chega pelo onPurchaseResult
   }
 
-  // Resolve preço exibido: usa dado real da loja se disponível
+  // Resolve preço exibido: usa dado real da loja se disponível. Para planos
+  // de cobrança trimestral/anual, o valor "por mês" é só uma referência de
+  // economia — NUNCA o valor efetivamente cobrado (que é sempre à vista, em
+  // uma única transação da loja). Mostrar isso como "R$XX/mês" em destaque
+  // dava a entender, pra alguns clientes, que a compra era parcelada —
+  // mesma confusão que já aconteceu com o parcelamento nativo da Apple.
   String _precoMes(int index) {
     final meta = _planos[index];
     final products = IapService.instance.products;
@@ -167,20 +172,36 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     return 'R\$${perMonth.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
-  String _precoTotal(int index) {
+  /// Valor efetivamente cobrado, à vista, numa transação só. Para o mensal
+  /// é o mesmo que [_precoMes]; para trimestral/anual é o total do período.
+  String _precoCobrado(int index) {
     final meta = _planos[index];
-    if (index == 0) return '/mês';
     final products = IapService.instance.products;
-    if (products.isEmpty) return meta.precoTotalFallback;
+    if (products.isEmpty) {
+      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
+    }
 
     final matches = products.where((p) => p.id == meta.id);
-    if (matches.isEmpty) return meta.precoTotalFallback;
+    if (matches.isEmpty) {
+      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
+    }
 
     final p = matches.first;
-    if (p.currencyCode != 'BRL') return meta.precoTotalFallback;
+    if (p.currencyCode != 'BRL') {
+      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
+    }
 
-    return '${p.price} total';
+    return p.price;
   }
+
+  /// Texto de cadência de cobrança (não repete o valor, que já aparece em
+  /// destaque do lado direito do card) — deixa explícito que é uma cobrança
+  /// única à vista, não parcelada.
+  String _precoTotal(int index) => switch (index) {
+    1 => 'Cobrado a cada 3 meses, em uma única parcela',
+    2 => 'Cobrado 1x por ano, em uma única parcela',
+    _ => '',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -285,8 +306,10 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             else
               ...List.generate(_planos.length, (i) => _PlanCard(
                 meta: _planos[i],
-                precoMes: _precoMes(i),
+                precoCobrado: _precoCobrado(i),
+                precoMesReferencia: _precoMes(i),
                 precoTotal: _precoTotal(i),
+                isMensal: i == 0,
                 selected: _selected == i,
                 onTap: _loading ? null : () => setState(() => _selected = i),
               )),
@@ -342,10 +365,34 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 ),
               ],
             ),
-            Text(
-              'A cobrança é feita pela App Store ou Google Play. Cancele quando quiser.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kText2.withValues(alpha: 0.6), fontSize: 10, height: 1.5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: kSurface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kBorder),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded, color: kText2, size: 14),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'O pagamento é processado inteiramente pela loja do seu '
+                      'celular (App Store ou Google Play) — o Sensei Manager '
+                      'não tem nenhum vínculo com a cobrança, não acessa seus '
+                      'dados de pagamento e não oferece parcelamento próprio. '
+                      'Condições de parcelas eventualmente exibidas na tela de '
+                      'assinatura são um recurso nativo da Apple ou do Google, '
+                      'fora do nosso controle. Cancele quando quiser direto '
+                      'nas configurações da sua conta Apple/Google.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kText2.withValues(alpha: 0.75), fontSize: 10, height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             Text.rich(
@@ -382,15 +429,19 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 
 class _PlanCard extends StatelessWidget {
   final _PlanMeta meta;
-  final String precoMes;
+  final String precoCobrado;
+  final String precoMesReferencia;
   final String precoTotal;
+  final bool isMensal;
   final bool selected;
   final VoidCallback? onTap;
 
   const _PlanCard({
     required this.meta,
-    required this.precoMes,
+    required this.precoCobrado,
+    required this.precoMesReferencia,
     required this.precoTotal,
+    required this.isMensal,
     required this.selected,
     required this.onTap,
   });
@@ -478,7 +529,7 @@ class _PlanCard extends StatelessWidget {
                       ),
                     ),
 
-                    // Preço/mês + badge desconto
+                    // Preço cobrado (à vista) + referência por mês + badge
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -486,20 +537,28 @@ class _PlanCard extends StatelessWidget {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: precoMes,
+                                text: precoCobrado,
                                 style: TextStyle(
                                   color: selected ? kPrimary : kText1,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              TextSpan(
-                                text: '/mês',
-                                style: TextStyle(color: kText2, fontSize: 12),
-                              ),
+                              if (isMensal)
+                                TextSpan(
+                                  text: '/mês',
+                                  style: TextStyle(color: kText2, fontSize: 12),
+                                ),
                             ],
                           ),
                         ),
+                        if (!isMensal) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'equivale a $precoMesReferencia/mês',
+                            style: TextStyle(color: kText2, fontSize: 10.5),
+                          ),
+                        ],
                         if (meta.desconto.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Container(
