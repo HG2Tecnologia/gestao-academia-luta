@@ -11,6 +11,7 @@ import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import '../../core/pro_gate.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
 import '../../core/widgets.dart';
@@ -426,6 +427,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = PlanService.instance.isPro;
     return Scaffold(
       backgroundColor: context.c.surface,
       appBar: AppBar(
@@ -531,16 +533,19 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     subtitulo: _l.cfgStudentsSub,
                     child: _GroupCard(
                       children: [
-                        _SwitchRow(
-                          icon: Icons.groups_rounded,
-                          titulo: _l.cfgBlockCheckin,
-                          subtitulo: _l.cfgBlockCheckinSub,
-                          valor: _bloqueioCheckinAtivo,
-                          onChanged: (v) => _toggle(
-                            _l.cfgBlockCheckin,
-                            _bloqueioCheckinAtivo,
-                            (x) => _bloqueioCheckinAtivo = x,
-                            v,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.groups_rounded,
+                            titulo: _l.cfgBlockCheckin,
+                            subtitulo: _l.cfgBlockCheckinSub,
+                            valor: _bloqueioCheckinAtivo,
+                            onChanged: (v) => _toggle(
+                              _l.cfgBlockCheckin,
+                              _bloqueioCheckinAtivo,
+                              (x) => _bloqueioCheckinAtivo = x,
+                              v,
+                            ),
                           ),
                         ),
                         if (_bloqueioCheckinAtivo)
@@ -558,16 +563,19 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirCarencia,
                           ),
-                        _SwitchRow(
-                          icon: Icons.event_busy_rounded,
-                          titulo: _l.cfgAutoAbsence,
-                          subtitulo: _l.cfgAutoAbsenceSub,
-                          valor: _faltaAutomaticaAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgAutoAbsence,
-                            _faltaAutomaticaAtiva,
-                            (x) => _faltaAutomaticaAtiva = x,
-                            v,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.event_busy_rounded,
+                            titulo: _l.cfgAutoAbsence,
+                            subtitulo: _l.cfgAutoAbsenceSub,
+                            valor: _faltaAutomaticaAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgAutoAbsence,
+                              _faltaAutomaticaAtiva,
+                              (x) => _faltaAutomaticaAtiva = x,
+                              v,
+                            ),
                           ),
                         ),
                         _SwitchRow(
@@ -583,21 +591,24 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         if (_checkinManualAtivo)
-                          _NavRowComValorAbaixo(
-                            icon: Icons.timelapse_rounded,
-                            titulo: _l.cfgManualCheckinWindow,
-                            subtitulo: _l.cfgManualCheckinWindowSub,
-                            valor: _l.cfgManualCheckinWindowValue(
-                              formatarJanelaCheckinManual(
-                                _checkinManualAntesMinutos,
-                                _l,
+                          ProGate(
+                            isPro: isPro,
+                            child: _NavRowComValorAbaixo(
+                              icon: Icons.timelapse_rounded,
+                              titulo: _l.cfgManualCheckinWindow,
+                              subtitulo: _l.cfgManualCheckinWindowSub,
+                              valor: _l.cfgManualCheckinWindowValue(
+                                formatarJanelaCheckinManual(
+                                  _checkinManualAntesMinutos,
+                                  _l,
+                                ),
+                                formatarJanelaCheckinManual(
+                                  _checkinManualDepoisMinutos,
+                                  _l,
+                                ),
                               ),
-                              formatarJanelaCheckinManual(
-                                _checkinManualDepoisMinutos,
-                                _l,
-                              ),
+                              onTap: _abrirJanelaCheckinManual,
                             ),
-                            onTap: _abrirJanelaCheckinManual,
                           ),
                       ],
                     ),
@@ -608,17 +619,23 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     subtitulo: _l.cfgCommSub,
                     child: _GroupCard(
                       children: [
-                        _NavRow(
-                          icon: Icons.chat_rounded,
-                          titulo: _l.cfgReturnMsg,
-                          subtitulo: _l.cfgReturnMsgSub,
-                          onTap: _abrirMensagemRetorno,
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.chat_rounded,
+                            titulo: _l.cfgReturnMsg,
+                            subtitulo: _l.cfgReturnMsgSub,
+                            onTap: _abrirMensagemRetorno,
+                          ),
                         ),
-                        _NavRow(
-                          icon: Icons.newspaper_rounded,
-                          titulo: _l.menuNews,
-                          subtitulo: _l.cfgNewsSub,
-                          onTap: () => context.push('/admin/noticias'),
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.newspaper_rounded,
+                            titulo: _l.menuNews,
+                            subtitulo: _l.cfgNewsSub,
+                            onTap: () => context.push('/admin/noticias'),
+                          ),
                         ),
                       ],
                     ),
@@ -671,35 +688,41 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirTaxaAtraso,
                           ),
-                        _SwitchRow(
-                          icon: Icons.category_rounded,
-                          titulo: _l.cfgBillingByModality,
-                          subtitulo: _l.cfgBillingByModalitySub,
-                          valor: _cobrancaPorModalidadeAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgBillingByModality,
-                            _cobrancaPorModalidadeAtiva,
-                            (x) => _cobrancaPorModalidadeAtiva = x,
-                            v,
-                          ),
-                        ),
-                        _NavRow(
-                          icon: Icons.event_repeat_rounded,
-                          titulo: _l.cfgWeeklyLimit,
-                          subtitulo: _l.cfgWeeklyLimitSub,
-                          trailing: Text(
-                            switch (_limiteDiasSemanaModo) {
-                              'aviso' => _l.cfgWeeklyLimitModeWarn,
-                              'bloqueio' => _l.cfgWeeklyLimitModeBlock,
-                              _ => _l.cfgWeeklyLimitModeOff,
-                            },
-                            style: TextStyle(
-                              color: context.c.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.category_rounded,
+                            titulo: _l.cfgBillingByModality,
+                            subtitulo: _l.cfgBillingByModalitySub,
+                            valor: _cobrancaPorModalidadeAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgBillingByModality,
+                              _cobrancaPorModalidadeAtiva,
+                              (x) => _cobrancaPorModalidadeAtiva = x,
+                              v,
                             ),
                           ),
-                          onTap: _abrirLimiteDiasSemana,
+                        ),
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.event_repeat_rounded,
+                            titulo: _l.cfgWeeklyLimit,
+                            subtitulo: _l.cfgWeeklyLimitSub,
+                            trailing: Text(
+                              switch (_limiteDiasSemanaModo) {
+                                'aviso' => _l.cfgWeeklyLimitModeWarn,
+                                'bloqueio' => _l.cfgWeeklyLimitModeBlock,
+                                _ => _l.cfgWeeklyLimitModeOff,
+                              },
+                              style: TextStyle(
+                                color: context.c.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            onTap: _abrirLimiteDiasSemana,
+                          ),
                         ),
                       ],
                     ),
@@ -734,33 +757,36 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           onTap: () =>
                               context.push('/admin/dashboard/contratos'),
                         ),
-                        _RowShell(
-                          icon: Icons.palette_rounded,
-                          titulo: _l.cfgColoredDegrees,
-                          subtitulo: _l.cfgColoredDegreesSub,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AjudaGrausColoridosButton(),
-                              Switch(
-                                value: _grausColoridosDisponivel,
-                                onChanged: (v) async {
-                                  await _toggle(
-                                    _l.cfgColoredDegrees,
-                                    _grausColoridosDisponivel,
-                                    (x) => _grausColoridosDisponivel = x,
-                                    v,
-                                  );
-                                  if (v && mounted) {
-                                    await mostrarAjudaGrausColoridos(context);
-                                  }
-                                },
-                                activeThumbColor: Colors.white,
-                                activeTrackColor: context.c.primary,
-                                inactiveThumbColor: context.c.surface,
-                                inactiveTrackColor: context.c.outline,
-                              ),
-                            ],
+                        ProGate(
+                          isPro: isPro,
+                          child: _RowShell(
+                            icon: Icons.palette_rounded,
+                            titulo: _l.cfgColoredDegrees,
+                            subtitulo: _l.cfgColoredDegreesSub,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const AjudaGrausColoridosButton(),
+                                Switch(
+                                  value: _grausColoridosDisponivel,
+                                  onChanged: (v) async {
+                                    await _toggle(
+                                      _l.cfgColoredDegrees,
+                                      _grausColoridosDisponivel,
+                                      (x) => _grausColoridosDisponivel = x,
+                                      v,
+                                    );
+                                    if (v && mounted) {
+                                      await mostrarAjudaGrausColoridos(context);
+                                    }
+                                  },
+                                  activeThumbColor: Colors.white,
+                                  activeTrackColor: context.c.primary,
+                                  inactiveThumbColor: context.c.surface,
+                                  inactiveTrackColor: context.c.outline,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

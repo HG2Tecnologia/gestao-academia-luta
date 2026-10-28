@@ -6,6 +6,8 @@ import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/firestore_service.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
 
 class AdminRankingsScreen extends StatefulWidget {
   const AdminRankingsScreen({super.key});
@@ -41,6 +43,10 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   }
 
   void _novoRanking() async {
+    if (!PlanService.instance.isPro && _rankings.isNotEmpty) {
+      await mostrarPaywall(context);
+      return;
+    }
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,

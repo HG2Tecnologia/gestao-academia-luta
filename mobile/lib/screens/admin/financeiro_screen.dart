@@ -13,6 +13,9 @@ import '../../core/financeiro_resumo.dart';
 import '../../core/firestore_service.dart';
 import '../../core/modalidade_icones.dart';
 import '../../core/pagamento_status.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
+import '../../core/pro_gate.dart';
 import '../../core/relatorio_financeiro_export.dart';
 import '../../core/tab_refresh.dart';
 
@@ -942,6 +945,14 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   /// Exporta a lista de cobranças atualmente visível (respeita o filtro de
   /// aba e a busca por nome) em PDF ou Excel, com colunas que o usuário pode
   /// marcar/desmarcar — mesmo padrão do relatório de presenças.
+  Future<void> _tentarExportarFinanceiro() async {
+    if (!PlanService.instance.isPro) {
+      await mostrarPaywall(context);
+      return;
+    }
+    await _abrirExportarFinanceiro();
+  }
+
   Future<void> _abrirExportarFinanceiro() async {
     final l = _l;
     final box = context.findRenderObject() as RenderBox?;
@@ -2085,7 +2096,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                 onSelected: (acao) => acao(),
                                 itemBuilder: (ctx) => [
                                   PopupMenuItem<VoidCallback>(
-                                    value: _abrirExportarFinanceiro,
+                                    value: _tentarExportarFinanceiro,
                                     child: Row(
                                       children: [
                                         Icon(
@@ -2100,6 +2111,10 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
+                                        if (!PlanService.instance.isPro) ...[
+                                          const SizedBox(width: 8),
+                                          const ProBadge(),
+                                        ],
                                       ],
                                     ),
                                   ),
@@ -2357,7 +2372,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       ],
                     ),
                   ),
-                if (_alunosSemPlano.isNotEmpty && !_avisoAlunosSemPlanoFechado)
+                if (PlanService.instance.isPro &&
+                    _alunosSemPlano.isNotEmpty &&
+                    !_avisoAlunosSemPlanoFechado)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

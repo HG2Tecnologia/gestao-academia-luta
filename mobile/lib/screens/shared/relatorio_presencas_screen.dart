@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/auth_storage.dart';
 import '../../core/firestore_service.dart';
+import '../../core/paywall_modal.dart';
+import '../../core/plan_service.dart';
 import '../../core/relatorio_presencas_export.dart';
 import '../../core/relatorio_presencas_oficial.dart';
 import '../../core/theme/context_ext.dart';
@@ -65,6 +67,14 @@ class _RelatorioPresencasScreenState extends State<RelatorioPresencasScreen> {
   @override
   void initState() {
     super.initState();
+    if (!PlanService.instance.isPro) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await mostrarPaywall(context);
+        if (mounted) context.pop();
+      });
+      return;
+    }
     _carregarTurmas();
   }
 
