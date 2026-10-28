@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/phone_normalizer.dart';
+import '../../core/plan_service.dart';
 import '../../core/push_service.dart';
 import '../../core/widgets.dart';
 
@@ -317,6 +318,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
+      if (!mounted) return;
+
+      // PlanService é um singleton carregado uma única vez na splash screen —
+      // sem isso, deslogar e logar em outra conta (ou outra academia) mantém
+      // o status Pro/Gratuito da sessão anterior até o app reiniciar de
+      // verdade, podendo mostrar "Gratuito" pra quem acabou de logar numa
+      // conta Pro de verdade.
+      await PlanService.instance.refresh();
       if (!mounted) return;
 
       // Registra o token de push (silencioso) para quem pode ver o financeiro,

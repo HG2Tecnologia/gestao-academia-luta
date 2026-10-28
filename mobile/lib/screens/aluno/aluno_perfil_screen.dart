@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
+import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
@@ -1051,6 +1052,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     await AuthStorage.clear();
+    PlanService.instance.reset();
     if (mounted) context.go('/boas-vindas');
   }
 
@@ -1095,6 +1097,7 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     try {
       await FirebaseAuth.instance.currentUser?.delete();
       await AuthStorage.clear();
+      PlanService.instance.reset();
       if (mounted) context.go('/boas-vindas');
     } catch (_) {
       if (mounted) {

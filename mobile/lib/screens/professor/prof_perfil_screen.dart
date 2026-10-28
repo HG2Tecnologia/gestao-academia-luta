@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_storage.dart';
+import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
@@ -155,6 +156,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     await AuthStorage.clear();
+    PlanService.instance.reset();
     if (mounted) context.go('/boas-vindas');
   }
 
@@ -200,6 +202,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
       await FirebaseAuth.instance.currentUser?.delete();
     } catch (_) {}
     await AuthStorage.clear();
+    PlanService.instance.reset();
     if (mounted) context.go('/boas-vindas');
   }
 

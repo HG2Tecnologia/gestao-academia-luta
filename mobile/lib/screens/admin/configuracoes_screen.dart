@@ -2368,6 +2368,7 @@ class _BotaoSairState extends State<_BotaoSair> {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     await AuthStorage.clear();
+    PlanService.instance.reset();
     if (!mounted) return;
     context.go('/boas-vindas');
   }
@@ -2457,6 +2458,7 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
     try {
       await FirebaseAuth.instance.currentUser?.delete();
       await AuthStorage.clear();
+      PlanService.instance.reset();
       if (!mounted) return;
       context.go('/boas-vindas');
     } catch (_) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
+import '../../core/plan_service.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/drawer_helper.dart';
@@ -299,6 +300,7 @@ class _ProfessorShellState extends State<ProfessorShell>
                           .catchError((_) {})
                           .whenComplete(() {
                             AuthStorage.clear().then((_) {
+                              PlanService.instance.reset();
                               if (context.mounted) context.go('/boas-vindas');
                             });
                           });
