@@ -139,6 +139,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$days dias restantes',
       one: '$days dia restante',
+      zero: '$days dias restantes',
     );
     return '$_temp0';
   }
@@ -203,6 +204,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count alunos sem treinar há 7+ dias',
       one: '$count aluno sem treinar há 7+ dias',
+      zero: '$count alunos sem treinar há 7+ dias',
     );
     return '$_temp0';
   }
@@ -214,6 +216,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count alunos com 7–13 dias de ausência',
       one: '$count aluno com 7–13 dias de ausência',
+      zero: '$count alunos com 7–13 dias de ausência',
     );
     return '$_temp0';
   }
@@ -225,6 +228,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$days dias',
       one: '$days dia',
+      zero: '$days dias',
     );
     return '$_temp0';
   }
@@ -848,6 +852,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count não lidas',
       one: '$count não lida',
+      zero: '$count não lidas',
     );
     return '$_temp0';
   }
@@ -1112,6 +1117,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count membros',
       one: '$count membro',
+      zero: '$count membros',
     );
     return '$_temp0';
   }
@@ -1414,6 +1420,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count pontos lançados com sucesso!',
       one: '$count ponto lançado com sucesso!',
+      zero: '$count pontos lançados com sucesso!',
     );
     return '$_temp0';
   }
@@ -1618,6 +1625,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count horários',
       one: '$count horário',
+      zero: '$count horários',
     );
     return '$_temp0';
   }
@@ -1758,6 +1766,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count presenças',
       one: '$count presença',
+      zero: '$count presenças',
     );
     return '$_temp0';
   }
@@ -1769,6 +1778,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count faltas',
       one: '$count falta',
+      zero: '$count faltas',
     );
     return '$_temp0';
   }
@@ -1967,6 +1977,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count horários semanais',
       one: '$count horário semanal',
+      zero: '$count horários semanais',
     );
     return '$_temp0';
   }
@@ -2205,6 +2216,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count cobranças',
       one: '$count cobrança',
+      zero: '$count cobranças',
     );
     return '$_temp0';
   }
@@ -2230,6 +2242,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count dias de atraso',
       one: '$count dia de atraso',
+      zero: '$count dias de atraso',
     );
     return '$_temp0';
   }
@@ -2504,6 +2517,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count selecionados',
       one: '$count selecionado',
+      zero: '$count selecionados',
     );
     return '$_temp0';
   }
@@ -2515,6 +2529,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count cobranças marcadas como pagas',
       one: '$count cobrança marcada como paga',
+      zero: '$count cobranças marcadas como pagas',
     );
     return '$_temp0';
   }
@@ -2569,6 +2584,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count alunos afetados',
       one: '$count aluno afetado',
+      zero: '$count alunos afetados',
     );
     return '$_temp0';
   }
@@ -2586,6 +2602,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count cobranças geradas',
       one: '$count cobrança gerada',
+      zero: '$count cobranças geradas',
     );
     return '$_temp0';
   }
@@ -4272,6 +4289,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count atrasadas',
       one: '$count atrasada',
+      zero: '$count atrasadas',
     );
     return '$_temp0';
   }
@@ -4283,6 +4301,7 @@ class AppLocalizationsPt extends AppLocalizations {
       locale: localeName,
       other: '$count pendentes',
       one: '$count pendente',
+      zero: '$count pendentes',
     );
     return '$_temp0';
   }

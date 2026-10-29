@@ -341,7 +341,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashTrialDaysLeft.
   ///
   /// In pt, this message translates to:
-  /// **'{days, plural, one{{days} dia restante} other{{days} dias restantes}}'**
+  /// **'{days, plural, =0{{days} dias restantes} one{{days} dia restante} other{{days} dias restantes}}'**
   String dashTrialDaysLeft(int days);
 
   /// No description provided for @dashSeePlans.
@@ -449,19 +449,19 @@ abstract class AppLocalizations {
   /// No description provided for @dashWatchRedSubtitle.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}'**
+  /// **'{count, plural, =0{{count} alunos sem treinar há 7+ dias} one{{count} aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}'**
   String dashWatchRedSubtitle(int count);
 
   /// No description provided for @dashWatchYellowSubtitle.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}'**
+  /// **'{count, plural, =0{{count} alunos com 7–13 dias de ausência} one{{count} aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}'**
   String dashWatchYellowSubtitle(int count);
 
   /// No description provided for @dashDaysCount.
   ///
   /// In pt, this message translates to:
-  /// **'{days, plural, one{{days} dia} other{{days} dias}}'**
+  /// **'{days, plural, =0{{days} dias} one{{days} dia} other{{days} dias}}'**
   String dashDaysCount(int days);
 
   /// No description provided for @dashSeeAllStudents.
@@ -1565,7 +1565,7 @@ abstract class AppLocalizations {
   /// No description provided for @notifUnreadCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} não lida} other{{count} não lidas}}'**
+  /// **'{count, plural, =0{{count} não lidas} one{{count} não lida} other{{count} não lidas}}'**
   String notifUnreadCount(int count);
 
   /// No description provided for @notifMarkAllRead.
@@ -2063,7 +2063,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdMemberCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} membro} other{{count} membros}}'**
+  /// **'{count, plural, =0{{count} membros} one{{count} membro} other{{count} membros}}'**
   String sdMemberCount(int count);
 
   /// No description provided for @sdLinkGroupError.
@@ -2591,7 +2591,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdPointsAddedToast.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}'**
+  /// **'{count, plural, =0{{count} pontos lançados com sucesso!} one{{count} ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}'**
   String sdPointsAddedToast(int count);
 
   /// No description provided for @sdPointsError.
@@ -2933,7 +2933,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} horário} other{{count} horários}}'**
+  /// **'{count, plural, =0{{count} horários} one{{count} horário} other{{count} horários}}'**
   String scheduleCount(int count);
 
   /// No description provided for @editClassTitle.
@@ -3185,13 +3185,13 @@ abstract class AppLocalizations {
   /// No description provided for @presentCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} presença} other{{count} presenças}}'**
+  /// **'{count, plural, =0{{count} presenças} one{{count} presença} other{{count} presenças}}'**
   String presentCount(int count);
 
   /// No description provided for @absentCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} falta} other{{count} faltas}}'**
+  /// **'{count, plural, =0{{count} faltas} one{{count} falta} other{{count} faltas}}'**
   String absentCount(int count);
 
   /// No description provided for @attendanceA11y.
@@ -3539,7 +3539,7 @@ abstract class AppLocalizations {
   /// No description provided for @tdWeeklyScheduleCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} horário semanal} other{{count} horários semanais}}'**
+  /// **'{count, plural, =0{{count} horários semanais} one{{count} horário semanal} other{{count} horários semanais}}'**
   String tdWeeklyScheduleCount(int count);
 
   /// No description provided for @tdClassSchedule.
@@ -3965,7 +3965,7 @@ abstract class AppLocalizations {
   /// No description provided for @raChargesCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} cobrança} other{{count} cobranças}}'**
+  /// **'{count, plural, =0{{count} cobranças} one{{count} cobrança} other{{count} cobranças}}'**
   String raChargesCount(int count);
 
   /// No description provided for @raOverdue.
@@ -3995,7 +3995,7 @@ abstract class AppLocalizations {
   /// No description provided for @raDaysOverdue.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} dia de atraso} other{{count} dias de atraso}}'**
+  /// **'{count, plural, =0{{count} dias de atraso} one{{count} dia de atraso} other{{count} dias de atraso}}'**
   String raDaysOverdue(int count);
 
   /// No description provided for @raUnknownStudent.
@@ -4451,13 +4451,13 @@ abstract class AppLocalizations {
   /// No description provided for @fiSelectedCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} selecionado} other{{count} selecionados}}'**
+  /// **'{count, plural, =0{{count} selecionados} one{{count} selecionado} other{{count} selecionados}}'**
   String fiSelectedCount(int count);
 
   /// No description provided for @fiBatchMarkedPaid.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
+  /// **'{count, plural, =0{{count} cobranças marcadas como pagas} one{{count} cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
   String fiBatchMarkedPaid(int count);
 
   /// No description provided for @fiConfirmPayment.
@@ -4529,7 +4529,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiAffectedStudents.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} aluno afetado} other{{count} alunos afetados}}'**
+  /// **'{count, plural, =0{{count} alunos afetados} one{{count} aluno afetado} other{{count} alunos afetados}}'**
   String fiAffectedStudents(int count);
 
   /// No description provided for @fiSeeAffected.
@@ -4547,7 +4547,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiNChargesGenerated.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} cobrança gerada} other{{count} cobranças geradas}}'**
+  /// **'{count, plural, =0{{count} cobranças geradas} one{{count} cobrança gerada} other{{count} cobranças geradas}}'**
   String fiNChargesGenerated(int count);
 
   /// No description provided for @fiReadyForWhatsapp.
@@ -7523,13 +7523,13 @@ abstract class AppLocalizations {
   /// No description provided for @apOverdueCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} atrasada} other{{count} atrasadas}}'**
+  /// **'{count, plural, =0{{count} atrasadas} one{{count} atrasada} other{{count} atrasadas}}'**
   String apOverdueCount(num count);
 
   /// No description provided for @apPendingCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{{count} pendente} other{{count} pendentes}}'**
+  /// **'{count, plural, =0{{count} pendentes} one{{count} pendente} other{{count} pendentes}}'**
   String apPendingCount(num count);
 
   /// No description provided for @apTapToChoose.
