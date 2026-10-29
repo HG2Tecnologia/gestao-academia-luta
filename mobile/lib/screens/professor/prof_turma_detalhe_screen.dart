@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
+import 'chamada_foto_screen.dart';
 import 'prof_presenca_screen.dart';
 
 class ProfTurmaDetalheScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class ProfTurmaDetalheScreen extends StatefulWidget {
 class _ProfTurmaDetalheScreenState extends State<ProfTurmaDetalheScreen> {
   List<Map<String, dynamic>> _alunos = [];
   bool _loading = true;
+  bool _reconhecimentoFacialAtivo = false;
 
   @override
   void initState() {
@@ -50,7 +52,16 @@ class _ProfTurmaDetalheScreenState extends State<ProfTurmaDetalheScreen> {
         (a, b) =>
             (a['nome'] as String? ?? '').compareTo(b['nome'] as String? ?? ''),
       );
-      if (mounted) setState(() => _alunos = alunos);
+      final academia = await firestoreService
+          .getAcademia(widget.academiaId)
+          .catchError((_) => null);
+      if (mounted) {
+        setState(() {
+          _alunos = alunos;
+          _reconhecimentoFacialAtivo =
+              academia?['reconhecimento_facial_ativo'] == true;
+        });
+      }
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -254,9 +265,9 @@ class _ProfTurmaDetalheScreenState extends State<ProfTurmaDetalheScreen> {
                     ),
             ),
 
-            // Botão registrar presença
+            // Botões registrar presença
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: FilledButton.icon(
                 onPressed: () => Navigator.push(
                   context,
@@ -276,6 +287,34 @@ class _ProfTurmaDetalheScreenState extends State<ProfTurmaDetalheScreen> {
                 ),
               ),
             ),
+            if (_reconhecimentoFacialAtivo)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChamadaFotoScreen(
+                        academiaId: widget.academiaId,
+                        turmaId: turma['id'].toString(),
+                        turmaNome: nomeTurma,
+                        alunos: _alunos,
+                      ),
+                    ),
+                  ).then((_) => _load()),
+                  icon: const Icon(Icons.camera_alt_rounded),
+                  label: Text(
+                    context.l10n.pfTakePhoto,
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

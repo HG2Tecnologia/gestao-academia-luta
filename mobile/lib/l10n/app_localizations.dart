@@ -2912,6 +2912,90 @@ abstract class AppLocalizations {
   /// **'Fazer chamada'**
   String get takeAttendance;
 
+  /// No description provided for @pfTakePhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada por foto'**
+  String get pfTakePhoto;
+
+  /// No description provided for @pfRetakePhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar outra foto'**
+  String get pfRetakePhoto;
+
+  /// No description provided for @pfIntro.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.'**
+  String get pfIntro;
+
+  /// No description provided for @pfProcessing.
+  ///
+  /// In pt, this message translates to:
+  /// **'Analisando a foto...'**
+  String get pfProcessing;
+
+  /// No description provided for @pfNoEligibleStudents.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).'**
+  String get pfNoEligibleStudents;
+
+  /// No description provided for @pfUnrecognized.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não identificado'**
+  String get pfUnrecognized;
+
+  /// No description provided for @pfConfidence.
+  ///
+  /// In pt, this message translates to:
+  /// **'de confiança'**
+  String get pfConfidence;
+
+  /// No description provided for @pfIdentify.
+  ///
+  /// In pt, this message translates to:
+  /// **'Identificar'**
+  String get pfIdentify;
+
+  /// No description provided for @pfPickStudent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem é esse aluno?'**
+  String get pfPickStudent;
+
+  /// No description provided for @pfNotInPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum (não é aluno)'**
+  String get pfNotInPhoto;
+
+  /// No description provided for @pfError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível processar. Tente de novo.'**
+  String get pfError;
+
+  /// No description provided for @pfConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{Confirmar} one{Confirmar {count} presença} other{Confirmar {count} presenças}}'**
+  String pfConfirm(int count);
+
+  /// No description provided for @pfSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{Nenhuma presença registrada} one{{count} presença registrada} other{{count} presenças registradas}}'**
+  String pfSaved(int count);
+
+  /// No description provided for @profFaceRecognitionCheckinLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial'**
+  String get profFaceRecognitionCheckinLabel;
+
   /// No description provided for @viewDetails.
   ///
   /// In pt, this message translates to:
@@ -6494,11 +6578,83 @@ abstract class AppLocalizations {
   /// **'Mensagem para alunos em risco de evasão'**
   String get cfgReturnMsgSub;
 
+  /// No description provided for @cfgFaceRecognitionSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial (beta)'**
+  String get cfgFaceRecognitionSection;
+
+  /// No description provided for @cfgFaceRecognitionSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada automática por foto da turma'**
+  String get cfgFaceRecognitionSub;
+
+  /// No description provided for @cfgFaceRecognition.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ativar reconhecimento facial'**
+  String get cfgFaceRecognition;
+
+  /// No description provided for @cfgFaceRecognitionDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.'**
+  String get cfgFaceRecognitionDesc;
+
   /// No description provided for @cfgNewsSub.
   ///
   /// In pt, this message translates to:
   /// **'Publicar notícias e comunicados'**
   String get cfgNewsSub;
+
+  /// No description provided for @cfgNotifEvasao.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos sumindo'**
+  String get cfgNotifEvasao;
+
+  /// No description provided for @cfgNotifEvasaoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisa no celular quando um aluno fica 7+ dias sem treinar'**
+  String get cfgNotifEvasaoSub;
+
+  /// No description provided for @cfgNotifGraduacao.
+  ///
+  /// In pt, this message translates to:
+  /// **'Próximos de graduar'**
+  String get cfgNotifGraduacao;
+
+  /// No description provided for @cfgNotifGraduacaoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisa no celular quando um aluno acumula presenças suficientes pra graduar'**
+  String get cfgNotifGraduacaoSub;
+
+  /// No description provided for @cfgNotifGraduacaoThreshold.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças mínimas'**
+  String get cfgNotifGraduacaoThreshold;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quantas aulas desde a última graduação pra considerar apto'**
+  String get cfgNotifGraduacaoThresholdSub;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.'**
+  String get cfgNotifGraduacaoThresholdDesc;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças mínimas salvas'**
+  String get cfgNotifGraduacaoThresholdSaved;
 
   /// No description provided for @cfgFinanceSection.
   ///
@@ -7621,6 +7777,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Encerrar a sessão neste dispositivo'**
   String get apLogoutHint;
+
+  /// No description provided for @apPrivacySection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Privacidade'**
+  String get apPrivacySection;
+
+  /// No description provided for @apFaceRecognitionConsent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial na chamada'**
+  String get apFaceRecognitionConsent;
+
+  /// No description provided for @apFaceRecognitionConsentHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.'**
+  String get apFaceRecognitionConsentHint;
 
   /// No description provided for @apLegal.
   ///

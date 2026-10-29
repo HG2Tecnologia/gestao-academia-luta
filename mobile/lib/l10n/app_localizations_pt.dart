@@ -1610,6 +1610,68 @@ class AppLocalizationsPt extends AppLocalizations {
   String get takeAttendance => 'Fazer chamada';
 
   @override
+  String get pfTakePhoto => 'Chamada por foto';
+
+  @override
+  String get pfRetakePhoto => 'Tirar outra foto';
+
+  @override
+  String get pfIntro =>
+      'Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.';
+
+  @override
+  String get pfProcessing => 'Analisando a foto...';
+
+  @override
+  String get pfNoEligibleStudents =>
+      'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).';
+
+  @override
+  String get pfUnrecognized => 'Não identificado';
+
+  @override
+  String get pfConfidence => 'de confiança';
+
+  @override
+  String get pfIdentify => 'Identificar';
+
+  @override
+  String get pfPickStudent => 'Quem é esse aluno?';
+
+  @override
+  String get pfNotInPhoto => 'Nenhum (não é aluno)';
+
+  @override
+  String get pfError => 'Não foi possível processar. Tente de novo.';
+
+  @override
+  String pfConfirm(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Confirmar $count presenças',
+      one: 'Confirmar $count presença',
+      zero: 'Confirmar',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pfSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count presenças registradas',
+      one: '$count presença registrada',
+      zero: 'Nenhuma presença registrada',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profFaceRecognitionCheckinLabel => 'Reconhecimento facial';
+
+  @override
   String get viewDetails => 'Ver detalhes';
 
   @override
@@ -3700,7 +3762,48 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgReturnMsgSub => 'Mensagem para alunos em risco de evasão';
 
   @override
+  String get cfgFaceRecognitionSection => 'Reconhecimento facial (beta)';
+
+  @override
+  String get cfgFaceRecognitionSub => 'Chamada automática por foto da turma';
+
+  @override
+  String get cfgFaceRecognition => 'Ativar reconhecimento facial';
+
+  @override
+  String get cfgFaceRecognitionDesc =>
+      'O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.';
+
+  @override
   String get cfgNewsSub => 'Publicar notícias e comunicados';
+
+  @override
+  String get cfgNotifEvasao => 'Alunos sumindo';
+
+  @override
+  String get cfgNotifEvasaoSub =>
+      'Avisa no celular quando um aluno fica 7+ dias sem treinar';
+
+  @override
+  String get cfgNotifGraduacao => 'Próximos de graduar';
+
+  @override
+  String get cfgNotifGraduacaoSub =>
+      'Avisa no celular quando um aluno acumula presenças suficientes pra graduar';
+
+  @override
+  String get cfgNotifGraduacaoThreshold => 'Presenças mínimas';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSub =>
+      'Quantas aulas desde a última graduação pra considerar apto';
+
+  @override
+  String get cfgNotifGraduacaoThresholdDesc =>
+      'Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSaved => 'Presenças mínimas salvas';
 
   @override
   String get cfgFinanceSection => 'Financeiro';
@@ -4360,6 +4463,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get apLogoutHint => 'Encerrar a sessão neste dispositivo';
+
+  @override
+  String get apPrivacySection => 'Privacidade';
+
+  @override
+  String get apFaceRecognitionConsent => 'Reconhecimento facial na chamada';
+
+  @override
+  String get apFaceRecognitionConsentHint =>
+      'Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.';
 
   @override
   String get apLegal => 'Legal';

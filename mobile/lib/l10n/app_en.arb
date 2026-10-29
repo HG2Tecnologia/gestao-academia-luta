@@ -532,6 +532,34 @@
   "classInstructorPrefix": "Instr. {name}",
   "classCapacitySuffix": " / {cap} students",
   "takeAttendance": "Take attendance",
+  "pfTakePhoto": "Photo attendance",
+  "pfRetakePhoto": "Retake photo",
+  "pfIntro": "Take a photo of the class — the app suggests who's who to speed up attendance.",
+  "pfProcessing": "Analyzing photo...",
+  "pfNoEligibleStudents": "No student in this class has opted in to face recognition yet (or everyone is already marked present today).",
+  "pfUnrecognized": "Not recognized",
+  "pfConfidence": "confidence",
+  "pfIdentify": "Identify",
+  "pfPickStudent": "Who is this student?",
+  "pfNotInPhoto": "None (not a student)",
+  "pfError": "Could not process. Please try again.",
+  "pfConfirm": "{count, plural, =0{Confirm} one{Confirm {count} attendance} other{Confirm {count} attendances}}",
+  "@pfConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pfSaved": "{count, plural, =0{No attendance recorded} one{{count} attendance recorded} other{{count} attendances recorded}}",
+  "@pfSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profFaceRecognitionCheckinLabel": "Face recognition",
   "viewDetails": "View details",
   "editClass": "Edit class",
   "noSchedule": "No schedule set",
@@ -1329,7 +1357,19 @@
   "cfgCommSub": "Customize the messages sent to students.",
   "cfgReturnMsg": "Win-back message (WhatsApp)",
   "cfgReturnMsgSub": "Message for students at risk of dropping out",
+  "cfgFaceRecognitionSection": "Face recognition (beta)",
+  "cfgFaceRecognitionSub": "Automatic attendance from a class photo",
+  "cfgFaceRecognition": "Enable face recognition",
+  "cfgFaceRecognitionDesc": "The teacher takes a photo of the class and the app suggests who's who, to mark attendance faster. Everything runs on the phone — no photo ever leaves the app. Only works for students who opted in on their own profile.",
   "cfgNewsSub": "Publish news and announcements",
+  "cfgNotifEvasao": "Students disappearing",
+  "cfgNotifEvasaoSub": "Push notification when a student goes 7+ days without training",
+  "cfgNotifGraduacao": "Close to promotion",
+  "cfgNotifGraduacaoSub": "Push notification when a student builds up enough attendance to be promoted",
+  "cfgNotifGraduacaoThreshold": "Minimum attendance",
+  "cfgNotifGraduacaoThresholdSub": "How many classes since the last promotion to consider them ready",
+  "cfgNotifGraduacaoThresholdDesc": "Counts the student's attendance in that style since their last promotion (or since their first class, if never promoted). Once this number is reached, the academy gets a notification — the promotion itself is still done manually.",
+  "cfgNotifGraduacaoThresholdSaved": "Minimum attendance saved",
   "cfgFinanceSection": "Billing",
   "cfgFinanceSub": "Configure charges and billing options.",
   "cfgPlansSub": "Create, edit and delete tuition plans",
@@ -1641,6 +1681,9 @@
   "apParqDone": "Health questionnaire completed",
   "apParqPending": "Health questionnaire pending",
   "apLogoutHint": "End the session on this device",
+  "apPrivacySection": "Privacy",
+  "apFaceRecognitionConsent": "Face recognition for attendance",
+  "apFaceRecognitionConsentHint": "Lets the teacher use your profile photo to identify you automatically in photo-based attendance. It stays on your phone — never sent outside the app. You can turn it off anytime.",
   "apLegal": "Legal",
   "apPrivacyHint": "How your data is handled",
   "apTermsHint": "App rules and terms of use",

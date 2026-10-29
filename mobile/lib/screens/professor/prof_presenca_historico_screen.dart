@@ -98,6 +98,7 @@ class _ProfPresencaHistoricoScreenState
     if (s == '1' || s.contains(context.l10n.profManual) || s.contains('manual'))
       return 'Manual';
     if (s == '4') return context.l10n.apManualCheckinHistoryLabel;
+    if (s == '5') return context.l10n.profFaceRecognitionCheckinLabel;
     return s;
   }
 

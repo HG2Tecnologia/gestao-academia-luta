@@ -419,6 +419,66 @@ class FirestoreService {
     ).update({...normalizado, 'atualizado_em': FieldValue.serverTimestamp()});
   }
 
+  /// Grava o embedding de referência inicial do aluno (gerado a partir da
+  /// foto de perfil). Sobrescreve o anterior — é o ponto de partida do
+  /// reconhecimento, antes de qualquer chamada por foto confirmada existir.
+  Future<void> salvarEmbeddingRostoInicial(
+    String academiaId,
+    String alunoId,
+    List<double> embedding,
+  ) => _doc(academiaId, 'usuarios', alunoId).update({
+    'rosto_embedding': embedding,
+  });
+
+  /// Adiciona mais uma referência de rosto confirmada pelo professor numa
+  /// chamada por foto real (fotos da academia tendem a acertar mais do que
+  /// a foto de perfil sozinha). Mantém só as mais recentes (`maxExtras`)
+  /// pra não deixar o documento crescendo sem limite.
+  Future<void> adicionarEmbeddingRostoConfirmado(
+    String academiaId,
+    String alunoId,
+    List<double> embedding, {
+    int maxExtras = 5,
+  }) async {
+    final ref = _doc(academiaId, 'usuarios', alunoId);
+    final snap = await ref.get();
+    final data = snap.data() as Map<String, dynamic>?;
+    final extras = ((data?['rosto_embeddings_extra'] as List?) ?? [])
+        .map((e) => (e as List).map((v) => (v as num).toDouble()).toList())
+        .toList();
+    extras.add(embedding);
+    while (extras.length > maxExtras) {
+      extras.removeAt(0);
+    }
+    await ref.update({'rosto_embeddings_extra': extras});
+  }
+
+  /// Todas as referências de rosto conhecidas de um aluno (embedding
+  /// inicial + confirmações acumuladas), prontas pra comparar na "chamada
+  /// por foto". Lista vazia quando o aluno nunca teve rosto reconhecido.
+  List<List<double>> referenciasRostoDoAluno(Map<String, dynamic> aluno) {
+    final referencias = <List<double>>[];
+    final inicial = aluno['rosto_embedding'] as List?;
+    if (inicial != null) {
+      referencias.add(inicial.map((v) => (v as num).toDouble()).toList());
+    }
+    final extras = aluno['rosto_embeddings_extra'] as List?;
+    if (extras != null) {
+      for (final e in extras) {
+        referencias.add((e as List).map((v) => (v as num).toDouble()).toList());
+      }
+    }
+    return referencias;
+  }
+
+  Future<void> salvarConsentimentoReconhecimentoFacial(
+    String academiaId,
+    String alunoId,
+    bool consentiu,
+  ) => _doc(academiaId, 'usuarios', alunoId).update({
+    'consentimento_reconhecimento_facial': consentiu,
+  });
+
   Future<List<Map<String, dynamic>>> getAniversariantes(
     String academiaId,
   ) async {

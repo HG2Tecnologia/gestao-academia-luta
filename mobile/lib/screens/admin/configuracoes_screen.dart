@@ -61,6 +61,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   String _limiteDiasSemanaModo = 'off';
   bool _faltaAutomaticaAtiva = true;
   bool _grausColoridosDisponivel = false;
+  bool _notifEvasaoAtiva = false;
+  bool _notifGraduacaoAtiva = false;
+  int _notifGraduacaoPresencasMinimas = 40;
+  bool _reconhecimentoFacialAtivo = false;
 
   @override
   void initState() {
@@ -120,6 +124,12 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _faltaAutomaticaAtiva = dados['falta_automatica_ativa'] as bool? ?? true;
       _grausColoridosDisponivel =
           dados['graus_coloridos_disponivel'] as bool? ?? false;
+      _notifEvasaoAtiva = dados['notif_evasao_ativo'] as bool? ?? false;
+      _notifGraduacaoAtiva = dados['notif_graduacao_ativo'] as bool? ?? false;
+      _notifGraduacaoPresencasMinimas =
+          (dados['notif_graduacao_presencas_minimas'] as num?)?.toInt() ?? 40;
+      _reconhecimentoFacialAtivo =
+          dados['reconhecimento_facial_ativo'] as bool? ?? false;
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -159,6 +169,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'limite_dias_semana_modo': _limiteDiasSemanaModo,
     'falta_automatica_ativa': _faltaAutomaticaAtiva,
     'graus_coloridos_disponivel': _grausColoridosDisponivel,
+    'notif_evasao_ativo': _notifEvasaoAtiva,
+    'notif_graduacao_ativo': _notifGraduacaoAtiva,
+    'notif_graduacao_presencas_minimas': _notifGraduacaoPresencasMinimas,
+    'reconhecimento_facial_ativo': _reconhecimentoFacialAtivo,
   };
 
   /// Grava o documento completo da academia (mesma chamada que o antigo botão
@@ -321,6 +335,21 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           _limiteDiasSemanaModo = modo;
           final ok = await _persistirTudo();
           if (ok) _snack(_l.cfgWeeklyLimitSaved);
+          return ok;
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _abrirPresencasGraduacaoMinimas() async {
+    await _sheet<void>(
+      _PresencasGraduacaoSheet(
+        inicial: _notifGraduacaoPresencasMinimas,
+        onSalvar: (presencas) async {
+          _notifGraduacaoPresencasMinimas = presencas;
+          final ok = await _persistirTudo();
+          if (ok) _snack(_l.cfgNotifGraduacaoThresholdSaved);
           return ok;
         },
       ),
@@ -616,6 +645,27 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                   ),
 
                   _SettingsSection(
+                    titulo: _l.cfgFaceRecognitionSection,
+                    subtitulo: _l.cfgFaceRecognitionSub,
+                    child: _GroupCard(
+                      children: [
+                        _SwitchRow(
+                          icon: Icons.face_retouching_natural_rounded,
+                          titulo: _l.cfgFaceRecognition,
+                          subtitulo: _l.cfgFaceRecognitionDesc,
+                          valor: _reconhecimentoFacialAtivo,
+                          onChanged: (v) => _toggle(
+                            _l.cfgFaceRecognition,
+                            _reconhecimentoFacialAtivo,
+                            (x) => _reconhecimentoFacialAtivo = x,
+                            v,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  _SettingsSection(
                     titulo: _l.cfgCommSection,
                     subtitulo: _l.cfgCommSub,
                     child: _GroupCard(
@@ -638,6 +688,45 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             onTap: () => context.push('/admin/noticias'),
                           ),
                         ),
+                        _SwitchRow(
+                          icon: Icons.person_off_rounded,
+                          titulo: _l.cfgNotifEvasao,
+                          subtitulo: _l.cfgNotifEvasaoSub,
+                          valor: _notifEvasaoAtiva,
+                          onChanged: (v) => _toggle(
+                            _l.cfgNotifEvasao,
+                            _notifEvasaoAtiva,
+                            (x) => _notifEvasaoAtiva = x,
+                            v,
+                          ),
+                        ),
+                        _SwitchRow(
+                          icon: Icons.military_tech_rounded,
+                          titulo: _l.cfgNotifGraduacao,
+                          subtitulo: _l.cfgNotifGraduacaoSub,
+                          valor: _notifGraduacaoAtiva,
+                          onChanged: (v) => _toggle(
+                            _l.cfgNotifGraduacao,
+                            _notifGraduacaoAtiva,
+                            (x) => _notifGraduacaoAtiva = x,
+                            v,
+                          ),
+                        ),
+                        if (_notifGraduacaoAtiva)
+                          _NavRow(
+                            icon: Icons.tune_rounded,
+                            titulo: _l.cfgNotifGraduacaoThreshold,
+                            subtitulo: _l.cfgNotifGraduacaoThresholdSub,
+                            trailing: Text(
+                              '$_notifGraduacaoPresencasMinimas',
+                              style: TextStyle(
+                                color: context.c.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            onTap: _abrirPresencasGraduacaoMinimas,
+                          ),
                       ],
                     ),
                   ),
@@ -1944,6 +2033,76 @@ class _CarenciaSheetState extends State<_CarenciaSheet> {
           _SheetSaveButton(
             label: _l.commonSave,
             onSalvar: () => widget.onSalvar(_dias),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sheet: presenças mínimas pra alerta de "próximo de graduar" ──────────
+
+class _PresencasGraduacaoSheet extends StatefulWidget {
+  const _PresencasGraduacaoSheet({required this.inicial, required this.onSalvar});
+  final int inicial;
+  final Future<bool> Function(int) onSalvar;
+
+  @override
+  State<_PresencasGraduacaoSheet> createState() =>
+      _PresencasGraduacaoSheetState();
+}
+
+class _PresencasGraduacaoSheetState extends State<_PresencasGraduacaoSheet> {
+  AppLocalizations get _l => context.l10n;
+  late int _presencas = widget.inicial;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetScaffold(
+      titulo: _l.cfgNotifGraduacaoThreshold,
+      descricao: _l.cfgNotifGraduacaoThresholdDesc,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                iconSize: 32,
+                onPressed: _presencas > 1
+                    ? () => setState(() => _presencas--)
+                    : null,
+                icon: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  color: _presencas > 1 ? context.c.primary : context.c.outline,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '$_presencas',
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                iconSize: 32,
+                onPressed: _presencas < 300
+                    ? () => setState(() => _presencas++)
+                    : null,
+                icon: Icon(
+                  Icons.add_circle_outline_rounded,
+                  color: _presencas < 300 ? context.c.primary : context.c.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _SheetSaveButton(
+            label: _l.commonSave,
+            onSalvar: () => widget.onSalvar(_presencas),
           ),
         ],
       ),

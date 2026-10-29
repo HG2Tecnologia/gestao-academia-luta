@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
+import '../../core/face_recognition_service.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
 import '../../core/theme/context_ext.dart';
@@ -56,6 +58,9 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
   bool _pesquisaRespondidaMes = true;
   Map<String, dynamic>? _pesquisaTemplate;
   bool _pesquisaAutoAberta = false;
+  bool _reconhecimentoFacialNaAcademia = false;
+  bool _consentimentoRosto = false;
+  bool _salvandoConsentimentoRosto = false;
 
   @override
   void initState() {
@@ -122,6 +127,58 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
     }
   }
 
+  Future<void> _alterarConsentimentoRosto(bool valor) async {
+    final user = await AuthStorage.getUser();
+    if (user == null) return;
+    final academiaId = user.academiaId!;
+    setState(() {
+      _consentimentoRosto = valor;
+      _salvandoConsentimentoRosto = true;
+    });
+    try {
+      await firestoreService.salvarConsentimentoReconhecimentoFacial(
+        academiaId,
+        user.id,
+        valor,
+      );
+      if (!valor) {
+        // Revogou o consentimento: apaga os dados biométricos já guardados,
+        // não só para de usá-los — é o que a LGPD espera nesse caso.
+        await firestoreService.updateAluno(academiaId, user.id, {
+          'rosto_embedding': FieldValue.delete(),
+          'rosto_embeddings_extra': FieldValue.delete(),
+        });
+      } else {
+        final foto = _aluno?['fotoBase64'] as String?;
+        if (foto != null && foto.isNotEmpty) {
+          final embedding = await FaceRecognitionService.embeddingFromBase64Photo(
+            foto,
+          );
+          if (embedding != null) {
+            await firestoreService.salvarEmbeddingRostoInicial(
+              academiaId,
+              user.id,
+              embedding,
+            );
+          }
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _consentimentoRosto = !valor);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_l.apPhotoSaveError),
+            backgroundColor: context.sem.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvandoConsentimentoRosto = false);
+    }
+  }
+
   Future<void> _load() async {
     try {
       final user = await AuthStorage.getUser();
@@ -174,6 +231,14 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
         final mes = '${now.year}-${now.month.toString().padLeft(2, '0')}';
         final acadData = await firestoreService.getAcademia(academiaId);
         final pesquisaAtiva = acadData?['pesquisa_satisfacao_ativa'] == true;
+        if (mounted) {
+          setState(() {
+            _reconhecimentoFacialNaAcademia =
+                acadData?['reconhecimento_facial_ativo'] == true;
+            _consentimentoRosto =
+                dados?['consentimento_reconhecimento_facial'] == true;
+          });
+        }
         Map<String, dynamic>? template;
         if (pesquisaAtiva) {
           template = await firestoreService.getPesquisaTemplateAtivo(
@@ -1882,6 +1947,88 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
                 ),
               ),
             ),
+
+            // ── Privacidade (só aparece se a academia ativou o recurso) ──
+            if (_reconhecimentoFacialNaAcademia) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+                  child: Text(
+                    _l.apPrivacySection.toUpperCase(),
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: context.c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: context.c.outline),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.face_retouching_natural_rounded,
+                          color: context.c.onSurfaceVariant,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _l.apFaceRecognitionConsent,
+                                style: TextStyle(
+                                  color: context.c.onSurface,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _l.apFaceRecognitionConsentHint,
+                                style: TextStyle(
+                                  color: context.c.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _salvandoConsentimentoRosto
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                ),
+                              )
+                            : Switch(
+                                value: _consentimentoRosto,
+                                onChanged: _alterarConsentimentoRosto,
+                                activeThumbColor: Colors.white,
+                                activeTrackColor: context.c.primary,
+                                inactiveThumbColor: context.c.surface,
+                                inactiveTrackColor: context.c.outline,
+                              ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
 
             // ── Legal ──
             SliverToBoxAdapter(

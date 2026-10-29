@@ -1605,6 +1605,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get takeAttendance => 'Take attendance';
 
   @override
+  String get pfTakePhoto => 'Photo attendance';
+
+  @override
+  String get pfRetakePhoto => 'Retake photo';
+
+  @override
+  String get pfIntro =>
+      'Take a photo of the class — the app suggests who\'s who to speed up attendance.';
+
+  @override
+  String get pfProcessing => 'Analyzing photo...';
+
+  @override
+  String get pfNoEligibleStudents =>
+      'No student in this class has opted in to face recognition yet (or everyone is already marked present today).';
+
+  @override
+  String get pfUnrecognized => 'Not recognized';
+
+  @override
+  String get pfConfidence => 'confidence';
+
+  @override
+  String get pfIdentify => 'Identify';
+
+  @override
+  String get pfPickStudent => 'Who is this student?';
+
+  @override
+  String get pfNotInPhoto => 'None (not a student)';
+
+  @override
+  String get pfError => 'Could not process. Please try again.';
+
+  @override
+  String pfConfirm(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Confirm $count attendances',
+      one: 'Confirm $count attendance',
+      zero: 'Confirm',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pfSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attendances recorded',
+      one: '$count attendance recorded',
+      zero: 'No attendance recorded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profFaceRecognitionCheckinLabel => 'Face recognition';
+
+  @override
   String get viewDetails => 'View details';
 
   @override
@@ -3683,7 +3745,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgReturnMsgSub => 'Message for students at risk of dropping out';
 
   @override
+  String get cfgFaceRecognitionSection => 'Face recognition (beta)';
+
+  @override
+  String get cfgFaceRecognitionSub => 'Automatic attendance from a class photo';
+
+  @override
+  String get cfgFaceRecognition => 'Enable face recognition';
+
+  @override
+  String get cfgFaceRecognitionDesc =>
+      'The teacher takes a photo of the class and the app suggests who\'s who, to mark attendance faster. Everything runs on the phone — no photo ever leaves the app. Only works for students who opted in on their own profile.';
+
+  @override
   String get cfgNewsSub => 'Publish news and announcements';
+
+  @override
+  String get cfgNotifEvasao => 'Students disappearing';
+
+  @override
+  String get cfgNotifEvasaoSub =>
+      'Push notification when a student goes 7+ days without training';
+
+  @override
+  String get cfgNotifGraduacao => 'Close to promotion';
+
+  @override
+  String get cfgNotifGraduacaoSub =>
+      'Push notification when a student builds up enough attendance to be promoted';
+
+  @override
+  String get cfgNotifGraduacaoThreshold => 'Minimum attendance';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSub =>
+      'How many classes since the last promotion to consider them ready';
+
+  @override
+  String get cfgNotifGraduacaoThresholdDesc =>
+      'Counts the student\'s attendance in that style since their last promotion (or since their first class, if never promoted). Once this number is reached, the academy gets a notification — the promotion itself is still done manually.';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSaved => 'Minimum attendance saved';
 
   @override
   String get cfgFinanceSection => 'Billing';
@@ -4339,6 +4442,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apLogoutHint => 'End the session on this device';
+
+  @override
+  String get apPrivacySection => 'Privacy';
+
+  @override
+  String get apFaceRecognitionConsent => 'Face recognition for attendance';
+
+  @override
+  String get apFaceRecognitionConsentHint =>
+      'Lets the teacher use your profile photo to identify you automatically in photo-based attendance. It stays on your phone — never sent outside the app. You can turn it off anytime.';
 
   @override
   String get apLegal => 'Legal';

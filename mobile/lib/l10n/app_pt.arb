@@ -743,6 +743,34 @@
     }
   },
   "takeAttendance": "Fazer chamada",
+  "pfTakePhoto": "Chamada por foto",
+  "pfRetakePhoto": "Tirar outra foto",
+  "pfIntro": "Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.",
+  "pfProcessing": "Analisando a foto...",
+  "pfNoEligibleStudents": "Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).",
+  "pfUnrecognized": "Não identificado",
+  "pfConfidence": "de confiança",
+  "pfIdentify": "Identificar",
+  "pfPickStudent": "Quem é esse aluno?",
+  "pfNotInPhoto": "Nenhum (não é aluno)",
+  "pfError": "Não foi possível processar. Tente de novo.",
+  "pfConfirm": "{count, plural, =0{Confirmar} one{Confirmar {count} presença} other{Confirmar {count} presenças}}",
+  "@pfConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pfSaved": "{count, plural, =0{Nenhuma presença registrada} one{{count} presença registrada} other{{count} presenças registradas}}",
+  "@pfSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profFaceRecognitionCheckinLabel": "Reconhecimento facial",
   "viewDetails": "Ver detalhes",
   "editClass": "Editar turma",
   "noSchedule": "Sem horários definidos",
@@ -1882,7 +1910,19 @@
   "cfgCommSub": "Personalize as mensagens enviadas aos alunos.",
   "cfgReturnMsg": "Mensagem de retorno (WhatsApp)",
   "cfgReturnMsgSub": "Mensagem para alunos em risco de evasão",
+  "cfgFaceRecognitionSection": "Reconhecimento facial (beta)",
+  "cfgFaceRecognitionSub": "Chamada automática por foto da turma",
+  "cfgFaceRecognition": "Ativar reconhecimento facial",
+  "cfgFaceRecognitionDesc": "O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.",
   "cfgNewsSub": "Publicar notícias e comunicados",
+  "cfgNotifEvasao": "Alunos sumindo",
+  "cfgNotifEvasaoSub": "Avisa no celular quando um aluno fica 7+ dias sem treinar",
+  "cfgNotifGraduacao": "Próximos de graduar",
+  "cfgNotifGraduacaoSub": "Avisa no celular quando um aluno acumula presenças suficientes pra graduar",
+  "cfgNotifGraduacaoThreshold": "Presenças mínimas",
+  "cfgNotifGraduacaoThresholdSub": "Quantas aulas desde a última graduação pra considerar apto",
+  "cfgNotifGraduacaoThresholdDesc": "Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.",
+  "cfgNotifGraduacaoThresholdSaved": "Presenças mínimas salvas",
   "cfgFinanceSection": "Financeiro",
   "cfgFinanceSub": "Configure cobranças e opções financeiras.",
   "cfgPlansSub": "Criar, editar e excluir planos de mensalidade",
@@ -2194,6 +2234,9 @@
   "apParqDone": "Questionário de saúde respondido",
   "apParqPending": "Questionário de saúde pendente",
   "apLogoutHint": "Encerrar a sessão neste dispositivo",
+  "apPrivacySection": "Privacidade",
+  "apFaceRecognitionConsent": "Reconhecimento facial na chamada",
+  "apFaceRecognitionConsentHint": "Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.",
   "apLegal": "Legal",
   "apPrivacyHint": "Como seus dados são tratados",
   "apTermsHint": "Regras e condições de uso do app",
