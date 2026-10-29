@@ -10,7 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth_storage.dart';
 import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
-import '../../core/face_recognition_service.dart';
 import '../../core/feature_flags.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
@@ -149,21 +148,10 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
           'rosto_embedding': FieldValue.delete(),
           'rosto_embeddings_extra': FieldValue.delete(),
         });
-      } else {
-        final foto = _aluno?['fotoBase64'] as String?;
-        if (foto != null && foto.isNotEmpty) {
-          final embedding = await FaceRecognitionService.embeddingFromBase64Photo(
-            foto,
-          );
-          if (embedding != null) {
-            await firestoreService.salvarEmbeddingRostoInicial(
-              academiaId,
-              user.id,
-              embedding,
-            );
-          }
-        }
       }
+      // Geração do embedding inicial (a partir da foto de perfil) fica em
+      // wip_reconhecimento_facial/ nessa versão — ver README lá pra
+      // reativar junto com a feature completa.
     } catch (_) {
       if (mounted) {
         setState(() => _consentimentoRosto = !valor);
