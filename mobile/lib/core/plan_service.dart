@@ -31,6 +31,18 @@ class PlanService {
 
   bool get isPro {
     if (_planoTipo != 'Pro') return false;
+    // Período de carência (Apple/Google tentando cobrar a renovação de
+    // novo, depois de uma falha) é, por definição, um estado em que a loja
+    // ainda considera o assinante ativo — é pra isso que o período existe.
+    // A data em `plano_expiracao` é a da assinatura ANTERIOR e já passou
+    // nesse momento (senão não haveria renovação pra tentar); se
+    // exigíssemos ela também, todo cliente em carência cairia pra
+    // "Gratuito" bem no meio da tentativa de cobrança da própria loja.
+    // Sai desse estado só quando a loja manda `DID_RENEW` (volta a
+    // 'ativo' com expiração nova) ou `GRACE_PERIOD_EXPIRED`/reembolso
+    // (derruba pra Gratuito de verdade) — nunca por passagem de tempo
+    // aqui no cliente.
+    if (_planoStatus == 'periodo_carencia') return true;
     final exp = _planoExpiracao;
     return exp == null || exp.isAfter(DateTime.now());
   }
