@@ -280,6 +280,71 @@ test("rotear: DID_RENEW atualiza plano_expiracao pra nova data (renovação de v
   assert.equal(doc.data().plano_tipo, 1);
 });
 
+test("rotear: DID_CHANGE_RENEWAL_PREF (upgrade/downgrade de plano) atualiza produto e expiração", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+
+  const novoProduto = "br.com.senseimanager.pro.anual";
+  const novaExpiracao = DAQUI_30_DIAS + 365 * 24 * 60 * 60 * 1000;
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "DID_CHANGE_RENEWAL_PREF",
+    originalTransactionId: `tx-${academiaId}`,
+    productId: novoProduto,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: novaExpiracao,
+    transactionId: "tx-upgrade",
+    renovacaoAutomatica: true,
+  });
+
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_produto_id, novoProduto);
+  assert.equal(doc.data().plano_expiracao, new Date(novaExpiracao).toISOString());
+  assert.equal(doc.data().plano_tipo, 1);
+});
+
+test("rotear: REFUND_REVERSED restaura o Pro depois de um reembolso desfeito", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "REFUND",
+    originalTransactionId: `tx-${academiaId}`,
+  });
+  let doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 0, "revogado pelo reembolso");
+
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "REFUND_REVERSED",
+    originalTransactionId: `tx-${academiaId}`,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+    transactionId: "tx-refund-reversed",
+  });
+  doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_tipo, 1, "Apple desfez o reembolso, acesso volta");
+  assert.equal(doc.data().plano_status, "ativo");
+});
+
+test("rotear: RENEWAL_EXTENDED (cortesia da Apple) atualiza a data de expiração", async () => {
+  const academiaId = await criarAcademia();
+  await ativarPara(academiaId);
+
+  const novaExpiracao = DAQUI_30_DIAS + 7 * 24 * 60 * 60 * 1000;
+  await _internal.rotearNotificacaoAssinatura({
+    notificationType: "RENEWAL_EXTENDED",
+    originalTransactionId: `tx-${academiaId}`,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: novaExpiracao,
+    transactionId: "tx-extensao",
+  });
+  const doc = await db.doc(`academias/${academiaId}`).get();
+  assert.equal(doc.data().plano_expiracao, new Date(novaExpiracao).toISOString());
+});
+
 test("rotear: DID_CHANGE_RENEWAL_STATUS (desligou auto-renew) marca cancelado_ate_expirar sem tocar na expiração", async () => {
   const academiaId = await criarAcademia();
   await ativarPara(academiaId);
@@ -370,6 +435,13 @@ test("rotear: REVOKE revoga o Pro imediatamente", async () => {
   const doc = await db.doc(`academias/${academiaId}`).get();
   assert.equal(doc.data().plano_tipo, 0);
   assert.equal(doc.data().plano_status, "reembolsado");
+});
+
+test("mapa Android: assinatura pausada é tratada como expirada (sem acesso até o usuário retomar)", () => {
+  assert.equal(
+    _internal.SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE.SUBSCRIPTION_STATE_PAUSED,
+    "EXPIRED"
+  );
 });
 
 test("rotear: tipo de notificação desconhecido é ignorado sem quebrar nem alterar o estado", async () => {

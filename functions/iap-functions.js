@@ -234,6 +234,21 @@ async function rotearNotificacaoAssinatura({
   switch (notificationType) {
     case "DID_RENEW":
     case "SUBSCRIBED":
+    // Troca de plano (ex.: mensal -> anual). No upgrade imediato a Apple já
+    // manda a transação nova (produto/expiração atualizados) nessa mesma
+    // notificação; no downgrade/crossgrade (só vale na próxima renovação)
+    // ela ainda reflete o plano atual — nos dois casos é seguro tratar
+    // igual a uma renovação normal.
+    case "DID_CHANGE_RENEWAL_PREF":
+    // Reembolso que a Apple decidiu reverter (devolveu o dinheiro de volta
+    // pro comerciante) — o assinante recupera o acesso. Sem isso, uma conta
+    // revogada por REFUND ficava revogada pra sempre mesmo a Apple
+    // desfazendo o reembolso depois.
+    case "REFUND_REVERSED":
+    // Extensão de cortesia dada pela Apple (ex.: compensação por instabilidade
+    // da loja) — muda a data de expiração sem o assinante ter feito nada.
+    case "RENEWAL_EXTENDED":
+    case "RENEWAL_EXTENSION":
       await processarAtivacaoAssinatura({
         academiaId,
         productId,
@@ -320,6 +335,11 @@ const SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE = {
   SUBSCRIPTION_STATE_ON_HOLD: "DID_FAIL_TO_RENEW",
   SUBSCRIPTION_STATE_EXPIRED: "EXPIRED",
   SUBSCRIPTION_STATE_REVOKED: "REVOKE",
+  // Google permite o assinante pausar a assinatura (fica sem cobrar e sem
+  // acesso até ele mesmo retomar) — sem acesso válido nesse meio tempo,
+  // então trata igual a uma expiração; quando retomar, o próximo
+  // SUBSCRIPTION_STATE_ACTIVE reativa normalmente.
+  SUBSCRIPTION_STATE_PAUSED: "EXPIRED",
 };
 
 async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson) {
@@ -530,4 +550,5 @@ exports._internal = {
   verificarCompraAndroid,
   PRODUTOS_VALIDOS,
   BUNDLE_ID,
+  SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE,
 };
