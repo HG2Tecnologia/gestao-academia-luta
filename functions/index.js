@@ -64,6 +64,10 @@ exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
 exports.webhookAppStoreNotifications = iapFunctions.webhookAppStoreNotifications;
 exports.webhookGooglePlayNotifications = iapFunctions.webhookGooglePlayNotifications;
 
+const engagementNotifications = require("./engagement-notifications");
+exports.checarAlertasEngajamento = engagementNotifications.checarAlertasEngajamento;
+exports.testarAlertasEngajamento = engagementNotifications.testarAlertasEngajamento;
+
 const DIAS_ANTECEDENCIA = 3;
 
 function hojeISO() {
