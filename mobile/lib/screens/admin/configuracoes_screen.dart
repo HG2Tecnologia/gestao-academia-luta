@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_settings.dart';
 import '../../core/auth_storage.dart';
 import '../../core/constants.dart';
+import '../../core/feature_flags.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
@@ -644,26 +645,27 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     ),
                   ),
 
-                  _SettingsSection(
-                    titulo: _l.cfgFaceRecognitionSection,
-                    subtitulo: _l.cfgFaceRecognitionSub,
-                    child: _GroupCard(
-                      children: [
-                        _SwitchRow(
-                          icon: Icons.face_retouching_natural_rounded,
-                          titulo: _l.cfgFaceRecognition,
-                          subtitulo: _l.cfgFaceRecognitionDesc,
-                          valor: _reconhecimentoFacialAtivo,
-                          onChanged: (v) => _toggle(
-                            _l.cfgFaceRecognition,
-                            _reconhecimentoFacialAtivo,
-                            (x) => _reconhecimentoFacialAtivo = x,
-                            v,
+                  if (kFeatureReconhecimentoFacialAtiva)
+                    _SettingsSection(
+                      titulo: _l.cfgFaceRecognitionSection,
+                      subtitulo: _l.cfgFaceRecognitionSub,
+                      child: _GroupCard(
+                        children: [
+                          _SwitchRow(
+                            icon: Icons.face_retouching_natural_rounded,
+                            titulo: _l.cfgFaceRecognition,
+                            subtitulo: _l.cfgFaceRecognitionDesc,
+                            valor: _reconhecimentoFacialAtivo,
+                            onChanged: (v) => _toggle(
+                              _l.cfgFaceRecognition,
+                              _reconhecimentoFacialAtivo,
+                              (x) => _reconhecimentoFacialAtivo = x,
+                              v,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
                   _SettingsSection(
                     titulo: _l.cfgCommSection,
@@ -688,45 +690,47 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             onTap: () => context.push('/admin/noticias'),
                           ),
                         ),
-                        _SwitchRow(
-                          icon: Icons.person_off_rounded,
-                          titulo: _l.cfgNotifEvasao,
-                          subtitulo: _l.cfgNotifEvasaoSub,
-                          valor: _notifEvasaoAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgNotifEvasao,
-                            _notifEvasaoAtiva,
-                            (x) => _notifEvasaoAtiva = x,
-                            v,
-                          ),
-                        ),
-                        _SwitchRow(
-                          icon: Icons.military_tech_rounded,
-                          titulo: _l.cfgNotifGraduacao,
-                          subtitulo: _l.cfgNotifGraduacaoSub,
-                          valor: _notifGraduacaoAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgNotifGraduacao,
-                            _notifGraduacaoAtiva,
-                            (x) => _notifGraduacaoAtiva = x,
-                            v,
-                          ),
-                        ),
-                        if (_notifGraduacaoAtiva)
-                          _NavRow(
-                            icon: Icons.tune_rounded,
-                            titulo: _l.cfgNotifGraduacaoThreshold,
-                            subtitulo: _l.cfgNotifGraduacaoThresholdSub,
-                            trailing: Text(
-                              '$_notifGraduacaoPresencasMinimas',
-                              style: TextStyle(
-                                color: context.c.primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
+                        if (kFeatureNotificacoesEngajamentoAtiva) ...[
+                          _SwitchRow(
+                            icon: Icons.person_off_rounded,
+                            titulo: _l.cfgNotifEvasao,
+                            subtitulo: _l.cfgNotifEvasaoSub,
+                            valor: _notifEvasaoAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgNotifEvasao,
+                              _notifEvasaoAtiva,
+                              (x) => _notifEvasaoAtiva = x,
+                              v,
                             ),
-                            onTap: _abrirPresencasGraduacaoMinimas,
                           ),
+                          _SwitchRow(
+                            icon: Icons.military_tech_rounded,
+                            titulo: _l.cfgNotifGraduacao,
+                            subtitulo: _l.cfgNotifGraduacaoSub,
+                            valor: _notifGraduacaoAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgNotifGraduacao,
+                              _notifGraduacaoAtiva,
+                              (x) => _notifGraduacaoAtiva = x,
+                              v,
+                            ),
+                          ),
+                          if (_notifGraduacaoAtiva)
+                            _NavRow(
+                              icon: Icons.tune_rounded,
+                              titulo: _l.cfgNotifGraduacaoThreshold,
+                              subtitulo: _l.cfgNotifGraduacaoThresholdSub,
+                              trailing: Text(
+                                '$_notifGraduacaoPresencasMinimas',
+                                style: TextStyle(
+                                  color: context.c.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              onTap: _abrirPresencasGraduacaoMinimas,
+                            ),
+                        ],
                       ],
                     ),
                   ),

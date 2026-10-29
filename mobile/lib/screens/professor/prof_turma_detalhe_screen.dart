@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/feature_flags.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import 'chamada_foto_screen.dart';
@@ -287,7 +288,7 @@ class _ProfTurmaDetalheScreenState extends State<ProfTurmaDetalheScreen> {
                 ),
               ),
             ),
-            if (_reconhecimentoFacialAtivo)
+            if (kFeatureReconhecimentoFacialAtiva && _reconhecimentoFacialAtivo)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: OutlinedButton.icon(

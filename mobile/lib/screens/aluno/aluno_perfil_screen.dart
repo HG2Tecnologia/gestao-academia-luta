@@ -11,6 +11,7 @@ import '../../core/auth_storage.dart';
 import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
 import '../../core/face_recognition_service.dart';
+import '../../core/feature_flags.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
 import '../../core/theme/context_ext.dart';
@@ -1949,7 +1950,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
             ),
 
             // ── Privacidade (só aparece se a academia ativou o recurso) ──
-            if (_reconhecimentoFacialNaAcademia) ...[
+            if (kFeatureReconhecimentoFacialAtiva &&
+                _reconhecimentoFacialNaAcademia) ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
