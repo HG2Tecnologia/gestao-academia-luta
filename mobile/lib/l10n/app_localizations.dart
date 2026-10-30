@@ -2918,6 +2918,18 @@ abstract class AppLocalizations {
   /// **'Chamada por foto'**
   String get pfTakePhoto;
 
+  /// No description provided for @pfSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get pfSourceCamera;
+
+  /// No description provided for @pfSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get pfSourceGallery;
+
   /// No description provided for @pfRetakePhoto.
   ///
   /// In pt, this message translates to:
@@ -7549,6 +7561,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Erro ao salvar foto.'**
   String get apPhotoSaveError;
+
+  /// No description provided for @apPhotoSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get apPhotoSourceCamera;
+
+  /// No description provided for @apPhotoSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get apPhotoSourceGallery;
+
+  /// No description provided for @apAdjustPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar foto'**
+  String get apAdjustPhoto;
 
   /// No description provided for @apPrimaryBelt.
   ///

@@ -14,6 +14,7 @@ import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/finance_service.dart';
 import '../../core/firestore_service.dart';
+import '../../core/foto_perfil_picker.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/grau_colorido.dart';
 import '../../core/graduacao_service.dart';
@@ -5954,26 +5955,21 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   );
 
   Future<void> _escolherFotoAdmin() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    if (result == null || result.files.single.bytes == null || !mounted) return;
-    final bytes = result.files.single.bytes!;
-    final ext = (result.files.single.extension ?? 'jpg').toLowerCase();
-    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-    final fotoBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
+    final compressed = await escolherFotoPerfil(context);
+    if (compressed == null || !mounted) return;
+    final fotoBase64 = 'data:image/jpeg;base64,${base64Encode(compressed)}';
     try {
+      // Mesma chave usada em todo o resto do app (aluno_perfil_screen.dart e
+      // a regra de segurança do Firestore, que só libera auto-edição do
+      // próprio aluno para o campo `fotoBase64` exato) — escrever
+      // `foto_base64` aqui deixava a foto sem aparecer de novo depois de
+      // sair e voltar na ficha do aluno.
       await firestoreService.updateAluno(_academiaId!, widget.alunoId, {
-        'foto_base64': fotoBase64,
+        'fotoBase64': fotoBase64,
       });
       if (mounted)
         setState(() {
-          _aluno = {
-            ...?_aluno,
-            'fotoBase64': fotoBase64,
-            'foto_base64': fotoBase64,
-          };
+          _aluno = {...?_aluno, 'fotoBase64': fotoBase64};
         });
     } catch (_) {
       if (mounted)

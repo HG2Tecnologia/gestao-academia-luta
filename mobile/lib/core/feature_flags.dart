@@ -7,4 +7,6 @@ library;
 const bool kFeatureNotificacoesEngajamentoAtiva = false;
 
 /// Chamada por reconhecimento facial (beta).
-const bool kFeatureReconhecimentoFacialAtiva = false;
+/// Ligada temporariamente pra teste local — desligar antes de qualquer
+/// release pra loja (lib exige iOS 15.5+, ver commit 656dd8d6).
+const bool kFeatureReconhecimentoFacialAtiva = true;

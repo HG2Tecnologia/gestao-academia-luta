@@ -1613,6 +1613,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pfTakePhoto => 'Chamada por foto';
 
   @override
+  String get pfSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get pfSourceGallery => 'Escolher da galeria';
+
+  @override
   String get pfRetakePhoto => 'Tirar outra foto';
 
   @override
@@ -4317,6 +4323,15 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get apPhotoSaveError => 'Erro ao salvar foto.';
+
+  @override
+  String get apPhotoSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get apPhotoSourceGallery => 'Escolher da galeria';
+
+  @override
+  String get apAdjustPhoto => 'Ajustar foto';
 
   @override
   String get apPrimaryBelt => 'Faixa Principal';

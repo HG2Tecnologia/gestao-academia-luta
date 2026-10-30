@@ -83,9 +83,40 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
       .toList();
 
   Future<void> _tirarFoto() async {
+    // Câmera OU galeria de propósito: o professor pode tirar a foto da
+    // turma formada no tatame na hora e processar depois com calma (ex.:
+    // em casa), sem precisar estar com o aluno na frente de novo.
+    final origem = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: context.c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: Text(context.l10n.pfSourceCamera),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: Text(context.l10n.pfSourceGallery),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (origem == null || !mounted) return;
+
     final picker = ImagePicker();
     final foto = await picker.pickImage(
-      source: ImageSource.camera,
+      source: origem,
       imageQuality: 90,
       preferredCameraDevice: CameraDevice.rear,
     );

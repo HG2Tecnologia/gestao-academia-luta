@@ -1608,6 +1608,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pfTakePhoto => 'Photo attendance';
 
   @override
+  String get pfSourceCamera => 'Take photo now';
+
+  @override
+  String get pfSourceGallery => 'Choose from gallery';
+
+  @override
   String get pfRetakePhoto => 'Retake photo';
 
   @override
@@ -4298,6 +4304,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apPhotoSaveError => 'Error saving photo.';
+
+  @override
+  String get apPhotoSourceCamera => 'Take photo now';
+
+  @override
+  String get apPhotoSourceGallery => 'Choose from gallery';
+
+  @override
+  String get apAdjustPhoto => 'Adjust photo';
 
   @override
   String get apPrimaryBelt => 'Primary Belt';
