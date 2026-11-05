@@ -15,6 +15,7 @@ exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
 const adminFunctions = require("./admin-functions");
 exports.adminResetPassword = adminFunctions.adminResetPassword;
 exports.checkContatoCompartilhado = adminFunctions.checkContatoCompartilhado;
+exports.atualizarTelefoneAcessoAluno = adminFunctions.atualizarTelefoneAcessoAluno;
 exports.requestPasswordReset = adminFunctions.requestPasswordReset;
 
 const notificationTriggers = require("./notification-triggers");

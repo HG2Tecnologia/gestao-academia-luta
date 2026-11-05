@@ -3,7 +3,7 @@
   "description": "Cloud Functions do Sensei Manager",
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js test/engagement.test.js",

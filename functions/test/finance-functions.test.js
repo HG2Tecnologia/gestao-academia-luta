@@ -638,3 +638,70 @@ test("limpa cobranças pendentes órfãs (plano excluído ou aluno desvinculado 
     );
   });
 });
+
+test("modalidade ativa: desconsidera a cobrança legada que sobrou ao lado da por modalidade, sem tocar em paga nem em aluno que só tem legada", async () => {
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const firestore = ctx.firestore();
+    await firestore.doc("academias/academy-e").set({ nome: "Academia E", cobranca_por_modalidade_ativa: true });
+    await firestore.doc("academias/academy-e/funcionarios/admin-e").set({
+      nome: "Admin E",
+      perfil: "Admin",
+      ativo: true,
+    });
+    const pagamentos = firestore.collection("academias/academy-e/pagamentos");
+    const base = { tipo: "Mensalidade", plano_id: "plano-x", valor: 65 };
+
+    // aluno-1 / 2026-11: legada pendente + por modalidade pendente -> legada some.
+    await pagamentos.doc("a1-legada-pend").set({ ...base, aluno_id: "aluno-1", status: 0, mes_referencia: "2026-11", data_vencimento: "2026-11-18" });
+    await pagamentos.doc("a1-modal-pend").set({ ...base, aluno_id: "aluno-1", modalidade_id: "bjj", status: 0, mes_referencia: "2026-11", data_vencimento: "2026-11-18" });
+    // aluno-1 / 2026-12: legada prevista + por modalidade prevista -> legada some.
+    await pagamentos.doc("a1-legada-prev").set({ ...base, aluno_id: "aluno-1", status: 3, mes_referencia: "2026-12", data_vencimento: "2026-12-18" });
+    await pagamentos.doc("a1-modal-prev").set({ ...base, aluno_id: "aluno-1", modalidade_id: "bjj", status: 3, mes_referencia: "2026-12", data_vencimento: "2026-12-18" });
+    // aluno-2 / 2026-11: legada PAGA + por modalidade pendente -> paga nunca é tocada.
+    await pagamentos.doc("a2-legada-paga").set({ ...base, aluno_id: "aluno-2", status: 1, mes_referencia: "2026-11", data_vencimento: "2026-11-10" });
+    await pagamentos.doc("a2-modal-pend").set({ ...base, aluno_id: "aluno-2", modalidade_id: "bjj", status: 0, mes_referencia: "2026-11", data_vencimento: "2026-11-10" });
+    // aluno-3 / 2026-11: só legada -> continua cobrado.
+    await pagamentos.doc("a3-so-legada").set({ ...base, aluno_id: "aluno-3", status: 0, mes_referencia: "2026-11", data_vencimento: "2026-11-05" });
+    // aluno-4 / 2026-11: legada + por modalidade JÁ desconsiderada -> legada fica (nada vale no lugar dela).
+    await pagamentos.doc("a4-legada").set({ ...base, aluno_id: "aluno-4", status: 0, mes_referencia: "2026-11", data_vencimento: "2026-11-05" });
+    await pagamentos.doc("a4-modal-desc").set({ ...base, aluno_id: "aluno-4", modalidade_id: "bjj", status: 4, mes_referencia: "2026-11", data_vencimento: "2026-11-05" });
+  });
+
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, "admin-e-finance@sensei.app", "SenhaFixtureAdmin1");
+  await environment.withSecurityRulesDisabled((ctx) =>
+    ctx
+      .firestore()
+      .doc(`usuariosFirebase/${auth.currentUser.uid}`)
+      .set({
+        schemaVersion: 2,
+        profile_refs: [
+          { key: "academy-e|funcionarios|admin-e", academiaId: "academy-e", colecao: "funcionarios", usuarioId: "admin-e", perfil_nome: "Admin", nome: "Admin E" },
+        ],
+      }),
+  );
+
+  const functions = getFunctions(app);
+  const corrigir = httpsCallable(functions, "mergeDuplicateCharges");
+  const resultado = await corrigir({ academiaId: "academy-e" });
+  assert.equal(resultado.data.ok, true);
+  assert.equal(resultado.data.resolvidasAutomaticamente, 2, "as 2 legadas (nov e dez) do aluno-1");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const pagamentos = ctx.firestore().collection("academias/academy-e/pagamentos");
+    const status = async (id) => (await pagamentos.doc(id).get()).data().status;
+
+    assert.equal(await status("a1-legada-pend"), 4);
+    assert.equal(await status("a1-legada-prev"), 4);
+    assert.equal(
+      (await pagamentos.doc("a1-legada-pend").get()).data().desconsiderado_motivo,
+      "legada_com_cobranca_por_modalidade",
+    );
+    assert.equal(await status("a1-modal-pend"), 0, "a cobrança por modalidade fica");
+    assert.equal(await status("a1-modal-prev"), 3, "a cobrança por modalidade fica");
+    assert.equal(await status("a2-legada-paga"), 1, "paga nunca é tocada");
+    assert.equal(await status("a2-modal-pend"), 0);
+    assert.equal(await status("a3-so-legada"), 0, "aluno que só tem legada continua cobrado");
+    assert.equal(await status("a4-legada"), 0, "modalidade desconsiderada não justifica cancelar a legada");
+  });
+});

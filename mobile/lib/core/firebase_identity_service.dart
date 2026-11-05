@@ -154,6 +154,37 @@ class FirebaseIdentityService {
     );
   }
 
+  /// Troca de telefone de aluno que JÁ tem acesso ao app. A conta de login é
+  /// criada com o telefone da época do cadastro; editar só a ficha deixava o
+  /// login no número antigo. [modo]:
+  ///  * `verificar` — diagnóstico sem gravar. Retorna o `status`: `sem_acesso`,
+  ///    `sem_mudanca`, `livre`, `compartilhada` (conta atende outros perfis) ou
+  ///    `conflito` (número novo já pertence a outra conta).
+  ///  * `aplicar` — move a conta de acesso para o número novo (só se `livre`).
+  ///  * `vincular` — liga o aluno à conta que já responde pelo número novo, sem
+  ///    mexer na senha de ninguém (só se `conflito`). Exige que a ficha já
+  ///    tenha sido salva com o telefone novo.
+  Future<({String status, int contas})> atualizarTelefoneAcessoAluno({
+    required String academiaId,
+    required String usuarioId,
+    required String telefone,
+    required String modo,
+  }) async {
+    final result = await _functions
+        .httpsCallable('atualizarTelefoneAcessoAluno')
+        .call({
+          'academiaId': academiaId,
+          'usuarioId': usuarioId,
+          'telefone': telefone,
+          'modo': modo,
+        });
+    final data = _asMap(result.data);
+    return (
+      status: data['status'] as String? ?? 'sem_acesso',
+      contas: (data['contas'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   /// Novo fluxo de "esqueci minha senha" do aluno: em vez de mandar e-mail
   /// (que não chega pra quem loga por telefone), vira uma solicitação que
   /// aparece no sino de notificações da academia. Pública/sem sessão — a
