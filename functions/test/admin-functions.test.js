@@ -769,3 +769,154 @@ test("requestPasswordReset: telefone compartilhado por vários alunos vira UMA n
     );
   });
 });
+
+// ── Troca de telefone de aluno que já tem acesso ao app ──────────────────────
+// Bug real: editar o telefone na ficha não movia a conta Auth (e-mail sintético
+// <telefone>@sensei.app), então o aluno só entrava com o número ANTIGO.
+
+async function prepararAdminParaTrocaTelefone(emailAdmin) {
+  const auth = getAuth(app);
+  await createUserWithEmailAndPassword(auth, emailAdmin, "SenhaFixtureAdmin1");
+  const adminUid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`usuariosFirebase/${adminUid}`).set({
+      schemaVersion: 2,
+      profile_refs: [
+        { key: "academy-a|funcionarios|admin-a", academiaId: "academy-a", colecao: "funcionarios", usuarioId: "admin-a", perfil_nome: "Admin", nome: "Admin A" },
+      ],
+    });
+  });
+  return auth;
+}
+
+async function criarContaAluno(auth, { email, senha, usuarioId, nome, telefone, phoneCanonical, refsExtras = [] }) {
+  await createUserWithEmailAndPassword(auth, email, senha);
+  const uid = auth.currentUser.uid;
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    await fs.doc(`academias/academy-a/usuarios/${usuarioId}`).set({
+      nome, perfil: 3, ativo: true, telefone, firebaseUid: uid,
+      acesso_senha_temporaria: "SenhaDaContaAntiga",
+    });
+    await fs.doc(`usuariosFirebase/${uid}`).set({
+      schemaVersion: 2,
+      phone_canonical: phoneCanonical,
+      profile_refs: [
+        { key: `academy-a|usuarios|${usuarioId}`, academiaId: "academy-a", colecao: "usuarios", usuarioId, perfil_nome: "Aluno", nome },
+        ...refsExtras,
+      ],
+    });
+  });
+  return uid;
+}
+
+test("troca de telefone: conta sem outro dono acompanha a ficha, e o login passa a ser o número novo", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+  const auth = await prepararAdminParaTrocaTelefone("admin-tel-1@sensei.app");
+  // Conta criada com o número errado (…0999); a ficha já foi corrigida para …1111.
+  const uid = await criarContaAluno(auth, {
+    email: "5521970000999@sensei.app", senha: "SenhaAluno1", usuarioId: "aluno-tel-1",
+    nome: "Aluno Tel 1", telefone: "(21) 97000-1111", phoneCanonical: "+5521970000999",
+  });
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-tel-1@sensei.app", "SenhaFixtureAdmin1");
+
+  const chamar = httpsCallable(getFunctions(app), "atualizarTelefoneAcessoAluno");
+  const base = { academiaId: "academy-a", usuarioId: "aluno-tel-1", telefone: "(21) 97000-1111" };
+
+  const verificacao = await chamar({ ...base, modo: "verificar" });
+  assert.equal(verificacao.data.status, "livre");
+
+  const resultado = await chamar({ ...base, modo: "aplicar" });
+  assert.equal(resultado.data.status, "atualizado");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const conta = await ctx.firestore().doc(`usuariosFirebase/${uid}`).get();
+    assert.equal(conta.data().phone_canonical, "+5521970001111");
+    const auditoria = await ctx.firestore().collection("academias/academy-a/auditoria").get();
+    assert.ok(auditoria.docs.some((d) => d.data().tipo === "troca_telefone_acesso"));
+  });
+
+  // Mesma senha do aluno, agora com o número novo; o antigo deixa de entrar.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970001111@sensei.app", "SenhaAluno1");
+  await signOut(auth);
+  await assert.rejects(signInWithEmailAndPassword(auth, "5521970000999@sensei.app", "SenhaAluno1"));
+
+  // Já alinhado: nova chamada não tem mais o que fazer.
+  await signInWithEmailAndPassword(auth, "admin-tel-1@sensei.app", "SenhaFixtureAdmin1");
+  const denovo = await chamar({ ...base, modo: "verificar" });
+  assert.equal(denovo.data.status, "sem_mudanca");
+});
+
+test("troca de telefone: conta compartilhada com outro perfil não é movida (derrubaria o login do irmão)", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+  const auth = await prepararAdminParaTrocaTelefone("admin-tel-2@sensei.app");
+  await criarContaAluno(auth, {
+    email: "5521970000888@sensei.app", senha: "SenhaAluno2", usuarioId: "aluno-tel-2",
+    nome: "Aluno Tel 2", telefone: "(21) 97000-3333", phoneCanonical: "+5521970000888",
+    refsExtras: [
+      { key: "academy-a|usuarios|irmao-tel-2", academiaId: "academy-a", colecao: "usuarios", usuarioId: "irmao-tel-2", perfil_nome: "Aluno", nome: "Irmão" },
+    ],
+  });
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-tel-2@sensei.app", "SenhaFixtureAdmin1");
+
+  const chamar = httpsCallable(getFunctions(app), "atualizarTelefoneAcessoAluno");
+  const base = { academiaId: "academy-a", usuarioId: "aluno-tel-2", telefone: "(21) 97000-3333" };
+
+  assert.equal((await chamar({ ...base, modo: "verificar" })).data.status, "compartilhada");
+  await assert.rejects(chamar({ ...base, modo: "aplicar" }));
+
+  // O login do irmão continua intacto.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970000888@sensei.app", "SenhaAluno2");
+});
+
+test("troca de telefone: número novo já é de outra conta -> conflito; vincular move o aluno para ela sem mexer na senha", async () => {
+  await environment.withSecurityRulesDisabled((ctx) => seed(ctx));
+  const auth = await prepararAdminParaTrocaTelefone("admin-tel-3@sensei.app");
+
+  // Conta do responsável, já usada por um irmão, com senha própria.
+  const uidResponsavel = await criarContaAluno(auth, {
+    email: "5521970002222@sensei.app", senha: "SenhaDoResponsavel1", usuarioId: "irmao-tel-3",
+    nome: "Irmão", telefone: "(21) 97000-2222", phoneCanonical: "+5521970002222",
+  });
+  // Aluno cadastrado com o número errado; a ficha já foi corrigida para …2222.
+  const uidAntiga = await criarContaAluno(auth, {
+    email: "5521970002999@sensei.app", senha: "SenhaAluno3", usuarioId: "aluno-tel-3",
+    nome: "Aluno Tel 3", telefone: "(21) 97000-2222", phoneCanonical: "+5521970002999",
+  });
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "admin-tel-3@sensei.app", "SenhaFixtureAdmin1");
+
+  const chamar = httpsCallable(getFunctions(app), "atualizarTelefoneAcessoAluno");
+  const base = { academiaId: "academy-a", usuarioId: "aluno-tel-3", telefone: "(21) 97000-2222" };
+
+  const verificacao = await chamar({ ...base, modo: "verificar" });
+  assert.equal(verificacao.data.status, "conflito");
+  assert.equal(verificacao.data.contas, 1);
+  // "aplicar" não pode passar por cima de outra conta.
+  await assert.rejects(chamar({ ...base, modo: "aplicar" }));
+
+  const resultado = await chamar({ ...base, modo: "vincular" });
+  assert.equal(resultado.data.status, "vinculado");
+
+  await environment.withSecurityRulesDisabled(async (ctx) => {
+    const fs = ctx.firestore();
+    const ficha = (await fs.doc("academias/academy-a/usuarios/aluno-tel-3").get()).data();
+    assert.equal(ficha.firebaseUid, uidResponsavel, "aluno passa a usar a conta do número novo");
+    assert.equal(ficha.acesso_senha_temporaria, undefined, "senha temporária da conta antiga some da ficha");
+
+    const antiga = (await fs.doc(`usuariosFirebase/${uidAntiga}`).get()).data();
+    assert.ok(!antiga.profile_refs.some((r) => r.usuarioId === "aluno-tel-3"), "conta antiga não aponta mais pra ele");
+
+    const nova = (await fs.doc(`usuariosFirebase/${uidResponsavel}`).get()).data();
+    const ids = nova.profile_refs.map((r) => r.usuarioId).sort();
+    assert.deepEqual(ids, ["aluno-tel-3", "irmao-tel-3"]);
+  });
+
+  // A senha do responsável não foi tocada.
+  await signOut(auth);
+  await signInWithEmailAndPassword(auth, "5521970002222@sensei.app", "SenhaDoResponsavel1");
+});

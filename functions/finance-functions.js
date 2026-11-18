@@ -296,6 +296,15 @@ exports.gerarMensalidadesAutomaticas = onSchedule(
       try {
         const resultado = await ensureChargesForNextMonths(academiaDoc.id);
         totalCriadas += resultado.totalCriadas;
+        // Rede de segurança: cobrança legada que sobrou ao lado da por
+        // modalidade nunca chega a ficar visível pro usuário.
+        const limpeza = await desconsiderarLegadasComModalidadeCore(academiaDoc.id);
+        if (limpeza.legadasDesconsideradas > 0) {
+          logger.info("Cobranças legadas desconsideradas", {
+            academiaId: academiaDoc.id,
+            ...limpeza,
+          });
+        }
       } catch (error) {
         logger.error("Falha ao gerar mensalidades automáticas", {
           academiaId: academiaDoc.id,
@@ -610,6 +619,75 @@ async function limparCobrancasOrfasCore(academiaId) {
   return { cobrancasAnalisadas: analisadas, cobrancasCanceladas: canceladas };
 }
 
+/**
+ * Academia com `cobranca_por_modalidade_ativa`: desconsidera a mensalidade
+ * LEGADA (sem `modalidade_id`, ainda Pendente ou Prevista) quando o mesmo
+ * aluno já tem, na mesma competência, uma cobrança POR MODALIDADE ativa
+ * (qualquer status diferente de Desconsiderado).
+ *
+ * Contexto: ao virar a academia para cobrança por modalidade, as cobranças
+ * legadas já geradas (inclusive os 12 meses antecipados) continuam no banco
+ * ao lado das novas — e `mergeDuplicateChargesCore` não as vê como duplicata,
+ * pois agrupa por modalidade. Resultado: 2 cards pro mesmo aluno/mês.
+ *
+ * Seguro por construção:
+ *  * só roda com a flag ligada (no modelo legado, sem modalidade é o normal);
+ *  * só mexe em legada Pendente (0) / Prevista (3) — nunca Paga (1);
+ *  * só desconsidera se existir a cobrança por modalidade correspondente,
+ *    então aluno que só tem legada continua cobrado;
+ *  * nunca exclui documento — marca `status: 4` com motivo registrado.
+ */
+async function desconsiderarLegadasComModalidadeCore(academiaId) {
+  const academiaRef = db.collection("academias").doc(academiaId);
+  const academiaSnap = await academiaRef.get();
+  if (academiaSnap.data()?.cobranca_por_modalidade_ativa !== true) {
+    return { legadasDesconsideradas: 0, aplicavel: false };
+  }
+
+  const snap = await academiaRef.collection("pagamentos").get();
+
+  const comModalidade = new Set(); // "alunoId|mes"
+  const legadas = []; // { ref, chave }
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (data.status === 4) continue;
+    if (!eMensalidade(data)) continue;
+    const alunoId = String(data.aluno_id ?? "").trim();
+    const mes = mesReferenciaEfetiva(data);
+    if (!alunoId || !mes) continue;
+    const chave = `${alunoId}|${mes}`;
+
+    if (String(data.modalidade_id ?? "").trim()) {
+      comModalidade.add(chave);
+    } else if (data.status === 0 || data.status === 3) {
+      legadas.push({ ref: doc.ref, chave });
+    }
+  }
+
+  let desconsideradas = 0;
+  let batch = db.batch();
+  let opsNoBatch = 0;
+  const TAMANHO_LOTE = 400;
+  for (const { ref, chave } of legadas) {
+    if (!comModalidade.has(chave)) continue;
+    batch.update(ref, {
+      status: 4,
+      desconsiderado_em: FieldValue.serverTimestamp(),
+      desconsiderado_motivo: "legada_com_cobranca_por_modalidade",
+    });
+    desconsideradas++;
+    opsNoBatch++;
+    if (opsNoBatch >= TAMANHO_LOTE) {
+      await batch.commit();
+      batch = db.batch();
+      opsNoBatch = 0;
+    }
+  }
+  if (opsNoBatch > 0) await batch.commit();
+
+  return { legadasDesconsideradas: desconsideradas, aplicavel: true };
+}
+
 exports.limparCobrancasOrfas = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
   if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
     throw new HttpsError("unauthenticated", "É necessário autenticar antes de limpar cobranças.");
@@ -647,6 +725,10 @@ exports.mergeDuplicateCharges = onCall(IDENTITY_FUNCTION_OPTIONS, async (request
   }
 
   const result = await mergeDuplicateChargesCore(academiaId);
+  // Legadas que ficaram ao lado das cobranças por modalidade contam como
+  // duplicata resolvida pro usuário (mesmo botão, mesma mensagem de sucesso).
+  const legadas = await desconsiderarLegadasComModalidadeCore(academiaId);
+  result.resolvidasAutomaticamente += legadas.legadasDesconsideradas;
 
   logger.info("Mensalidades duplicadas corrigidas", { academiaId, ...result, chamadoPor: request.auth.uid });
   return { ok: true, ...result };
@@ -658,5 +740,6 @@ exports._test = {
   disregardChargesBeforePeriodCore,
   mergeDuplicateChargesCore,
   limparCobrancasOrfasCore,
+  desconsiderarLegadasComModalidadeCore,
   loadFinanceAuthority,
 };
