@@ -1341,7 +1341,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'This student already has active app access. Changing the email/phone here does NOT change their password or login. Use \"Reset password\" if needed.';
+      'This student already has active app access. Changing the phone here automatically moves their login to the new number (the password never changes). Changing the email does NOT move the login. Use \"Reset password\" if needed.';
 
   @override
   String get sdCpfOptional => 'CPF (optional)';

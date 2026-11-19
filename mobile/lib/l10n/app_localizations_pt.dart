@@ -1345,7 +1345,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.';
+      'Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.';
 
   @override
   String get sdCpfOptional => 'CPF (opcional)';

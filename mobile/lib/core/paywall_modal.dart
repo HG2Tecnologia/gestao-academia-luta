@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -83,10 +84,26 @@ class _PaywallSheetState extends State<_PaywallSheet> {
   bool _initLoading = true;
   String? _erro;
 
+  // `restorePurchases()` só resolve de verdade via `purchaseStream` quando
+  // encontra algo pra restaurar — se a conta não tiver nenhuma compra
+  // (ex.: testando com uma conta diferente da que comprou, ou alguém que
+  // nunca assinou), o stream nunca emite nada e o loading ficava girando
+  // pra sempre. Esse timer dá um prazo e mostra uma mensagem neutra se
+  // nada chegar. O token evita que ele dispare depois de um resultado
+  // real já ter chegado (ex.: restauração lenta que chega em 9s).
+  Timer? _restoreTimeout;
+  int _restoreToken = 0;
+
   @override
   void initState() {
     super.initState();
     _initIap();
+  }
+
+  @override
+  void dispose() {
+    _restoreTimeout?.cancel();
+    super.dispose();
   }
 
   Future<void> _initIap() async {
@@ -97,6 +114,8 @@ class _PaywallSheetState extends State<_PaywallSheet> {
   }
 
   void _onResult(bool success, String? error) {
+    _restoreTimeout?.cancel();
+    _restoreToken++;
     if (!mounted) return;
     setState(() => _loading = false);
     if (success) {
@@ -147,8 +166,17 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 
   Future<void> _restaurar() async {
     setState(() => _loading = true);
+    final token = ++_restoreToken;
+    _restoreTimeout?.cancel();
+    _restoreTimeout = Timer(const Duration(seconds: 10), () {
+      if (!mounted || token != _restoreToken) return;
+      setState(() {
+        _loading = false;
+        _erro = 'Nenhuma assinatura ativa encontrada nessa conta.';
+      });
+    });
     await IapService.instance.restaurar();
-    // resultado chega pelo onPurchaseResult
+    // resultado (se houver algo pra restaurar) chega pelo onPurchaseResult
   }
 
   // Resolve preço exibido: usa dado real da loja se disponível. Para planos

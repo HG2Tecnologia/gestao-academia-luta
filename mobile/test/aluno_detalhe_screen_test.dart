@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tatame/core/auth_storage.dart';
 import 'package:tatame/core/finance_service.dart';
+import 'package:tatame/core/firebase_identity_service.dart';
 import 'package:tatame/core/firestore_service.dart';
 import 'package:tatame/l10n/app_localizations.dart';
 import 'package:tatame/screens/admin/aluno_detalhe_screen.dart';
 
 import 'fakes/fake_finance_service.dart';
+import 'fakes/fake_firebase_identity_service.dart';
 import 'fakes/fake_firestore_service.dart';
 
 /// Regressão do bug real relatado em produção: definir o plano de um aluno
@@ -98,6 +100,7 @@ void main() {
   tearDown(() {
     firestoreService = FirestoreService();
     financeService = FinanceService();
+    firebaseIdentityService = FirebaseIdentityService();
   });
 
   testWidgets(
@@ -177,4 +180,181 @@ void main() {
       expect(fakeFinance.ensureChargesForPeriodCalls, isEmpty);
     },
   );
+
+  // Troca de telefone de acesso (`atualizarTelefoneAcessoAluno`) — a tela
+  // nunca tinha sido exercitada por nenhum teste antes desta branch. Os 4
+  // testes abaixo cobrem os 3 diagnósticos que o servidor pode devolver no
+  // modo `verificar`, exatamente como descritos no fluxo de
+  // `_editarAluno` em aluno_detalhe_screen.dart.
+  group('troca de telefone de acesso', () {
+    testWidgets(
+      'telefone livre: salva a ficha e move a conta pro número novo, sem aviso',
+      (tester) async {
+        final fakeIdentity = FakeFirebaseIdentityService(
+          verificarStatus: 'livre',
+        );
+        firebaseIdentityService = fakeIdentity;
+
+        await pump(tester);
+        final l10n = await AppLocalizations.delegate.load(const Locale('pt'));
+
+        await tester.tap(find.byTooltip(l10n.commonEdit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, l10n.sdPhone),
+          '11988887777',
+        );
+        await tester.ensureVisible(find.text(l10n.sdSaveChanges));
+        await tester.tap(find.text(l10n.sdSaveChanges));
+        await tester.pumpAndSettle();
+
+        // Ficha salva (telefone_digits é o canônico, sem a máscara visual)...
+        expect(
+          fakeFirestore.updateAlunoCalls.any(
+            (c) => c['telefone_digits'] == '5511988887777',
+          ),
+          isTrue,
+        );
+        // ...e a conta de acesso foi movida (modo `aplicar`), sem precisar
+        // de nenhum diálogo no caminho (número livre).
+        expect(
+          fakeIdentity.chamadas.map((c) => c.modo),
+          containsAllInOrder(['verificar', 'aplicar']),
+        );
+        // Sucesso normal, não o aviso amarelo de compartilhada/falha.
+        expect(find.text(l10n.sdStudentUpdated), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'telefone em conflito + "Vincular": liga o aluno à conta existente',
+      (tester) async {
+        final fakeIdentity = FakeFirebaseIdentityService(
+          verificarStatus: 'conflito',
+        );
+        firebaseIdentityService = fakeIdentity;
+
+        await pump(tester);
+        final l10n = await AppLocalizations.delegate.load(const Locale('pt'));
+
+        await tester.tap(find.byTooltip(l10n.commonEdit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, l10n.sdPhone),
+          '11977776666',
+        );
+        await tester.ensureVisible(find.text(l10n.sdSaveChanges));
+        await tester.tap(find.text(l10n.sdSaveChanges));
+        await tester.pumpAndSettle();
+
+        // Diálogo de conflito apareceu, nada foi gravado ainda.
+        expect(find.text('Telefone já está em uso'), findsOneWidget);
+        expect(fakeFirestore.updateAlunoCalls, isEmpty);
+
+        await tester.tap(find.text('Vincular'));
+        await tester.pumpAndSettle();
+
+        // Agora sim: ficha salva e conta vinculada (modo `vincular`, nunca
+        // `aplicar` — não pode mexer na senha da conta existente).
+        expect(
+          fakeFirestore.updateAlunoCalls.any(
+            (c) => c['telefone_digits'] == '5511977776666',
+          ),
+          isTrue,
+        );
+        expect(
+          fakeIdentity.chamadas.map((c) => c.modo),
+          containsAllInOrder(['verificar', 'vincular']),
+        );
+        expect(
+          fakeIdentity.chamadas.any((c) => c.modo == 'aplicar'),
+          isFalse,
+        );
+        expect(find.text(l10n.sdStudentUpdated), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'telefone em conflito + "Corrigir número": cancela, nada é gravado',
+      (tester) async {
+        final fakeIdentity = FakeFirebaseIdentityService(
+          verificarStatus: 'conflito',
+        );
+        firebaseIdentityService = fakeIdentity;
+
+        await pump(tester);
+        final l10n = await AppLocalizations.delegate.load(const Locale('pt'));
+
+        await tester.tap(find.byTooltip(l10n.commonEdit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, l10n.sdPhone),
+          '11977776666',
+        );
+        await tester.ensureVisible(find.text(l10n.sdSaveChanges));
+        await tester.tap(find.text(l10n.sdSaveChanges));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Corrigir número'));
+        await tester.pumpAndSettle();
+
+        // Nada foi gravado — nem a ficha, nem a conta de acesso.
+        expect(fakeFirestore.updateAlunoCalls, isEmpty);
+        expect(
+          fakeIdentity.chamadas.where((c) => c.modo != 'verificar'),
+          isEmpty,
+        );
+        // O diálogo fechou e devolveu pro formulário (ainda editando).
+        expect(find.text('Telefone já está em uso'), findsNothing);
+        expect(find.text(l10n.sdSaveChanges), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'telefone com conta compartilhada: salva a ficha, mas avisa que o login não muda',
+      (tester) async {
+        final fakeIdentity = FakeFirebaseIdentityService(
+          verificarStatus: 'compartilhada',
+        );
+        firebaseIdentityService = fakeIdentity;
+
+        await pump(tester);
+        final l10n = await AppLocalizations.delegate.load(const Locale('pt'));
+
+        await tester.tap(find.byTooltip(l10n.commonEdit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, l10n.sdPhone),
+          '11966665555',
+        );
+        await tester.ensureVisible(find.text(l10n.sdSaveChanges));
+        await tester.tap(find.text(l10n.sdSaveChanges));
+        await tester.pumpAndSettle();
+
+        // Ficha salva...
+        expect(
+          fakeFirestore.updateAlunoCalls.any(
+            (c) => c['telefone_digits'] == '5511966665555',
+          ),
+          isTrue,
+        );
+        // ...mas a conta de acesso nunca é tocada (compartilhada com outro
+        // perfil) — só `verificar` foi chamado, nunca `aplicar`/`vincular`.
+        expect(
+          fakeIdentity.chamadas.where((c) => c.modo != 'verificar'),
+          isEmpty,
+        );
+        // Aviso amarelo específico, não a mensagem de sucesso normal.
+        expect(
+          find.textContaining('login deste aluno é compartilhado'),
+          findsOneWidget,
+        );
+        expect(find.text(l10n.sdStudentUpdated), findsNothing);
+      },
+    );
+  });
 }

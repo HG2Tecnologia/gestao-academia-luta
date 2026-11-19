@@ -586,7 +586,7 @@
   "sdLink": "Vincular",
   "sdEditStudent": "Editar Aluno",
   "sdPersonalData": "Dados pessoais",
-  "sdEditAccessWarning": "Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.",
+  "sdEditAccessWarning": "Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.",
   "sdCpfOptional": "CPF (opcional)",
   "sdBirthDateField": "Data de nascimento (DD/MM/AAAA)",
   "sdGuardianEmergency": "Responsável / Emergência",

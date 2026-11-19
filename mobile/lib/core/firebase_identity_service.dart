@@ -18,9 +18,15 @@ class AccessDiscovery {
 
 class FirebaseIdentityService {
   FirebaseIdentityService({FirebaseFunctions? functions})
-    : _functions = functions ?? FirebaseFunctions.instance;
+    : _injectedFunctions = functions;
 
-  final FirebaseFunctions _functions;
+  final FirebaseFunctions? _injectedFunctions;
+
+  // Tardio (igual FinanceService/FirestoreService): instanciar no construtor
+  // exigiria o Firebase inicializado só para criar o serviço, mesmo em testes
+  // que substituem todo método por um fake e nunca tocam `_functions`.
+  FirebaseFunctions get _functions =>
+      _injectedFunctions ?? FirebaseFunctions.instance;
 
   Future<AccessDiscovery> discoverProfiles(String identifier) async {
     final result = await _functions
@@ -202,4 +208,4 @@ class FirebaseIdentityService {
   }
 }
 
-final firebaseIdentityService = FirebaseIdentityService();
+FirebaseIdentityService firebaseIdentityService = FirebaseIdentityService();
