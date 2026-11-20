@@ -47,11 +47,13 @@ class PlanService {
     return exp == null || exp.isAfter(DateTime.now());
   }
 
+  static const int trialDurationDays = 30;
+
   bool get isInTrial {
     if (isPro) return false;
     final criado = _criadoEm;
     if (criado == null) return false;
-    return DateTime.now().difference(criado).inDays < 7;
+    return DateTime.now().difference(criado).inDays < trialDurationDays;
   }
 
   bool get showAds => !isPro && !isInTrial;
@@ -59,8 +61,8 @@ class PlanService {
   int get daysLeftInTrial {
     final criado = _criadoEm;
     if (criado == null) return 0;
-    final diff = 7 - DateTime.now().difference(criado).inDays;
-    return diff.clamp(0, 7);
+    final diff = trialDurationDays - DateTime.now().difference(criado).inDays;
+    return diff.clamp(0, trialDurationDays);
   }
 
   DateTime? get planoExpiracao => _planoExpiracao;
