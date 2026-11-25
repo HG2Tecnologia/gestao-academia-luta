@@ -298,10 +298,18 @@ class _CadastroScreenState extends State<CadastroScreen> {
                 const SizedBox(height: 10),
                 _field(
                   controller: _telefoneCtrl,
-                  hint: 'Telefone (opcional)',
+                  hint: 'Telefone (com DDD)',
                   icon: Icons.phone_outlined,
                   keyboard: TextInputType.phone,
                   inputFormatters: [_PhoneMaskFormatter()],
+                  validator: (v) {
+                    final digitos = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                    if (digitos.isEmpty) return 'Informe o telefone';
+                    if (digitos.length < 10) {
+                      return 'Telefone inválido. Informe com DDD';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 

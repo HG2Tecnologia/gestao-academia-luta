@@ -2742,5 +2742,23 @@
       "faltas": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "appVersionLabel": "Versão {version} ({build})",
+  "@appVersionLabel": {
+    "placeholders": {
+      "version": {"type": "String"},
+      "build": {"type": "String"}
+    }
+  },
+  "appVersionCopied": "Versão copiada",
+  "reviewAskTitle": "Está gostando do Sensei?",
+  "reviewAskSubtitle": "Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.",
+  "reviewAskYes": "Sim, estou gostando!",
+  "reviewAskNo": "Não muito",
+  "reviewAskLater": "Agora não",
+  "reviewFeedbackTitle": "Poxa, o que podemos melhorar?",
+  "reviewFeedbackSubtitle": "Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.",
+  "reviewFeedbackHint": "Escreva aqui sua sugestão ou problema",
+  "reviewFeedbackSend": "Enviar",
+  "reviewFeedbackThanks": "Obrigado pelo feedback!"
 }

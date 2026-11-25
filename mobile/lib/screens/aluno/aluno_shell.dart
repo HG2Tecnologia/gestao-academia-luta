@@ -1,3 +1,4 @@
+import '../../core/app_review_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/tab_refresh.dart';
@@ -34,6 +35,7 @@ class _AlunoShellState extends State<AlunoShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.student);
+        AppReviewService.registrarAberturaEPerguntar(context, papel: 'aluno');
       }
     });
   }

@@ -9649,6 +9649,78 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'{presencas} presenças · {faltas} faltas · {total} aulas no período'**
   String rpSummaryLine(int presencas, int faltas, int total);
+
+  /// No description provided for @appVersionLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão {version} ({build})'**
+  String appVersionLabel(String version, String build);
+
+  /// No description provided for @appVersionCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão copiada'**
+  String get appVersionCopied;
+
+  /// No description provided for @reviewAskTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Está gostando do Sensei?'**
+  String get reviewAskTitle;
+
+  /// No description provided for @reviewAskSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.'**
+  String get reviewAskSubtitle;
+
+  /// No description provided for @reviewAskYes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sim, estou gostando!'**
+  String get reviewAskYes;
+
+  /// No description provided for @reviewAskNo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não muito'**
+  String get reviewAskNo;
+
+  /// No description provided for @reviewAskLater.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora não'**
+  String get reviewAskLater;
+
+  /// No description provided for @reviewFeedbackTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Poxa, o que podemos melhorar?'**
+  String get reviewFeedbackTitle;
+
+  /// No description provided for @reviewFeedbackSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.'**
+  String get reviewFeedbackSubtitle;
+
+  /// No description provided for @reviewFeedbackHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escreva aqui sua sugestão ou problema'**
+  String get reviewFeedbackHint;
+
+  /// No description provided for @reviewFeedbackSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar'**
+  String get reviewFeedbackSend;
+
+  /// No description provided for @reviewFeedbackThanks.
+  ///
+  /// In pt, this message translates to:
+  /// **'Obrigado pelo feedback!'**
+  String get reviewFeedbackThanks;
 }
 
 class _AppLocalizationsDelegate

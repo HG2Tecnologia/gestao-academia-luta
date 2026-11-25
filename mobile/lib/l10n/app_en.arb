@@ -2189,5 +2189,23 @@
       "faltas": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "appVersionLabel": "Version {version} ({build})",
+  "@appVersionLabel": {
+    "placeholders": {
+      "version": {"type": "String"},
+      "build": {"type": "String"}
+    }
+  },
+  "appVersionCopied": "Version copied",
+  "reviewAskTitle": "Enjoying Sensei?",
+  "reviewAskSubtitle": "Your opinion helps us improve the app and reach more gyms.",
+  "reviewAskYes": "Yes, I'm enjoying it!",
+  "reviewAskNo": "Not really",
+  "reviewAskLater": "Not now",
+  "reviewFeedbackTitle": "Oh no, what can we improve?",
+  "reviewFeedbackSubtitle": "Tell us what's not working. Your message goes straight to our team.",
+  "reviewFeedbackHint": "Write your suggestion or problem here",
+  "reviewFeedbackSend": "Send",
+  "reviewFeedbackThanks": "Thanks for your feedback!"
 }
