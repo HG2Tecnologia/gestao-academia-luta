@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/app_version_label.dart';
 import '../../core/auth_storage.dart';
 import '../../core/plan_service.dart';
 import '../../core/appearance_controls.dart';
@@ -390,6 +391,7 @@ class _ProfPerfilScreenState extends State<ProfPerfilScreen> {
                         ),
                       ),
                     ),
+                    const AppVersionLabel(),
                     const SizedBox(height: 20),
                   ],
                 ),

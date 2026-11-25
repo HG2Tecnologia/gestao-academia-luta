@@ -1,3 +1,4 @@
+import '../../core/app_review_service.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.academy);
+        AppReviewService.registrarAberturaEPerguntar(context, papel: 'academia');
       }
     });
   }

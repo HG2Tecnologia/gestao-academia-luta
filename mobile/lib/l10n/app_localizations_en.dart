@@ -5499,4 +5499,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String rpSummaryLine(int presencas, int faltas, int total) {
     return '$presencas present · $faltas absent · $total classes in period';
   }
+
+  @override
+  String appVersionLabel(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
+  String get appVersionCopied => 'Version copied';
+
+  @override
+  String get reviewAskTitle => 'Enjoying Sensei?';
+
+  @override
+  String get reviewAskSubtitle =>
+      'Your opinion helps us improve the app and reach more gyms.';
+
+  @override
+  String get reviewAskYes => 'Yes, I\'m enjoying it!';
+
+  @override
+  String get reviewAskNo => 'Not really';
+
+  @override
+  String get reviewAskLater => 'Not now';
+
+  @override
+  String get reviewFeedbackTitle => 'Oh no, what can we improve?';
+
+  @override
+  String get reviewFeedbackSubtitle =>
+      'Tell us what\'s not working. Your message goes straight to our team.';
+
+  @override
+  String get reviewFeedbackHint => 'Write your suggestion or problem here';
+
+  @override
+  String get reviewFeedbackSend => 'Send';
+
+  @override
+  String get reviewFeedbackThanks => 'Thanks for your feedback!';
 }
