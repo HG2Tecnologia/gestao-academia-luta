@@ -60,6 +60,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   String? _academiaId;
   StoredUser? _callerUser;
   bool _loading = true;
+  List<Map<String, dynamic>> _todosPlanos = const [];
   String? _erro;
   bool _uploadingAtestado = false;
   // Faixa mais recente aprovada por modalidade: { nomeModalidade -> { nome, cor } }
@@ -93,9 +94,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  /// [silencioso]: recarrega por baixo, mantendo a ficha na tela (usado após
+  /// editar, para não trocar tudo por um spinner de tela cheia).
+  Future<void> _load({bool silencioso = false}) async {
     setState(() {
-      _loading = true;
+      if (!silencioso) _loading = true;
       _erro = null;
     });
     try {
@@ -393,6 +396,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               academiaDoc?['cobranca_por_modalidade_ativa'] as bool? ?? false;
           _planosModalidade = planosModalidadeEnriquecidos;
           _modalidadesPorId = modalidadesLista;
+          _todosPlanos = todosPlanos;
         });
     } catch (_) {
       if (mounted) setState(() => _erro = _l.sdLoadError);
@@ -4057,10 +4061,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final alunoTemAcessoAtivo =
         (a['firebaseUid'] as String?)?.isNotEmpty == true;
 
-    List<Map<String, dynamic>> planos = [];
-    try {
-      planos = await firestoreService.getPlanos(_academiaId!);
-    } catch (_) {}
+    // Reaproveita os planos já carregados com a ficha (evita uma leitura e
+    // uma espera antes de abrir o formulário); só busca se ainda não vieram.
+    var planos = _todosPlanos;
+    if (planos.isEmpty) {
+      try {
+        planos = await firestoreService.getPlanos(_academiaId!);
+      } catch (_) {}
+    }
     if (!mounted) return;
 
     final nomeCtrl = TextEditingController(text: a['nome']?.toString() ?? '');
@@ -4499,40 +4507,58 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               final diaVencInt = int.tryParse(
                                 diaVencCtrl.text.trim(),
                               );
-                              if (!_pm &&
-                                  planoIdSel != null &&
-                                  planoIdAntes == null &&
-                                  diaVencInt != null) {
-                                try {
-                                  final agora = DateTime.now();
-                                  final periodoAtual =
-                                      '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
-                                  await financeService.ensureChargesForPeriod(
-                                    academiaId: _academiaId!,
-                                    period: periodoAtual,
-                                  );
-                                } catch (_) {}
+                              // Gerar a cobrança e atualizar o login são
+                              // chamadas independentes ao servidor: rodam
+                              // juntas, cada uma com o próprio tratamento de
+                              // falha (antes uma esperava a outra).
+                              Future<void> gerarCobranca() async {
+                                if (!_pm &&
+                                    planoIdSel != null &&
+                                    planoIdAntes == null &&
+                                    diaVencInt != null) {
+                                  try {
+                                    final agora = DateTime.now();
+                                    final periodoAtual =
+                                        '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
+                                    await financeService.ensureChargesForPeriod(
+                                      academiaId: _academiaId!,
+                                      period: periodoAtual,
+                                    );
+                                  } catch (_) {}
+                                }
                               }
+
                               // Ficha já salva: agora a conta de login acompanha
                               // o número novo. Falha aqui não desfaz a ficha —
                               // avisa a academia pra tentar de novo.
                               String? avisoAcesso;
+                              Future<void> atualizarLogin() async {
+                                if (statusTelefone == 'livre' ||
+                                    vincularContaExistente) {
+                                  try {
+                                    await firebaseIdentityService
+                                        .atualizarTelefoneAcessoAluno(
+                                          academiaId: _academiaId!,
+                                          usuarioId: widget.alunoId,
+                                          telefone: telVal,
+                                          modo: vincularContaExistente
+                                              ? 'vincular'
+                                              : 'aplicar',
+                                        );
+                                  } catch (_) {
+                                    avisoAcesso =
+                                        'Dados salvos, mas o login do aluno ainda está no telefone antigo. Abra a ficha e salve de novo para tentar outra vez.';
+                                  }
+                                }
+                              }
+
+                              await Future.wait([
+                                gerarCobranca(),
+                                atualizarLogin(),
+                              ]);
                               if (statusTelefone == 'livre' ||
                                   vincularContaExistente) {
-                                try {
-                                  await firebaseIdentityService
-                                      .atualizarTelefoneAcessoAluno(
-                                        academiaId: _academiaId!,
-                                        usuarioId: widget.alunoId,
-                                        telefone: telVal,
-                                        modo: vincularContaExistente
-                                            ? 'vincular'
-                                            : 'aplicar',
-                                      );
-                                } catch (_) {
-                                  avisoAcesso =
-                                      'Dados salvos, mas o login do aluno ainda está no telefone antigo. Abra a ficha e salve de novo para tentar outra vez.';
-                                }
+                                // login já tratado em atualizarLogin()
                               } else if (statusTelefone == 'compartilhada') {
                                 avisoAcesso =
                                     'Dados salvos. O login deste aluno é compartilhado com outro cadastro (mesmo telefone), então continua no número antigo. Use "Redefinir senha" ou fale com o suporte para separar os acessos.';
@@ -4578,7 +4604,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
-                                  if (mounted) _load();
+                                  if (mounted) _load(silencioso: true);
                                 });
                               }
                             } catch (e) {

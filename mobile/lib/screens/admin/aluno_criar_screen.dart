@@ -135,11 +135,28 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       final telVal = _telefone.text.trim();
       final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
 
-      // Verificar duplicado por e-mail (telefone pode repetir entre irmãos)
-      final duplicado = await firestoreService.verificarDuplicadoAluno(
-        academiaId,
-        email: emailVal.isNotEmpty ? emailVal : null,
-      );
+      // As 3 verificações prévias são só leituras independentes: disparam
+      // juntas (antes eram em sequência, somando 3+ esperas de rede). Os
+      // diálogos abaixo continuam na mesma ordem de antes.
+      final precisaChecarContato =
+          _acessoAppAtivo && (emailVal.isNotEmpty || telDigits.isNotEmpty);
+      final (duplicado, vinculos, checagem) = await (
+        // Verificar duplicado por e-mail (telefone pode repetir entre irmãos)
+        firestoreService.verificarDuplicadoAluno(
+          academiaId,
+          email: emailVal.isNotEmpty ? emailVal : null,
+        ),
+        telDigits.isNotEmpty
+            ? firestoreService.buscarPerfisMesmaAcademia(academiaId, telDigits)
+            : Future.value(const <Map<String, dynamic>>[]),
+        precisaChecarContato
+            ? firebaseIdentityService.checkContatoCompartilhado(
+                academiaId: academiaId,
+                telefone: telDigits,
+                email: emailVal,
+              )
+            : Future.value(null),
+      ).wait;
 
       if (duplicado != null && mounted) {
         setState(() => _salvando = false);
@@ -155,10 +172,6 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       // isso vai vincular os dois perfis na mesma pessoa (ex: professor que
       // também treina como aluno em outra modalidade).
       if (telDigits.isNotEmpty) {
-        final vinculos = await firestoreService.buscarPerfisMesmaAcademia(
-          academiaId,
-          telDigits,
-        );
         final funcionarios = vinculos
             .where((v) => v['_colecao'] == 'funcionarios')
             .toList();
@@ -180,13 +193,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       // que o aluno já existe no banco).
       var confirmarSobrescrita = false;
       var apenasVincular = false;
-      if (_acessoAppAtivo && (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
-        final checagem = await firebaseIdentityService
-            .checkContatoCompartilhado(
-              academiaId: academiaId,
-              telefone: telDigits,
-              email: emailVal,
-            );
+      if (checagem != null) {
         if (checagem.conflito) {
           if (!mounted) return;
           setState(() => _salvando = false);

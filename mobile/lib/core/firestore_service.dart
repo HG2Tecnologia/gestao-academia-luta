@@ -166,34 +166,44 @@ class FirestoreService {
     final results = <Map<String, dynamic>>[];
     if (!isEmail && digits.isEmpty) return results;
 
-    Future<void> buscarEm(String colecao, {required bool isAluno}) async {
+    // As consultas são independentes, então rodam em paralelo (antes eram
+    // 2 a 4 idas e voltas em sequência). A ordem do resultado é preservada.
+    Future<List<Map<String, dynamic>>> buscarEm(
+      String colecao, {
+      required bool isAluno,
+    }) async {
       final col = _col(academiaId, colecao);
       final docs = <String, QueryDocumentSnapshot>{};
+      final saida = <Map<String, dynamic>>[];
 
-      Future<void> adicionarQuery(String campo, String valor) async {
-        if (valor.isEmpty) return;
-        final snap = await col.where(campo, isEqualTo: valor).get();
+      Future<QuerySnapshot?> consultar(String campo, String valor) async {
+        if (valor.isEmpty) return null;
+        return col.where(campo, isEqualTo: valor).get();
+      }
+
+      final consultas = <Future<QuerySnapshot?>>[];
+      if (isEmail) {
+        consultas.add(consultar('email', telefoneOuEmail.toLowerCase().trim()));
+        if (telefoneOuEmail.trim() != telefoneOuEmail.toLowerCase().trim()) {
+          consultas.add(consultar('email', telefoneOuEmail.trim()));
+        }
+      } else {
+        consultas.add(consultar('telefone_digits', digits));
+        // Compatibilidade com cadastros antigos editados antes da criação de
+        // telefone_digits. A edição atual passa a manter ambos sincronizados.
+        consultas.add(consultar('telefone', telefoneOuEmail.trim()));
+      }
+      for (final snap in await Future.wait(consultas)) {
+        if (snap == null) continue;
         for (final doc in snap.docs) {
           docs[doc.id] = doc;
         }
       }
 
-      if (isEmail) {
-        await adicionarQuery('email', telefoneOuEmail.toLowerCase().trim());
-        if (telefoneOuEmail.trim() != telefoneOuEmail.toLowerCase().trim()) {
-          await adicionarQuery('email', telefoneOuEmail.trim());
-        }
-      } else {
-        await adicionarQuery('telefone_digits', digits);
-        // Compatibilidade com cadastros antigos editados antes da criação de
-        // telefone_digits. A edição atual passa a manter ambos sincronizados.
-        await adicionarQuery('telefone', telefoneOuEmail.trim());
-      }
-
       for (final d in docs.values) {
         final item = _convertDoc(d);
         if (isAluno && (item['perfil'] as int?) != 3) continue;
-        results.add({
+        saida.add({
           ...item,
           'academiaId': academiaId,
           'usuarioId': item['id'],
@@ -203,10 +213,16 @@ class FirestoreService {
           '_colecao': colecao,
         });
       }
+      return saida;
     }
 
-    await buscarEm('funcionarios', isAluno: false);
-    await buscarEm('usuarios', isAluno: true);
+    final porColecao = await Future.wait([
+      buscarEm('funcionarios', isAluno: false),
+      buscarEm('usuarios', isAluno: true),
+    ]);
+    for (final lista in porColecao) {
+      results.addAll(lista);
+    }
     return results;
   }
 
@@ -349,6 +365,15 @@ class FirestoreService {
   Future<String> addAluno(String academiaId, Map<String, dynamic> data) async {
     final ref = _col(academiaId, 'usuarios').doc();
     final alunoId = ref.id;
+    final planoId = data['plano_id'] as String?;
+    final diaVenc = data['dia_vencimento'] as int?;
+    // A leitura do plano não depende da gravação do aluno: dispara junto.
+    final planoFuture = (planoId != null && diaVenc != null)
+        ? _doc(academiaId, 'planos', planoId).get()
+        : null;
+    // Evita erro não tratado caso a gravação falhe antes de aguardarmos o plano.
+    planoFuture?.then((_) {}, onError: (_) {});
+
     await ref.set({
       ...data,
       'id': alunoId,
@@ -362,16 +387,14 @@ class FirestoreService {
     });
 
     // Auto-gera cobrança do mês corrente se plano e dia de vencimento foram informados
-    final planoId = data['plano_id'] as String?;
-    final diaVenc = data['dia_vencimento'] as int?;
-    if (planoId != null && diaVenc != null) {
+    if (planoFuture != null) {
       try {
-        final planoDoc = await _doc(academiaId, 'planos', planoId).get();
+        final planoDoc = await planoFuture;
         if (planoDoc.exists) {
           final plano = planoDoc.data() as Map<String, dynamic>;
           final valor = (plano['valor_mensal'] as num?)?.toDouble() ?? 0.0;
           final now = DateTime.now();
-          final dia = diaVenc.clamp(1, 28);
+          final dia = diaVenc!.clamp(1, 28);
           final vencStr =
               '${now.year.toString().padLeft(4, '0')}-'
               '${now.month.toString().padLeft(2, '0')}-'
@@ -555,10 +578,14 @@ class FirestoreService {
     final existentes = await _col(academiaId, 'modalidades').limit(1).get();
     if (existentes.docs.isNotEmpty) return;
 
+    // Uma única gravação em lote (antes eram ~60 `set` sequenciais, cada um
+    // com uma ida e volta à rede — deixava o cadastro da academia lento).
+    // Cabe no limite de 500 operações por batch.
+    final batch = _db.batch();
     for (final mod in kModalidadesDefault) {
       final modRef = _col(academiaId, 'modalidades').doc();
       final modId = modRef.id;
-      await modRef.set({
+      batch.set(modRef, {
         'id': modId,
         'nome': mod['nome'],
         'cor': mod['cor'],
@@ -569,7 +596,7 @@ class FirestoreService {
       final faixas = mod['faixas'] as List<Map<String, dynamic>>;
       for (final f in faixas) {
         final fRef = _col(academiaId, 'faixas').doc();
-        await fRef.set({
+        batch.set(fRef, {
           'id': fRef.id,
           'modalidadeId': modId,
           'nome': f['nome'],
@@ -581,6 +608,7 @@ class FirestoreService {
         });
       }
     }
+    await batch.commit();
   }
 
   // ─── MODALIDADES ───────────────────────────────────────────────────────────
@@ -1172,14 +1200,17 @@ class FirestoreService {
     String academiaId,
     String alunoId,
   ) async {
-    final alunoDoc = await _doc(academiaId, 'usuarios', alunoId).get();
+    // Aluno e academia são leituras independentes: buscam juntas.
+    final (alunoDoc, academiaDoc) = await (
+      _doc(academiaId, 'usuarios', alunoId).get(),
+      _db.collection('academias').doc(academiaId).get(),
+    ).wait;
     if (!alunoDoc.exists) return 'Aluno não encontrado.';
     final aluno = alunoDoc.data() as Map<String, dynamic>? ?? {};
     if (aluno['ativo'] == false) {
       return 'Cadastro inativo. Procure a secretaria da academia.';
     }
 
-    final academiaDoc = await _db.collection('academias').doc(academiaId).get();
     final academia = academiaDoc.data() as Map<String, dynamic>? ?? {};
     if (academia['bloqueio_checkin_ativo'] != true) return null;
 
@@ -1655,7 +1686,7 @@ class FirestoreService {
     if (!planoDoc.exists) return;
     final plano = planoDoc.data() as Map<String, dynamic>;
     final valor = (plano['valor_mensal'] as num?)?.toDouble() ?? 0.0;
-    final dia = diaVenc.clamp(1, 28);
+    final dia = diaVenc!.clamp(1, 28);
     final vencStr =
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}';
     final pagRef = _col(academiaId, 'pagamentos').doc();
