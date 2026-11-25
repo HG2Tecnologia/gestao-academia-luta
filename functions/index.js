@@ -175,3 +175,9 @@ exports.testarVencimentosContasAcademia = onRequest(async (req, res) => {
   const total = await processarVencimentosContasAcademia();
   res.status(200).json({ alertasGerados: total });
 });
+
+const appFeedbackFunctions = require("./app-feedback-functions");
+exports.registrarFeedbackApp = appFeedbackFunctions.registrarFeedbackApp;
+
+const novoCadastroEmail = require("./novo-cadastro-email");
+exports.avisarNovaAcademia = novoCadastroEmail.avisarNovaAcademia;
