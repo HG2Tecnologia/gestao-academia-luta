@@ -34,6 +34,12 @@ const trocaSenhaGuard: CanActivateFn = async (route, state): Promise<boolean | U
   return (await runInInjectionContext(injector, () => m.trocaSenhaGuard(route, state))) as boolean | UrlTree;
 };
 
+const acessoWebGuard: CanActivateFn = async (): Promise<boolean | UrlTree> => {
+  const injector = inject(Injector);
+  const m = await import('./core/guards/acesso-web.guard');
+  return await runInInjectionContext(injector, () => m.acessoWebGuard());
+};
+
 function permissaoGuard(chave: string | { perfis: string[] }): CanActivateFn {
   return async (route, state): Promise<boolean | UrlTree> => {
     const injector = inject(Injector);
@@ -88,10 +94,20 @@ export const routes: Routes = [
     data: { robots: 'noindex, nofollow' },
   },
   {
+    path: 'assinatura',
+    loadComponent: () =>
+      import('./features/assinatura/assinatura.component').then((m) => m.AssinaturaComponent),
+    canActivate: [authGuard],
+    title: 'Assinatura — Sensei Manager',
+    data: { robots: 'noindex, nofollow' },
+  },
+  {
     path: 'app',
     loadComponent: () =>
       import('./shared/layout/shell/shell.component').then((m) => m.ShellComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, acessoWebGuard],
+    // Reavalia também ao navegar dentro do sistema (a leitura fica em cache).
+    canActivateChild: [acessoWebGuard],
     data: { robots: 'noindex, nofollow' },
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },

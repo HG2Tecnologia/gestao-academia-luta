@@ -5,6 +5,7 @@ import { FirebaseAuthService } from '../../../core/services/firebase-auth.servic
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificacaoService } from '../../../core/services/notificacao.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { AcessoWebService } from '../../../core/services/acesso-web.service';
 import { NotificacaoDto } from '../../../core/models/notificacao.model';
 
 @Component({
@@ -20,10 +21,30 @@ export class TopbarComponent implements OnInit {
   readonly themeService = inject(ThemeService);
   readonly layoutService = inject(LayoutService);
   private readonly notifService = inject(NotificacaoService);
+  private readonly acessoService = inject(AcessoWebService);
+
+  /** Selo do plano; some enquanto não se sabe qual é. */
+  readonly seloPlano = computed(() => {
+    const acesso = this.acessoService.acesso();
+    if (!acesso) return null;
+    switch (acesso.situacao) {
+      case 'black-belt':
+        return { texto: 'Black Belt', chamada: '' };
+      case 'cortesia':
+        return { texto: 'Acesso cortesia', chamada: '' };
+      case 'teste': {
+        const dias = acesso.diasDeTesteRestantes;
+        return { texto: `Teste: ${dias} ${dias === 1 ? 'dia' : 'dias'}`, chamada: 'Assinar →' };
+      }
+      case 'pro':
+        return { texto: 'Sensei PRO', chamada: 'Incluir o web →' };
+      default:
+        return { texto: 'Plano Gratuito', chamada: 'Fazer upgrade →' };
+    }
+  });
 
   readonly dropdownAberto = signal(false);
   readonly notifAberto = signal(false);
-  readonly planoGratuito = signal(true);
   readonly upgradeAberto = signal(false);
   readonly notificacoes = signal<NotificacaoDto[]>([]);
   readonly carregandoNotif = signal(false);
@@ -34,6 +55,7 @@ export class TopbarComponent implements OnInit {
   private readonly uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   ngOnInit(): void {
+    void this.acessoService.verificar();
     this.notifService.listar().subscribe({
       next: r => this.notificacoes.set(r.dados ?? []),
     });

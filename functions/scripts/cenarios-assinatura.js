@@ -102,10 +102,22 @@ const CENARIOS = {
     montar: (agora, p) =>
       assinaturaDeLoja(agora, p, { ...encerrada("expirado"), black: true }),
   },
+  suspenso: {
+    descricao: "Black Belt suspenso por falta de pagamento (Google)",
+    montar: (agora) =>
+      assinaturaDeLoja(agora, "android", { ...encerrada("suspenso"), black: true }),
+  },
   reembolsado: {
     descricao: "Black Belt reembolsado",
     montar: (agora, p) =>
       assinaturaDeLoja(agora, p, { ...encerrada("reembolsado"), black: true }),
+  },
+  "cortesia-web": {
+    descricao: "Grátis com o web liberado manualmente por 6 meses",
+    montar: (agora) => ({
+      ...semAssinatura(agora, 90),
+      web_cortesia_ate: emDias(agora, 180),
+    }),
   },
   cortesia: {
     descricao: "PRO de cortesia por 30 dias, sem loja",

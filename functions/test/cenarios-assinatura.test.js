@@ -43,7 +43,7 @@ test("carência mantém o acesso mesmo com a data vencida", () => {
 });
 
 test("expirado e reembolsado perdem o acesso", () => {
-  for (const nome of ["expirado", "reembolsado"]) {
+  for (const nome of ["expirado", "reembolsado", "suspenso"]) {
     const { campos } = montarCenario(nome, { agora });
     assert.equal(campos.plano_tipo, 0, nome);
     assert.equal(campos.acesso_web, false, nome);

@@ -386,6 +386,7 @@
   font-family: inherit;
 }
 .plan-badge-btn:hover { background: rgba(201,160,32,0.14); border-color: rgba(201,160,32,0.55); }
+.plan-badge-btn:disabled { cursor: default; }
 .plan-badge-cta { color: var(--fg-3); font-weight: 400; font-size: 11px; }
 @media (max-width: 768px) { .plan-badge-cta { display: none; } }
 

@@ -1,0 +1,34 @@
+<main class="pagina">
+  <section class="cartao" aria-labelledby="assinatura-titulo">
+    <div class="selo">Sensei Manager</div>
+    <h1 id="assinatura-titulo">{{ titulo() }}</h1>
+    <p class="explicacao">{{ explicacao() }}</p>
+
+    @if (podeAssinar()) {
+      <ol class="passos">
+        @for (passo of passos(); track passo) {
+          <li>{{ passo }}</li>
+        }
+      </ol>
+
+      <div class="lojas">
+        <a href="https://apps.apple.com/app/id6777092562" target="_blank" rel="noopener">App Store</a>
+        <a href="https://play.google.com/store/apps/details?id=br.com.hg2tecnologia.senseimanager" target="_blank" rel="noopener">Google Play</a>
+        <a href="https://wa.me/5521991639889?text=Ol%C3%A1%2C+tenho+interesse+no+plano+Black+Belt+do+Sensei+Manager" target="_blank" rel="noopener">Falar pelo WhatsApp</a>
+      </div>
+    } @else {
+      <p class="explicacao">Peça a quem administra a academia para assinar o plano.</p>
+    }
+
+    @if (aviso()) {
+      <p class="aviso" role="status">{{ aviso() }}</p>
+    }
+
+    <div class="acoes">
+      <button type="button" class="principal" [disabled]="verificando()" (click)="conferir()">
+        {{ verificando() ? 'Verificando...' : 'Já assinei, verificar novamente' }}
+      </button>
+      <button type="button" class="secundario" (click)="sair()">Sair</button>
+    </div>
+  </section>
+</main>

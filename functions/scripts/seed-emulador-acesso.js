@@ -12,8 +12,8 @@
 // fora do emulador (ver `emulador-env.js`).
 //
 // Depois, no app (apontado para o emulador), entre como:
-//   e-mail:  admin.teste@academia.com
-//   senha:   admin123
+//   e-mail:  admin.teste@academia.com    senha: admin123
+//   e-mail:  prof.teste@academia.com     senha: prof123  (Professor)
 
 const admin = require("firebase-admin");
 const { apontarParaEmulador } = require("./emulador-env");
@@ -81,7 +81,41 @@ async function ensureUser(email, password) {
     email: ADMIN_EMAIL,
   });
 
+  // Professor da mesma academia, para conferir o que a equipe vê.
+  const professor = await ensureUser("prof.teste@academia.com", "prof123");
+  const chaveProfessor = `${ACADEMIA_ID}|funcionarios|prof-teste`;
+  const dadosProfessor = {
+    academiaId: ACADEMIA_ID,
+    usuarioId: "prof-teste",
+    colecao: "funcionarios",
+    nome: "Professor Teste",
+  };
+  await db.doc(`academias/${ACADEMIA_ID}/funcionarios/prof-teste`).set({
+    id: "prof-teste",
+    nome: "Professor Teste",
+    perfil: "Professor",
+    perfil_nome: "Professor",
+    ativo: true,
+    email: "prof.teste@academia.com",
+    firebaseUid: professor.uid,
+    permissoes: {},
+  });
+  await db.doc(`usuariosFirebase/${professor.uid}`).set({
+    schemaVersion: 2,
+    uid: professor.uid,
+    status: "active",
+    primary_profile_key: chaveProfessor,
+    profile_keys: [chaveProfessor],
+    profile_refs: [{ key: chaveProfessor, perfil_nome: "Professor", ...dadosProfessor }],
+    academy_ids: [ACADEMIA_ID],
+    roles_by_academy: { [ACADEMIA_ID]: ["Professor"] },
+    perfil: "Professor",
+    email: "prof.teste@academia.com",
+    ...dadosProfessor,
+  });
+
   console.log("Seed OK.");
+  console.log("  Login Professor:     prof.teste@academia.com / prof123");
   console.log(`  Academia: ${ACADEMIA_ID}`);
   console.log(`  Login Admin no app:  ${ADMIN_EMAIL} / ${ADMIN_SENHA}`);
   process.exit(0);

@@ -13,7 +13,8 @@ const VALORES_FALSOS = {
   APPLE_IAP_ISSUER_ID: "emulador",
   APPLE_IAP_KEY_ID: "emulador",
   APPLE_IAP_PRIVATE_KEY: "emulador",
-  GA4_API_SECRET: "emulador",
+  // Vazio de propósito: o teste de analytics confere o comportamento sem ele.
+  GA4_API_SECRET: "",
   GMAIL_APP_PASSWORD: "emulador",
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: "{}",
 };
