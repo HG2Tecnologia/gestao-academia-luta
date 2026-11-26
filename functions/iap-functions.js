@@ -1,5 +1,6 @@
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
@@ -16,6 +17,11 @@ const {
 const { google } = require("googleapis");
 const { FieldValue } = require("firebase-admin/firestore");
 const { GMAIL_APP_PASSWORD, enviarAvisoInterno, esc } = require("./mailer");
+const {
+  podeAtivarAssinatura,
+  usaAssinaturaDeLoja,
+  ORIGENS_SEM_LOJA,
+} = require("./domain/subscription-access");
 
 const db = admin.firestore();
 
@@ -193,6 +199,51 @@ async function avisarEventoAssinatura({ academiaId, evento, status }) {
   }
 }
 
+// ── Quem pode ativar, e uma compra por academia ─────────────────────────────
+
+// Sem isto, qualquer conta autenticada ativaria o plano em qualquer academia.
+async function exigirEquipeDaAcademia(uid, academiaId) {
+  if (typeof academiaId !== "string" || academiaId.includes("/")) {
+    throw new HttpsError("invalid-argument", "Academia inválida.");
+  }
+  const conta = (await db.collection("usuariosFirebase").doc(uid).get()).data();
+  if (!podeAtivarAssinatura(conta, academiaId)) {
+    logger.warn("exigirEquipeDaAcademia: ativação recusada", { uid, academiaId });
+    throw new HttpsError(
+      "permission-denied",
+      "Você não tem permissão para ativar a assinatura desta academia."
+    );
+  }
+}
+
+// Documento único por compra: ler e gravar nele dentro da transação impede que
+// duas academias ativem a mesma compra ao mesmo tempo. Só o servidor acessa.
+function refVinculoAssinatura(plataforma, originalTransactionId) {
+  const id = crypto
+    .createHash("sha256")
+    .update(`${plataforma}:${originalTransactionId}`)
+    .digest("hex");
+  return db.collection("vinculos_assinatura").doc(id);
+}
+
+// Só faz leituras (numa transação, todas precisam vir antes das gravações).
+// Recusa a compra em uso por outra academia; devolve as que ainda guardam o
+// identificador sem usá-lo, para serem liberadas.
+async function conferirCompraLivre(transaction, { academiaId, originalTransactionId, vinculoRef }) {
+  await transaction.get(vinculoRef);
+  const snap = await transaction.get(
+    db.collection("academias").where("plano_original_transaction_id", "==", originalTransactionId)
+  );
+  const outras = snap.docs.filter((d) => d.id !== academiaId);
+  if (outras.some((d) => usaAssinaturaDeLoja(d.data()))) {
+    throw new HttpsError(
+      "already-exists",
+      "Esta assinatura já está em uso por outra academia. Fale com o suporte."
+    );
+  }
+  return outras;
+}
+
 // ── Núcleo comum: valida os dados já verificados e grava no Firestore ───────
 // Só é chamado depois que a assinatura/transação já foi confirmada como
 // genuína (Apple ou Google) — aqui só restam as regras de negócio. Cobre
@@ -221,30 +272,81 @@ async function processarAtivacaoAssinatura({
   }
 
   const academiaRef = db.doc(`academias/${academiaId}`);
-  const academiaSnap = await academiaRef.get();
-  if (!academiaSnap.exists) {
-    throw new HttpsError("not-found", "Academia não encontrada.");
-  }
-  const statusAnterior = academiaSnap.data()?.plano_status ?? null;
-  const jaTemAssinaturaDesde =
-    academiaSnap.data()?.plano_assinado_em != null;
+  const { statusAnterior, jaTemAssinaturaDesde, liberadas } = await db.runTransaction(
+    async (transaction) => {
+      const academiaSnap = await transaction.get(academiaRef);
+      if (!academiaSnap.exists) {
+        throw new HttpsError("not-found", "Academia não encontrada.");
+      }
+      const atual = academiaSnap.data();
 
-  const agora = new Date();
-  await academiaRef.update({
-    plano_tipo: 1,
-    plano_status: "ativo",
-    plano_origem: "loja",
-    plano_renovacao_automatica: renovacaoAutomatica ?? true,
-    plano_expiracao: new Date(expiresAtMs).toISOString(),
-    plano_produto_id: productId,
-    plano_plataforma: plataforma,
-    plano_ambiente: ambiente,
-    plano_transaction_id: transactionId || null,
-    plano_original_transaction_id: originalTransactionId || null,
-    ...(jaTemAssinaturaDesde
-      ? {}
-      : { plano_assinado_em: agora.toISOString() }),
-  });
+      // Só a ativação pedida pelo app cria um vínculo novo. Webhook e
+      // reconciliação já partem da academia que tem a compra. Quem já tinha o
+      // identificador gravado segue renovando normalmente.
+      let vinculoRef = null;
+      let outras = [];
+      if (
+        origemEvento === "app" &&
+        originalTransactionId &&
+        atual.plano_original_transaction_id !== originalTransactionId
+      ) {
+        vinculoRef = refVinculoAssinatura(plataforma, originalTransactionId);
+        outras = await conferirCompraLivre(transaction, {
+          academiaId,
+          originalTransactionId,
+          vinculoRef,
+        });
+      }
+
+      for (const outra of outras) {
+        const d = outra.data();
+        const perdeAcesso = d.plano_tipo >= 1 && !ORIGENS_SEM_LOJA.has(d.plano_origem);
+        transaction.update(outra.ref, {
+          plano_original_transaction_id: FieldValue.delete(),
+          ...(perdeAcesso ? { plano_tipo: 0, plano_status: "transferido" } : {}),
+        });
+      }
+      if (vinculoRef) {
+        transaction.set(vinculoRef, {
+          academiaId,
+          plataforma,
+          atualizado_em: FieldValue.serverTimestamp(),
+        });
+      }
+
+      const jaAssinou = atual.plano_assinado_em != null;
+      transaction.update(academiaRef, {
+        plano_tipo: 1,
+        plano_status: "ativo",
+        plano_origem: "loja",
+        plano_renovacao_automatica: renovacaoAutomatica ?? true,
+        plano_expiracao: new Date(expiresAtMs).toISOString(),
+        plano_produto_id: productId,
+        plano_plataforma: plataforma,
+        plano_ambiente: ambiente,
+        plano_transaction_id: transactionId || null,
+        plano_original_transaction_id: originalTransactionId || null,
+        ...(jaAssinou ? {} : { plano_assinado_em: new Date().toISOString() }),
+      });
+
+      return {
+        statusAnterior: atual.plano_status ?? null,
+        jaTemAssinaturaDesde: jaAssinou,
+        liberadas: outras.map((d) => ({ id: d.id, status: d.data().plano_status ?? null })),
+      };
+    }
+  );
+
+  for (const outra of liberadas) {
+    await registrarEventoAssinatura({
+      academiaId: outra.id,
+      evento: "assinatura_transferida",
+      plataforma,
+      statusAnterior: outra.status,
+      statusNovo: "transferido",
+      origem: origemEvento,
+    });
+  }
 
   await registrarEventoAssinatura({
     academiaId,
@@ -526,6 +628,7 @@ exports.ativarAssinaturaIOS = onCall(
     if (!academiaId || !jwsTransaction) {
       throw new HttpsError("invalid-argument", "Dados da compra incompletos.");
     }
+    await exigirEquipeDaAcademia(request.auth.uid, academiaId);
 
     let decoded, ambiente;
     try {
@@ -582,6 +685,7 @@ exports.ativarAssinaturaAndroid = onCall(
     if (!academiaId || !purchaseToken) {
       throw new HttpsError("invalid-argument", "Dados da compra incompletos.");
     }
+    await exigirEquipeDaAcademia(request.auth.uid, academiaId);
 
     let compra;
     try {

@@ -72,3 +72,8 @@ test("reconciliação pula (sem quebrar) academia 'loja' sem plano_original_tran
   // Não deve lançar mesmo sem conseguir consultar a Apple.
   await assert.doesNotReject(_internal.processarReconciliacaoAssinaturas());
 });
+
+test("gatilho manual da reconciliação não é público", () => {
+  const funcoes = require("../iap-reconciliation");
+  assert.deepEqual(funcoes.testarReconciliacaoAssinaturas.__endpoint.httpsTrigger.invoker, ["private"]);
+});

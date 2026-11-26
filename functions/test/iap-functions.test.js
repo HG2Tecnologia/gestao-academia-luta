@@ -158,7 +158,7 @@ test("renovação (segunda ativação) não sobrescreve plano_assinado_em origin
     ambiente: "production",
     expiresAtMs: DAQUI_30_DIAS,
     transactionId: "tx-renovacao",
-    originalTransactionId: "tx-original-1",
+    originalTransactionId: "tx-original-renovacao",
   });
   const doc = await db.doc(`academias/${academiaId}`).get();
   assert.equal(doc.data().plano_assinado_em, "2026-01-01T00:00:00.000Z");
@@ -501,4 +501,184 @@ test("rotear: tipo de notificação desconhecido é ignorado sem quebrar nem alt
   const doc = await db.doc(`academias/${academiaId}`).get();
   assert.equal(doc.data().plano_status, "ativo");
   assert.equal(doc.data().plano_tipo, 1);
+});
+
+// ── Quem pode ativar ────────────────────────────────────────────────────────
+
+const iapFunctions = require("../iap-functions");
+
+async function criarConta(uid, dados) {
+  await db.doc(`usuariosFirebase/${uid}`).set(dados);
+  return uid;
+}
+const contaV2 = (academiaId, papel) => ({
+  schemaVersion: 2,
+  academiaId,
+  perfil: papel,
+  academy_ids: [academiaId],
+  roles_by_academy: { [academiaId]: [papel] },
+});
+
+// Chama a function de verdade com uma compra falsa: quem passa pela checagem de
+// permissão só falha depois, na validação junto à loja.
+const CHAMADAS = [
+  ["ativarAssinaturaIOS", { jwsTransaction: "falso" }],
+  ["ativarAssinaturaAndroid", { purchaseToken: "falso" }],
+];
+const chamar = (nome, uid, data) => iapFunctions[nome].run({ auth: { uid }, data });
+
+for (const [nome, compra] of CHAMADAS) {
+  test(`${nome}: recusa quem não é da equipe da academia`, async () => {
+    const academiaId = await criarAcademia();
+    const outraAcademia = await criarAcademia();
+    const casos = [
+      await criarConta(`${nome}-sem-conta-ok`, contaV2(outraAcademia, "Admin")),
+      await criarConta(`${nome}-aluno`, contaV2(academiaId, "Aluno")),
+      `${nome}-inexistente`,
+    ];
+    for (const uid of casos) {
+      await assert.rejects(chamar(nome, uid, { academiaId, ...compra }), (e) => {
+        assert.equal(e.code, "permission-denied");
+        assert.match(e.message, /não tem permissão/);
+        return true;
+      });
+    }
+  });
+
+  test(`${nome}: Admin, Secretaria, Professor e conta antiga passam da permissão`, async () => {
+    const academiaId = await criarAcademia();
+    const contas = [
+      contaV2(academiaId, "Admin"),
+      contaV2(academiaId, "Secretaria"),
+      contaV2(academiaId, "Professor"),
+      { academiaId, perfil: "Admin" }, // conta v1
+    ];
+    for (const [i, conta] of contas.entries()) {
+      const uid = await criarConta(`${nome}-equipe-${i}`, conta);
+      await assert.rejects(chamar(nome, uid, { academiaId, ...compra }), (e) => {
+        assert.match(e.message, /validar a compra/);
+        return true;
+      });
+    }
+  });
+
+  test(`${nome}: rejeita academiaId com barra`, async () => {
+    await assertHttpsError(
+      chamar(nome, "qualquer", { academiaId: "a/usuarios/b", ...compra }),
+      "invalid-argument"
+    );
+  });
+}
+
+// ── Uma compra, uma academia ────────────────────────────────────────────────
+
+const ativarCompra = (academiaId, originalTransactionId, extra = {}) =>
+  _internal.processarAtivacaoAssinatura({
+    academiaId,
+    productId: PRODUTO,
+    plataforma: "ios",
+    ambiente: "production",
+    expiresAtMs: DAQUI_30_DIAS,
+    originalTransactionId,
+    ...extra,
+  });
+const lerAcademia = async (id) => (await db.doc(`academias/${id}`).get()).data();
+
+test("compra em uso não ativa uma segunda academia", async () => {
+  const a = await criarAcademia();
+  const b = await criarAcademia({ plano_tipo: 0 });
+  await ativarCompra(a, "compra-em-uso");
+  await assertHttpsError(ativarCompra(b, "compra-em-uso"), "already-exists");
+  assert.equal((await lerAcademia(b)).plano_tipo, 0);
+  assert.equal((await lerAcademia(a)).plano_tipo, 1);
+});
+
+test("a mesma academia restaura a própria compra quantas vezes precisar", async () => {
+  const a = await criarAcademia();
+  await ativarCompra(a, "compra-restaurada");
+  await ativarCompra(a, "compra-restaurada");
+  assert.equal((await lerAcademia(a)).plano_tipo, 1);
+});
+
+test("carência e cancelamento ainda no prazo contam como compra em uso", async () => {
+  for (const [i, estado] of [
+    { plano_status: "periodo_carencia", plano_expiracao: new Date(HA_1_DIA).toISOString() },
+    { plano_status: "cancelado_ate_expirar", plano_expiracao: new Date(DAQUI_30_DIAS).toISOString() },
+  ].entries()) {
+    const compra = `compra-estado-${i}`;
+    await criarAcademia({
+      plano_tipo: 1, plano_origem: "loja", plano_original_transaction_id: compra, ...estado,
+    });
+    await assertHttpsError(ativarCompra(await criarAcademia(), compra), "already-exists");
+  }
+});
+
+test("compra de academia revogada pode ir para outra, e os webhooks passam a achar a nova", async () => {
+  const a = await criarAcademia();
+  const b = await criarAcademia();
+  await ativarCompra(a, "compra-revogada");
+  await _internal.revogarAssinatura({ academiaId: a, status: "expirado" });
+  await ativarCompra(b, "compra-revogada");
+  assert.equal((await lerAcademia(a)).plano_original_transaction_id, undefined);
+  assert.equal((await lerAcademia(b)).plano_tipo, 1);
+  assert.equal(await _internal.buscarAcademiaPorOriginalTransactionId("compra-revogada"), b);
+});
+
+test("academia vencida que ainda constava como Pro perde o acesso na transferência", async () => {
+  const vencida = await criarAcademia({
+    plano_tipo: 1, plano_origem: "loja", plano_status: "ativo",
+    plano_expiracao: new Date(HA_1_DIA).toISOString(),
+    plano_original_transaction_id: "compra-vencida",
+  });
+  await ativarCompra(await criarAcademia(), "compra-vencida");
+  const d = await lerAcademia(vencida);
+  assert.equal(d.plano_tipo, 0);
+  assert.equal(d.plano_status, "transferido");
+});
+
+test("transferência não derruba cortesia que guardava o identificador antigo", async () => {
+  const cortesia = await criarAcademia({
+    plano_tipo: 1, plano_origem: "cortesia", plano_original_transaction_id: "compra-antiga",
+  });
+  await ativarCompra(await criarAcademia(), "compra-antiga");
+  const d = await lerAcademia(cortesia);
+  assert.equal(d.plano_tipo, 1);
+  assert.equal(d.plano_original_transaction_id, undefined);
+});
+
+test("academia excluída não prende a compra", async () => {
+  const a = await criarAcademia();
+  await ativarCompra(a, "compra-de-excluida");
+  await db.doc(`academias/${a}`).delete();
+  await ativarCompra(await criarAcademia(), "compra-de-excluida");
+});
+
+test("duplicidade que já existia não quebra a restauração de quem já tem a compra", async () => {
+  const dados = {
+    plano_tipo: 1, plano_origem: "loja", plano_original_transaction_id: "compra-duplicada",
+    plano_expiracao: new Date(DAQUI_30_DIAS).toISOString(),
+  };
+  const a = await criarAcademia(dados);
+  await criarAcademia(dados);
+  await ativarCompra(a, "compra-duplicada");
+});
+
+test("ativações simultâneas da mesma compra: só uma academia ganha", async () => {
+  const academias = [await criarAcademia(), await criarAcademia(), await criarAcademia()];
+  const resultados = await Promise.allSettled(
+    academias.map((id) => ativarCompra(id, "compra-simultanea"))
+  );
+  assert.equal(resultados.filter((r) => r.status === "fulfilled").length, 1);
+  const pagas = (await Promise.all(academias.map(lerAcademia))).filter((d) => d.plano_tipo === 1);
+  assert.equal(pagas.length, 1);
+});
+
+test("webhook e reconciliação renovam sem passar pela trava", async () => {
+  const dados = {
+    plano_tipo: 1, plano_origem: "loja", plano_original_transaction_id: "compra-webhook",
+    plano_expiracao: new Date(DAQUI_30_DIAS).toISOString(),
+  };
+  const a = await criarAcademia(dados);
+  await ativarCompra(a, "compra-webhook", { origemEvento: "webhook" });
+  await ativarCompra(a, "compra-webhook", { origemEvento: "reconciliacao" });
 });

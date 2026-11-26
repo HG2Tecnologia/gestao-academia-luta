@@ -199,6 +199,9 @@ exports.reconciliarAssinaturas = onSchedule(
 // (functions/index.js) e testarAlertasEngajamento (engagement-notifications.js).
 exports.testarReconciliacaoAssinaturas = onRequest(
   {
+    // Sem acesso público: exige token de uma conta com permissão no projeto
+    // (`curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" <url>`).
+    invoker: "private",
     secrets: [
       APPLE_IAP_KEY_ID,
       APPLE_IAP_ISSUER_ID,

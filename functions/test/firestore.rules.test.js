@@ -429,3 +429,57 @@ test("regressão: se a exclusão de _atribuicao sumir do match genérico, o aces
     await ambienteRegredido.cleanup();
   }
 });
+
+async function adminDaFixture(uid) {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`usuariosFirebase/${uid}`).set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  return environment.authenticatedContext(uid).firestore();
+}
+
+test("academia nova só nasce sem plano", async () => {
+  const uid = "creator-fixture";
+  const firestore = environment.authenticatedContext(uid).firestore();
+  const base = { nome: "Nova", created_by_uid: uid };
+
+  await assertSucceeds(firestore.doc("academias/nova-zero").set({ ...base, plano_tipo: 0 }));
+  await assertSucceeds(firestore.doc("academias/nova-sem-campo").set(base));
+
+  const proibidos = [
+    { plano_tipo: 1 },
+    { plano_tipo: 0, plano_status: "periodo_carencia" },
+    { plano_tipo: 0, plano_origem: "cortesia" },
+    { plano_tipo: 0, plano_expiracao: "2099-01-01T00:00:00.000Z" },
+    { plano_tipo: 0, plano_original_transaction_id: "alheia" },
+    { plano_tipo: 0, acesso_web: true },
+    { plano_tipo: 0, alunos_ativos_contagem: -100 },
+  ];
+  for (const [i, extra] of proibidos.entries()) {
+    await assertFails(firestore.doc(`academias/nova-proibida-${i}`).set({ ...base, ...extra }));
+  }
+});
+
+test("Admin não altera situação, origem, renovação nem acesso ao web", async () => {
+  const firestore = await adminDaFixture("admin-campos-novos");
+  for (const campos of [
+    { plano_status: "periodo_carencia" },
+    { plano_origem: "cortesia" },
+    { plano_renovacao_automatica: true },
+    { acesso_web: true },
+  ]) {
+    await assertFails(firestore.doc("academias/academy-fixture").update(campos));
+  }
+  await assertSucceeds(firestore.doc("academias/academy-fixture").update({ nome: "Novo nome" }));
+});
+
+test("cliente não lê nem grava o vínculo de assinaturas", async () => {
+  const firestore = await adminDaFixture("admin-vinculo");
+  await assertFails(firestore.doc("vinculos_assinatura/x").get());
+  await assertFails(firestore.doc("vinculos_assinatura/x").set({ academiaId: "academy-fixture" }));
+});
