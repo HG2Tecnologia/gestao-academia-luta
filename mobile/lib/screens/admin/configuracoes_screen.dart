@@ -2772,7 +2772,8 @@ class _PlanStatusTile extends StatelessWidget {
         : Icons.lock_outline_rounded;
 
     Future<void> abrir() async {
-      if (isPro) {
+      // Suspensa vai para "Meu plano", onde está o aviso do que aconteceu.
+      if (isPro || plan.planoStatus == 'suspenso') {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const PlanoScreen()),
