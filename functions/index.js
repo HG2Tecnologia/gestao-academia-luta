@@ -178,7 +178,8 @@ exports.checarVencimentosContasAcademia = onSchedule(
 
 // Endpoint HTTP para disparar manualmente durante testes (sem esperar o cron).
 // Ex.: curl -X POST https://<region>-<project>.cloudfunctions.net/testarVencimentosContasAcademia
-exports.testarVencimentosContasAcademia = onRequest(async (req, res) => {
+// Sem acesso público: exige chamada autenticada por IAM.
+exports.testarVencimentosContasAcademia = onRequest({ invoker: "private" }, async (req, res) => {
   const total = await processarVencimentosContasAcademia();
   res.status(200).json({ alertasGerados: total });
 });

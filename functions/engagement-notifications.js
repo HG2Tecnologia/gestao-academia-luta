@@ -230,7 +230,8 @@ const checarAlertasEngajamento = onSchedule(
 );
 
 // Endpoint HTTP para disparar manualmente durante testes (sem esperar o cron).
-const testarAlertasEngajamento = onRequest(async (req, res) => {
+// Sem acesso público: exige chamada autenticada por IAM.
+const testarAlertasEngajamento = onRequest({ invoker: "private" }, async (req, res) => {
   const resultado = await processarAlertasEngajamento();
   res.status(200).json(resultado);
 });

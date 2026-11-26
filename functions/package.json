@@ -6,7 +6,7 @@
     "node": "22"
   },
   "scripts": {
-    "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js test/engagement.test.js test/cenarios-assinatura.test.js",
+    "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js test/engagement.test.js test/cenarios-assinatura.test.js test/gatilhos-manuais.test.js",
     "emu": "node scripts/preparar-emulador.js && firebase emulators:start --project sensei-manager-d64c0 --only functions,firestore,auth",
     "seed:emu": "node scripts/seed-emulador-acesso.js",
     "cenario": "node scripts/cenario-assinatura.js",
