@@ -47,8 +47,9 @@ Cada academia assina um dos dois.
 - Novo campo `acesso_web` (verdadeiro ou falso) em `academias/{id}`, gravado só pelo
   servidor conforme o produto comprado. Campo ausente significa sem web.
 - Web liberado quando `acesso_web` for verdadeiro ou a academia estiver no teste.
-- Liberação manual do web (exceção para um cliente), se aprovada, precisa de campo próprio
-  com data de validade. Em `acesso_web` ela seria sobrescrita na renovação seguinte.
+- Liberação manual do web (exceção para um cliente) usa o campo `web_cortesia_ate`, com a
+  data de validade. Em `acesso_web` ela seria sobrescrita na renovação seguinte. O web
+  precisa considerar esse campo na fase 5.
 - Uma assinatura ativa por academia. A compra em outra loja fica bloqueada.
 - Registro separado de várias assinaturas: adiado até existir checkout no site.
 - O bloqueio do web é feito principalmente na interface: app e web usam o mesmo login e o
@@ -128,6 +129,31 @@ Para publicar:
 3. Conferir que a URL de `testarReconciliacaoAssinaturas` recusa chamada sem autenticação.
 4. Testar um cadastro novo no app e no web, e "Restaurar compra" em uma conta Pro de teste.
 
+## Servidor e regras (fase 3)
+
+Feito no código, **ainda não publicado**.
+
+- Produtos aceitos e regras de substituição em
+  [subscription-access.js](../functions/domain/subscription-access.js).
+- `acesso_web` é verdadeiro só para produtos `black`. Cancelamento e carência mantêm;
+  expiração, reembolso, revogação e transferência retiram.
+- `plano_transacao_em` (campo novo, Apple): transação mais antiga que a gravada é ignorada,
+  inclusive reembolso do período anterior a um upgrade.
+- Outra assinatura enquanto a atual está ativa e renovando não troca por plano menor, nem por
+  um de mesmo nível que vença antes. A ativação responde com sucesso e o campo `ignorada`.
+- Google: o token novo de uma troca assume o lugar do anterior (`linkedPurchaseToken`), pelo
+  app ou pela notificação. Troca agendada mantém o plano atual até a renovação.
+- Regras: sem limites do grátis durante o teste (`config/geral.trial_dias`, padrão 30);
+  `criado_em`, `web_cortesia_ate` e `plano_transacao_em` protegidos.
+- O app ainda aplica os limites durante o teste até a fase 4.
+
+### A decidir (comportamento anterior, não alterado)
+
+| Situação | Hoje no sistema | Segundo a loja |
+|---|---|---|
+| Google `ON_HOLD` (suspensão de conta) | Tratado como carência: mantém o acesso | [Sem acesso](https://developer.android.com/google/play/billing/subscriptions) |
+| Apple em nova tentativa de cobrança sem período de carência | Mantém o acesso | A confirmar na documentação da Apple |
+
 ## Fases
 
 Marque cada item quando o critério for atendido.
@@ -140,7 +166,7 @@ Marque cada item quando o critério for atendido.
 - [x] **Fase 2: Correções de base** (falta publicar). Problemas 3, 4 e 5.
   *Pronto quando* cada correção tiver teste e o cadastro continuar funcionando no app e no
   web (ambos criam a academia com `plano_tipo: 0`).
-- [ ] **Fase 3: Servidor e regras.** Aceitar os produtos novos; controlar `acesso_web` na
+- [x] **Fase 3: Servidor e regras** (falta publicar). Aceitar os produtos novos; controlar `acesso_web` na
   compra, renovação, troca, expiração, reembolso e reconciliação; proteger o campo; tratar
   a troca de assinatura do Google, que gera novo identificador de compra
   (`linkedPurchaseToken`); impedir que eventos de assinatura antiga alterem a atual; liberar
@@ -181,6 +207,8 @@ Marque cada item quando o critério for atendido.
 
 | Data | O que mudou |
 |---|---|
+| 26/11/2026 | Fases 1 e 2 em commits locais separados (a correção de segurança é o commit `aa22873f`) |
+| 26/11/2026 | Fase 3: servidor e regras. Verificado nos emuladores: assinatura 73 de 73, reconciliação 5 de 5, regras 22 de 22, exclusão de conta 4 de 4 e unitários 67 de 67. Compras das lojas simuladas; nada testado contra Apple ou Google. Não publicado |
 | 26/11/2026 | Fase 2: correções de base. Verificado nos emuladores: assinatura 44 de 44, reconciliação 5 de 5, regras 17 de 17, exclusão de conta 4 de 4 e unitários 67 de 67. Um teste antigo teve o identificador de compra trocado, porque reaproveitava o de outra academia. Não publicado |
 | 26/11/2026 | Decisão: preços confirmados e grátis sem web depois do teste. Fase 0 concluída |
 | 26/11/2026 | Decisão: nomes e IDs seguem o padrão dos produtos atuais |

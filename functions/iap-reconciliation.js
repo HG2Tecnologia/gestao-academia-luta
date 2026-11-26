@@ -89,6 +89,7 @@ async function reconciliarIOS({ academiaId, originalTransactionId, ambiente, app
       expiresAtMs: transacao.expiresDate,
       transactionId: transacao.transactionId,
       originalTransactionId,
+      transacaoEmMs: transacao.purchaseDate,
       origemEvento: "reconciliacao",
     });
     return;

@@ -18,6 +18,10 @@ const { google } = require("googleapis");
 const { FieldValue } = require("firebase-admin/firestore");
 const { GMAIL_APP_PASSWORD, enviarAvisoInterno, esc } = require("./mailer");
 const {
+  PRODUTOS_VALIDOS,
+  liberaWeb,
+  motivoParaIgnorar,
+  itemVigenteGoogle,
   podeAtivarAssinatura,
   usaAssinaturaDeLoja,
   ORIGENS_SEM_LOJA,
@@ -28,12 +32,6 @@ const db = admin.firestore();
 const BUNDLE_ID = "br.com.hg2tecnologia.senseimanager";
 const ANDROID_PACKAGE_NAME = "br.com.hg2tecnologia.senseimanager";
 const GOOGLE_PLAY_RTDN_TOPIC = "play-rtdn";
-
-const PRODUTOS_VALIDOS = new Set([
-  "br.com.senseimanager.pro.mensal",
-  "br.com.senseimanager.pro.trimestral",
-  "br.com.senseimanager.pro.anual",
-]);
 
 const APPLE_APP_ID = defineSecret("APPLE_APP_ID");
 const GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = defineSecret(
@@ -229,10 +227,10 @@ function refVinculoAssinatura(plataforma, originalTransactionId) {
 // Só faz leituras (numa transação, todas precisam vir antes das gravações).
 // Recusa a compra em uso por outra academia; devolve as que ainda guardam o
 // identificador sem usá-lo, para serem liberadas.
-async function conferirCompraLivre(transaction, { academiaId, originalTransactionId, vinculoRef }) {
+async function conferirCompraLivre(transaction, { academiaId, identificadores, vinculoRef }) {
   await transaction.get(vinculoRef);
   const snap = await transaction.get(
-    db.collection("academias").where("plano_original_transaction_id", "==", originalTransactionId)
+    db.collection("academias").where("plano_original_transaction_id", "in", identificadores)
   );
   const outras = snap.docs.filter((d) => d.id !== academiaId);
   if (outras.some((d) => usaAssinaturaDeLoja(d.data()))) {
@@ -262,6 +260,10 @@ async function processarAtivacaoAssinatura({
   transactionId,
   originalTransactionId,
   renovacaoAutomatica,
+  // Data da transação (Apple), para não aplicar uma mais antiga por cima.
+  transacaoEmMs,
+  // Compra que esta substitui (`linkedPurchaseToken` do Google).
+  compraAnteriorId,
   origemEvento = "app",
 }) {
   if (!PRODUTOS_VALIDOS.has(productId)) {
@@ -272,13 +274,22 @@ async function processarAtivacaoAssinatura({
   }
 
   const academiaRef = db.doc(`academias/${academiaId}`);
-  const { statusAnterior, jaTemAssinaturaDesde, liberadas } = await db.runTransaction(
+  const { statusAnterior, jaTemAssinaturaDesde, liberadas, ignorada } = await db.runTransaction(
     async (transaction) => {
       const academiaSnap = await transaction.get(academiaRef);
       if (!academiaSnap.exists) {
         throw new HttpsError("not-found", "Academia não encontrada.");
       }
       const atual = academiaSnap.data();
+
+      const motivo = motivoParaIgnorar(atual, {
+        originalTransactionId,
+        compraAnteriorId,
+        productId,
+        expiresAtMs,
+        transacaoEmMs,
+      });
+      if (motivo) return { ignorada: motivo, liberadas: [] };
 
       // Só a ativação pedida pelo app cria um vínculo novo. Webhook e
       // reconciliação já partem da academia que tem a compra. Quem já tinha o
@@ -291,9 +302,14 @@ async function processarAtivacaoAssinatura({
         atual.plano_original_transaction_id !== originalTransactionId
       ) {
         vinculoRef = refVinculoAssinatura(plataforma, originalTransactionId);
+        // Uma troca feita sobre a compra de outra academia também é recusada.
+        const substituida =
+          compraAnteriorId && atual.plano_original_transaction_id !== compraAnteriorId;
         outras = await conferirCompraLivre(transaction, {
           academiaId,
-          originalTransactionId,
+          identificadores: substituida
+            ? [originalTransactionId, compraAnteriorId]
+            : [originalTransactionId],
           vinculoRef,
         });
       }
@@ -303,7 +319,9 @@ async function processarAtivacaoAssinatura({
         const perdeAcesso = d.plano_tipo >= 1 && !ORIGENS_SEM_LOJA.has(d.plano_origem);
         transaction.update(outra.ref, {
           plano_original_transaction_id: FieldValue.delete(),
-          ...(perdeAcesso ? { plano_tipo: 0, plano_status: "transferido" } : {}),
+          ...(perdeAcesso
+            ? { plano_tipo: 0, plano_status: "transferido", acesso_web: false }
+            : {}),
         });
       }
       if (vinculoRef) {
@@ -326,6 +344,8 @@ async function processarAtivacaoAssinatura({
         plano_ambiente: ambiente,
         plano_transaction_id: transactionId || null,
         plano_original_transaction_id: originalTransactionId || null,
+        plano_transacao_em: transacaoEmMs ? new Date(transacaoEmMs).toISOString() : null,
+        acesso_web: liberaWeb(productId),
         ...(jaAssinou ? {} : { plano_assinado_em: new Date().toISOString() }),
       });
 
@@ -336,6 +356,13 @@ async function processarAtivacaoAssinatura({
       };
     }
   );
+
+  if (ignorada) {
+    logger.info(
+      `processarAtivacaoAssinatura: academia ${academiaId}, produto ${productId} ignorado (${ignorada})`
+    );
+    return { ok: true, ambiente, ignorada };
+  }
 
   for (const outra of liberadas) {
     await registrarEventoAssinatura({
@@ -408,6 +435,7 @@ async function revogarAssinatura({ academiaId, status, origemEvento = "webhook" 
   await academiaRef.update({
     plano_tipo: 0,
     plano_status: status,
+    acesso_web: false,
   });
   logger.info(`revogarAssinatura: academia ${academiaId} -> ${status}`);
 
@@ -452,6 +480,7 @@ async function rotearNotificacaoAssinatura({
   expiresAtMs,
   transactionId,
   renovacaoAutomatica,
+  transacaoEmMs,
   origemEvento = "webhook",
 }) {
   const academiaId = await buscarAcademiaPorOriginalTransactionId(
@@ -462,6 +491,18 @@ async function rotearNotificacaoAssinatura({
       `rotearNotificacaoAssinatura: nenhuma academia para originalTransactionId ${originalTransactionId}`
     );
     return;
+  }
+
+  // Reembolso ou expiração de uma transação já substituída (ex.: o período
+  // anterior a um upgrade) não mexe no plano atual.
+  if (transacaoEmMs) {
+    const atual = (await db.doc(`academias/${academiaId}`).get()).data() || {};
+    if (transacaoEmMs < Date.parse(atual.plano_transacao_em)) {
+      logger.info(
+        `rotearNotificacaoAssinatura: ${notificationType} de transação antiga ignorado (academia ${academiaId})`
+      );
+      return;
+    }
   }
 
   switch (notificationType) {
@@ -491,6 +532,7 @@ async function rotearNotificacaoAssinatura({
         transactionId,
         originalTransactionId,
         renovacaoAutomatica,
+        transacaoEmMs,
         origemEvento,
       });
       break;
@@ -557,6 +599,7 @@ async function processarNotificacaoApple(decoded, appAppleId, origemEvento = "we
     expiresAtMs: transacao.expiresDate,
     transactionId: transacao.transactionId,
     renovacaoAutomatica,
+    transacaoEmMs: transacao.purchaseDate,
     origemEvento,
   });
 }
@@ -580,8 +623,30 @@ const SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE = {
 
 async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson, origemEvento = "webhook") {
   const compra = await verificarCompraAndroid(purchaseToken, serviceAccountJson);
-  const item = (compra.lineItems || [])[0];
-  const renovacaoAutomatica = !!item?.autoRenewingPlan?.autoRenewEnabled;
+  await aplicarCompraGoogle(purchaseToken, compra, origemEvento);
+}
+
+// Estados em que uma compra nova pode assumir o lugar da anterior.
+const ESTADOS_ANDROID_COM_ACESSO = new Set([
+  "SUBSCRIPTION_STATE_ACTIVE",
+  "SUBSCRIPTION_STATE_CANCELED",
+  "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+]);
+
+const renovaNoGoogle = (item) =>
+  !!item?.autoRenewingPlan?.autoRenewEnabled || !!item?.deferredItemReplacement;
+
+const dadosDaCompraAndroid = (item, compra) => ({
+  productId: item?.productId,
+  plataforma: "android",
+  ambiente: compra.testPurchase ? "sandbox" : "production",
+  expiresAtMs: item?.expiryTime ? new Date(item.expiryTime).getTime() : 0,
+  transactionId: item?.latestSuccessfulOrderId || null,
+});
+
+async function aplicarCompraGoogle(purchaseToken, compra, origemEvento = "webhook") {
+  const item = itemVigenteGoogle(compra.lineItems);
+  const renovacaoAutomatica = renovaNoGoogle(item);
   const notificationType =
     SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE[compra.subscriptionState];
   if (!notificationType) {
@@ -590,6 +655,32 @@ async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson,
     );
     return;
   }
+
+  // Troca de plano ou reassinatura gera um token novo. Se o app ainda não o
+  // registrou, a academia é encontrada pelo token anterior.
+  const anterior = compra.linkedPurchaseToken;
+  if (anterior && !(await buscarAcademiaPorOriginalTransactionId(purchaseToken))) {
+    const academiaId = await buscarAcademiaPorOriginalTransactionId(anterior);
+    const dados = dadosDaCompraAndroid(item, compra);
+    if (
+      !academiaId ||
+      !ESTADOS_ANDROID_COM_ACESSO.has(compra.subscriptionState) ||
+      !(dados.expiresAtMs > Date.now())
+    ) {
+      return;
+    }
+    await processarAtivacaoAssinatura({
+      academiaId,
+      ...dados,
+      originalTransactionId: purchaseToken,
+      compraAnteriorId: anterior,
+      renovacaoAutomatica,
+      origemEvento,
+    });
+    // A ativação grava "ativo"; os outros estados são aplicados em seguida.
+    if (notificationType === "DID_RENEW") return;
+  }
+
   if (notificationType === "DID_CHANGE_RENEWAL_STATUS") {
     // Cancelado continua ativo até expirar — o roteamento só muda o status
     // de superfície, então não precisa dos dados de reativação.
@@ -606,13 +697,27 @@ async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson,
   await rotearNotificacaoAssinatura({
     notificationType,
     originalTransactionId: purchaseToken,
-    productId: item?.productId,
-    plataforma: "android",
-    ambiente: compra.testPurchase ? "sandbox" : "production",
-    expiresAtMs: item?.expiryTime ? new Date(item.expiryTime).getTime() : 0,
-    origemEvento,
-    transactionId: item?.latestSuccessfulOrderId || null,
+    ...dadosDaCompraAndroid(item, compra),
     renovacaoAutomatica,
+    origemEvento,
+  });
+}
+
+// Ativação pedida pelo app, com a compra já consultada na Google.
+async function ativarCompraAndroid({ academiaId, purchaseToken, compra }) {
+  if (ESTADOS_ANDROID_INVALIDOS.has(compra.subscriptionState)) {
+    throw new HttpsError("permission-denied", "Assinatura inválida.");
+  }
+  const item = itemVigenteGoogle(compra.lineItems);
+  if (!item) {
+    throw new HttpsError("permission-denied", "Assinatura sem item válido.");
+  }
+  return processarAtivacaoAssinatura({
+    academiaId,
+    ...dadosDaCompraAndroid(item, compra),
+    originalTransactionId: purchaseToken,
+    compraAnteriorId: compra.linkedPurchaseToken || null,
+    renovacaoAutomatica: renovaNoGoogle(item),
   });
 }
 
@@ -665,6 +770,7 @@ exports.ativarAssinaturaIOS = onCall(
       expiresAtMs: decoded.expiresDate,
       transactionId: decoded.transactionId,
       originalTransactionId: decoded.originalTransactionId,
+      transacaoEmMs: decoded.purchaseDate,
     });
   }
 );
@@ -701,15 +807,12 @@ exports.ativarAssinaturaAndroid = onCall(
       );
     }
 
-    if (ESTADOS_ANDROID_INVALIDOS.has(compra.subscriptionState)) {
-      throw new HttpsError("permission-denied", "Assinatura inválida.");
-    }
-    const item = (compra.lineItems || [])[0];
-    if (!item) {
-      throw new HttpsError("permission-denied", "Assinatura sem item válido.");
-    }
-
-    if (compra.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING") {
+    const item = itemVigenteGoogle(compra.lineItems);
+    if (
+      item &&
+      !ESTADOS_ANDROID_INVALIDOS.has(compra.subscriptionState) &&
+      compra.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING"
+    ) {
       try {
         await confirmarCompraAndroid(
           purchaseToken,
@@ -726,16 +829,7 @@ exports.ativarAssinaturaAndroid = onCall(
       }
     }
 
-    return processarAtivacaoAssinatura({
-      academiaId,
-      productId: item.productId,
-      plataforma: "android",
-      ambiente: compra.testPurchase ? "sandbox" : "production",
-      expiresAtMs: item.expiryTime ? new Date(item.expiryTime).getTime() : 0,
-      transactionId: item.latestSuccessfulOrderId || null,
-      originalTransactionId: purchaseToken,
-      renovacaoAutomatica: !!item.autoRenewingPlan?.autoRenewEnabled,
-    });
+    return ativarCompraAndroid({ academiaId, purchaseToken, compra });
   }
 );
 
@@ -805,6 +899,8 @@ exports._internal = {
   rotearNotificacaoAssinatura,
   processarNotificacaoApple,
   processarNotificacaoGooglePlay,
+  aplicarCompraGoogle,
+  ativarCompraAndroid,
   verificarTransacaoApple,
   verificarCompraAndroid,
   confirmarCompraAndroid,

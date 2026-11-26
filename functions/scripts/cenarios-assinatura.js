@@ -24,6 +24,8 @@ const CAMPOS_DE_ASSINATURA = [
   "plano_transaction_id",
   "plano_original_transaction_id",
   "plano_assinado_em",
+  "plano_transacao_em",
+  "web_cortesia_ate",
 ];
 
 function emDias(agora, dias) {

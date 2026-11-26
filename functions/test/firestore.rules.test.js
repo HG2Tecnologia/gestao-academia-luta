@@ -3,6 +3,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const firebase = require("firebase/compat/app");
+require("firebase/compat/firestore");
 const {
   assertFails,
   assertSucceeds,
@@ -482,4 +484,63 @@ test("cliente não lê nem grava o vínculo de assinaturas", async () => {
   const firestore = await adminDaFixture("admin-vinculo");
   await assertFails(firestore.doc("vinculos_assinatura/x").get());
   await assertFails(firestore.doc("vinculos_assinatura/x").set({ academiaId: "academy-fixture" }));
+});
+
+// ── Teste de 30 dias ────────────────────────────────────────────────────────
+
+const DIA = 24 * 60 * 60 * 1000;
+
+async function academiaNoLimite(criadaHaDias, trialDias) {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await db.doc("academias/academy-fixture").update({
+      criado_em: new Date(Date.now() - criadaHaDias * DIA),
+      alunos_ativos_contagem: 5,
+      turmas_ativas_contagem: 1,
+      funcionarios_contagem: 1,
+    });
+    if (trialDias !== undefined) {
+      await db.doc("config/geral").set({ trial_dias: trialDias });
+    }
+  });
+  const db = await adminDaFixture(`admin-teste-${criadaHaDias}-${trialDias}`);
+  return [
+    () => db.doc("academias/academy-fixture/usuarios/aluno-extra").set({ perfil: 3, ativo: true }),
+    () => db.doc("academias/academy-fixture/turmas/turma-extra").set({ ativo: true }),
+    () => db.doc("academias/academy-fixture/funcionarios/func-extra").set({ nome: "Extra" }),
+  ];
+}
+
+test("durante o teste não há limite de alunos, turmas ou funcionários", async () => {
+  for (const criar of await academiaNoLimite(10)) await assertSucceeds(criar());
+});
+
+test("terminado o teste, os limites do grátis voltam a valer", async () => {
+  for (const criar of await academiaNoLimite(31)) await assertFails(criar());
+});
+
+test("config/geral.trial_dias aumenta o prazo do teste", async () => {
+  for (const criar of await academiaNoLimite(40, 60)) await assertSucceeds(criar());
+});
+
+test("config/geral.trial_dias inválido volta aos 30 dias", async () => {
+  for (const criar of await academiaNoLimite(31, 0)) await assertFails(criar());
+});
+
+test("cliente não escolhe a data de criação da academia", async () => {
+  const uid = "creator-data";
+  const db = environment.authenticatedContext(uid).firestore();
+  const base = { nome: "Nova", created_by_uid: uid, plano_tipo: 0 };
+  await assertSucceeds(
+    db.doc("academias/nova-hora-servidor").set({
+      ...base, criado_em: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+  );
+  await assertFails(
+    db.doc("academias/nova-data-futura").set({ ...base, criado_em: new Date(Date.now() + 365 * DIA) })
+  );
+
+  const admin = await adminDaFixture("admin-criado-em");
+  await assertFails(admin.doc("academias/academy-fixture").update({ criado_em: new Date() }));
+  await assertFails(admin.doc("academias/academy-fixture").update({ web_cortesia_ate: new Date() }));
 });

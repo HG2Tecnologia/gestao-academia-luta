@@ -34,6 +34,20 @@ service cloud.firestore {
       return possuiPerfilNaAcademia(academiaId, ['Professor']);
     }
 
+    // Durante o teste (30 dias, ou `config/geral.trial_dias`) não há limite.
+    function diasDeTeste() {
+      let ref = /databases/$(database)/documents/config/geral;
+      let dias = exists(ref) ? get(ref).data.get('trial_dias', 30) : 30;
+      return dias is number && dias >= 1 ? int(dias) : 30;
+    }
+
+    // `criado_em` só é aceito do cliente como a hora do servidor, na criação.
+    function academiaEmTeste(academiaId) {
+      let dados = get(/databases/$(database)/documents/academias/$(academiaId)).data;
+      return dados.get('criado_em', null) is timestamp &&
+        request.time < dados.criado_em + duration.value(diasDeTeste(), 'd');
+    }
+
     // Plano gratuito: 1 turma ativa, 5 alunos ativos, 1 funcionário. Os
     // contadores (*_contagem) são mantidos pelas Cloud Functions
     // manterContagemTurmasAtivas/AlunosAtivos/Funcionarios — regra nenhuma
@@ -49,7 +63,8 @@ service cloud.firestore {
     function dentroDoLimiteGratuito(academiaId, campoContagem, limite) {
       return academiaEhPro(academiaId) ||
         get(/databases/$(database)/documents/academias/$(academiaId))
-          .data.get(campoContagem, 0) < limite;
+          .data.get(campoContagem, 0) < limite ||
+        academiaEmTeste(academiaId);
     }
 
     function isSelfRegisteredAcademyAccount(uid) {
@@ -94,15 +109,18 @@ service cloud.firestore {
               'plano_plataforma', 'plano_ambiente', 'plano_assinado_em',
               'plano_transaction_id', 'plano_original_transaction_id',
               'plano_status', 'plano_origem', 'plano_renovacao_automatica',
-              'acesso_web', 'cupom_base_plan_android', 'turmas_ativas_contagem',
+              'acesso_web', 'web_cortesia_ate', 'plano_transacao_em', 'criado_em',
+              'cupom_base_plan_android', 'turmas_ativas_contagem',
               'alunos_ativos_contagem', 'funcionarios_contagem'];
     }
 
-    // Academia nova nasce sem plano: app e web enviam só `plano_tipo: 0`.
+    // Academia nova nasce sem plano: app e web enviam só `plano_tipo: 0` e
+    // `criado_em` com a hora do servidor.
     function nasceSemPlano() {
       return request.resource.data.get('plano_tipo', 0) == 0 &&
+        request.resource.data.get('criado_em', request.time) == request.time &&
         !request.resource.data.keys()
-          .hasAny(camposPlanoProtegidos().removeAll(['plano_tipo']));
+          .hasAny(camposPlanoProtegidos().removeAll(['plano_tipo', 'criado_em']));
     }
 
     // Dados da academia — qualquer membro pode ler; escrita restrita por role

@@ -137,6 +137,7 @@ async function main() {
           expiresAtMs: transacao.expiresDate,
           transactionId: transacao.transactionId,
           originalTransactionId: d.plano_original_transaction_id,
+          transacaoEmMs: transacao.purchaseDate,
           origemEvento: "manual",
         });
         console.log("✓ Aplicado: assinatura resincronizada como ativa.");

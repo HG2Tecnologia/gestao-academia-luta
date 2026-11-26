@@ -682,3 +682,284 @@ test("webhook e reconciliação renovam sem passar pela trava", async () => {
   await ativarCompra(a, "compra-webhook", { origemEvento: "webhook" });
   await ativarCompra(a, "compra-webhook", { origemEvento: "reconciliacao" });
 });
+
+// ── Black Belt e acesso ao web ──────────────────────────────────────────────
+
+const {
+  PRODUTOS_BLACK_BELT,
+  PRODUTOS_PRO,
+} = require("../domain/subscription-access");
+
+const BLACK = "br.com.senseimanager.black.mensal";
+const BLACK_ANUAL = "br.com.senseimanager.black.anual";
+const emDias = (n) => Date.now() + n * 24 * 60 * 60 * 1000;
+
+for (const produto of [...PRODUTOS_PRO, ...PRODUTOS_BLACK_BELT]) {
+  test(`ativar ${produto} define o acesso ao web`, async () => {
+    const id = await criarAcademia();
+    await ativarCompra(id, `compra-${produto}`, { productId: produto });
+    const d = await lerAcademia(id);
+    assert.equal(d.plano_tipo, 1);
+    assert.equal(d.acesso_web, produto.includes(".black."));
+  });
+}
+
+// Apple: o identificador da assinatura não muda nas trocas de plano.
+async function assinanteApple(productId, extra = {}) {
+  const id = await criarAcademia();
+  const compra = `apple-${id}`;
+  await ativarCompra(id, compra, { productId, transacaoEmMs: emDias(-10), ...extra });
+  const evento = (notificationType, dados = {}) =>
+    _internal.rotearNotificacaoAssinatura({
+      notificationType,
+      originalTransactionId: compra,
+      productId,
+      plataforma: "ios",
+      ambiente: "production",
+      expiresAtMs: DAQUI_30_DIAS,
+      transacaoEmMs: emDias(-10),
+      ...dados,
+    });
+  return { id, compra, evento };
+}
+
+test("Apple: upgrade libera o web na hora", async () => {
+  const { id, evento } = await assinanteApple(PRODUTO);
+  await evento("DID_CHANGE_RENEWAL_PREF", { productId: BLACK, transacaoEmMs: emDias(0) });
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+});
+
+test("Apple: upgrade vale mesmo vencendo antes do plano anterior", async () => {
+  const { id, evento } = await assinanteApple(PRODUTO, { expiresAtMs: emDias(300) });
+  await evento("DID_CHANGE_RENEWAL_PREF", {
+    productId: BLACK, transacaoEmMs: emDias(0), expiresAtMs: emDias(30),
+  });
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+});
+
+test("Apple: downgrade agendado mantém o web até renovar no PRO", async () => {
+  const { id, evento } = await assinanteApple(BLACK);
+  await evento("DID_CHANGE_RENEWAL_PREF"); // ainda a transação do plano atual
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+  await evento("DID_RENEW", { productId: PRODUTO, transacaoEmMs: emDias(0) });
+  const d = await lerAcademia(id);
+  assert.equal(d.acesso_web, false);
+  assert.equal(d.plano_tipo, 1);
+});
+
+test("Apple: cancelamento e carência mantêm o web", async () => {
+  const { id, evento } = await assinanteApple(BLACK);
+  await evento("DID_CHANGE_RENEWAL_STATUS", { renovacaoAutomatica: false });
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+  await evento("DID_FAIL_TO_RENEW");
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+});
+
+for (const tipo of ["EXPIRED", "GRACE_PERIOD_EXPIRED", "REFUND", "REVOKE"]) {
+  test(`Apple: ${tipo} retira o plano e o web`, async () => {
+    const { id, evento } = await assinanteApple(BLACK);
+    await evento(tipo);
+    const d = await lerAcademia(id);
+    assert.equal(d.plano_tipo, 0);
+    assert.equal(d.acesso_web, false);
+  });
+}
+
+test("Apple: reembolso de transação anterior ao upgrade não derruba o plano atual", async () => {
+  const { id, evento } = await assinanteApple(PRODUTO);
+  await evento("DID_CHANGE_RENEWAL_PREF", { productId: BLACK, transacaoEmMs: emDias(0) });
+  await evento("REFUND", { transacaoEmMs: emDias(-10) });
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+});
+
+test("Apple: restaurar a transação antiga não desfaz o upgrade", async () => {
+  const { id, compra } = await assinanteApple(BLACK, { transacaoEmMs: emDias(0) });
+  const r = await ativarCompra(id, compra, { productId: PRODUTO, transacaoEmMs: emDias(-10) });
+  assert.equal(r.ignorada, "transacao_antiga");
+  assert.equal((await lerAcademia(id)).plano_produto_id, BLACK);
+});
+
+// ── Outra assinatura na mesma academia ──────────────────────────────────────
+
+test("outra assinatura PRO não derruba o Black Belt ativo", async () => {
+  const id = await criarAcademia();
+  await ativarCompra(id, "black-ativo", { productId: BLACK });
+  const r = await ativarCompra(id, "pro-paralelo", { expiresAtMs: emDias(300) });
+  assert.equal(r.ignorada, "plano_menor");
+  assert.equal((await lerAcademia(id)).plano_original_transaction_id, "black-ativo");
+});
+
+test("com o Black Belt cancelado, a assinatura nova passa a valer", async () => {
+  const id = await criarAcademia();
+  await ativarCompra(id, "black-cancelado", { productId: BLACK, renovacaoAutomatica: false });
+  await ativarCompra(id, "pro-novo");
+  assert.equal((await lerAcademia(id)).plano_original_transaction_id, "pro-novo");
+});
+
+test("Black Belt substitui um PRO ativo, mesmo vencendo antes", async () => {
+  const id = await criarAcademia();
+  await ativarCompra(id, "pro-longo", { expiresAtMs: emDias(300) });
+  await ativarCompra(id, "black-curto", { productId: BLACK });
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+});
+
+test("mesmo nível: fica a assinatura que vence depois", async () => {
+  const id = await criarAcademia();
+  await ativarCompra(id, "pro-anual", { expiresAtMs: emDias(300) });
+  const r = await ativarCompra(id, "pro-curto");
+  assert.equal(r.ignorada, "vence_antes");
+});
+
+// ── Google ──────────────────────────────────────────────────────────────────
+
+const iso = (n) => new Date(emDias(n)).toISOString();
+const item = (productId, expira, extra = { autoRenewingPlan: { autoRenewEnabled: true } }) => ({
+  productId,
+  ...(expira === null ? {} : { expiryTime: iso(expira) }),
+  ...extra,
+});
+const compraGoogle = (lineItems, extra = {}) => ({
+  subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+  lineItems,
+  ...extra,
+});
+async function assinanteGoogle(productId) {
+  const id = await criarAcademia();
+  const token = `token-${id}`;
+  await _internal.ativarCompraAndroid({
+    academiaId: id,
+    purchaseToken: token,
+    compra: compraGoogle([item(productId, 30)]),
+  });
+  return { id, token };
+}
+
+test("Google: upgrade com token novo, ativado pelo app", async () => {
+  const { id, token } = await assinanteGoogle(PRODUTO);
+  await _internal.ativarCompraAndroid({
+    academiaId: id,
+    purchaseToken: `${token}-novo`,
+    compra: compraGoogle([item(BLACK, 30)], { linkedPurchaseToken: token }),
+  });
+  const d = await lerAcademia(id);
+  assert.equal(d.acesso_web, true);
+  assert.equal(d.plano_original_transaction_id, `${token}-novo`);
+});
+
+test("Google: upgrade que chega só pela notificação migra para o token novo", async () => {
+  const { id, token } = await assinanteGoogle(PRODUTO);
+  await _internal.aplicarCompraGoogle(
+    `${token}-novo`,
+    compraGoogle([item(BLACK, 30)], { linkedPurchaseToken: token })
+  );
+  assert.equal((await lerAcademia(id)).acesso_web, true);
+
+  // A expiração do token antigo chega depois e não afeta mais nada.
+  await _internal.aplicarCompraGoogle(
+    token,
+    compraGoogle([item(PRODUTO, -1)], { subscriptionState: "SUBSCRIPTION_STATE_EXPIRED" })
+  );
+  assert.equal((await lerAcademia(id)).plano_tipo, 1);
+});
+
+test("Google: expiração do token antigo antes da notificação nova se recupera", async () => {
+  const { id, token } = await assinanteGoogle(PRODUTO);
+  await _internal.aplicarCompraGoogle(
+    token,
+    compraGoogle([item(PRODUTO, -1)], { subscriptionState: "SUBSCRIPTION_STATE_EXPIRED" })
+  );
+  await _internal.aplicarCompraGoogle(
+    `${token}-novo`,
+    compraGoogle([item(BLACK, 30)], { linkedPurchaseToken: token })
+  );
+  const d = await lerAcademia(id);
+  assert.equal(d.plano_tipo, 1);
+  assert.equal(d.acesso_web, true);
+});
+
+test("Google: troca pendente de pagamento não mexe na assinatura atual", async () => {
+  const { id, token } = await assinanteGoogle(PRODUTO);
+  await _internal.aplicarCompraGoogle(
+    `${token}-pendente`,
+    compraGoogle([item(BLACK, 30)], {
+      linkedPurchaseToken: token,
+      subscriptionState: "SUBSCRIPTION_STATE_PENDING",
+    })
+  );
+  const d = await lerAcademia(id);
+  assert.equal(d.plano_original_transaction_id, token);
+  assert.equal(d.acesso_web, false);
+});
+
+test("Google: downgrade agendado mantém o web e, na renovação, passa ao PRO", async () => {
+  const { id, token } = await assinanteGoogle(BLACK);
+  const novo = `${token}-novo`;
+  const agendada = compraGoogle(
+    [
+      item(PRODUTO, null),
+      item(BLACK, 20, { deferredItemReplacement: { productId: PRODUTO } }),
+    ],
+    { linkedPurchaseToken: token }
+  );
+  await _internal.ativarCompraAndroid({ academiaId: id, purchaseToken: novo, compra: agendada });
+  let d = await lerAcademia(id);
+  assert.equal(d.acesso_web, true);
+  assert.equal(d.plano_renovacao_automatica, true);
+
+  await _internal.aplicarCompraGoogle(
+    novo,
+    compraGoogle([item(BLACK, -1, {}), item(PRODUTO, 30)], { linkedPurchaseToken: token })
+  );
+  d = await lerAcademia(id);
+  assert.equal(d.plano_produto_id, PRODUTO);
+  assert.equal(d.acesso_web, false);
+  assert.equal(d.plano_tipo, 1);
+});
+
+test("Google: cancelamento e carência mantêm o web; expiração retira", async () => {
+  const { id, token } = await assinanteGoogle(BLACK);
+  for (const estado of ["SUBSCRIPTION_STATE_CANCELED", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"]) {
+    await _internal.aplicarCompraGoogle(
+      token, compraGoogle([item(BLACK, 5)], { subscriptionState: estado })
+    );
+    assert.equal((await lerAcademia(id)).acesso_web, true, estado);
+  }
+  await _internal.aplicarCompraGoogle(
+    token, compraGoogle([item(BLACK, -1)], { subscriptionState: "SUBSCRIPTION_STATE_EXPIRED" })
+  );
+  assert.equal((await lerAcademia(id)).acesso_web, false);
+});
+
+test("Google: trocar a compra de outra academia é recusado", async () => {
+  const { token } = await assinanteGoogle(PRODUTO);
+  const intrusa = await criarAcademia();
+  await assertHttpsError(
+    _internal.ativarCompraAndroid({
+      academiaId: intrusa,
+      purchaseToken: `${token}-novo`,
+      compra: compraGoogle([item(BLACK, 30)], { linkedPurchaseToken: token }),
+    }),
+    "already-exists"
+  );
+});
+
+test("Google: compra pendente é recusada na ativação", async () => {
+  await assertHttpsError(
+    _internal.ativarCompraAndroid({
+      academiaId: await criarAcademia(),
+      purchaseToken: "token-pendente",
+      compra: compraGoogle([item(BLACK, 30)], { subscriptionState: "SUBSCRIPTION_STATE_PENDING" }),
+    }),
+    "permission-denied"
+  );
+});
+
+test("transferência para outra academia retira o web da anterior", async () => {
+  const vencida = await criarAcademia({
+    plano_tipo: 1, plano_origem: "loja", acesso_web: true,
+    plano_expiracao: new Date(HA_1_DIA).toISOString(),
+    plano_original_transaction_id: "black-vencido",
+  });
+  await ativarCompra(await criarAcademia(), "black-vencido", { productId: BLACK_ANUAL });
+  assert.equal((await lerAcademia(vencida)).acesso_web, false);
+});
