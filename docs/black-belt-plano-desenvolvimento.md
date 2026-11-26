@@ -272,7 +272,8 @@ Marque cada item quando o critério for atendido.
   - [x] Proteger as duas funções de teste públicas.
   - [x] Pesquisar a nova tentativa de cobrança da Apple.
   - [ ] Decidir essa regra e confirmar os itens de "Textos do site" (sócios).
-  - [ ] Conferir a compilação do app.
+  - [x] Compilação Android em depuração.
+  - [ ] Compilação iOS (precisa de um Mac).
   - [ ] Reteste conforme o [roteiro](black-belt-roteiro-de-testes.md).
 - [ ] **Fase 6: Publicar o servidor** com o bloqueio do web desligado.
   *Pronto quando* os assinantes PRO seguirem normais.
@@ -303,6 +304,7 @@ Marque cada item quando o critério for atendido.
 | 26/11/2026 | Decisão e implementação: suspensão no Google retira o acesso |
 | 26/11/2026 | Suspensão e fase 4 em commits locais `ec1aecd9` e `2c6c2775` |
 | 26/11/2026 | Fase 5 e correção do aviso de suspensão em commits locais `886fbfd2` e `35ac5882` |
+| 26/11/2026 | Compilação Android em depuração concluída (`flutter build apk --debug`). A máquina não tem `mobile/android/key.properties`: foi criado um temporário com valores falsos e apagado em seguida. Não testado: versão de publicação assinada, instalação em aparelho e iOS |
 | 26/11/2026 | Preparação para publicar: textos do site, duas funções de teste protegidas e pesquisa sobre a cobrança da Apple. Verificado: 71 de 71 unitários, build de produção e seção de preços em navegador (computador e celular). Não publicado |
 | 26/11/2026 | Decisão: publicar somente quando todo o desenvolvimento terminar. Os textos do site passam para antes da publicação |
 | 26/11/2026 | Correção no app: com a assinatura suspensa, o cartão do plano em Configurações abria a tela de planos e o aviso de suspensão não aparecia. Agora abre "Meu plano" |

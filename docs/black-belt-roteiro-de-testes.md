@@ -108,7 +108,11 @@ O final da execução mostra a pasta com as capturas de tela.
 ```bash
 fvm flutter test                       # esperado: 221 de 221
 fvm flutter analyze --no-pub lib test  # 466 avisos que já existiam; nenhum erro
+fvm flutter build apk --debug          # deve gerar app-debug.apk
 ```
+
+O build do Android exige `mobile/android/key.properties` (fica fora do Git). Sem o arquivo,
+falha em `build.gradle.kts` com "null cannot be cast to non-null type kotlin.String".
 
 ## 4. Testes manuais nos emuladores
 
@@ -223,7 +227,8 @@ e do [Google](https://developer.android.com/google/play/billing/test).
 
 **Não verificado em 26/11/2026**
 
-- Compilação do app para Android e iOS e uso em aparelho.
+- Compilação para iOS, versão Android assinada para publicação e uso em aparelho. Só a
+  compilação Android em depuração foi feita.
 - Qualquer compra real ou de teste na Apple ou no Google: as respostas das lojas foram
   simuladas nos testes.
 - No iPhone, a detecção de assinatura em outra conta da loja.
