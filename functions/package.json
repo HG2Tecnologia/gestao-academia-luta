@@ -21,7 +21,8 @@
     "test:analytics": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/analytics-functions.test.js\"",
     "test:iap": "firebase emulators:exec --project sensei-manager-test --only firestore,auth \"node --test test/iap-functions.test.js\"",
     "test:iap-reconciliation": "firebase emulators:exec --project sensei-manager-test --only firestore,auth \"node --test test/iap-reconciliation.test.js\"",
-    "deploy:rules": "npm run test:rules && firebase deploy --only firestore:rules --project sensei-manager-d64c0"
+    "deploy:rules": "npm run test:rules && firebase deploy --only firestore:rules --project sensei-manager-d64c0",
+    "test:exclusao": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/account-deletion-functions.test.js\""
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
