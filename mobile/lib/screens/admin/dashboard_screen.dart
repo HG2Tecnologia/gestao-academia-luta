@@ -327,7 +327,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildOnboarding()),
               SliverToBoxAdapter(child: _buildMetrics()),
               SliverToBoxAdapter(child: _buildQuickActions()),
-              if (!PlanService.instance.isPro)
+              if (!PlanService.instance.temAcessoCompleto)
                 SliverToBoxAdapter(
                   child: ProLockedCard(
                     icon: Icons.person_off_rounded,
@@ -338,7 +338,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildAlertaEvasao()),
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
-              if (!PlanService.instance.isPro)
+              if (!PlanService.instance.temAcessoCompleto)
                 SliverToBoxAdapter(
                   child: ProLockedCard(
                     icon: Icons.military_tech_rounded,

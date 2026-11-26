@@ -1020,7 +1020,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
   /// aba e a busca por nome) em PDF ou Excel, com colunas que o usuário pode
   /// marcar/desmarcar — mesmo padrão do relatório de presenças.
   Future<void> _tentarExportarFinanceiro() async {
-    if (!PlanService.instance.isPro) {
+    if (!PlanService.instance.temAcessoCompleto) {
       await mostrarPaywall(context);
       return;
     }
@@ -2244,7 +2244,9 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                        if (!PlanService.instance.isPro) ...[
+                                        if (!PlanService
+                                            .instance
+                                            .temAcessoCompleto) ...[
                                           const SizedBox(width: 8),
                                           const ProBadge(),
                                         ],
@@ -2507,7 +2509,7 @@ class _AdminFinanceiroScreenState extends State<AdminFinanceiroScreen> {
                       ],
                     ),
                   ),
-                if (PlanService.instance.isPro &&
+                if (PlanService.instance.temAcessoCompleto &&
                     _alunosSemPlano.isNotEmpty &&
                     !_avisoAlunosSemPlanoFechado)
                   SliverToBoxAdapter(

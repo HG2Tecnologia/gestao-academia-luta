@@ -67,7 +67,7 @@ class _RelatorioPresencasScreenState extends State<RelatorioPresencasScreen> {
   @override
   void initState() {
     super.initState();
-    if (!PlanService.instance.isPro) {
+    if (!PlanService.instance.temAcessoCompleto) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         await mostrarPaywall(context);

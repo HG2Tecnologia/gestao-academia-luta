@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'constants.dart';
 import 'iap_service.dart';
+import 'plan_catalog.dart';
+import 'plan_service.dart';
 import 'theme/context_ext.dart';
 
 Future<bool> mostrarPaywall(BuildContext context) async {
@@ -16,58 +20,25 @@ Future<bool> mostrarPaywall(BuildContext context) async {
   return result == true;
 }
 
-// ─── Static plan metadata ─────────────────────────────────────────────────────
+String _formatarPreco(double valor) =>
+    'R\$${valor.toStringAsFixed(2).replaceAll('.', ',')}';
 
-class _PlanMeta {
-  final String id;
-  final String nome;
-  final String precoMesFallback;
-  final String precoTotalFallback;
-  final String desconto;
-  final String? topLabel;
-  final Color? topLabelColor;
-  final bool destaque;
-
-  const _PlanMeta({
-    required this.id,
-    required this.nome,
-    required this.precoMesFallback,
-    required this.precoTotalFallback,
-    required this.desconto,
-    this.topLabel,
-    this.topLabelColor,
-    this.destaque = false,
-  });
+String _mensagemDeBloqueio(MotivoBloqueio motivo, String? plataforma) {
+  final loja = plataforma == 'ios' ? 'App Store' : 'Google Play';
+  return switch (motivo) {
+    MotivoBloqueio.planoAtual => 'Este já é o seu plano atual.',
+    MotivoBloqueio.assinaturaEmOutraLoja =>
+      'Sua assinatura atual é da $loja. Para não pagar duas vezes, troque de '
+          'plano em um aparelho com essa loja ou cancele a renovação por lá '
+          'antes de assinar aqui.',
+    MotivoBloqueio.assinaturaEmOutraConta =>
+      'A assinatura desta academia está em outra conta da loja. Entre com ela '
+          'para trocar de plano.',
+    MotivoBloqueio.contaDaLojaJaAssina =>
+      'Esta conta da loja já tem uma assinatura ativa. Toque em "Restaurar '
+          'compra". Se ela for de outra academia, fale com o suporte.',
+  };
 }
-
-const _planos = [
-  _PlanMeta(
-    id: kIapMensal,
-    nome: 'Mensal',
-    precoMesFallback: 'R\$69,99',
-    precoTotalFallback: '',
-    desconto: '',
-  ),
-  _PlanMeta(
-    id: kIapTrimestral,
-    nome: 'Trimestral',
-    precoMesFallback: 'R\$49,97',
-    precoTotalFallback: 'R\$149,90',
-    desconto: '29% OFF',
-    topLabel: 'MAIS POPULAR',
-    topLabelColor: Color(0xFFC9A020),
-    destaque: true,
-  ),
-  _PlanMeta(
-    id: kIapAnual,
-    nome: 'Anual',
-    precoMesFallback: 'R\$41,66',
-    precoTotalFallback: 'R\$499,90',
-    desconto: '40% OFF',
-    topLabel: 'MELHOR VALOR',
-    topLabelColor: Color(0xFF16A34A),
-  ),
-];
 
 // ─── Sheet ────────────────────────────────────────────────────────────────────
 
@@ -79,7 +50,37 @@ class _PaywallSheet extends StatefulWidget {
 }
 
 class _PaywallSheetState extends State<_PaywallSheet> {
-  int _selected = 1; // default: trimestral
+  Periodo _periodo = Periodo.trimestral;
+
+  // Quem já é PRO abre direto no plano superior.
+  late NivelPlano _nivel = PlanService.instance.nivel == NivelPlano.pro
+      ? NivelPlano.blackBelt
+      : PlanService.instance.nivel ?? NivelPlano.pro;
+
+  // Evita fechar a tela duas vezes quando a loja devolve mais de uma compra.
+  bool _concluido = false;
+  DecisaoCompra? _decisao;
+
+  /// O Black Belt só aparece quando a loja já o oferece. Em depuração aparece
+  /// sempre, para testar a tela antes do cadastro dos produtos.
+  bool get _temBlackBelt =>
+      kDebugMode ||
+      IapService.instance.products.any(
+        (p) => produtoPorId(p.id)?.nivel == NivelPlano.blackBelt,
+      );
+
+  NivelPlano get _nivelVisivel => _temBlackBelt ? _nivel : NivelPlano.pro;
+
+  ProdutoPlano get _selecionado => produtoDe(_nivelVisivel, _periodo);
+
+  /// Plano que a academia já paga e que vai continuar renovando.
+  bool _ehPlanoAtual(String produtoId) {
+    final plan = PlanService.instance;
+    return plan.isPro &&
+        plan.planoProdutoId == produtoId &&
+        plan.planoRenovacaoAutomatica != false;
+  }
+
   bool _loading = false;
   bool _initLoading = true;
   String? _erro;
@@ -116,14 +117,25 @@ class _PaywallSheetState extends State<_PaywallSheet> {
   void _onResult(bool success, String? error) {
     _restoreTimeout?.cancel();
     _restoreToken++;
-    if (!mounted) return;
+    if (!mounted || _concluido) return;
     setState(() => _loading = false);
     if (success) {
+      _concluido = true;
+      final decisao = _decisao;
+      final agendada =
+          decisao is TrocaDePlano && decisao.modo == ModoTroca.noProximoCiclo;
+      final mensagem = agendada
+          ? 'Troca agendada: o plano novo começa na próxima renovação.'
+          : decisao == null
+          ? 'Assinatura ativada com sucesso! Aproveite.'
+          : '${_selecionado.nivel.nome} ativado com sucesso! Aproveite.';
+      final messenger = ScaffoldMessenger.of(context);
+      final cor = context.sem.success;
       Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: const Text('Sensei PRO ativado com sucesso! Aproveite.'),
-          backgroundColor: context.sem.success,
+          content: Text(mensagem),
+          backgroundColor: cor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -132,6 +144,14 @@ class _PaywallSheetState extends State<_PaywallSheet> {
       setState(() => _erro = error);
     }
     // null error = cancelado pelo usuário, não mostrar nada
+  }
+
+  void _falhar(String mensagem) {
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _erro = mensagem;
+    });
   }
 
   Future<void> _assinar() async {
@@ -143,29 +163,42 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     final iap = IapService.instance;
 
     if (!iap.storeAvailable) {
-      setState(() {
-        _loading = false;
-        _erro = 'Loja não disponível no momento. Verifique sua conexão.';
-      });
+      _falhar('Loja não disponível no momento. Verifique sua conexão.');
       return;
     }
 
-    final planId = _planos[_selected].id;
-    final matches = iap.products.where((p) => p.id == planId);
+    final matches = iap.products.where((p) => p.id == _selecionado.id);
     if (matches.isEmpty) {
-      setState(() {
-        _loading = false;
-        _erro = 'Produto não encontrado na loja. Tente novamente.';
-      });
+      _falhar('Produto não encontrado na loja. Tente novamente.');
       return;
     }
 
-    await iap.comprar(matches.first);
-    // loading permanece até stream responder
+    try {
+      final decisao = await iap.avaliar(matches.first);
+      if (!mounted) return;
+      if (decisao is CompraBloqueada) {
+        _falhar(
+          _mensagemDeBloqueio(
+            decisao.motivo,
+            PlanService.instance.planoPlataforma,
+          ),
+        );
+        return;
+      }
+      _decisao = decisao;
+      await iap.comprar(matches.first, decisao);
+      // loading permanece até stream responder
+    } catch (_) {
+      _falhar('Não foi possível iniciar a compra. Tente novamente.');
+    }
   }
 
   Future<void> _restaurar() async {
-    setState(() => _loading = true);
+    _decisao = null;
+    setState(() {
+      _loading = true;
+      _erro = null;
+    });
     final token = ++_restoreToken;
     _restoreTimeout?.cancel();
     _restoreTimeout = Timer(const Duration(seconds: 10), () {
@@ -179,58 +212,74 @@ class _PaywallSheetState extends State<_PaywallSheet> {
     // resultado (se houver algo pra restaurar) chega pelo onPurchaseResult
   }
 
-  // Resolve preço exibido: usa dado real da loja se disponível. Para planos
-  // de cobrança trimestral/anual, o valor "por mês" é só uma referência de
-  // economia — NUNCA o valor efetivamente cobrado (que é sempre à vista, em
-  // uma única transação da loja). Mostrar isso como "R$XX/mês" em destaque
-  // dava a entender, pra alguns clientes, que a compra era parcelada —
-  // mesma confusão que já aconteceu com o parcelamento nativo da Apple.
-  String _precoMes(int index) {
-    final meta = _planos[index];
-    final products = IapService.instance.products;
-    if (products.isEmpty) return meta.precoMesFallback;
-
-    final matches = products.where((p) => p.id == meta.id);
-    if (matches.isEmpty) return meta.precoMesFallback;
-
-    final p = matches.first;
-    if (p.currencyCode != 'BRL') return meta.precoMesFallback;
-
-    final months = index == 0 ? 1 : (index == 1 ? 3 : 12);
-    final perMonth = p.rawPrice / months;
-    return 'R\$${perMonth.toStringAsFixed(2).replaceAll('.', ',')}';
+  ProductDetails? _daLoja(String id) {
+    for (final p in IapService.instance.products) {
+      if (p.id == id && p.currencyCode == 'BRL') return p;
+    }
+    return null;
   }
 
-  /// Valor efetivamente cobrado, à vista, numa transação só. Para o mensal
-  /// é o mesmo que [_precoMes]; para trimestral/anual é o total do período.
-  String _precoCobrado(int index) {
-    final meta = _planos[index];
-    final products = IapService.instance.products;
-    if (products.isEmpty) {
-      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
-    }
+  double _valor(ProdutoPlano plano) =>
+      _daLoja(plano.id)?.rawPrice ?? plano.precoReserva;
 
-    final matches = products.where((p) => p.id == meta.id);
-    if (matches.isEmpty) {
-      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
-    }
+  /// Valor efetivamente cobrado, à vista, numa transação só.
+  String _precoCobrado(ProdutoPlano plano) =>
+      _daLoja(plano.id)?.price ?? _formatarPreco(plano.precoReserva);
 
-    final p = matches.first;
-    if (p.currencyCode != 'BRL') {
-      return index == 0 ? meta.precoMesFallback : meta.precoTotalFallback;
-    }
-
-    return p.price;
-  }
+  // Para trimestral/anual, o valor "por mês" é só uma referência de economia,
+  // NUNCA o cobrado. Mostrá-lo em destaque dava a entender, pra alguns
+  // clientes, que a compra era parcelada — mesma confusão que já aconteceu com
+  // o parcelamento nativo da Apple.
+  String _precoMes(ProdutoPlano plano) =>
+      _formatarPreco(_valor(plano) / plano.periodo.meses);
 
   /// Texto de cadência de cobrança (não repete o valor, que já aparece em
   /// destaque do lado direito do card) — deixa explícito que é uma cobrança
   /// única à vista, não parcelada.
-  String _precoTotal(int index) => switch (index) {
-    1 => 'Cobrado a cada 3 meses, em uma única parcela',
-    2 => 'Cobrado 1x por ano, em uma única parcela',
-    _ => '',
+  String _cadencia(Periodo periodo) => switch (periodo) {
+    Periodo.trimestral => 'Cobrado a cada 3 meses, em uma única parcela',
+    Periodo.anual => 'Cobrado 1x por ano, em uma única parcela',
+    Periodo.mensal => '',
   };
+
+  Widget _cardDoPlano(Periodo periodo) {
+    final plano = produtoDe(_nivelVisivel, periodo);
+    final desconto = descontoPercentual(
+      precoPeriodo: _valor(plano),
+      precoMensal: _valor(produtoDe(_nivelVisivel, Periodo.mensal)),
+      meses: periodo.meses,
+    );
+    final atual = _ehPlanoAtual(plano.id);
+    final (rotulo, cor) = switch (periodo) {
+      _ when atual => ('SEU PLANO ATUAL', const Color(0xFF475569)),
+      Periodo.trimestral => ('MAIS POPULAR', const Color(0xFFC9A020)),
+      Periodo.anual => ('MELHOR VALOR', const Color(0xFF16A34A)),
+      Periodo.mensal => (null, null),
+    };
+    return _PlanCard(
+      key: ValueKey(plano.id),
+      nome: periodo.nome,
+      topLabel: rotulo,
+      topLabelColor: cor,
+      desconto: desconto > 0 ? '$desconto% OFF' : '',
+      precoCobrado: _precoCobrado(plano),
+      precoMesReferencia: _precoMes(plano),
+      precoTotal: _cadencia(periodo),
+      isMensal: periodo == Periodo.mensal,
+      selected: _periodo == periodo,
+      onTap: _loading ? null : () => setState(() => _periodo = periodo),
+    );
+  }
+
+  String get _textoDoBotao {
+    final plan = PlanService.instance;
+    if (_ehPlanoAtual(_selecionado.id)) return 'Este é o seu plano';
+    if (!plan.isPro) return 'Assinar ${_nivelVisivel.nome}';
+    if (plan.nivel != _nivelVisivel) {
+      return 'Mudar para o ${_nivelVisivel.nome}';
+    }
+    return 'Trocar de período';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +339,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Sensei PRO',
+              _nivelVisivel.nome,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: context.c.onSurface,
@@ -311,6 +360,33 @@ class _PaywallSheetState extends State<_PaywallSheet> {
             ),
             const SizedBox(height: 24),
 
+            if (_temBlackBelt) ...[
+              SegmentedButton<NivelPlano>(
+                segments: const [
+                  ButtonSegment(
+                    value: NivelPlano.pro,
+                    label: Text('PRO\nsó app', textAlign: TextAlign.center),
+                  ),
+                  ButtonSegment(
+                    value: NivelPlano.blackBelt,
+                    label: Text(
+                      'Black Belt\napp + web',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+                selected: {_nivel},
+                showSelectedIcon: false,
+                onSelectionChanged: _loading
+                    ? null
+                    : (s) => setState(() {
+                        _nivel = s.first;
+                        _erro = null;
+                      }),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Benefits
             Container(
               padding: const EdgeInsets.all(16),
@@ -320,11 +396,17 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 border: Border.all(color: context.c.outline),
               ),
               child: Column(
-                children: const [
-                  _Benefit(Icons.people_alt_rounded, 'Alunos ilimitados', 'Sem limite de cadastros'),
-                  _Benefit(Icons.class_rounded, 'Turmas ilimitadas', 'Organize quantas turmas quiser'),
-                  _Benefit(Icons.bar_chart_rounded, 'Relatórios completos', 'Financeiro, frequência e mais'),
-                  _Benefit(Icons.notifications_active_rounded, 'Notificações push', 'Comunique alunos em tempo real'),
+                children: [
+                  if (_nivelVisivel == NivelPlano.blackBelt)
+                    const _Benefit(
+                      Icons.computer_rounded,
+                      'Sistema web',
+                      'Gerencie a academia também pelo computador',
+                    ),
+                  const _Benefit(Icons.people_alt_rounded, 'Alunos ilimitados', 'Sem limite de cadastros'),
+                  const _Benefit(Icons.class_rounded, 'Turmas ilimitadas', 'Organize quantas turmas quiser'),
+                  const _Benefit(Icons.bar_chart_rounded, 'Relatórios completos', 'Financeiro, frequência e mais'),
+                  const _Benefit(Icons.notifications_active_rounded, 'Notificações push', 'Comunique alunos em tempo real'),
                 ],
               ),
             ),
@@ -349,15 +431,7 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                 ),
               )
             else
-              ...List.generate(_planos.length, (i) => _PlanCard(
-                meta: _planos[i],
-                precoCobrado: _precoCobrado(i),
-                precoMesReferencia: _precoMes(i),
-                precoTotal: _precoTotal(i),
-                isMensal: i == 0,
-                selected: _selected == i,
-                onTap: _loading ? null : () => setState(() => _selected = i),
-              )),
+              for (final periodo in Periodo.values) _cardDoPlano(periodo),
 
             const SizedBox(height: 20),
 
@@ -378,7 +452,10 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 
             // CTA
             FilledButton(
-              onPressed: _loading || _initLoading ? null : _assinar,
+              onPressed:
+                  _loading || _initLoading || _ehPlanoAtual(_selecionado.id)
+                  ? null
+                  : _assinar,
               style: FilledButton.styleFrom(
                 backgroundColor: context.c.primary,
                 foregroundColor: Colors.black,
@@ -392,9 +469,13 @@ class _PaywallSheetState extends State<_PaywallSheet> {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
                     )
-                  : const Text(
-                      'Assinar Sensei PRO',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  : Text(
+                      _textoDoBotao,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
             ),
             const SizedBox(height: 10),
@@ -495,7 +576,10 @@ class _PaywallSheetState extends State<_PaywallSheet> {
 // ─── Plan Card ────────────────────────────────────────────────────────────────
 
 class _PlanCard extends StatelessWidget {
-  final _PlanMeta meta;
+  final String nome;
+  final String? topLabel;
+  final Color? topLabelColor;
+  final String desconto;
   final String precoCobrado;
   final String precoMesReferencia;
   final String precoTotal;
@@ -504,7 +588,11 @@ class _PlanCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _PlanCard({
-    required this.meta,
+    super.key,
+    required this.nome,
+    required this.topLabel,
+    required this.topLabelColor,
+    required this.desconto,
     required this.precoCobrado,
     required this.precoMesReferencia,
     required this.precoTotal,
@@ -536,12 +624,12 @@ class _PlanCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Top label (MAIS POPULAR / MELHOR VALOR)
-              if (meta.topLabel != null)
+              if (topLabel != null)
                 Container(
-                  color: meta.topLabelColor,
+                  color: topLabelColor,
                   padding: const EdgeInsets.symmetric(vertical: 5),
                   child: Text(
-                    meta.topLabel!,
+                    topLabel!,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
@@ -582,7 +670,7 @@ class _PlanCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            meta.nome,
+                            nome,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -641,7 +729,7 @@ class _PlanCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                        if (meta.desconto.isNotEmpty) ...[
+                        if (desconto.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -653,7 +741,7 @@ class _PlanCard extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              meta.desconto,
+                              desconto,
                               style: TextStyle(
                                 color: context.sem.success,
                                 fontSize: 11,

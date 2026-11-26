@@ -1,21 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import 'auth_storage.dart';
 import 'firestore_service.dart';
-import 'iap_service.dart';
+import 'plan_catalog.dart';
 
-String? planoProdutoDisplayName(String? produtoId) {
-  switch (produtoId) {
-    case kIapMensal:
-      return 'Mensal';
-    case kIapTrimestral:
-      return 'Trimestral';
-    case kIapAnual:
-      return 'Anual';
-    default:
-      return null;
-  }
-}
+String? planoProdutoDisplayName(String? produtoId) =>
+    produtoPorId(produtoId)?.periodo.nome;
 
 class PlanService {
   static final PlanService instance = PlanService._();
@@ -30,6 +21,8 @@ class PlanService {
   String? _planoStatus;
   String? _planoOrigem;
   bool? _planoRenovacaoAutomatica;
+  String? _planoCompraId;
+  bool _acessoWeb = false;
   bool _loaded = false;
 
   static const int _trialDurationDaysPadrao = 30;
@@ -66,6 +59,27 @@ class PlanService {
 
   bool get showAds => !isPro && !isInTrial;
 
+  /// Plano pago ou teste: sem os limites do grátis e com todos os recursos.
+  /// Use este nas travas de recurso; [isPro] é só sobre a assinatura.
+  bool get temAcessoCompleto => isPro || isInTrial;
+
+  /// Nível do plano pago. Cortesia sem produto conta como PRO.
+  NivelPlano? get nivel => isPro
+      ? produtoPorId(_planoProdutoId)?.nivel ?? NivelPlano.pro
+      : null;
+
+  /// A assinatura inclui o sistema web.
+  bool get acessoWeb => isPro && _acessoWeb;
+
+  SituacaoPlano get situacao => SituacaoPlano(
+    pago: isPro,
+    origem: _planoOrigem,
+    plataforma: _planoPlataforma,
+    produtoId: _planoProdutoId,
+    compraId: _planoCompraId,
+    renovacaoAutomatica: _planoRenovacaoAutomatica ?? true,
+  );
+
   int get daysLeftInTrial {
     final criado = _criadoEm;
     if (criado == null) return 0;
@@ -88,26 +102,33 @@ class PlanService {
       final user = await AuthStorage.getUser();
       final academiaId = user?.academiaId;
       if (academiaId == null) return;
-      final d = await firestoreService.getAcademia(academiaId) ?? {};
-      // plano_tipo: 0=Gratuito, 1=Pro
-      final planoNum = d['plano_tipo'] as int? ?? 0;
-      _planoTipo = planoNum >= 1 ? 'Pro' : 'Gratuito';
-      final expStr = d['plano_expiracao']?.toString();
-      _planoExpiracao = expStr != null ? DateTime.tryParse(expStr) : null;
-      final criadoStr = d['criado_em']?.toString();
-      _criadoEm = criadoStr != null ? DateTime.tryParse(criadoStr) : null;
-      final assinadoStr = d['plano_assinado_em']?.toString();
-      _planoAssinadoEm = assinadoStr != null
-          ? DateTime.tryParse(assinadoStr)
-          : null;
-      _planoProdutoId = d['plano_produto_id']?.toString();
-      _planoPlataforma = d['plano_plataforma']?.toString();
-      _planoStatus = d['plano_status']?.toString();
-      _planoOrigem = d['plano_origem']?.toString();
-      _planoRenovacaoAutomatica = d['plano_renovacao_automatica'] as bool?;
+      aplicarDados(await firestoreService.getAcademia(academiaId) ?? {});
       await _carregarTrialDias();
       _loaded = true;
     } catch (_) {}
+  }
+
+  /// Lê os campos de plano do documento da academia (datas já como texto).
+  @visibleForTesting
+  void aplicarDados(Map<String, dynamic> d) {
+    // plano_tipo: 0=Gratuito, 1=Pago (PRO ou Black Belt, conforme o produto)
+    final planoNum = d['plano_tipo'] as int? ?? 0;
+    _planoTipo = planoNum >= 1 ? 'Pro' : 'Gratuito';
+    final expStr = d['plano_expiracao']?.toString();
+    _planoExpiracao = expStr != null ? DateTime.tryParse(expStr) : null;
+    final criadoStr = d['criado_em']?.toString();
+    _criadoEm = criadoStr != null ? DateTime.tryParse(criadoStr) : null;
+    final assinadoStr = d['plano_assinado_em']?.toString();
+    _planoAssinadoEm = assinadoStr != null
+        ? DateTime.tryParse(assinadoStr)
+        : null;
+    _planoProdutoId = d['plano_produto_id']?.toString();
+    _planoPlataforma = d['plano_plataforma']?.toString();
+    _planoStatus = d['plano_status']?.toString();
+    _planoOrigem = d['plano_origem']?.toString();
+    _planoRenovacaoAutomatica = d['plano_renovacao_automatica'] as bool?;
+    _planoCompraId = d['plano_original_transaction_id']?.toString();
+    _acessoWeb = d['acesso_web'] == true;
   }
 
   Future<void> _carregarTrialDias() async {
@@ -141,13 +162,15 @@ class PlanService {
     _planoStatus = null;
     _planoOrigem = null;
     _planoRenovacaoAutomatica = null;
+    _planoCompraId = null;
+    _acessoWeb = false;
     _trialDurationDays = _trialDurationDaysPadrao;
   }
 
   bool get isLoaded => _loaded;
 
   String get planDisplayName {
-    if (isPro) return 'Sensei PRO';
+    if (isPro) return nivel!.nome;
     if (isInTrial) return 'Trial Gratuito';
     return 'Plano Gratuito';
   }

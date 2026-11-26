@@ -43,7 +43,7 @@ class _AdminRankingsScreenState extends State<AdminRankingsScreen> {
   }
 
   void _novoRanking() async {
-    if (!PlanService.instance.isPro && _rankings.isNotEmpty) {
+    if (!PlanService.instance.temAcessoCompleto && _rankings.isNotEmpty) {
       await mostrarPaywall(context);
       return;
     }

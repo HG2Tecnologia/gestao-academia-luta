@@ -63,6 +63,16 @@ class _PlanoScreenState extends State<PlanoScreen> {
 
   Widget? _buildAvisoStatus(PlanService plan) {
     final expiracao = plan.planoExpiracao;
+    // Suspensa não é mais Pro, mas a pessoa precisa saber o que aconteceu.
+    if (plan.planoStatus == 'suspenso') {
+      return _AvisoCard(
+        icon: Icons.error_outline_rounded,
+        color: context.sem.danger,
+        titulo: _l.planStatusSuspendedTitle,
+        corpo: _l.planStatusSuspendedBody,
+      );
+    }
+    if (!plan.isPro) return null;
     if (plan.planoStatus == 'cancelado_ate_expirar' && expiracao != null) {
       return _AvisoCard(
         icon: Icons.event_busy_rounded,
@@ -105,7 +115,7 @@ class _PlanoScreenState extends State<PlanoScreen> {
     final expiracao = plan.planoExpiracao;
     final assinadoEm = plan.planoAssinadoEm;
     final plataforma = plan.planoPlataforma;
-    final avisoStatus = isPro ? _buildAvisoStatus(plan) : null;
+    final avisoStatus = _buildAvisoStatus(plan);
     final avisoTrial = _buildAvisoTrial(plan);
 
     return Scaffold(
@@ -167,8 +177,8 @@ class _PlanoScreenState extends State<PlanoScreen> {
                       Text(
                         isPro
                             ? (produtoNome != null
-                                  ? 'Sensei PRO · $produtoNome'
-                                  : 'Sensei PRO')
+                                  ? '${plan.planDisplayName} · $produtoNome'
+                                  : plan.planDisplayName)
                             : _l.dashFreePlan,
                         style: TextStyle(
                           color: context.c.onSurface,
@@ -186,6 +196,18 @@ class _PlanoScreenState extends State<PlanoScreen> {
                           fontSize: 12.5,
                         ),
                       ),
+                      if (isPro) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          plan.acessoWeb
+                              ? _l.planWebIncluded
+                              : _l.planWebNotIncluded,
+                          style: TextStyle(
+                            color: context.c.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

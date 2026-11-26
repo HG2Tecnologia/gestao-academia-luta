@@ -4241,6 +4241,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cancellation happens in the store where you subscribed, not inside the app. We\'ll take you straight there.';
 
   @override
+  String get planStatusSuspendedTitle => 'Subscription on hold';
+
+  @override
+  String get planStatusSuspendedBody =>
+      'The charge was not approved and paid access is paused. Update your payment method in the store; access returns once the payment is confirmed.';
+
+  @override
+  String get planWebIncluded => 'Includes the web system';
+
+  @override
+  String get planWebNotIncluded =>
+      'The web system is part of Sensei Black Belt';
+
+  @override
   String get planCancelError => 'Couldn\'t open the store. Please try again.';
 
   @override

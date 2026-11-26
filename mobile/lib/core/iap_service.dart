@@ -2,15 +2,13 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 import 'auth_storage.dart';
 import 'firestore_service.dart';
-
-const kIapMensal = 'br.com.senseimanager.pro.mensal';
-const kIapTrimestral = 'br.com.senseimanager.pro.trimestral';
-const kIapAnual = 'br.com.senseimanager.pro.anual';
-
-const _kProductIds = {kIapMensal, kIapTrimestral, kIapAnual};
+import 'plan_catalog.dart';
+import 'plan_service.dart';
 
 // ID do base plan de cupom criado no Play Console (Monetização > Assinaturas
 // > Sensei PRO Mensal > Base plans). Precisa bater exatamente com o "ID do
@@ -51,16 +49,12 @@ class IapService {
 
     _sub ??= _iap.purchaseStream.listen(_handlePurchases, onError: (_) {});
 
-    final response = await _iap.queryProductDetails(_kProductIds);
+    // Produto ainda não criado na loja só volta em `notFoundIDs`.
+    final response = await _iap.queryProductDetails({
+      for (final p in kCatalogo) p.id,
+    });
     _todosOsProdutos = response.productDetails;
-    products = _todosOsProdutos.where((p) => !_ehBasePlanDeCupom(p)).toList()
-      ..sort((a, b) => _order(a.id).compareTo(_order(b.id)));
-  }
-
-  int _order(String id) {
-    if (id == kIapMensal) return 0;
-    if (id == kIapTrimestral) return 1;
-    return 2;
+    products = _todosOsProdutos.where((p) => !_ehBasePlanDeCupom(p)).toList();
   }
 
   bool _ehBasePlanDeCupom(ProductDetails p) {
@@ -71,20 +65,115 @@ class IapService {
     return offers[idx].basePlanId == kCupomBasePlanIdAndroid;
   }
 
-  Future<void> comprar(ProductDetails product) async {
-    final offerToken = await _offerTokenCupomElegivel(product);
-    if (offerToken != null && product is GooglePlayProductDetails) {
-      await _iap.buyNonConsumable(
-        purchaseParam: GooglePlayPurchaseParam(
-          productDetails: product,
-          offerToken: offerToken,
-        ),
+  // Assinaturas vigentes na conta da loja deste aparelho, e (no Android) a
+  // compra original de cada uma, exigida pela Google para trocar de plano.
+  final Map<String, GooglePlayPurchaseDetails> _comprasAndroid = {};
+
+  /// `null` quando a loja não pôde ser consultada.
+  Future<List<AssinaturaNoAparelho>?> _assinaturasNoAparelho() async {
+    try {
+      if (Platform.isAndroid) {
+        final resposta = await _iap
+            .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+            .queryPastPurchases();
+        if (resposta.error != null) return null;
+        _comprasAndroid.clear();
+        final assinaturas = <AssinaturaNoAparelho>[];
+        for (final compra in resposta.pastPurchases) {
+          if (produtoPorId(compra.productID) == null) continue;
+          final token = compra.verificationData.serverVerificationData;
+          _comprasAndroid[token] = compra;
+          assinaturas.add(
+            AssinaturaNoAparelho(
+              compraId: token,
+              produtoId: compra.productID,
+              renova: compra.billingClientPurchase.isAutoRenewing,
+            ),
+          );
+        }
+        return assinaturas;
+      }
+      if (Platform.isIOS) {
+        // Vem o histórico inteiro: fica só a transação mais recente de cada
+        // assinatura que ainda não venceu.
+        final recentes = <String, SK2Transaction>{};
+        for (final t in await SK2Transaction.transactions()) {
+          if (produtoPorId(t.productId) == null) continue;
+          final anterior = recentes[t.originalId];
+          if (anterior == null ||
+              t.purchaseDate.compareTo(anterior.purchaseDate) > 0) {
+            recentes[t.originalId] = t;
+          }
+        }
+        final agora = DateTime.now();
+        return [
+          for (final t in recentes.values)
+            if (DateTime.tryParse(t.expirationDate ?? '')?.isAfter(agora) ??
+                false)
+              AssinaturaNoAparelho(
+                compraId: t.originalId,
+                produtoId: t.productId,
+              ),
+        ];
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// O que acontece se a academia comprar [product] neste aparelho. Chamar
+  /// antes de [comprar] e não comprar quando vier [CompraBloqueada].
+  Future<DecisaoCompra> avaliar(ProductDetails product) async {
+    await PlanService.instance.refresh();
+    return decidirCompra(
+      produtoId: product.id,
+      loja: Platform.isIOS ? 'ios' : 'android',
+      situacao: PlanService.instance.situacao,
+      noAparelho: await _assinaturasNoAparelho(),
+    );
+  }
+
+  Future<void> comprar(ProductDetails product, DecisaoCompra decisao) async {
+    assert(decisao is! CompraBloqueada);
+    PurchaseParam parametros = PurchaseParam(productDetails: product);
+    if (product is GooglePlayProductDetails) {
+      ChangeSubscriptionParam? troca;
+      // Na Apple a troca é automática dentro do grupo de assinaturas. No
+      // Google, sem informar a compra atual, nasce uma segunda assinatura.
+      if (decisao is TrocaDePlano) {
+        final atual = _comprasAndroid[decisao.compraAtualId];
+        if (atual == null) {
+          throw StateError('Assinatura atual não encontrada na loja.');
+        }
+        troca = ChangeSubscriptionParam(
+          oldPurchaseDetails: atual,
+          replacementMode: decisao.modo == ModoTroca.imediata
+              ? ReplacementMode.withTimeProration
+              : ReplacementMode.deferred,
+        );
+      }
+      parametros = GooglePlayPurchaseParam(
+        productDetails: product,
+        offerToken: await _offerTokenCupomElegivel(product),
+        changeSubscriptionParam: troca,
       );
+    }
+    final abriu = await _iap.buyNonConsumable(purchaseParam: parametros);
+    if (!abriu) {
+      onPurchaseResult?.call(false, 'Não foi possível abrir a loja.');
+    }
+  }
+
+  // Numa troca agendada, o Google pode avisar o sucesso sem enviar a compra.
+  // Ela é buscada na loja para o servidor registrar o token novo.
+  Future<void> _concluirTrocaSemCompra() async {
+    await _assinaturasNoAparelho();
+    if (_comprasAndroid.isEmpty) {
+      onPurchaseResult?.call(true, null);
       return;
     }
-    await _iap.buyNonConsumable(
-      purchaseParam: PurchaseParam(productDetails: product),
-    );
+    for (final compra in _comprasAndroid.values.toList()) {
+      await _ativarBackend(compra);
+    }
   }
 
   // Elegibilidade é decidida só pelo nosso Firestore (campo
@@ -122,7 +211,12 @@ class IapService {
       switch (p.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          _ativarBackend(p);
+          if (Platform.isAndroid &&
+              p.verificationData.serverVerificationData.isEmpty) {
+            _concluirTrocaSemCompra();
+          } else {
+            _ativarBackend(p);
+          }
         case PurchaseStatus.error:
           onPurchaseResult?.call(false, p.error?.message ?? 'Erro desconhecido.');
         case PurchaseStatus.canceled:

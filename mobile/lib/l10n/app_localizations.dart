@@ -7460,6 +7460,30 @@ abstract class AppLocalizations {
   /// **'O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.'**
   String get planCancelHint;
 
+  /// No description provided for @planStatusSuspendedTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assinatura suspensa'**
+  String get planStatusSuspendedTitle;
+
+  /// No description provided for @planStatusSuspendedBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'A cobrança não foi aprovada e o acesso pago está pausado. Atualize a forma de pagamento na loja; o acesso volta quando o pagamento for confirmado.'**
+  String get planStatusSuspendedBody;
+
+  /// No description provided for @planWebIncluded.
+  ///
+  /// In pt, this message translates to:
+  /// **'Inclui o sistema web'**
+  String get planWebIncluded;
+
+  /// No description provided for @planWebNotIncluded.
+  ///
+  /// In pt, this message translates to:
+  /// **'O sistema web faz parte do Sensei Black Belt'**
+  String get planWebNotIncluded;
+
   /// No description provided for @planCancelError.
   ///
   /// In pt, this message translates to:

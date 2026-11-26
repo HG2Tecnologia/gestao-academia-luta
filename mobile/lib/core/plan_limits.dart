@@ -20,7 +20,9 @@ Future<bool> podeCriarDentroDoPlano(
   required String academiaId,
   required TipoLimitePlano tipo,
 }) async {
-  if (PlanService.instance.isPro) return true;
+  // Relê o plano se preciso: sem isso o teste de 30 dias não seria percebido.
+  if (!PlanService.instance.isLoaded) await PlanService.instance.load();
+  if (PlanService.instance.temAcessoCompleto) return true;
 
   final academia = await firestoreService.getAcademia(academiaId);
   final (campo, limite) = switch (tipo) {

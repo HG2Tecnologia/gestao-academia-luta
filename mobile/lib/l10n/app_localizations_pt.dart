@@ -4259,6 +4259,20 @@ class AppLocalizationsPt extends AppLocalizations {
       'O cancelamento é feito na loja onde você assinou, não dentro do app. Vamos te levar direto pra lá.';
 
   @override
+  String get planStatusSuspendedTitle => 'Assinatura suspensa';
+
+  @override
+  String get planStatusSuspendedBody =>
+      'A cobrança não foi aprovada e o acesso pago está pausado. Atualize a forma de pagamento na loja; o acesso volta quando o pagamento for confirmado.';
+
+  @override
+  String get planWebIncluded => 'Inclui o sistema web';
+
+  @override
+  String get planWebNotIncluded =>
+      'O sistema web faz parte do Sensei Black Belt';
+
+  @override
   String get planCancelError =>
       'Não foi possível abrir a loja. Tente novamente.';
 

@@ -53,7 +53,10 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
   // restaurar, então nem tenta.
   void _conferirAssinaturaEmSilencio() {
     final plan = PlanService.instance;
-    if (plan.isPro && plan.planoOrigem == 'loja') {
+    // Suspensa por falta de pagamento também: se a notificação da loja se
+    // perder depois da cobrança aprovada, é aqui que o acesso volta.
+    final conferir = plan.isPro || plan.planoStatus == 'suspenso';
+    if (conferir && plan.planoOrigem == 'loja') {
       IapService.instance.restaurar().catchError((_) {});
     }
   }
@@ -84,7 +87,7 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
 
   Future<void> _abrirSeNaoForPro(String rota) async {
     Navigator.of(context).pop();
-    if (!PlanService.instance.isPro) {
+    if (!PlanService.instance.temAcessoCompleto) {
       await mostrarPaywall(context);
       return;
     }

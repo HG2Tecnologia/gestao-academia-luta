@@ -460,7 +460,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPro = PlanService.instance.isPro;
+    final liberado = PlanService.instance.temAcessoCompleto;
     return Scaffold(
       backgroundColor: context.c.surface,
       appBar: AppBar(
@@ -567,7 +567,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     child: _GroupCard(
                       children: [
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _SwitchRow(
                             icon: Icons.groups_rounded,
                             titulo: _l.cfgBlockCheckin,
@@ -597,7 +597,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             onTap: _abrirCarencia,
                           ),
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _SwitchRow(
                             icon: Icons.event_busy_rounded,
                             titulo: _l.cfgAutoAbsence,
@@ -625,7 +625,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                         ),
                         if (_checkinManualAtivo)
                           ProGate(
-                            isPro: isPro,
+                            isPro: liberado,
                             child: _NavRowComValorAbaixo(
                               icon: Icons.timelapse_rounded,
                               titulo: _l.cfgManualCheckinWindow,
@@ -675,7 +675,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     child: _GroupCard(
                       children: [
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _NavRow(
                             icon: Icons.chat_rounded,
                             titulo: _l.cfgReturnMsg,
@@ -684,7 +684,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _NavRow(
                             icon: Icons.newspaper_rounded,
                             titulo: _l.menuNews,
@@ -785,7 +785,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             onTap: _abrirTaxaAtraso,
                           ),
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _SwitchRow(
                             icon: Icons.category_rounded,
                             titulo: _l.cfgBillingByModality,
@@ -800,7 +800,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _NavRow(
                             icon: Icons.event_repeat_rounded,
                             titulo: _l.cfgWeeklyLimit,
@@ -854,7 +854,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                               context.push('/admin/dashboard/contratos'),
                         ),
                         ProGate(
-                          isPro: isPro,
+                          isPro: liberado,
                           child: _RowShell(
                             icon: Icons.palette_rounded,
                             titulo: _l.cfgColoredDegrees,

@@ -170,9 +170,12 @@ class _SplashScreenState extends State<SplashScreen>
       context.go('/troca-senha-obrigatoria');
       return;
     }
-    if (user != null && (user.perfil == 'Admin' || user.perfil == 'Secretaria')) {
+    // O Professor também usa recursos do plano; só Admin e Secretaria veem a
+    // tela de planos na abertura.
+    final gestor = user?.perfil == 'Admin' || user?.perfil == 'Secretaria';
+    if (gestor || user?.perfil == 'Professor') {
       await PlanService.instance.load();
-      if (mounted && PlanService.instance.showAds) {
+      if (gestor && mounted && PlanService.instance.showAds) {
         await mostrarPaywall(context);
       }
     }
