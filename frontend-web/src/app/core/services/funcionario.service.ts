@@ -1,8 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, from, map } from 'rxjs';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, serverTimestamp } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../firebase/firebase';
+import { db } from '../firebase/firebase';
 import { FirebaseAuthService } from './firebase-auth.service';
 import { BaseResponse } from '../models/auth.model';
 import { FuncionarioListaDto, CreateFuncionarioRequest, UpdateFuncionarioRequest } from '../models/funcionario.model';
@@ -57,6 +56,8 @@ export class FuncionarioService {
         ativo: f['ativo'] !== false,
         dataAdmissao: f['criado_em']?.toDate?.()?.toISOString?.() ?? '',
         permissoes: rawPerm && typeof rawPerm === 'object' ? rawPerm : {},
+        temAcesso: !!f['firebaseUid'],
+        senhaTemporaria: String(f['acesso_senha_temporaria'] ?? '').trim() || undefined,
       };
       return dto;
     });
@@ -113,29 +114,25 @@ export class FuncionarioService {
   }
 
   /**
-   * Cria o funcionário e, tendo telefone ou e-mail, já provisiona o
-   * acesso ao app via `adminResetPassword` (mesma Cloud Function e mesmo
-   * `motivo: 'provisao_criacao'` que o mobile usa em
-   * `equipe_criar_screen.dart`) — sem isso a pessoa seria cadastrada mas
-   * nunca conseguiria logar em lugar nenhum. Falha no provisionamento
-   * nunca desfaz o cadastro (mesmo comportamento do mobile).
+   * Mesmos campos de `equipe_criar_screen.dart`. O acesso (senha
+   * temporária) é gerado em seguida pela tela, com `AcessoService`.
    */
   create(data: CreateFuncionarioRequest): Observable<BaseResponse<FuncionarioListaDto>> {
     const academiaId = this.academiaId;
     const payload = {
-      nome: data.nome,
-      email: data.email ?? null,
+      nome: data.nome.trim(),
+      email: data.email?.trim().toLowerCase() || null,
       telefone: data.telefone,
       telefone_digits: data.telefone?.replace(/\D/g, '') ?? '',
-      cargo: data.cargo,
+      cargo: data.cargo?.trim() || data.perfil,
       perfil: data.perfil,
       perfil_nome: data.perfil,
       permissoes: data.perfil === 'Admin' ? {} : (data.permissoes ?? {}),
       ativo: true,
       criado_em: serverTimestamp(),
     };
-    return from(this.criarEProvisionar(academiaId, payload)).pipe(
-      map((id) =>
+    return from(addDoc(collection(db, 'academias', academiaId, 'funcionarios'), payload)).pipe(
+      map(({ id }) =>
         ok<FuncionarioListaDto>({
           id,
           usuarioId: id,
@@ -151,24 +148,6 @@ export class FuncionarioService {
         }),
       ),
     );
-  }
-
-  private async criarEProvisionar(academiaId: string, payload: Record<string, any>): Promise<string> {
-    const ref = await addDoc(collection(db, 'academias', academiaId, 'funcionarios'), payload);
-    if (payload['email'] || payload['telefone_digits']) {
-      try {
-        const adminResetPassword = httpsCallable(functions, 'adminResetPassword');
-        await adminResetPassword({
-          academiaId,
-          colecao: 'funcionarios',
-          usuarioId: ref.id,
-          motivo: 'provisao_criacao',
-        });
-      } catch {
-        // Mesmo comportamento do mobile: falha aqui não desfaz o cadastro.
-      }
-    }
-    return ref.id;
   }
 
   update(id: string, data: UpdateFuncionarioRequest): Observable<BaseResponse<FuncionarioListaDto>> {
@@ -202,6 +181,12 @@ export class FuncionarioService {
         }),
       ),
     );
+  }
+
+  /** Só o status: regravar o cadastro inteiro apagava telefone e permissões. */
+  definirAtivo(id: string, ativo: boolean): Observable<BaseResponse<void>> {
+    const ref = doc(db, 'academias', this.academiaId, 'funcionarios', id);
+    return from(updateDoc(ref, { ativo, atualizado_em: serverTimestamp() })).pipe(map(() => ok(undefined)));
   }
 
   /** Soft-delete (desativa), igual o mobile — nunca apaga o doc do funcionário. */

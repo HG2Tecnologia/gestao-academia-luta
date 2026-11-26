@@ -81,10 +81,10 @@ export class LeaderboardComponent implements OnInit {
     this.carregarAlunos();
   }
 
-  get isAdmin(): boolean { return this.authService.currentUser()?.perfil === 'Admin'; }
+  get isAdmin(): boolean { return ['Admin', 'Secretaria'].includes(this.authService.currentUser()?.perfil ?? ''); }
   get isProfessor(): boolean {
     const p = this.authService.currentUser()?.perfil;
-    return p === 'Professor' || p === 'Admin';
+    return p === 'Professor' || p === 'Admin' || p === 'Secretaria';
   }
 
   // ─── Aba Geral ───────────────────────────────────────────────────────────

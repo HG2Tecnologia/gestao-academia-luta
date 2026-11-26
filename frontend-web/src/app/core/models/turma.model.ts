@@ -1,4 +1,5 @@
 export interface TurmaDto {
+  planoPadraoId?: string;
   id: string;
   nome: string;
   modalidadeId: string;
@@ -11,6 +12,7 @@ export interface TurmaDto {
 }
 
 export interface TurmaDetalheDto extends TurmaDto {
+  planoPadraoId?: string;
   totalAlunos: number;
   alunos: MatriculaDto[];
   horarios: HorarioResumoDto[];
@@ -38,6 +40,7 @@ export interface MatriculaDto {
 }
 
 export interface CreateTurmaRequest {
+  planoPadraoId?: string;
   modalidadeId: string;
   professorId: string;
   nome: string;
@@ -46,6 +49,7 @@ export interface CreateTurmaRequest {
 }
 
 export interface UpdateTurmaRequest extends CreateTurmaRequest {
+  planoPadraoId?: string;
   ativo: boolean;
 }
 

@@ -11,6 +11,7 @@ import { FinanceiroService } from '../../core/services/financeiro.service';
 import { ResumoFinanceiroDto, PagamentoDto } from '../../core/models/financeiro.model';
 import { dataLocalISO } from '../../core/utils/date.util';
 import { ModalidadeInitService } from '../../core/services/modalidade-init.service';
+import { ehProfessor } from '../../core/models/stored-user.model';
 
 type FiltroPag = 'hoje' | 'semana' | 'mes';
 
@@ -29,6 +30,9 @@ export class DashboardComponent implements OnInit {
   private readonly planoService = inject(PlanoService);
   private readonly financeiroService = inject(FinanceiroService);
   private readonly modalidadeInitService = inject(ModalidadeInitService);
+
+  /** Como no app: Professor não vê financeiro nem os dados gerais da academia. */
+  readonly perfilProfessor = ehProfessor(this.authService.currentUser());
 
   readonly resumo = signal<DashboardResumoDto | null>(null);
   readonly resumoFin = signal<ResumoFinanceiroDto | null>(null);
@@ -128,14 +132,20 @@ export class DashboardComponent implements OnInit {
   readonly mesAtual = new Date().getMonth();
 
   ngOnInit(): void {
+    this.atualizar();
+    if (!this.perfilProfessor) this.verificarStatusModalidades();
+  }
+
+  /** Rebusca tudo da tela — os dados não são em tempo real. */
+  atualizar(): void {
     this.carregar();
+    if (this.perfilProfessor) return;
     this.alunoService.getAniversariantes().subscribe({
       next: (res) => this.aniversariantes.set(res.dados ?? []),
     });
     this.modalidadeService.getAll().subscribe({
       next: (res) => this.temModalidades.set((res.dados?.length ?? 0) > 0),
     });
-    this.verificarStatusModalidades();
     this.planoService.listar().subscribe({
       next: (res) => this.temPlanos.set((res.dados?.length ?? 0) > 0),
     });

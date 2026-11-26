@@ -5,6 +5,7 @@ import { db } from '../firebase/firebase';
 import { FirebaseAuthService } from './firebase-auth.service';
 import { BaseResponse } from '../models/auth.model';
 import { HorarioDto, GradeHorariosDto, CreateHorarioRequest } from '../models/horario.model';
+import { veSomenteTurmasProprias } from '../models/stored-user.model';
 
 function ok<T>(dados: T): BaseResponse<T> {
   return { sucesso: true, dados, erros: [] };
@@ -12,6 +13,9 @@ function ok<T>(dados: T): BaseResponse<T> {
 
 /** Mesma convenção de `dia_semana` do mobile: 0 = Domingo ... 6 = Sábado. */
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+/** O app grava `HH:MM:00`. */
+const comSegundos = (hora: string): string => (hora.length === 5 ? `${hora}:00` : hora);
 
 /** Espelho de `academias/{id}/horarios` em `mobile/lib/core/firestore_service.dart`. */
 @Injectable({ providedIn: 'root' })
@@ -47,7 +51,13 @@ export class HorarioService {
       alunosPorTurma.set(turmaId, (alunosPorTurma.get(turmaId) ?? 0) + 1);
     });
 
-    return horariosSnap.docs.map((d) => {
+    // O horário não guarda o professor — o vínculo é pela turma (igual ao mobile).
+    const user = this.authService.currentUser();
+    const visiveis = veSomenteTurmasProprias(user)
+      ? horariosSnap.docs.filter((d) => turmaPorId.get(String(d.data()['turma_id'] ?? ''))?.['professorId'] === user!.id)
+      : horariosSnap.docs;
+
+    return visiveis.map((d) => {
       const h = d.data();
       const turmaId = String(h['turma_id'] ?? '');
       const turma = turmaPorId.get(turmaId) ?? {};
@@ -60,8 +70,8 @@ export class HorarioService {
         nomeProfessor: turma['professorNome'] ?? professorNomePorId.get(turma['professorId']) ?? '',
         diaSemana: dia,
         diaSemanaLabel: DIAS_SEMANA[dia] ?? '',
-        horaInicio: h['hora_inicio'] ?? '',
-        horaFim: h['hora_fim'] ?? '',
+        horaInicio: String(h['hora_inicio'] ?? '').slice(0, 5),
+        horaFim: String(h['hora_fim'] ?? '').slice(0, 5),
         sala: h['sala'] ?? undefined,
         totalAlunos: alunosPorTurma.get(turmaId) ?? 0,
         capacidadeMaxima: turma['capacidadeMaxima'] ?? 0,
@@ -95,8 +105,8 @@ export class HorarioService {
     const payload = {
       turma_id: data.turmaId,
       dia_semana: data.diaSemana,
-      hora_inicio: data.horaInicio,
-      hora_fim: data.horaFim,
+      hora_inicio: comSegundos(data.horaInicio),
+      hora_fim: comSegundos(data.horaFim),
       sala: data.sala || null,
       criado_em: serverTimestamp(),
     };
@@ -125,8 +135,8 @@ export class HorarioService {
     const payload = {
       turma_id: data.turmaId,
       dia_semana: data.diaSemana,
-      hora_inicio: data.horaInicio,
-      hora_fim: data.horaFim,
+      hora_inicio: comSegundos(data.horaInicio),
+      hora_fim: comSegundos(data.horaFim),
       sala: data.sala || null,
       atualizado_em: serverTimestamp(),
     };

@@ -6,6 +6,9 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { FuncionarioService } from '../../../../core/services/funcionario.service';
 import { FuncionarioListaDto } from '../../../../core/models/funcionario.model';
+import { AcessoService } from '../../../../core/services/acesso.service';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+import { temPermissao } from '../../../../core/models/stored-user.model';
 
 @Component({
   selector: 'app-funcionarios-lista',
@@ -15,6 +18,10 @@ import { FuncionarioListaDto } from '../../../../core/models/funcionario.model';
 })
 export class FuncionariosListaComponent implements OnInit, OnDestroy {
   private readonly funcionarioService = inject(FuncionarioService);
+  private readonly acessoService = inject(AcessoService);
+  private readonly usuarioAtual = inject(FirebaseAuthService).currentUser();
+  /** Admin, ou quem tem a permissão — mesma regra da tela de Equipe do app. */
+  readonly podeRedefinirSenha = temPermissao(this.usuarioAtual, 'acesso_redefinir_senha');
 
   readonly funcionarios = signal<FuncionarioListaDto[]>([]);
   readonly carregando = signal(true);
@@ -60,11 +67,28 @@ export class FuncionariosListaComponent implements OnInit, OnDestroy {
 
   toggleAtivo(f: FuncionarioListaDto): void {
     this.fecharDropdown();
-    // telefone vazio: backend preserva o valor existente quando em branco
-    this.funcionarioService.update(f.id, {
-      nome: f.nome, email: f.email || undefined, telefone: '',
-      cargo: f.cargo, perfil: f.perfil, ativo: !f.ativo,
-    }).subscribe({ next: () => this.carregar(), error: () => this.erro.set('Erro ao alterar status.') });
+    this.funcionarioService.definirAtivo(f.id, !f.ativo)
+      .subscribe({ next: () => this.carregar(), error: () => this.erro.set('Erro ao alterar status.') });
+  }
+
+  ehOProprio(f: FuncionarioListaDto): boolean { return f.id === this.usuarioAtual?.id; }
+
+  verSenha(f: FuncionarioListaDto): void {
+    this.fecharDropdown();
+    this.acessoService.mostrarSenha(f.nome, f.senhaTemporaria!);
+  }
+
+  async redefinirSenha(f: FuncionarioListaDto): Promise<void> {
+    this.fecharDropdown();
+    if (await this.acessoService.redefinir('funcionarios', f.id, f.nome)) this.carregar();
+  }
+
+  async gerarAcesso(f: FuncionarioListaDto): Promise<void> {
+    this.fecharDropdown();
+    const ok = await this.acessoService.gerarEMostrar({
+      colecao: 'funcionarios', usuarioId: f.id, nome: f.nome, motivo: 'provisao_edicao',
+    });
+    if (ok) this.carregar();
   }
 
   wppLink(telefone: string): string {

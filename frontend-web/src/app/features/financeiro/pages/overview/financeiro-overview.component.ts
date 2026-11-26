@@ -91,6 +91,11 @@ export class FinanceiroOverviewComponent implements OnInit {
 
 
   ngOnInit(): void {
+    this.atualizar();
+  }
+
+  /** Rebusca tudo da tela — os dados não são em tempo real. */
+  atualizar(): void {
     this.carregarTudo();
     this.alunoService.getAll({ pageSize: 500 }).subscribe({
       next: res => this.alunos.set(res.dados?.itens ?? []),

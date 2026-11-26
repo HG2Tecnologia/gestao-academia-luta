@@ -6,9 +6,14 @@
       <h1>Olá, {{ primeiroNome }} 👋</h1>
       <p>Aqui está o resumo da sua academia hoje.</p>
     </div>
-    <div class="dash-header-date">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      {{ hoje | date:'EEEE, d \'de\' MMMM':'':'pt-BR' }}
+    <div class="dash-header-actions">
+      <div class="dash-header-date">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        {{ hoje | date:'EEEE, d \'de\' MMMM':'':'pt-BR' }}
+      </div>
+      <button type="button" class="btn-secondary" (click)="atualizar()" [disabled]="carregando()">
+        {{ carregando() ? 'Atualizando...' : '↻ Atualizar' }}
+      </button>
     </div>
   </div>
 
@@ -34,7 +39,7 @@
   }
 
   <!-- Onboarding: aparece enquanto o setup não está completo -->
-  @if (!carregando() && !setupCompleto()) {
+  @if (!perfilProfessor && !carregando() && !setupCompleto()) {
     <div class="onboarding-card">
       <div class="onboarding-header">
         <div class="onboarding-icon">
@@ -117,16 +122,18 @@
         <a routerLink="/app/presencas" class="mc-link">Ver presenças →</a>
       </div>
 
-      <div class="metric-card mc-rose">
-        <div class="mc-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+      @if (!perfilProfessor) {
+        <div class="metric-card mc-rose">
+          <div class="mc-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div class="mc-body">
+            <div class="mc-value">{{ resumo()!.alunosSemTurma }}</div>
+            <div class="mc-label">Sem turma</div>
+          </div>
+          <a routerLink="/app/alunos" class="mc-link">Verificar →</a>
         </div>
-        <div class="mc-body">
-          <div class="mc-value">{{ resumo()!.alunosSemTurma }}</div>
-          <div class="mc-label">Sem turma</div>
-        </div>
-        <a routerLink="/app/alunos" class="mc-link">Verificar →</a>
-      </div>
+      }
     </div>
 
     <!-- Gráfico frequência diária -->
@@ -156,69 +163,71 @@
     <!-- Linha: Financeiro + Aulas de hoje -->
     <div class="dash-row">
 
-      <!-- Previsão financeira -->
-      <div class="dash-card fin-card">
-        <div class="dash-card-header">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-            Financeiro — {{ mesNomes[mesAtual] }}
-          </div>
-          <a routerLink="/app/financeiro" class="dash-link">Ver detalhes →</a>
-        </div>
-
-        <!-- Mini resumo do mês -->
-        @if (resumoFin()) {
-          <div class="fin-resumo">
-            <div class="fin-item">
-              <span class="fin-label">Recebido</span>
-              <span class="fin-valor fin-ok">{{ formatarMoeda(resumoFin()!.totalRecebidoMes) }}</span>
+      @if (!perfilProfessor) {
+        <!-- Previsão financeira -->
+        <div class="dash-card fin-card">
+          <div class="dash-card-header">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              Financeiro — {{ mesNomes[mesAtual] }}
             </div>
-            <div class="fin-item">
-              <span class="fin-label">Pendente</span>
-              <span class="fin-valor fin-warn">{{ formatarMoeda(resumoFin()!.totalPendenteMes) }}</span>
-            </div>
-            <div class="fin-item">
-              <span class="fin-label">Em atraso</span>
-              <span class="fin-valor fin-danger">{{ formatarMoeda(resumoFin()!.totalAtrasado) }}</span>
-            </div>
+            <a routerLink="/app/financeiro" class="dash-link">Ver detalhes →</a>
           </div>
-        }
 
-        <!-- Previsão a vencer -->
-        <div class="fin-previsao-header">
-          <span class="fin-previsao-titulo">Pagamentos a vencer</span>
-          <div class="filtro-tabs">
-            <button class="filtro-tab" [class.ativo]="filtroPag()==='hoje'" (click)="filtroPag.set('hoje')">Hoje</button>
-            <button class="filtro-tab" [class.ativo]="filtroPag()==='semana'" (click)="filtroPag.set('semana')">7 dias</button>
-            <button class="filtro-tab" [class.ativo]="filtroPag()==='mes'" (click)="filtroPag.set('mes')">Mês</button>
-          </div>
-        </div>
-
-        @if (pagamentosFiltrados().length === 0) {
-          <div class="fin-empty">
-            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--fg-3)"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>Nenhum pagamento pendente</span>
-          </div>
-        } @else {
-          <div class="fin-lista">
-            @for (p of pagamentosFiltrados().slice(0, 5); track p.id) {
-              <div class="fin-pag-row">
-                <div style="flex:1;min-width:0;">
-                  <div class="fin-pag-nome">{{ p.nomeAluno || p.descricao || '—' }}</div>
-                  <div class="fin-pag-data">Venc: {{ formatarData(p.dataVencimento) }}</div>
-                </div>
-                <span class="fin-pag-status" [class.atrasado]="p.status==='Atrasado'">{{ p.status }}</span>
-                <span class="fin-pag-valor">{{ formatarMoeda(p.valor) }}</span>
+          <!-- Mini resumo do mês -->
+          @if (resumoFin()) {
+            <div class="fin-resumo">
+              <div class="fin-item">
+                <span class="fin-label">Recebido</span>
+                <span class="fin-valor fin-ok">{{ formatarMoeda(resumoFin()!.totalRecebidoMes) }}</span>
               </div>
-            }
-            @if (pagamentosFiltrados().length > 5) {
-              <div class="fin-mais">+{{ pagamentosFiltrados().length - 5 }} pagamentos · Total: {{ formatarMoeda(totalFiltrado()) }}</div>
-            } @else {
-              <div class="fin-mais">Total: {{ formatarMoeda(totalFiltrado()) }}</div>
-            }
+              <div class="fin-item">
+                <span class="fin-label">Pendente</span>
+                <span class="fin-valor fin-warn">{{ formatarMoeda(resumoFin()!.totalPendenteMes) }}</span>
+              </div>
+              <div class="fin-item">
+                <span class="fin-label">Em atraso</span>
+                <span class="fin-valor fin-danger">{{ formatarMoeda(resumoFin()!.totalAtrasado) }}</span>
+              </div>
+            </div>
+          }
+
+          <!-- Previsão a vencer -->
+          <div class="fin-previsao-header">
+            <span class="fin-previsao-titulo">Pagamentos a vencer</span>
+            <div class="filtro-tabs">
+              <button class="filtro-tab" [class.ativo]="filtroPag()==='hoje'" (click)="filtroPag.set('hoje')">Hoje</button>
+              <button class="filtro-tab" [class.ativo]="filtroPag()==='semana'" (click)="filtroPag.set('semana')">7 dias</button>
+              <button class="filtro-tab" [class.ativo]="filtroPag()==='mes'" (click)="filtroPag.set('mes')">Mês</button>
+            </div>
           </div>
-        }
-      </div>
+
+          @if (pagamentosFiltrados().length === 0) {
+            <div class="fin-empty">
+              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--fg-3)"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Nenhum pagamento pendente</span>
+            </div>
+          } @else {
+            <div class="fin-lista">
+              @for (p of pagamentosFiltrados().slice(0, 5); track p.id) {
+                <div class="fin-pag-row">
+                  <div style="flex:1;min-width:0;">
+                    <div class="fin-pag-nome">{{ p.nomeAluno || p.descricao || '—' }}</div>
+                    <div class="fin-pag-data">Venc: {{ formatarData(p.dataVencimento) }}</div>
+                  </div>
+                  <span class="fin-pag-status" [class.atrasado]="p.status==='Atrasado'">{{ p.status }}</span>
+                  <span class="fin-pag-valor">{{ formatarMoeda(p.valor) }}</span>
+                </div>
+              }
+              @if (pagamentosFiltrados().length > 5) {
+                <div class="fin-mais">+{{ pagamentosFiltrados().length - 5 }} pagamentos · Total: {{ formatarMoeda(totalFiltrado()) }}</div>
+              } @else {
+                <div class="fin-mais">Total: {{ formatarMoeda(totalFiltrado()) }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
 
       <!-- Aulas de hoje (calendário) -->
       <div class="dash-card aulas-card">
