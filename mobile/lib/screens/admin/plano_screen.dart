@@ -34,7 +34,9 @@ class _PlanoScreenState extends State<PlanoScreen> {
   Future<void> _cancelarAssinatura() async {
     final plan = PlanService.instance;
     final plataforma = plan.planoPlataforma;
-    final isIOS = plataforma == 'ios' || (plataforma == null && !kIsWeb && Platform.isIOS);
+    final isIOS =
+        plataforma == 'ios' ||
+        (plataforma == null && !kIsWeb && Platform.isIOS);
 
     final uri = isIOS
         ? Uri.parse('https://apps.apple.com/account/subscriptions')
@@ -51,7 +53,9 @@ class _PlanoScreenState extends State<PlanoScreen> {
           content: Text(_l.planCancelError),
           backgroundColor: context.sem.danger,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -78,14 +82,31 @@ class _PlanoScreenState extends State<PlanoScreen> {
     return null;
   }
 
+  // "Seu teste termina em X dias" — só nos últimos 5 dias, pra não virar
+  // ruído o tempo todo; reaproveita os mesmos textos já usados no dashboard
+  // (dashTrialDaysLeft/dashTrialLastDay), sem criar chave de tradução nova.
+  Widget? _buildAvisoTrial(PlanService plan) {
+    if (plan.isPro || !plan.isInTrial) return null;
+    final dias = plan.daysLeftInTrial;
+    if (dias > 5) return null;
+    return _AvisoCard(
+      icon: Icons.hourglass_bottom_rounded,
+      color: context.sem.warning,
+      titulo: dias <= 1 ? _l.dashTrialLastDay : _l.cfgPlanTrial,
+      corpo: _l.dashTrialDaysLeft(dias),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final plan = PlanService.instance;
+    final isPro = plan.isPro;
     final produtoNome = planoProdutoDisplayName(plan.planoProdutoId);
     final expiracao = plan.planoExpiracao;
     final assinadoEm = plan.planoAssinadoEm;
     final plataforma = plan.planoPlataforma;
-    final avisoStatus = _buildAvisoStatus(plan);
+    final avisoStatus = isPro ? _buildAvisoStatus(plan) : null;
+    final avisoTrial = _buildAvisoTrial(plan);
 
     return Scaffold(
       backgroundColor: context.c.surface,
@@ -95,7 +116,10 @@ class _PlanoScreenState extends State<PlanoScreen> {
         elevation: 0,
         title: Text(
           _l.planTitle,
-          style: TextStyle(color: context.c.onSurface, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: ListView(
@@ -106,7 +130,11 @@ class _PlanoScreenState extends State<PlanoScreen> {
             decoration: BoxDecoration(
               color: context.c.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF6C3FFF).withValues(alpha: 0.5)),
+              border: Border.all(
+                color: isPro
+                    ? const Color(0xFF6C3FFF).withValues(alpha: 0.5)
+                    : context.c.outline,
+              ),
             ),
             child: Row(
               children: [
@@ -114,12 +142,20 @@ class _PlanoScreenState extends State<PlanoScreen> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                    color:
+                        (isPro
+                                ? const Color(0xFFFFD700)
+                                : context.c.onSurfaceVariant)
+                            .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Color(0xFFFFD700),
+                  child: Icon(
+                    isPro
+                        ? Icons.workspace_premium_rounded
+                        : Icons.lock_outline_rounded,
+                    color: isPro
+                        ? const Color(0xFFFFD700)
+                        : context.c.onSurfaceVariant,
                     size: 22,
                   ),
                 ),
@@ -129,7 +165,11 @@ class _PlanoScreenState extends State<PlanoScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        produtoNome != null ? 'Sensei PRO · $produtoNome' : 'Sensei PRO',
+                        isPro
+                            ? (produtoNome != null
+                                  ? 'Sensei PRO · $produtoNome'
+                                  : 'Sensei PRO')
+                            : _l.dashFreePlan,
                         style: TextStyle(
                           color: context.c.onSurface,
                           fontSize: 15,
@@ -138,8 +178,13 @@ class _PlanoScreenState extends State<PlanoScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _l.cfgPlanActive,
-                        style: TextStyle(color: context.sem.success, fontSize: 12.5),
+                        isPro ? _l.cfgPlanActive : _l.cfgPlanFreeDesc,
+                        style: TextStyle(
+                          color: isPro
+                              ? context.sem.success
+                              : context.c.onSurfaceVariant,
+                          fontSize: 12.5,
+                        ),
                       ),
                     ],
                   ),
@@ -147,78 +192,92 @@ class _PlanoScreenState extends State<PlanoScreen> {
               ],
             ),
           ),
-          if (avisoStatus != null) ...[
-            const SizedBox(height: 12),
-            avisoStatus,
-          ],
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: context.c.surfaceContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.c.outline),
-            ),
-            child: Column(
-              children: [
-                if (assinadoEm != null)
-                  _InfoRow(
-                    icon: Icons.event_available_rounded,
-                    label: _l.planSubscribedSince,
-                    value: _formatarData(assinadoEm),
-                  ),
-                if (assinadoEm != null && expiracao != null)
-                  Divider(height: 1, color: context.c.outline),
-                if (expiracao != null)
-                  _InfoRow(
-                    icon: Icons.autorenew_rounded,
-                    label: _l.planRenewsOn,
-                    value: _formatarData(expiracao),
-                    hint: _l.planRenewsOnHint,
-                  ),
-                if (plataforma == 'ios' || plataforma == 'android') ...[
-                  Divider(height: 1, color: context.c.outline),
-                  _InfoRow(
-                    icon: plataforma == 'ios'
-                        ? Icons.phone_iphone_rounded
-                        : Icons.android_rounded,
-                    label: plataforma == 'ios' ? _l.planViaAppStore : _l.planViaPlayStore,
-                  ),
+          if (avisoStatus != null) ...[const SizedBox(height: 12), avisoStatus],
+          if (avisoTrial != null) ...[const SizedBox(height: 12), avisoTrial],
+          if (isPro) ...[
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: context.c.surfaceContainer,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.c.outline),
+              ),
+              child: Column(
+                children: [
+                  if (assinadoEm != null)
+                    _InfoRow(
+                      icon: Icons.event_available_rounded,
+                      label: _l.planSubscribedSince,
+                      value: _formatarData(assinadoEm),
+                    ),
+                  if (assinadoEm != null && expiracao != null)
+                    Divider(height: 1, color: context.c.outline),
+                  if (expiracao != null)
+                    _InfoRow(
+                      icon: Icons.autorenew_rounded,
+                      label: _l.planRenewsOn,
+                      value: _formatarData(expiracao),
+                      hint: _l.planRenewsOnHint,
+                    ),
+                  if (plataforma == 'ios' || plataforma == 'android') ...[
+                    Divider(height: 1, color: context.c.outline),
+                    _InfoRow(
+                      icon: plataforma == 'ios'
+                          ? Icons.phone_iphone_rounded
+                          : Icons.android_rounded,
+                      label: plataforma == 'ios'
+                          ? _l.planViaAppStore
+                          : _l.planViaPlayStore,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _trocarDePlano,
-            icon: const Icon(Icons.swap_horiz_rounded),
-            label: Text(_l.planChangePlan),
+            icon: Icon(
+              isPro
+                  ? Icons.swap_horiz_rounded
+                  : Icons.workspace_premium_rounded,
+            ),
+            label: Text(isPro ? _l.planChangePlan : _l.dashSeePlans),
             style: FilledButton.styleFrom(
               backgroundColor: context.c.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _cancelarAssinatura,
-            icon: Icon(Icons.cancel_outlined, color: context.sem.danger),
-            label: Text(
-              _l.planCancelSubscription,
-              style: TextStyle(color: context.sem.danger),
+          if (isPro) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _cancelarAssinatura,
+              icon: Icon(Icons.cancel_outlined, color: context.sem.danger),
+              label: Text(
+                _l.planCancelSubscription,
+                style: TextStyle(color: context.sem.danger),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: context.sem.danger.withValues(alpha: 0.5),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: context.sem.danger.withValues(alpha: 0.5)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 10),
+            Text(
+              _l.planCancelHint,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _l.planCancelHint,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
-          ),
+          ],
         ],
       ),
     );
@@ -267,7 +326,11 @@ class _AvisoCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   corpo,
-                  style: TextStyle(color: context.c.onSurface, fontSize: 12.5, height: 1.4),
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 12.5,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -284,7 +347,12 @@ class _InfoRow extends StatelessWidget {
   final String? value;
   final String? hint;
 
-  const _InfoRow({required this.icon, required this.label, this.value, this.hint});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    this.value,
+    this.hint,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -301,13 +369,19 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12.5),
+                  style: TextStyle(
+                    color: context.c.onSurfaceVariant,
+                    fontSize: 12.5,
+                  ),
                 ),
                 if (hint != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     hint!,
-                    style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 10.5),
+                    style: TextStyle(
+                      color: context.c.onSurfaceVariant,
+                      fontSize: 10.5,
+                    ),
                   ),
                 ],
               ],

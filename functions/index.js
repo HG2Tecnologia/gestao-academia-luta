@@ -65,6 +65,10 @@ exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
 exports.webhookAppStoreNotifications = iapFunctions.webhookAppStoreNotifications;
 exports.webhookGooglePlayNotifications = iapFunctions.webhookGooglePlayNotifications;
 
+const iapReconciliation = require("./iap-reconciliation");
+exports.reconciliarAssinaturas = iapReconciliation.reconciliarAssinaturas;
+exports.testarReconciliacaoAssinaturas = iapReconciliation.testarReconciliacaoAssinaturas;
+
 const engagementNotifications = require("./engagement-notifications");
 exports.checarAlertasEngajamento = engagementNotifications.checarAlertasEngajamento;
 exports.testarAlertasEngajamento = engagementNotifications.testarAlertasEngajamento;
