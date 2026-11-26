@@ -17,7 +17,9 @@ Branch: `ajuste-novas-assinaturas`. **Nada foi publicado em produção.**
 | 3 | Black Belt no servidor e teste sem limites nas regras | `30d242fe` | os mesmos da fase 2 |
 | 3 | Suspensão no Google retira o acesso | `ec1aecd9` | `functions/iap-functions.js` |
 | 4 | App: dois planos, troca e bloqueios | `2c6c2775` | `mobile/lib/core/plan_catalog.dart`, `iap_service.dart`, `plan_service.dart`, `paywall_modal.dart` |
-| 5 | Web: acesso, tela de bloqueio e selo do plano | sem commit na data acima | `frontend-web/src/app/core/` (`acesso-web`), `features/assinatura/` |
+| 5 | Aviso de suspensão visível no app | `35ac5882` | `configuracoes_screen.dart` |
+| 5 | Web: acesso, tela de bloqueio e selo do plano | `886fbfd2` | `frontend-web/src/app/core/` (`acesso-web`), `features/assinatura/` |
+| Antes de publicar | Textos do site e proteção das funções de teste | último commit da branch | `features/landing/`, `features/legal/`, `functions/index.js` |
 
 Os commits eram locais em 26/11/2026. Para testar em outra máquina, a branch precisa ter
 sido enviada ao GitHub (`git log` deve mostrar os commits acima).
@@ -54,7 +56,7 @@ Rodar um por vez, com os emuladores **fechados** (cada comando abre os seus).
 
 | Comando | Cobre | Esperado |
 |---|---|---|
-| `npm test` | Unitários, inclusive cenários | 67 de 67 |
+| `npm test` | Unitários, inclusive cenários e funções de teste fechadas | 71 de 71 |
 | `npm run test:rules` | Regras do Firestore | 22 de 22 |
 | `npm run test:iap` | Ativação, notificações, Black Belt, suspensão | 77 de 77 |
 | `npm run test:iap-reconciliation` | Reconciliação diária | 5 de 5 |
@@ -167,6 +169,21 @@ Depois de trocar de cenário, **feche e reabra o app** e recarregue o web.
 
 Nos emuladores **não há compra**: o app mostra os preços de reserva.
 
+### 4.3 Textos do site (`http://localhost:4200`)
+
+| Verificação | Esperado | [ok] |
+|---|---|---|
+| Seção de preços | Três planos: Grátis, Sensei PRO e Black Belt | [ ] |
+| Mensal / trimestral / anual no PRO | R$ 69,99 / 149,90 / 499,90 | [ ] |
+| Mensal / trimestral / anual no Black Belt | R$ 99,99 / 229,90 / 749,90 | [ ] |
+| Preços do PRO nas lojas | Iguais aos do site | [ ] |
+| Limites do grátis | 5 alunos, 1 turma, 1 funcionário | [ ] |
+| Lista do grátis confere com o app | Anotar o que o site promete e o app não entrega | [ ] |
+| Perguntas frequentes | Teste de 30 dias com web; cancelamento pelas lojas | [ ] |
+| Termos e privacidade | Citam os dois planos; texto revisado | [ ] |
+| Cadastro | "30 dias grátis" | [ ] |
+| Celular | Preços em uma coluna, sem rolagem lateral | [ ] |
+
 ## 5. Testes nas lojas (fase 8)
 
 Só depois de publicar o servidor (fase 6) e cadastrar os produtos (fase 7). Usar **uma
@@ -198,7 +215,7 @@ e do [Google](https://developer.android.com/google/play/billing/test).
 | Verificação | Esperado | [ok] |
 |---|---|---|
 | Cadastro de academia nova no app (versão atual das lojas) e no web | Conclui sem erro | [ ] |
-| URL de `testarReconciliacaoAssinaturas` sem autenticação | Recusada (403) | [ ] |
+| URLs das três funções `testar*` sem autenticação | Recusadas (403) | [ ] |
 | "Restaurar compra" em uma conta PRO existente | Continua PRO | [ ] |
 | Academia no teste cadastrando o sexto aluno (app novo) | Permitido | [ ] |
 
@@ -223,10 +240,11 @@ e do [Google](https://developer.android.com/google/play/billing/test).
 - Se a leitura do plano falhar no web (rede, por exemplo), o acesso é liberado.
 - O web reavalia o plano a cada 60 segundos de navegação.
 - A tela de planos do app está só em português.
-- Apple em nova tentativa de cobrança sem carência mantém o acesso (comportamento anterior,
-  a confirmar na documentação da Apple).
-- `testarVencimentosContasAcademia` e `testarAlertasEngajamento` continuam públicas.
-- Landing, termos e textos de preço **ainda não** foram atualizados (fase 9).
+- Apple em nova tentativa de cobrança sem carência mantém o acesso. A pesquisa indica que
+  poderia ser retirado; aguarda decisão (ver o plano).
+- No grátis, o atalho de presença por QR Code do painel do Admin abre a tela de planos.
+- Os termos de uso foram reescritos nas cláusulas de plano e precisam de revisão.
+- Os preços do site são fixos no código: mudou na loja, é preciso mudar no site.
 
 ## 8. Anotações do reteste
 

@@ -69,9 +69,8 @@ Cada academia assina um dos dois.
    `plano_status`, `plano_origem` e `plano_renovacao_automatica` não estão protegidos na
    edição.
 5. **`testarReconciliacaoAssinaturas`** não exige autenticação no código.
-6. **Outros gatilhos manuais públicos** (fora do escopo, a decidir):
-   `testarVencimentosContasAcademia` e `testarAlertasEngajamento` não exigem
-   autenticação.
+6. **Outros gatilhos manuais públicos:** `testarVencimentosContasAcademia` e
+   `testarAlertasEngajamento` não exigiam autenticação. **Corrigido** no código.
 7. **Textos divergentes:** preços e limites da landing, e "14 dias" no cadastro web contra
    30 dias nos demais textos.
 
@@ -162,7 +161,36 @@ restaurar ao abrir, ou a pessoa usa "Restaurar compra".
 
 | Situação | Hoje no sistema | Segundo a loja |
 |---|---|---|
-| Apple em nova tentativa de cobrança sem período de carência | Mantém o acesso | A confirmar na documentação da Apple |
+| Apple: `DID_FAIL_TO_RENEW` **sem** o subtipo `GRACE_PERIOD`, ou nova tentativa de cobrança fora da carência | Mantém o acesso | O acesso pode ser retirado; com `GRACE_PERIOD`, deve ser mantido |
+
+Fonte da pesquisa de 26/11/2026: vídeo
+[Manage in-app purchases on your server](https://developer.apple.com/videos/play/wwdc2021/10174/)
+e relatos nos fóruns da Apple; a página de referência não apareceu na busca. Sugestão:
+seguir a loja, como no Google, **depois** de confirmar no App Store Connect se o período de
+carência está ligado. Desligado, a falha de cobrança chega sem o subtipo e o acesso cairia
+na hora. A reconciliação diária também trata a nova tentativa (`BILLING_RETRY`) como
+carência.
+
+## Textos do site
+
+Feitos no código, **ainda não publicados** (publicar junto com o lançamento).
+
+- Landing com três planos (Grátis, Sensei PRO e Black Belt) e preços mensal, trimestral e
+  anual; perguntas frequentes; dados de busca; termos; privacidade; "30 dias" no cadastro.
+- Limites do grátis corrigidos para 5 alunos, 1 turma e 1 funcionário.
+- A landing antiga dizia que o grátis não tinha app do aluno, mensalidades, relatórios
+  financeiros e contratos. Não encontrei essas travas no código; a lista agora cita as que
+  existem. Contratos e mensalidades deixaram de ser citados como pagos.
+
+A confirmar pelos sócios:
+
+- Preços do Sensei PRO mostrados no site (R$ 69,99 / 149,90 / 499,90, os valores de
+  reserva do app) conferem com as lojas.
+- Revisão dos termos, principalmente as cláusulas novas de teste, limites, troca de plano e
+  suspensão. A data de atualização foi posta como 26/11/2026: ajustar no lançamento.
+- No grátis, depois do teste, o atalho de presença por QR Code do painel do Admin abre a
+  tela de planos em vez da câmera (o Professor consegue). A landing lista QR Code no
+  grátis. Comportamento anterior, não alterado.
 
 ## App (fase 4)
 
@@ -239,10 +267,13 @@ Marque cada item quando o critério for atendido.
   assinar ou mudar de plano; correção do selo; chave para ligar o bloqueio sem nova
   publicação.
   *Pronto quando* cada perfil vir o acesso correto, com a chave ligada e desligada.
-- [ ] **Antes de publicar** (desenvolvimento que falta): landing, termos, perguntas
-  frequentes, dados de busca e dias de teste no cadastro web; conferir a compilação do app;
-  decidir sobre a nova tentativa de cobrança da Apple e as duas funções de teste públicas;
-  reteste conforme o [roteiro](black-belt-roteiro-de-testes.md).
+- [ ] **Antes de publicar**:
+  - [x] Landing, termos, perguntas frequentes, dados de busca e dias de teste no cadastro.
+  - [x] Proteger as duas funções de teste públicas.
+  - [x] Pesquisar a nova tentativa de cobrança da Apple.
+  - [ ] Decidir essa regra e confirmar os itens de "Textos do site" (sócios).
+  - [ ] Conferir a compilação do app.
+  - [ ] Reteste conforme o [roteiro](black-belt-roteiro-de-testes.md).
 - [ ] **Fase 6: Publicar o servidor** com o bloqueio do web desligado.
   *Pronto quando* os assinantes PRO seguirem normais.
 - [ ] **Fase 7: Cadastro nas lojas**, conforme o
@@ -271,6 +302,8 @@ Marque cada item quando o critério for atendido.
 | 26/11/2026 | Fase 3 em commit local `30d242fe` |
 | 26/11/2026 | Decisão e implementação: suspensão no Google retira o acesso |
 | 26/11/2026 | Suspensão e fase 4 em commits locais `ec1aecd9` e `2c6c2775` |
+| 26/11/2026 | Fase 5 e correção do aviso de suspensão em commits locais `886fbfd2` e `35ac5882` |
+| 26/11/2026 | Preparação para publicar: textos do site, duas funções de teste protegidas e pesquisa sobre a cobrança da Apple. Verificado: 71 de 71 unitários, build de produção e seção de preços em navegador (computador e celular). Não publicado |
 | 26/11/2026 | Decisão: publicar somente quando todo o desenvolvimento terminar. Os textos do site passam para antes da publicação |
 | 26/11/2026 | Correção no app: com a assinatura suspensa, o cartão do plano em Configurações abria a tela de planos e o aviso de suspensão não aparecia. Agora abre "Meu plano" |
 | 26/11/2026 | Fase 5: web (regra de acesso, tela de bloqueio, selo do plano, chave `web_bloqueio_ativo`), cenários `cortesia-web` e `suspenso`, comando de bloqueio e login de Professor na carga de teste. Verificado: regra 22 de 22; 22 verificações em navegador real nos emuladores; builds de emulador e de produção. Sem commit |
