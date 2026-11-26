@@ -10,7 +10,7 @@ import { RouterLink } from '@angular/router';
       <div class="legal-container">
         <a routerLink="/" class="back-link">← Voltar</a>
         <h1>Termos de Uso</h1>
-        <p class="updated">Última atualização: 17 de junho de 2026</p>
+        <p class="updated">Última atualização: 26 de novembro de 2026</p>
 
         <section>
           <h2>1. Aceitação dos termos</h2>
@@ -24,20 +24,20 @@ import { RouterLink } from '@angular/router';
 
         <section>
           <h2>3. Planos e assinaturas</h2>
-          <h3>3.1 Plano gratuito</h3>
-          <p>O plano gratuito possui limitações de alunos e funcionalidades, conforme especificado na plataforma.</p>
-          <h3>3.2 Sensei PRO</h3>
-          <p>O plano Sensei PRO é uma assinatura de renovação automática, disponível nos seguintes períodos:</p>
+          <h3>3.1 Período de teste</h3>
+          <p>Toda academia nova tem 30 dias de teste, a partir do cadastro, com todos os recursos liberados, inclusive o sistema web, sem necessidade de cartão. O prazo vigente é o informado no cadastro.</p>
+          <h3>3.2 Plano gratuito</h3>
+          <p>Após o teste, o plano gratuito é limitado a 5 alunos ativos, 1 turma ativa e 1 funcionário, exibe anúncios no aplicativo, não inclui recursos exclusivos dos planos pagos nem o acesso ao sistema web. Cadastros feitos além desses limites durante o teste são mantidos, mas não é possível incluir novos enquanto o limite estiver excedido.</p>
+          <h3>3.3 Planos pagos</h3>
+          <p>Os planos pagos são assinaturas de renovação automática, contratadas por academia, nos períodos mensal, trimestral (cobrado a cada 3 meses) e anual:</p>
           <ul>
-            <li><strong>Mensal</strong> — cobrado mensalmente</li>
-            <li><strong>Trimestral</strong> — cobrado a cada 3 meses</li>
-            <li><strong>Anual</strong> — cobrado anualmente</li>
+            <li><strong>Sensei PRO</strong> — recursos do aplicativo sem os limites do plano gratuito. Não inclui o sistema web.</li>
+            <li><strong>Sensei Black Belt</strong> — tudo do Sensei PRO e o acesso ao sistema web.</li>
           </ul>
-          <p>Os preços são exibidos na tela de assinatura dentro do aplicativo, na moeda local conforme determinado pela App Store (Apple) ou Google Play (Google).</p>
-          <h3>3.3 Cobrança e renovação</h3>
-          <p>A cobrança é realizada pela App Store ou Google Play. A assinatura é renovada automaticamente ao final de cada período, salvo cancelamento efetuado pelo usuário com pelo menos 24 horas de antecedência do fim do período vigente.</p>
-          <h3>3.4 Cancelamento</h3>
-          <p>O cancelamento pode ser feito a qualquer momento nas configurações da sua conta na App Store ou Google Play. Após o cancelamento, o acesso PRO permanece ativo até o final do período pago.</p>
+          <p>Cada academia mantém um plano pago por vez. Os preços são exibidos na tela de assinatura do aplicativo, na moeda local, conforme a App Store (Apple) ou o Google Play (Google).</p>
+          <h3>3.4 Cobrança, troca de plano e cancelamento</h3>
+          <p>A cobrança é realizada pela App Store ou pelo Google Play. A assinatura é renovada automaticamente ao final de cada período, salvo cancelamento feito com pelo menos 24 horas de antecedência do fim do período vigente. A troca de plano é feita pela loja em que a assinatura foi contratada: a passagem para um plano superior vale de imediato, e a passagem para um plano inferior ou a mudança de período valem a partir da renovação, conforme as regras da loja.</p>
+          <p>O cancelamento pode ser feito a qualquer momento nas assinaturas da sua conta na App Store ou no Google Play. Depois dele, o acesso pago permanece até o fim do período já pago. Se uma cobrança não for aprovada, o acesso pago pode ser suspenso até a regularização do pagamento.</p>
           <h3>3.5 Reembolsos</h3>
           <p>Políticas de reembolso seguem as diretrizes da Apple (App Store) e Google (Google Play), conforme aplicável.</p>
         </section>

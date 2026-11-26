@@ -50,7 +50,7 @@ export class CadastroComponent implements OnInit {
   readonly year = new Date().getFullYear();
 
   readonly beneficios = [
-    '14 dias grátis, sem cartão de crédito',
+    '30 dias grátis, sem cartão de crédito',
     'Gestão completa de alunos e turmas',
     'Controle de mensalidades e cobranças',
     'Ranking e progressão de belts',

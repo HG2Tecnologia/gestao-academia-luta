@@ -58,15 +58,15 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly faqItems = [
     {
       q: 'Como funciona o período grátis?',
-      a: '30 dias com acesso completo ao plano Black Belt — sem cartão de crédito. Ao final, você assina pelo app ou continua no Grátis (até 20 alunos, sem app de aluno).',
+      a: '30 dias com tudo liberado, inclusive o sistema web, sem cartão de crédito. Ao final, você assina pelo app o Sensei PRO (app) ou o Black Belt (app + web), ou continua no Grátis (até 5 alunos, 1 turma e 1 funcionário).',
     },
     {
       q: 'Posso migrar minha planilha de alunos?',
       a: 'Sim! Manda sua planilha e a gente importa tudo pra você sem custo, em até 4 horas.',
     },
     {
-      q: 'O app do aluno é incluso em todos os planos?',
-      a: 'O app do aluno é incluso no plano Black Belt. No Grátis, só o gestor e os professores têm acesso ao app — sem anúncios, sem limitações no sistema web.',
+      q: 'Qual a diferença entre o Sensei PRO e o Black Belt?',
+      a: 'Os dois liberam o aplicativo sem limites. O Black Belt inclui também o sistema web, para gerir a academia pelo computador.',
     },
     {
       q: 'Funciona para qual modalidade?',
@@ -78,30 +78,48 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       q: 'Posso cancelar quando quiser?',
-      a: 'Sim. Cancele a qualquer momento direto no app, sem burocracia e sem taxa de cancelamento.',
+      a: 'Sim. Cancele a qualquer momento nas assinaturas da App Store ou do Google Play, sem taxa de cancelamento. O acesso vale até o fim do período já pago.',
     },
   ];
 
-  readonly blackBeltMensalEquiv = computed(() => {
-    switch (this.billingPeriod()) {
-      case 'trimestral': return '83,30';
-      case 'anual': return '66,66';
-      default: return '99,99';
-    }
-  });
-  readonly blackBeltTotalNote = computed(() => {
-    switch (this.billingPeriod()) {
-      case 'trimestral': return 'Cobrado R$ 249,90 trimestral · economia de 17%';
-      case 'anual': return 'Cobrado R$ 799,90 anual · economia de 33%';
-      default: return 'Assine pelo app · Cancele quando quiser';
-    }
-  });
-  readonly blackBeltSavings = computed(() => {
-    switch (this.billingPeriod()) {
-      case 'trimestral': return 'Economize R$ 50/trimestre vs mensal';
-      case 'anual': return 'Economize R$ 400/ano vs mensal';
-      default: return null;
-    }
+  /** Preços das lojas. Mudou lá, mude aqui, no SEO e em plan_catalog.dart. */
+  private readonly precos = {
+    mensal: {
+      pro: { porMes: '69,99', nota: 'Cobrado todo mês', economia: '' },
+      black: { porMes: '99,99', nota: 'Cobrado todo mês', economia: '' },
+    },
+    trimestral: {
+      pro: { porMes: '49,97', nota: 'Cobrado R$ 149,90 a cada 3 meses', economia: '29%' },
+      black: { porMes: '76,63', nota: 'Cobrado R$ 229,90 a cada 3 meses', economia: '23%' },
+    },
+    anual: {
+      pro: { porMes: '41,66', nota: 'Cobrado R$ 499,90 por ano', economia: '40%' },
+      black: { porMes: '62,49', nota: 'Cobrado R$ 749,90 por ano', economia: '38%' },
+    },
+  };
+
+  readonly planosPagos = computed(() => {
+    const preco = this.precos[this.billingPeriod()];
+    return [
+      {
+        chave: 'pro',
+        nome: 'Sensei PRO',
+        selo: 'Só app',
+        descricao: 'O aplicativo completo, sem limites e sem anúncios.',
+        destaque: false,
+        recursos: this.recursosPro,
+        ...preco.pro,
+      },
+      {
+        chave: 'black',
+        nome: 'Black Belt',
+        selo: 'App + web',
+        descricao: 'Tudo do PRO e o sistema web para gerir pelo computador.',
+        destaque: true,
+        recursos: ['Tudo do Sensei PRO', 'Sistema web no computador', 'Os mesmos dados no app e no web'],
+        ...preco.black,
+      },
+    ];
   });
 
   readonly problemas = [
@@ -191,19 +209,15 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
   readonly disciplinasMarquee = [...this.disciplinas, ...this.disciplinas];
 
-  readonly blackBeltFeatures = [
-    'Alunos ilimitados',
-    'Turmas ilimitadas',
-    'App do aluno (iOS e Android)',
-    'Mensalidades geradas automaticamente',
-    'Ranking gamificado por faixa',
-    'Dashboard financeiro completo',
-    'Contratos digitais com assinatura',
-    'Relatório financeiro e de presença',
-    'Grade de horários completa',
-    'Gestão de faixas e graduações',
-    'Controle de inadimplência em tempo real',
-    'Suporte humano em português, 7 dias',
+  private readonly recursosPro = [
+    'Alunos, turmas e equipe sem limite',
+    'App sem anúncios',
+    'Relatório oficial de presenças',
+    'Exportação financeira em PDF e Excel',
+    'Alertas de evasão e de próximos da graduação',
+    'Rankings personalizados sem limite',
+    'Notícias da academia',
+    'Regras de check-in e cobrança por modalidade',
   ];
 
   ngOnInit(): void {

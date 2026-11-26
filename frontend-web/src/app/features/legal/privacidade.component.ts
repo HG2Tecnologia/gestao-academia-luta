@@ -11,7 +11,7 @@ import { ConsentService } from '../../core/services/consent.service';
       <div class="legal-container">
         <a routerLink="/" class="back-link">← Voltar</a>
         <h1>Política de Privacidade</h1>
-        <p class="updated">Última atualização: 13 de outubro de 2026</p>
+        <p class="updated">Última atualização: 26 de novembro de 2026</p>
 
         <section>
           <h2>1. Quem somos</h2>
@@ -67,7 +67,7 @@ import { ConsentService } from '../../core/services/consent.service';
 
         <section>
           <h2>5. Assinaturas — App Store e Google Play</h2>
-          <p>As assinaturas do plano Sensei PRO são processadas diretamente pela Apple (App Store) ou Google (Google Play). Não temos acesso a dados de pagamento (cartão de crédito ou método de pagamento). As políticas de cobrança e reembolso seguem as diretrizes de cada loja.</p>
+          <p>As assinaturas dos planos Sensei PRO e Sensei Black Belt são processadas diretamente pela Apple (App Store) ou Google (Google Play). Não temos acesso a dados de pagamento (cartão de crédito ou método de pagamento). As políticas de cobrança e reembolso seguem as diretrizes de cada loja.</p>
         </section>
 
         <section>

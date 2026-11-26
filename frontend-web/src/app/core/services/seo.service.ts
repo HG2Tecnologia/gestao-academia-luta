@@ -66,7 +66,7 @@ export class SeoService {
 
   /**
    * Só na home, só com dados verificáveis (nome, URL, links reais das lojas
-   * de app, preços reais confirmados — R$70 só app / R$99,99 app+CRM).
+   * de app, preços mensais das lojas.
    * Sem nota, sem depoimento, sem contagem de clientes — nada que não dê
    * pra comprovar (ver auditoria de SEO: números de prova social na tela
    * de login são um problema separado, ainda pendente de decisão, não
@@ -96,8 +96,9 @@ export class SeoService {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'iOS, Android, Web',
           offers: [
-            { '@type': 'Offer', name: 'App', price: '70.00', priceCurrency: 'BRL' },
-            { '@type': 'Offer', name: 'App + CRM Web', price: '99.99', priceCurrency: 'BRL' },
+            { '@type': 'Offer', name: 'Grátis', price: '0', priceCurrency: 'BRL' },
+            { '@type': 'Offer', name: 'Sensei PRO (app)', price: '69.99', priceCurrency: 'BRL' },
+            { '@type': 'Offer', name: 'Sensei Black Belt (app + web)', price: '99.99', priceCurrency: 'BRL' },
           ],
         },
       ],
