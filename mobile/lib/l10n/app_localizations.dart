@@ -7340,6 +7340,30 @@ abstract class AppLocalizations {
   /// **'Excluir minha conta'**
   String get cfgDeleteAccountBtn;
 
+  /// No description provided for @cfgDeleteAdminTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir conta e academia?'**
+  String get cfgDeleteAdminTitle;
+
+  /// No description provided for @cfgDeleteAdminBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se você for o único administrador, a academia “{nome}” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:'**
+  String cfgDeleteAdminBody(String nome);
+
+  /// No description provided for @cfgDeleteAdminNameHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome da academia'**
+  String get cfgDeleteAdminNameHint;
+
+  /// No description provided for @cfgDeleteAdminNameMismatch.
+  ///
+  /// In pt, this message translates to:
+  /// **'O nome digitado não confere com o nome da academia.'**
+  String get cfgDeleteAdminNameMismatch;
+
   /// No description provided for @cfgPlanActive.
   ///
   /// In pt, this message translates to:

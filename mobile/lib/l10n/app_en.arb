@@ -1539,6 +1539,13 @@
   "cfgDeleteAccountBody": "Your personal data will be permanently removed. This action cannot be undone.",
   "cfgDeleteAccountError": "Error deleting account. Try again.",
   "cfgDeleteAccountBtn": "Delete my account",
+  "cfgDeleteAdminTitle": "Delete account and gym?",
+  "cfgDeleteAdminBody": "If you are the only administrator, the gym “{nome}” will be deleted entirely: students, classes, finances, history and everyone's access. If there is another administrator, only your account is removed and the gym stays.\n\nThis does not cancel App Store or Google Play subscriptions — cancel them in the store.\n\nThis cannot be undone. To confirm, type the gym name:",
+  "@cfgDeleteAdminBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "cfgDeleteAdminNameHint": "Gym name",
+  "cfgDeleteAdminNameMismatch": "The name you typed doesn't match the gym name.",
   "cfgPlanActive": "Active Plan",
   "cfgPlanTrial": "Trial",
   "cfgPlanFree": "Free",

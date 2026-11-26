@@ -2092,6 +2092,13 @@
   "cfgDeleteAccountBody": "Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.",
   "cfgDeleteAccountError": "Erro ao excluir conta. Tente novamente.",
   "cfgDeleteAccountBtn": "Excluir minha conta",
+  "cfgDeleteAdminTitle": "Excluir conta e academia?",
+  "cfgDeleteAdminBody": "Se você for o único administrador, a academia “{nome}” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:",
+  "@cfgDeleteAdminBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "cfgDeleteAdminNameHint": "Nome da academia",
+  "cfgDeleteAdminNameMismatch": "O nome digitado não confere com o nome da academia.",
   "cfgPlanActive": "Plano Ativo",
   "cfgPlanTrial": "Trial",
   "cfgPlanFree": "Gratuito",

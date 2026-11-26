@@ -12,6 +12,9 @@ exports.discoverAccessProfiles = accountFunctions.discoverAccessProfiles;
 exports.activateAccessAccount = accountFunctions.activateAccessAccount;
 exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
 
+const accountDeletionFunctions = require("./account-deletion-functions");
+exports.excluirMinhaConta = accountDeletionFunctions.excluirMinhaConta;
+
 const adminFunctions = require("./admin-functions");
 exports.adminResetPassword = adminFunctions.adminResetPassword;
 exports.checkContatoCompartilhado = adminFunctions.checkContatoCompartilhado;

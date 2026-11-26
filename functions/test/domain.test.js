@@ -9,6 +9,7 @@ const {
   authEmailMatchesIdentifier,
   buildAccountDocument,
   profileRole,
+  removeAcademyProfiles,
   removeProfileRef,
   syntheticAuthEmails,
 } = require("../domain/account");
@@ -197,6 +198,31 @@ test("exclusão de aluno: irmão com telefone compartilhado não é afetado", ()
   // Excluindo o único perfil restante, a conta inteira deve sumir.
   const contaVazia = removeProfileRef(resultado.data, "academia-x|usuarios|aluno-2");
   assert.equal(contaVazia.deleted, true);
+});
+
+test("exclusão de academia: remove todos os perfis dela e preserva os de outras academias", () => {
+  const account = buildAccountDocument({
+    uid: "conta-multi",
+    primaryProfileKey: "academia-x|usuarios|admin-x",
+    profiles: [
+      { academiaId: "academia-x", usuarioId: "admin-x", colecao: "usuarios", perfil_nome: "Admin", nome: "Dono" },
+      { academiaId: "academia-x", usuarioId: "aluno-x", colecao: "usuarios", perfil_nome: "Aluno", nome: "Dono" },
+      { academiaId: "academia-y", usuarioId: "aluno-y", colecao: "usuarios", perfil_nome: "Aluno", nome: "Dono" },
+    ],
+  });
+
+  const resultado = removeAcademyProfiles(account, "academia-x");
+  assert.equal(resultado.deleted, false);
+  assert.deepEqual(resultado.data.academy_ids, ["academia-y"]);
+  assert.deepEqual(resultado.data.profile_keys, ["academia-y|usuarios|aluno-y"]);
+  assert.deepEqual(resultado.data.roles_by_academy, { "academia-y": ["Aluno"] });
+  assert.equal(resultado.data.primary_profile_key, "academia-y|usuarios|aluno-y");
+  assert.equal(resultado.data.academiaId, "academia-y");
+
+  // Conta só com perfis da academia excluída deve sumir inteira.
+  assert.equal(removeAcademyProfiles(resultado.data, "academia-y").deleted, true);
+  // Conta legada (v1) sem profile_refs também.
+  assert.equal(removeAcademyProfiles({ academiaId: "academia-x" }, "academia-x").deleted, true);
 });
 
 test("identidade: reconhece papéis legados sem transformar aluno em admin", () => {
