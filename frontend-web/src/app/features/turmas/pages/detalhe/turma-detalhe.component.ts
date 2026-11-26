@@ -11,6 +11,9 @@ import { HorarioResumoDto } from '../../../../core/models/turma.model';
 
 type Aba = 'alunos' | 'horarios' | 'presencas';
 
+import { ehProfessor } from '../../../../core/models/stored-user.model';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+
 @Component({
   selector: 'app-turma-detalhe',
   standalone: true,
@@ -18,6 +21,8 @@ type Aba = 'alunos' | 'horarios' | 'presencas';
   templateUrl: './turma-detalhe.component.html',
 })
 export class TurmaDetalheComponent implements OnInit {
+  /** Professor segue as mesmas restrições do app mobile. */
+  readonly perfilProfessor = ehProfessor(inject(FirebaseAuthService).currentUser());
   private readonly turmaService = inject(TurmaService);
   private readonly alunoService = inject(AlunoService);
   private readonly horarioService = inject(HorarioService);

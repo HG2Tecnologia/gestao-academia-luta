@@ -6,13 +6,23 @@ import { DialogService } from '../../../core/services/dialog.service';
   standalone: true,
   template: `
     @if (dialogService.state(); as s) {
-      <div class="dialog-backdrop" (click)="dialogService.resolveWith(false)"></div>
+      <!-- Com senha na tela, clicar fora não fecha: ela sumiria sem querer. -->
+      <div class="dialog-backdrop" (click)="s.copiavel || dialogService.resolveWith(false)"></div>
       <div class="dialog-box" role="alertdialog" aria-modal="true">
         @if (s.titulo) { <h3 class="dialog-title">{{ s.titulo }}</h3> }
         <p class="dialog-message">{{ s.mensagem }}</p>
+        @if (s.copiavel) {
+          <div class="dialog-copia">
+            <code>{{ s.copiavel }}</code>
+            <button type="button" class="btn-secondary" (click)="copiar(s.textoParaCopiar ?? s.copiavel, $event)">Copiar</button>
+          </div>
+        }
         <div class="dialog-actions">
           @if (s.textoCancelar) {
             <button class="btn-secondary" (click)="dialogService.resolveWith(false)">{{ s.textoCancelar }}</button>
+          }
+          @if (s.textoAlternativo) {
+            <button class="btn-secondary" (click)="dialogService.resolveWith('alternativa')">{{ s.textoAlternativo }}</button>
           }
           <button [class]="s.perigoso ? 'btn-danger' : 'btn-primary'" (click)="dialogService.resolveWith(true)">
             {{ s.textoConfirmar }}
@@ -34,9 +44,16 @@ import { DialogService } from '../../../core/services/dialog.service';
     }
     .dialog-title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--app-text-1); }
     .dialog-message { margin: 0; font-size: 0.9rem; color: var(--app-text-2); line-height: 1.5; white-space: pre-line; }
-    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+    .dialog-copia { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px dashed var(--app-border); border-radius: 8px; }
+    .dialog-copia code { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.08em; color: var(--app-text-1); }
   `],
 })
 export class DialogComponent {
   readonly dialogService = inject(DialogService);
+
+  copiar(texto: string, evento: Event): void {
+    const botao = evento.target as HTMLButtonElement;
+    navigator.clipboard.writeText(texto).then(() => (botao.textContent = 'Copiado'));
+  }
 }

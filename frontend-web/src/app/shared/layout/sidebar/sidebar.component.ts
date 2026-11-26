@@ -8,6 +8,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../core/firebase/firebase';
 import { FirebaseAuthService } from '../../../core/services/firebase-auth.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { temPermissao } from '../../../core/models/stored-user.model';
 
 interface NavItem {
   label: string;
@@ -52,17 +53,17 @@ export class SidebarComponent implements OnInit, OnDestroy {
     { label: 'Presenças',    rota: '/app/presencas',    icone: 'check-circle',   linkOptions: this.subsetMatch, permissao: 'acao_dar_presenca' },
     { label: 'Graduação',    rota: '/app/graduacao',    icone: 'academic-cap',   linkOptions: this.subsetMatch, permissao: 'acao_graduar' },
     { label: 'Ranking',      rota: '/app/ranking',      icone: 'trophy',         linkOptions: this.subsetMatch, permissao: 'tela_rankings' },
-    { label: 'Planos',       rota: '/app/planos',       icone: 'planos',         linkOptions: this.subsetMatch, roles: ['Admin'] },
+    { label: 'Planos',       rota: '/app/planos',       icone: 'planos',         linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
     { label: 'Financeiro',   rota: '/app/financeiro',   icone: 'currency',       linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
-    { label: 'Contratos',    rota: '/app/contratos',    icone: 'document-text',  linkOptions: this.subsetMatch, roles: ['Admin'] },
-    { label: 'Relatórios',   rota: '/app/relatorios',   icone: 'chart-bar',      linkOptions: this.subsetMatch, permissao: 'tela_relatorio_presencas' },
+    { label: 'Contratos',    rota: '/app/contratos',    icone: 'document-text',  linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
+    { label: 'Relatórios',   rota: '/app/relatorios',   icone: 'chart-bar',      linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
   ];
 
   readonly navItemsConfig: NavItem[] = [
     { label: 'Catraca',           rota: '/app/catraca',           icone: 'lock-open',        linkOptions: this.subsetMatch, roles: ['Admin'] },
-    { label: 'Modalidades',       rota: '/app/modalidades',       icone: 'shield-check',     linkOptions: this.subsetMatch, roles: ['Admin'] },
-    { label: 'Funcionários',      rota: '/app/funcionarios',      icone: 'identification',   linkOptions: this.subsetMatch, roles: ['Admin'] },
-    { label: 'Configurações',     rota: '/app/configuracoes',     icone: 'cog',              linkOptions: this.subsetMatch, roles: ['Admin'] },
+    { label: 'Modalidades',       rota: '/app/modalidades',       icone: 'shield-check',     linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
+    { label: 'Funcionários',      rota: '/app/funcionarios',      icone: 'identification',   linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
+    { label: 'Configurações',     rota: '/app/configuracoes',     icone: 'cog',              linkOptions: this.subsetMatch, roles: ['Admin', 'Secretaria'] },
   ];
 
   ngOnInit(): void {
@@ -87,9 +88,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
     const user = this.authService.currentUser();
     const perfil = user?.perfil ?? '';
     if (item.roles && !item.roles.includes(perfil)) return false;
-    if (perfil === 'Admin') return true;
     if (!item.permissao) return true;
-    return user?.permissoes?.[item.permissao] === true;
+    return temPermissao(user, item.permissao);
   }
 
   get navItemsVisiveis(): NavItem[] {

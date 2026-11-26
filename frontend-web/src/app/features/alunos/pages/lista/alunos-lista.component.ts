@@ -7,6 +7,9 @@ import { takeUntil } from 'rxjs/operators';
 import { AlunoService } from '../../../../core/services/aluno.service';
 import { AlunoListaDto } from '../../../../core/models/aluno.model';
 
+import { ehProfessor } from '../../../../core/models/stored-user.model';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+
 @Component({
   selector: 'app-alunos-lista',
   standalone: true,
@@ -14,6 +17,8 @@ import { AlunoListaDto } from '../../../../core/models/aluno.model';
   templateUrl: './alunos-lista.component.html',
 })
 export class AlunosListaComponent implements OnInit, OnDestroy {
+  /** Professor segue as mesmas restrições do app mobile. */
+  readonly perfilProfessor = ehProfessor(inject(FirebaseAuthService).currentUser());
   private readonly alunoService = inject(AlunoService);
   private readonly router = inject(Router);
 
@@ -69,6 +74,7 @@ export class AlunosListaComponent implements OnInit, OnDestroy {
 
   carregar(): void {
     this.carregando.set(true);
+    this.erro.set('');
     this.alunoService.getAll({
       nome: this.filtroNome() || undefined,
       ativo: this.filtroAtivo(),

@@ -129,11 +129,46 @@ export class FirebaseAuthService {
     return /[a-zA-Z@]/.test(identificador);
   }
 
+  private async emailsAlternativos(email: string): Promise<string[]> {
+    try {
+      const descobrir = httpsCallable(functions, 'discoverAccessProfiles');
+      const { data } = await descobrir({ identifier: email });
+      const perfis = (data as { profiles?: { authEmails?: string[] }[] }).profiles ?? [];
+      return [...new Set(perfis.flatMap((p) => p.authEmails ?? []))].filter((e) => e && e.toLowerCase() !== email);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Primeiro acesso com senha temporária: grava a definitiva e libera a navegação. */
+  async concluirTrocaDeSenha(novaSenha: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Sessão expirada.');
+    await updatePassword(user, novaSenha);
+    await httpsCallable(functions, 'completeMandatoryPasswordChange')();
+    this.atualizarPerfilLocal({ mustChangePassword: false });
+  }
+
   /** Autentica no Firebase — tenta e-mail direto, ou cada candidato sintético de telefone. */
   private async autenticar(identificador: string, senha: string) {
     const valor = identificador.trim();
     if (this.pareceEmail(valor)) {
-      return signInWithEmailAndPassword(auth, valor.toLowerCase(), senha);
+      const email = valor.toLowerCase();
+      try {
+        return await signInWithEmailAndPassword(auth, email, senha);
+      } catch (erro: any) {
+        if (!RETRY_CODES.has(erro?.code)) throw erro;
+        // O e-mail pode ser só o contato de um cadastro cuja conta usa o
+        // e-mail sintético do telefone — mesmo caminho do app.
+        for (const alternativo of await this.emailsAlternativos(email)) {
+          try {
+            return await signInWithEmailAndPassword(auth, alternativo, senha);
+          } catch (erroAlt: any) {
+            if (!RETRY_CODES.has(erroAlt?.code)) throw erroAlt;
+          }
+        }
+        throw erro;
+      }
     }
     const candidatos = this.candidatosEmailSintetico(valor);
     let ultimoErro: unknown;

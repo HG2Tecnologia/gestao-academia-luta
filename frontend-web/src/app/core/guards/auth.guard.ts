@@ -12,8 +12,21 @@ export const authGuard: CanActivateFn = async (_route, _state) => {
   await authService.authReady;
 
   if (authService.isAuthenticated()) {
-    return true;
+    // Senha temporária: nada do sistema abre antes da troca (igual ao app).
+    return authService.currentUser()?.mustChangePassword
+      ? router.createUrlTree(['/troca-senha-obrigatoria'])
+      : true;
   }
 
   return router.createUrlTree(['/login']);
+};
+
+export const trocaSenhaGuard: CanActivateFn = async () => {
+  const authService = inject(FirebaseAuthService);
+  const router = inject(Router);
+
+  await authService.authReady;
+
+  if (!authService.isAuthenticated()) return router.createUrlTree(['/login']);
+  return authService.currentUser()?.mustChangePassword ? true : router.createUrlTree(['/app/dashboard']);
 };

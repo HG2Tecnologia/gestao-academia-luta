@@ -14,7 +14,9 @@
           <span [class]="turma()!.ativo ? 'badge-ativo' : 'badge-inativo'">{{ turma()!.ativo ? 'Ativa' : 'Inativa' }}</span>
         </div>
       </div>
-      <a [routerLink]="['/app/turmas', turma()!.id, 'editar']" class="btn-secondary">Editar</a>
+      @if (!perfilProfessor) {
+        <a [routerLink]="['/app/turmas', turma()!.id, 'editar']" class="btn-secondary">Editar</a>
+      }
     </div>
 
     <div class="stats-row">
@@ -32,33 +34,35 @@
     <!-- ABA: ALUNOS -->
     @if (abaAtiva() === 'alunos') {
       <div class="tab-content">
-        <div class="matricular-row">
-          <div style="position:relative; max-width:340px; flex:1">
-            <input
-              [ngModel]="filtroAluno()"
-              (ngModelChange)="onFiltroChange($event)"
-              (focus)="abrirDropdown()"
-              (blur)="fecharDropdown()"
-              placeholder="Selecionar aluno..."
-              class="form-input"
-              autocomplete="off" />
-            @if (dropdownAberto()) {
-              <ul class="aluno-dropdown">
-                @if (alunosFiltrados().length === 0) {
-                  <li class="aluno-dropdown-vazio">Nenhum aluno disponível</li>
-                }
-                @for (a of alunosFiltrados(); track a.id) {
-                  <li class="aluno-dropdown-item" (mousedown)="selecionarAluno(a)">
-                    {{ a.nome }}
-                  </li>
-                }
-              </ul>
-            }
+        @if (!perfilProfessor) {
+          <div class="matricular-row">
+            <div style="position:relative; max-width:340px; flex:1">
+              <input
+                [ngModel]="filtroAluno()"
+                (ngModelChange)="onFiltroChange($event)"
+                (focus)="abrirDropdown()"
+                (blur)="fecharDropdown()"
+                placeholder="Selecionar aluno..."
+                class="form-input"
+                autocomplete="off" />
+              @if (dropdownAberto()) {
+                <ul class="aluno-dropdown">
+                  @if (alunosFiltrados().length === 0) {
+                    <li class="aluno-dropdown-vazio">Nenhum aluno disponível</li>
+                  }
+                  @for (a of alunosFiltrados(); track a.id) {
+                    <li class="aluno-dropdown-item" (mousedown)="selecionarAluno(a)">
+                      {{ a.nome }}
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            <button class="btn-primary" [disabled]="operando() || !alunoSelecionado()" (click)="matricular()">
+              {{ operando() ? 'Matriculando...' : '+ Matricular' }}
+            </button>
           </div>
-          <button class="btn-primary" [disabled]="operando() || !alunoSelecionado()" (click)="matricular()">
-            {{ operando() ? 'Matriculando...' : '+ Matricular' }}
-          </button>
-        </div>
+        }
 
         @if (erroMatricula()) {
           <div class="alert-error" style="margin-bottom:12px;">{{ erroMatricula() }}</div>
@@ -69,14 +73,16 @@
         } @else {
           <div class="table-wrapper">
             <table class="data-table">
-              <thead><tr><th>Nome</th><th>Email</th><th>Desde</th><th></th></tr></thead>
+              <thead><tr><th>Nome</th><th>Email</th><th>Desde</th>@if (!perfilProfessor) {<th></th>}</tr></thead>
               <tbody>
                 @for (aluno of turma()!.alunos; track aluno.id) {
                   <tr>
                     <td class="font-medium">{{ aluno.nomeAluno }}</td>
                     <td>{{ aluno.emailAluno }}</td>
                     <td>{{ aluno.dataInicio | date:'dd/MM/yyyy' }}</td>
-                    <td><button class="action-link danger" (click)="abrirModalRemover(aluno)">Remover</button></td>
+                    @if (!perfilProfessor) {
+                      <td><button class="action-link danger" (click)="abrirModalRemover(aluno)">Remover</button></td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -109,9 +115,11 @@
                     </span>
                   }
                 </div>
-                <button class="horario-remover-btn" (click)="abrirModalRemoverHorario(h)" title="Remover horário">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                </button>
+                @if (!perfilProfessor) {
+                  <button class="horario-remover-btn" (click)="abrirModalRemoverHorario(h)" title="Remover horário">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  </button>
+                }
               </div>
             }
           </div>

@@ -334,7 +334,8 @@ test("regressão: se a proteção dos campos de plano sumir da regra, a escrita 
   // provar que, sem ela, qualquer Admin volta a conseguir se auto-conceder
   // o plano Pro.
   const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
-  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  // Normaliza CRLF (checkout no Windows), senão os trechos substituídos abaixo não casam.
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8").replace(/\r\n/g, "\n");
   const rulesRegredidas = rulesOriginais.replace(
     "allow update: if isAdminOuSecretaria(academiaId) &&\n        !request.resource.data.diff(resource.data).affectedKeys()\n          .hasAny(camposPlanoProtegidos());",
     "allow update: if isAdminOuSecretaria(academiaId);",
@@ -384,7 +385,8 @@ test("regressão: se a exclusão de _atribuicao sumir do match genérico, o aces
   // escrito no topo do bloco `_atribuicao` do arquivo real: um rollback
   // que restaure só metade da proteção reabre o acesso.
   const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
-  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  // Normaliza CRLF (checkout no Windows), senão os trechos substituídos abaixo não casam.
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8").replace(/\r\n/g, "\n");
   const rulesRegredidas = rulesOriginais
     .replace("colecao != '_atribuicao' && pertenceAcademia(academiaId)", "pertenceAcademia(academiaId)")
     .replace("colecao in ['usuarios', 'funcionarios', '_atribuicao']", "colecao in ['usuarios', 'funcionarios']");

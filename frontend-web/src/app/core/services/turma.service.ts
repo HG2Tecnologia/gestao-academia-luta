@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -23,6 +24,7 @@ import {
   MatriculaDto,
   HorarioResumoDto,
 } from '../models/turma.model';
+import { veSomenteTurmasProprias } from '../models/stored-user.model';
 
 function ok<T>(dados: T): BaseResponse<T> {
   return { sucesso: true, dados, erros: [] };
@@ -74,10 +76,12 @@ export class TurmaService {
         professorNome: t['professorNome'] ?? professorNomePorId.get(professorId) ?? '',
         nivel: t['nivel'] ?? undefined,
         capacidadeMaxima: t['capacidadeMaxima'] ?? 0,
+        planoPadraoId: t['planoPadraoId'] ?? undefined,
         ativo: t['ativo'] === true,
       });
     });
-    return turmas;
+    const user = this.authService.currentUser();
+    return veSomenteTurmasProprias(user) ? turmas.filter((t) => t.professorId === user!.id) : turmas;
   }
 
   getAll(filtros?: { modalidadeId?: string; ativo?: boolean }): Observable<BaseResponse<TurmaDto[]>> {
@@ -105,6 +109,9 @@ export class TurmaService {
       this.carregarTodas(),
     ]);
     const base = todas.find((t) => t.id === id);
+    if (!base && veSomenteTurmasProprias(this.authService.currentUser())) {
+      throw new Error('Turma de outro professor.');
+    }
     const t = snap.data() ?? {};
 
     const horarios: HorarioResumoDto[] = horariosSnap.docs.map((d) => {
@@ -114,8 +121,8 @@ export class TurmaService {
         id: d.id,
         diaSemana: dia,
         diaSemanaLabel: DIAS_SEMANA[dia] ?? '',
-        horaInicio: h['hora_inicio'] ?? '',
-        horaFim: h['hora_fim'] ?? '',
+        horaInicio: String(h['hora_inicio'] ?? '').slice(0, 5),
+        horaFim: String(h['hora_fim'] ?? '').slice(0, 5),
         sala: h['sala'] ?? undefined,
       };
     });
@@ -148,6 +155,7 @@ export class TurmaService {
       modalidadeNome: base?.modalidadeNome ?? '',
       professorId: base?.professorId ?? '',
       professorNome: base?.professorNome ?? '',
+      planoPadraoId: base?.planoPadraoId,
       nivel: base?.nivel,
       capacidadeMaxima: base?.capacidadeMaxima ?? 0,
       ativo: base?.ativo ?? false,
@@ -171,6 +179,7 @@ export class TurmaService {
       professorId: data.professorId || null,
       nivel: data.nivel ?? null,
       capacidadeMaxima: data.capacidadeMaxima,
+      planoPadraoId: data.planoPadraoId || null,
       ativo: true,
       criado_em: serverTimestamp(),
     };
@@ -200,6 +209,7 @@ export class TurmaService {
       nivel: data.nivel ?? null,
       capacidadeMaxima: data.capacidadeMaxima,
       ativo: data.ativo,
+      planoPadraoId: data.planoPadraoId || null,
       atualizado_em: serverTimestamp(),
     };
     return from(updateDoc(doc(db, 'academias', academiaId, 'turmas', id), payload)).pipe(
@@ -236,7 +246,12 @@ export class TurmaService {
       ativo: true,
       origem: 'crm_web',
     };
-    return from(addDoc(collection(db, 'academias', academiaId, 'matriculas'), payload)).pipe(
+    const matricularEVincular = async () => {
+      const ref = await addDoc(collection(db, 'academias', academiaId, 'matriculas'), payload);
+      await this.vincularPlanoPadrao(academiaId, alunoId, turmaId);
+      return ref;
+    };
+    return from(matricularEVincular()).pipe(
       map((ref) =>
         ok<MatriculaDto>({
           id: ref.id,
@@ -250,6 +265,48 @@ export class TurmaService {
         }),
       ),
     );
+  }
+
+  /**
+   * Espelho de `vincularPlanoPadraoDaTurma` no app: aluno sem plano herda o
+   * plano padrão da turma. A matrícula já foi criada — falha aqui não a desfaz.
+   */
+  private async vincularPlanoPadrao(academiaId: string, alunoId: string, turmaId: string): Promise<void> {
+    try {
+      const turma = (await getDoc(doc(db, 'academias', academiaId, 'turmas', turmaId))).data();
+      const planoId = String(turma?.['planoPadraoId'] ?? '');
+      if (!planoId) return;
+      const modalidadeId = String(turma?.['modalidadeId'] ?? '');
+      const academia = (await getDoc(doc(db, 'academias', academiaId))).data();
+
+      if (academia?.['cobranca_por_modalidade_ativa'] === true) {
+        if (!modalidadeId) return;
+        const vinculos = collection(db, 'academias', academiaId, 'planos_modalidade');
+        const existentes = await getDocs(query(
+          vinculos,
+          where('aluno_id', '==', alunoId),
+          where('modalidade_id', '==', modalidadeId),
+          where('ativo', '==', true),
+        ));
+        if (!existentes.empty) return;
+        const novo = doc(vinculos);
+        await setDoc(novo, {
+          id: novo.id,
+          aluno_id: alunoId,
+          modalidade_id: modalidadeId,
+          plano_id: planoId,
+          dia_vencimento: Math.min(28, new Date().getDate()),
+          ativo: true,
+          criado_em: serverTimestamp(),
+        });
+      } else {
+        const alunoRef = doc(db, 'academias', academiaId, 'usuarios', alunoId);
+        if ((await getDoc(alunoRef)).data()?.['plano_id']) return;
+        await updateDoc(alunoRef, { plano_id: planoId, atualizado_em: serverTimestamp() });
+      }
+    } catch (erro) {
+      console.warn('[TurmaService] plano padrão não vinculado:', erro);
+    }
   }
 
   /**

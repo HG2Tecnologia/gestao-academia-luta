@@ -33,6 +33,8 @@ import { FirebaseAuthService } from '../../../../core/services/firebase-auth.ser
 
 type Aba = 'info' | 'presencas' | 'financeiro' | 'ranking' | 'contratos' | 'atestado' | 'parq';
 
+import { ehProfessor, temPermissao } from '../../../../core/models/stored-user.model';
+
 @Component({
   selector: 'app-aluno-detalhe',
   standalone: true,
@@ -56,6 +58,12 @@ export class AlunoDetalheComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  /** Mesmas regras do modo professor em `aluno_detalhe_screen.dart`. */
+  readonly perfilProfessor = ehProfessor(this.authService.currentUser());
+  readonly podeGraduar = !this.perfilProfessor || temPermissao(this.authService.currentUser(), 'acao_graduar');
+  readonly podeVerSaude = !this.perfilProfessor || temPermissao(this.authService.currentUser(), 'acesso_saude_aluno');
+  readonly podeVerGrupoFamiliar = !this.perfilProfessor || temPermissao(this.authService.currentUser(), 'acesso_grupo_familiar');
 
   // Core
   readonly aluno = signal<AlunoDetalheDto | null>(null);
@@ -162,7 +170,7 @@ export class AlunoDetalheComponent implements OnInit {
         if (res.dados) {
           this.carregarPerfil(id);
           this.carregarPresencas(id);
-          this.carregarPagamentos(id);
+          if (!this.perfilProfessor) this.carregarPagamentos(id);
           this.carregarGraduacoes(id);
           this.carregarGrupoFamiliar(id);
         }
@@ -408,7 +416,7 @@ export class AlunoDetalheComponent implements OnInit {
           }
           this.toastService.success('Graduação registrada com sucesso!');
           this.recarregarAluno();
-          this.carregarPagamentos(alunoId);
+          if (!this.perfilProfessor) this.carregarPagamentos(alunoId);
           this.carregarGraduacoes(alunoId);
         } else {
           this.erroGrad.set(res.mensagem ?? 'Erro ao registrar.');

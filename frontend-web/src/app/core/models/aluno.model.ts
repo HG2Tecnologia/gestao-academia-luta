@@ -37,6 +37,8 @@ export interface AlunoDetalheDto extends AlunoListaDto {
 }
 
 export interface CreateAlunoRequest {
+  cpf?: string;
+  acessoAppBloqueado?: boolean;
   nome: string;
   email?: string;
   telefone: string;

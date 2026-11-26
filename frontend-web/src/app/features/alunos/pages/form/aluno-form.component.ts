@@ -9,6 +9,9 @@ import { GraduacaoService } from '../../../../core/services/graduacao.service';
 import { ModalidadeService } from '../../../../core/services/modalidade.service';
 import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
 import { PlanoService } from '../../../../core/services/plano.service';
+import { PlanoLimiteService } from '../../../../core/services/plano-limite.service';
+import { AcessoService, PedidoAcesso } from '../../../../core/services/acesso.service';
+import { DialogService } from '../../../../core/services/dialog.service';
 import { TurmaDto } from '../../../../core/models/turma.model';
 import { FaixaDto } from '../../../../core/models/graduacao.model';
 import { PlanoDto } from '../../../../core/models/plano.model';
@@ -29,6 +32,12 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   private readonly modalidadeService = inject(ModalidadeService);
   private readonly authService = inject(FirebaseAuthService);
   private readonly planoService = inject(PlanoService);
+  private readonly planoLimiteService = inject(PlanoLimiteService);
+  private readonly acessoService = inject(AcessoService);
+  private readonly dialogService = inject(DialogService);
+
+  /** "Acesso ao app" do cadastro — liberado por padrão, como no app. */
+  readonly acessoAppAtivo = signal(true);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
@@ -62,10 +71,11 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   readonly erroGrad = signal('');
 
   readonly form = this.fb.group({
-    nome: ['', [Validators.required, Validators.minLength(3)]],
+    nome: ['', Validators.required],
     email: ['', Validators.email],
-    telefone: ['', Validators.required],
-    dataNascimento: ['', Validators.required],
+    telefone: [''],
+    cpf: [''],
+    dataNascimento: [''],
     contatoEmergenciaNome: [''],
     contatoEmergenciaTelefone: [''],
     tipoPlano: [''],
@@ -77,7 +87,6 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.form.get('dataNascimento')!.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(val => {
       this.dataNascimentoSignal.set(val ?? '');
-      this.atualizarValidadoresResponsavel(this.calcularMenorDeIdade(val ?? ''));
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -188,15 +197,64 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
     this.form.get('contatoEmergenciaTelefone')?.setValue(v, { emitEvent: false });
   }
 
-  salvar(): void {
+  /**
+   * Avisos que o app faz antes de criar o aluno. Devolve `null` se a pessoa
+   * cancelar — nada é gravado.
+   */
+  private async checagensAntesDeCriar(): Promise<Partial<PedidoAcesso> | null> {
+    const { nome, email, telefone } = this.form.value;
+    const emailLimpo = (email ?? '').trim().toLowerCase();
+    const digitos = (telefone ?? '').replace(/\D/g, '');
+
+    if (emailLimpo) {
+      const existente = await this.alunoService.alunoComEmail(emailLimpo);
+      if (existente !== null && !(await this.dialogService.confirm(
+        `O e-mail informado já pertence a: ${existente}.\n\nDeseja cadastrar mesmo assim?\nAo fazer o primeiro acesso com esse contato, o aluno poderá escolher entre os perfis (grupo familiar).`,
+        { titulo: 'E-mail já cadastrado', textoConfirmar: 'Cadastrar mesmo assim' },
+      ))) return null;
+    }
+
+    if (digitos) {
+      const equipe = await this.acessoService.perfilComMesmoTelefone('funcionarios', telefone ?? '').catch(() => null);
+      if (equipe && !(await this.dialogService.confirm(
+        `Esse telefone já pertence a: ${equipe.nome} (${equipe.perfil}).\n\nDeseja vincular esse cadastro de Aluno ao mesmo contato? A pessoa poderá trocar entre os perfis dentro do app.`,
+        { titulo: 'Vincular perfis?', textoConfirmar: 'Vincular também' },
+      ))) return null;
+    }
+
+    if (this.acessoAppAtivo() && (emailLimpo || digitos)
+      && (await this.acessoService.contatoJaTemSenha(digitos, emailLimpo))) {
+      const escolha = await this.acessoService.perguntarConflito(nome ?? '');
+      if (!escolha) return null;
+      return { confirmarSobrescrita: escolha === 'gerarNova', apenasVincular: escolha === 'manterAtual' };
+    }
+    return {};
+  }
+
+  async salvar(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.salvando()) return;
     this.salvando.set(true);
+    let opcoesAcesso: Partial<PedidoAcesso> = {};
+    if (!this.editandoId()) {
+      try {
+        const resultado = await this.checagensAntesDeCriar();
+        if (!resultado) { this.salvando.set(false); return; }
+        opcoesAcesso = resultado;
+      } catch {
+        this.erro.set('Erro ao verificar os dados do aluno. Tente novamente.');
+        this.salvando.set(false);
+        return;
+      }
+    }
     this.erro.set('');
     const v = this.form.value;
     const id = this.editandoId();
 
     const base = {
-      nome: v.nome!, email: v.email || undefined, telefone: v.telefone!,
+      nome: v.nome!, email: v.email || undefined, telefone: v.telefone ?? '',
+      cpf: v.cpf || undefined,
+      acessoAppBloqueado: !id && !this.acessoAppAtivo(),
       dataNascimento: v.dataNascimento || undefined,
       contatoEmergenciaNome: v.contatoEmergenciaNome || undefined,
       contatoEmergenciaTelefone: v.contatoEmergenciaTelefone || undefined,
@@ -210,13 +268,24 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
       : this.alunoService.create(base);
 
     req$.subscribe({
-      next: (res) => {
+      next: async (res) => {
         if (!res.sucesso) { this.erro.set(res.mensagem ?? 'Erro ao salvar.'); this.salvando.set(false); return; }
         if (id) { this.router.navigate(['/app/alunos']); return; }
         const alunoId = res.dados!.id;
+        // Como no app: com acesso liberado e contato, já gera a senha
+        // temporária para a academia repassar. Falha não desfaz o cadastro.
+        if (this.acessoAppAtivo() && (v.email || (v.telefone ?? '').replace(/\D/g, ''))) {
+          await this.acessoService.gerarEMostrar({
+            colecao: 'usuarios', usuarioId: alunoId, nome: v.nome!, motivo: 'provisao_criacao', ...opcoesAcesso,
+          });
+        }
         this.vincularOpcionais(alunoId);
       },
-      error: (err) => { this.erro.set(err.error?.mensagem ?? 'Erro ao salvar.'); this.salvando.set(false); },
+      error: async (err) => {
+        const limite = id ? null : await this.planoLimiteService.mensagemSeAtingido(err, 'aluno');
+        this.erro.set(limite ?? err.error?.mensagem ?? 'Erro ao salvar.');
+        this.salvando.set(false);
+      },
     });
   }
 
@@ -255,17 +324,4 @@ export class AlunoFormComponent implements OnInit, OnDestroy {
     return idade < 18;
   }
 
-  private atualizarValidadoresResponsavel(menorDeIdade: boolean): void {
-    const nome = this.form.get('contatoEmergenciaNome')!;
-    const tel = this.form.get('contatoEmergenciaTelefone')!;
-    if (menorDeIdade) {
-      nome.setValidators(Validators.required);
-      tel.setValidators(Validators.required);
-    } else {
-      nome.clearValidators();
-      tel.clearValidators();
-    }
-    nome.updateValueAndValidity({ emitEvent: false });
-    tel.updateValueAndValidity({ emitEvent: false });
-  }
 }

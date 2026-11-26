@@ -41,6 +41,7 @@
     {
       "target": "crm",
       "public": "frontend-web/dist/academia-fight/browser",
+      "predeploy": ["node \"$PROJECT_DIR/frontend-web/scripts/check-shell.cjs\""],
       "ignore": ["firebase.json", "**/.*"],
       "rewrites": [
         { "source": "**", "destination": "/app-shell.html" }
