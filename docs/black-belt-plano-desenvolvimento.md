@@ -4,6 +4,8 @@
 
 Roteiro para o cadastro nas lojas: [black-belt-cadastro-lojas.md](black-belt-cadastro-lojas.md)
 
+Roteiro para retestar tudo: [black-belt-roteiro-de-testes.md](black-belt-roteiro-de-testes.md)
+
 ## Objetivo
 
 Lançar um segundo plano de assinatura, o **Black Belt** (app + web), com opções mensal,
@@ -17,6 +19,7 @@ Cada academia assina um dos dois.
 | Estrutura | Dois planos, três períodos cada, vendidos pela Apple e pelo Google | Decidido |
 | Assinante PRO atual | Não recebe o web. Se quiser, muda para o Black Belt | Decidido |
 | Cadastro nas lojas | Só depois do desenvolvimento terminado | Decidido |
+| Publicação | Nada vai para produção antes de todo o desenvolvimento terminar | Decidido |
 | Nome do novo plano | Black Belt, no padrão dos atuais: "Sensei Black Belt Mensal", "Trimestral" e "Anual" | Decidido |
 | IDs | No padrão dos atuais: `br.com.senseimanager.black.mensal`, `.trimestral`, `.anual` (`blackbelt` passaria dos 40 caracteres do Google) | Decidido |
 | Preços (mensal / trimestral / anual) | R$ 99,99 / R$ 229,90 / R$ 749,90 | Decidido |
@@ -95,8 +98,7 @@ Login de teste: `admin.teste@academia.com` / `admin123`. Depois de trocar de cen
 reabra o app ou recarregue o web.
 
 - `npm start` (sem `:emu`) continua apontando para a **produção**.
-- Até as fases 4 e 5, app e web ainda não reagem a `acesso_web`: o web não verifica plano
-  nenhum.
+- A trava do web começa desligada: `npm run cenario -- bloqueio ligado`.
 - `npm run emu` cria `functions/.secret.local` com segredos falsos, para o emulador não usar
   os reais (por exemplo, no envio de e-mail).
 - Porta 8080 ocupada indica emulador que ficou aberto: encerre o processo `java` dele.
@@ -182,6 +184,32 @@ Feito no código, **ainda não testado em aparelho nem publicado**.
 
 Para rodar testes e análise, usar o Flutter do FVM (`~/fvm/versions/3.44.1`).
 
+## Web (fase 5)
+
+Feito no código, **ainda não publicado**.
+
+- Regra em [acesso-web.ts](../frontend-web/src/app/core/models/acesso-web.ts). Entra quem
+  tem Black Belt pago, liberação manual válida ou está no teste.
+- Quem não tem direito vai para `/assinatura`, que explica o motivo (teste encerrado, PRO
+  sem web ou suspensão) e como assinar. Equipe que não é Admin nem Secretaria é orientada a
+  falar com o administrador.
+- O selo do topo mostra o plano real (antes era "Plano Gratuito" fixo para todos).
+- A trava é de interface e, se a leitura do plano falhar, o acesso é liberado.
+- Contrato público (`/assinar/...`), landing, login e cadastro não passam pela trava.
+- **Decisão a confirmar:** quem compra o PRO durante o teste mantém o web até o teste
+  acabar.
+
+### Como ligar o bloqueio (no lançamento)
+
+No console do Firestore, no documento `config/geral`, criar o campo
+`web_bloqueio_ativo` do tipo **booleano** com valor `true`. Para desligar, mudar para
+`false`. Não exige nova publicação. Ausente significa desligado.
+
+### Como liberar o web para um cliente (exceção)
+
+No documento `academias/{id}`, criar o campo `web_cortesia_ate` do tipo **timestamp**
+com a data final. Não usar `acesso_web`, que o servidor sobrescreve.
+
 ## Fases
 
 Marque cada item quando o critério for atendido.
@@ -207,10 +235,14 @@ Marque cada item quando o critério for atendido.
   "Meu plano"; sem limites do grátis durante o teste (hoje [plan_limits.dart](../mobile/lib/core/plan_limits.dart)
   só olha o plano pago); textos em português e inglês.
   *Pronto quando* as telas funcionarem em cada cenário simulado.
-- [ ] **Fase 5: Web.** Liberação por `acesso_web` ou teste; tela de bloqueio explicando como
+- [x] **Fase 5: Web** (falta publicar). Liberação por `acesso_web` ou teste; tela de bloqueio explicando como
   assinar ou mudar de plano; correção do selo; chave para ligar o bloqueio sem nova
   publicação.
   *Pronto quando* cada perfil vir o acesso correto, com a chave ligada e desligada.
+- [ ] **Antes de publicar** (desenvolvimento que falta): landing, termos, perguntas
+  frequentes, dados de busca e dias de teste no cadastro web; conferir a compilação do app;
+  decidir sobre a nova tentativa de cobrança da Apple e as duas funções de teste públicas;
+  reteste conforme o [roteiro](black-belt-roteiro-de-testes.md).
 - [ ] **Fase 6: Publicar o servidor** com o bloqueio do web desligado.
   *Pronto quando* os assinantes PRO seguirem normais.
 - [ ] **Fase 7: Cadastro nas lojas**, conforme o
@@ -220,8 +252,8 @@ Marque cada item quando o critério for atendido.
   cancelamento, falha de cobrança e expiração.
   *Pronto quando* tudo passar na Apple e no Google, sem cobrança dupla.
 - [ ] **Fase 9: Lançamento.** Enviar app e assinaturas da Apple para revisão; publicar o app
-  aprovado; avisar quem já usa o web; atualizar landing e termos (limites do grátis, dias de
-  teste e web só no Black Belt); ligar o bloqueio do web.
+  aprovado; avisar quem já usa o web; publicar o web com a landing e os termos novos; ligar o
+  bloqueio do web.
   *Pronto quando* uma pessoa conseguir assinar o Black Belt e entrar no web.
 
 ## Cuidados
@@ -238,6 +270,11 @@ Marque cada item quando o critério for atendido.
 | 26/11/2026 | Fases 1 e 2 em commits locais separados (a correção de segurança é o commit `aa22873f`) |
 | 26/11/2026 | Fase 3 em commit local `30d242fe` |
 | 26/11/2026 | Decisão e implementação: suspensão no Google retira o acesso |
+| 26/11/2026 | Suspensão e fase 4 em commits locais `ec1aecd9` e `2c6c2775` |
+| 26/11/2026 | Decisão: publicar somente quando todo o desenvolvimento terminar. Os textos do site passam para antes da publicação |
+| 26/11/2026 | Correção no app: com a assinatura suspensa, o cartão do plano em Configurações abria a tela de planos e o aviso de suspensão não aparecia. Agora abre "Meu plano" |
+| 26/11/2026 | Fase 5: web (regra de acesso, tela de bloqueio, selo do plano, chave `web_bloqueio_ativo`), cenários `cortesia-web` e `suspenso`, comando de bloqueio e login de Professor na carga de teste. Verificado: regra 22 de 22; 22 verificações em navegador real nos emuladores; builds de emulador e de produção. Sem commit |
+| 26/11/2026 | Correção no emulador: o segredo falso de analytics criado na fase 1 fazia 1 teste falhar; agora fica vazio. Rodadas todas as suítes do servidor: falha apenas 1 teste de administração, em arquivos iguais aos da `main` |
 | 26/11/2026 | Fase 4: app. Verificado: 221 de 221 testes do app (28 novos), análise sem avisos novos, imagens das telas geradas em teste; servidor com 77 de 77 de assinatura, 5 de 5 de reconciliação e 67 de 67 unitários. Não verificado: compilação para Android e iOS, uso em aparelho e compras nas lojas. Sem commit |
 | 26/11/2026 | Fase 3: servidor e regras. Verificado nos emuladores: assinatura 73 de 73, reconciliação 5 de 5, regras 22 de 22, exclusão de conta 4 de 4 e unitários 67 de 67. Compras das lojas simuladas; nada testado contra Apple ou Google. Não publicado |
 | 26/11/2026 | Fase 2: correções de base. Verificado nos emuladores: assinatura 44 de 44, reconciliação 5 de 5, regras 17 de 17, exclusão de conta 4 de 4 e unitários 67 de 67. Um teste antigo teve o identificador de compra trocado, porque reaproveitava o de outra academia. Não publicado |
