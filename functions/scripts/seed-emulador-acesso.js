@@ -6,25 +6,19 @@
 //
 // Pré-requisito: emuladores no ar (firestore + auth + functions).
 //
-//   FIRESTORE_EMULATOR_HOST=localhost:8080 \
-//   FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
-//   node scripts/seed-emulador-acesso.js
+//   npm run seed:emu
+//
+// Sem variáveis de ambiente, usa as portas de `firebase.json`. Nunca grava
+// fora do emulador (ver `emulador-env.js`).
 //
 // Depois, no app (apontado para o emulador), entre como:
 //   e-mail:  admin.teste@academia.com
 //   senha:   admin123
 
 const admin = require("firebase-admin");
+const { apontarParaEmulador } = require("./emulador-env");
 
-if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-  console.error(
-    "Defina FIRESTORE_EMULATOR_HOST e FIREBASE_AUTH_EMULATOR_HOST antes de rodar " +
-      "(senão isso escreveria em produção).",
-  );
-  process.exit(1);
-}
-
-admin.initializeApp({ projectId: "sensei-manager-d64c0" });
+admin.initializeApp({ projectId: apontarParaEmulador() });
 const db = admin.firestore();
 const auth = admin.auth();
 
@@ -44,6 +38,7 @@ async function ensureUser(email, password) {
   await db.doc(`academias/${ACADEMIA_ID}`).set({
     nome: "Academia Teste",
     plano_tipo: 1,
+    criado_em: new Date(),
     noticias_ativas: false,
   });
 

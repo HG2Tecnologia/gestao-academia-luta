@@ -84,6 +84,18 @@
               "extractLicenses": false,
               "sourceMap": true,
               "fileReplacements": []
+            },
+            "emulator": {
+              "outputPath": "dist/academia-fight-emulator",
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.emulator.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -99,6 +111,9 @@
             },
             "development": {
               "buildTarget": "academia-fight:build:development"
+            },
+            "emulator": {
+              "buildTarget": "academia-fight:build:emulator"
             }
           },
           "defaultConfiguration": "development"

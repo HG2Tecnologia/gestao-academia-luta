@@ -1,6 +1,8 @@
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:5226',
+  // Ligado somente em `environment.emulator.ts` (`npm run start:emu`).
+  useEmulators: false,
   tenantFallback: 'dev',
   // App Web "Sensei Manager CRM" no mesmo projeto Firebase do app mobile.
   firebaseConfig: {

@@ -1,6 +1,8 @@
 export const environment = {
   production: true,
   apiUrl: 'https://gestao-academia-luta.onrender.com',
+  // Ligado somente em `environment.emulator.ts` (`npm run start:emu`).
+  useEmulators: false,
   tenantFallback: '',
   // App Web "Sensei Manager CRM" no mesmo projeto Firebase do app mobile.
   firebaseConfig: {

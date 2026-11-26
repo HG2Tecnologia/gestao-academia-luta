@@ -6,9 +6,10 @@
     "node": "22"
   },
   "scripts": {
-    "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js test/engagement.test.js",
-    "emu": "firebase emulators:start --project sensei-manager-d64c0 --only functions,firestore,auth",
-    "seed:emu": "FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 node scripts/seed-emulador-acesso.js",
+    "test": "node --test test/domain.test.js test/temp-password.test.js test/graduacao.test.js test/access-provisioning.test.js test/engagement.test.js test/cenarios-assinatura.test.js",
+    "emu": "node scripts/preparar-emulador.js && firebase emulators:start --project sensei-manager-d64c0 --only functions,firestore,auth",
+    "seed:emu": "node scripts/seed-emulador-acesso.js",
+    "cenario": "node scripts/cenario-assinatura.js",
     "test:rules": "firebase emulators:exec --project sensei-manager-test --only firestore,auth \"node --test test/firestore.rules.test.js\"",
     "test:identity": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/account-functions.test.js\"",
     "test:admin": "firebase emulators:exec --project sensei-manager-test --only functions,firestore,auth \"node --test test/admin-functions.test.js\"",

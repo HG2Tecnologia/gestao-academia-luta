@@ -25,5 +25,8 @@ functions/scripts/google-play-service-account.json
 firebase-debug.log
 firestore-debug.log
 
+# Segredos falsos do emulador de Functions
+functions/.secret.local
+
 # macOS
 .DS_Store
