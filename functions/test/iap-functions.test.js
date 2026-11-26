@@ -963,3 +963,35 @@ test("transferência para outra academia retira o web da anterior", async () => 
   await ativarCompra(await criarAcademia(), "black-vencido", { productId: BLACK_ANUAL });
   assert.equal((await lerAcademia(vencida)).acesso_web, false);
 });
+
+for (const produto of [PRODUTO, BLACK]) {
+  test(`Google: suspensão retira o acesso e o pagamento aprovado devolve (${produto})`, async () => {
+    const { id, token } = await assinanteGoogle(produto);
+    await _internal.aplicarCompraGoogle(
+      token, compraGoogle([item(produto, -1)], { subscriptionState: "SUBSCRIPTION_STATE_ON_HOLD" })
+    );
+    let d = await lerAcademia(id);
+    assert.equal(d.plano_tipo, 0);
+    assert.equal(d.acesso_web, false);
+    assert.equal(d.plano_status, "suspenso");
+
+    await _internal.aplicarCompraGoogle(token, compraGoogle([item(produto, 30)]));
+    d = await lerAcademia(id);
+    assert.equal(d.plano_tipo, 1);
+    assert.equal(d.acesso_web, produto === BLACK);
+    assert.equal(d.plano_status, "ativo");
+  });
+}
+
+for (const estado of ["SUBSCRIPTION_STATE_ON_HOLD", "SUBSCRIPTION_STATE_PAUSED"]) {
+  test(`Google: o app não ativa compra em ${estado}`, async () => {
+    await assertHttpsError(
+      _internal.ativarCompraAndroid({
+        academiaId: await criarAcademia(),
+        purchaseToken: `token-${estado}`,
+        compra: compraGoogle([item(BLACK, 30)], { subscriptionState: estado }),
+      }),
+      "permission-denied"
+    );
+  });
+}

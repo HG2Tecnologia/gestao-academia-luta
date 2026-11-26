@@ -551,6 +551,9 @@ async function rotearNotificacaoAssinatura({
     case "EXPIRED":
       await revogarAssinatura({ academiaId, status: "expirado", origemEvento });
       break;
+    case "ON_HOLD":
+      await revogarAssinatura({ academiaId, status: "suspenso", origemEvento });
+      break;
     case "REFUND":
     case "REVOKE":
       await revogarAssinatura({ academiaId, status: "reembolsado", origemEvento });
@@ -611,7 +614,10 @@ const SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE = {
   SUBSCRIPTION_STATE_ACTIVE: "DID_RENEW",
   SUBSCRIPTION_STATE_CANCELED: "DID_CHANGE_RENEWAL_STATUS",
   SUBSCRIPTION_STATE_IN_GRACE_PERIOD: "DID_FAIL_TO_RENEW",
-  SUBSCRIPTION_STATE_ON_HOLD: "DID_FAIL_TO_RENEW",
+  // Suspensão de conta: a cobrança falhou e a carência acabou. A Google
+  // manda retirar o acesso; volta com o próximo SUBSCRIPTION_STATE_ACTIVE.
+  // "ON_HOLD" não existe nas notificações da Apple.
+  SUBSCRIPTION_STATE_ON_HOLD: "ON_HOLD",
   SUBSCRIPTION_STATE_EXPIRED: "EXPIRED",
   SUBSCRIPTION_STATE_REVOKED: "REVOKE",
   // Google permite o assinante pausar a assinatura (fica sem cobrar e sem
@@ -779,6 +785,8 @@ const ESTADOS_ANDROID_INVALIDOS = new Set([
   "SUBSCRIPTION_STATE_EXPIRED",
   "SUBSCRIPTION_STATE_REVOKED",
   "SUBSCRIPTION_STATE_PENDING",
+  "SUBSCRIPTION_STATE_ON_HOLD",
+  "SUBSCRIPTION_STATE_PAUSED",
 ]);
 
 exports.ativarAssinaturaAndroid = onCall(
