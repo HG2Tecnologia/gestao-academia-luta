@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -8,15 +9,17 @@ import 'theme/context_ext.dart';
 
 /// Pedido de avaliação do app, de tempos em tempos, até o usuário avaliar.
 ///
-/// Regras (todas locais, em SharedPreferences):
-/// - só depois de [_minDiasInstalado] dias e [_minAberturas] aberturas;
+/// Regras:
+/// - só com a conta criada há [_minDiasDeConta] dias ou mais (data do
+///   Firebase Auth, que não zera ao reinstalar) e [_minAberturas] aberturas
+///   neste aparelho; os contadores abaixo ficam em SharedPreferences;
 /// - no máximo [_maxTentativas] pedidos, com [_intervaloDias] dias entre eles;
 /// - "Sim" → avaliação nativa da loja e nunca mais pergunta;
 /// - "Não" → campo de feedback privado (vai para a equipe, não para a loja)
 ///   e nunca mais pergunta;
 /// - "Agora não" → pergunta de novo depois do intervalo.
 abstract final class AppReviewService {
-  static const _minDiasInstalado = 14;
+  static const _minDiasDeConta = 14;
   static const _minAberturas = 5;
   static const _maxTentativas = 3;
   static const _intervaloDias = 30;
@@ -26,7 +29,6 @@ abstract final class AppReviewService {
   /// avaliou". Fora disso (builds normais) fica sempre desligado.
   static const _modoTeste = bool.fromEnvironment('REVIEW_TEST');
 
-  static const _kPrimeiraAbertura = 'review_first_seen_ms';
   static const _kAberturas = 'review_open_count';
   static const _kUltimoPedido = 'review_last_prompt_ms';
   static const _kTentativas = 'review_prompt_count';
@@ -41,26 +43,23 @@ abstract final class AppReviewService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final agora = DateTime.now();
-      if (!prefs.containsKey(_kPrimeiraAbertura)) {
-        await prefs.setInt(_kPrimeiraAbertura, agora.millisecondsSinceEpoch);
-      }
       final aberturas = (prefs.getInt(_kAberturas) ?? 0) + 1;
       await prefs.setInt(_kAberturas, aberturas);
 
       final ultimo = prefs.getInt(_kUltimoPedido);
+      final contaCriadaEm =
+          FirebaseAuth.instance.currentUser?.metadata.creationTime;
       if (!_modoTeste &&
           !deveSolicitar(
-        agora: agora,
-        primeiraAbertura: DateTime.fromMillisecondsSinceEpoch(
-          prefs.getInt(_kPrimeiraAbertura) ?? agora.millisecondsSinceEpoch,
-        ),
-        aberturas: aberturas,
-        tentativas: prefs.getInt(_kTentativas) ?? 0,
-        ultimoPedido: ultimo == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(ultimo),
-        concluido: prefs.getBool(_kConcluido) ?? false,
-      )) {
+            agora: agora,
+            contaCriadaEm: contaCriadaEm,
+            aberturas: aberturas,
+            tentativas: prefs.getInt(_kTentativas) ?? 0,
+            ultimoPedido: ultimo == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(ultimo),
+            concluido: prefs.getBool(_kConcluido) ?? false,
+          )) {
         return;
       }
 
@@ -102,7 +101,7 @@ abstract final class AppReviewService {
   /// Regra pura (testável) de quando o pedido deve aparecer.
   static bool deveSolicitar({
     required DateTime agora,
-    required DateTime primeiraAbertura,
+    required DateTime? contaCriadaEm,
     required int aberturas,
     required int tentativas,
     required DateTime? ultimoPedido,
@@ -111,7 +110,9 @@ abstract final class AppReviewService {
     if (concluido) return false;
     if (tentativas >= _maxTentativas) return false;
     if (aberturas < _minAberturas) return false;
-    if (agora.difference(primeiraAbertura).inDays < _minDiasInstalado) {
+    // Sem a data da conta não dá para saber a idade dela: não pergunta.
+    if (contaCriadaEm == null ||
+        agora.difference(contaCriadaEm).inDays < _minDiasDeConta) {
       return false;
     }
     if (ultimoPedido != null &&
@@ -193,10 +194,7 @@ class _PedidoAvaliacaoSheet extends StatelessWidget {
             Text(
               l.reviewAskSubtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.c.onSurfaceVariant,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 14),
             ),
             const SizedBox(height: 20),
             SizedBox(
