@@ -10,7 +10,8 @@ responsável, não o assistente.
 
 - [ ] Desenvolvimento concluído e **servidor novo publicado**. Data: ____
 - [x] Nomes, IDs e **preços** abaixo confirmados. Data: 26/11/2026
-- [ ] **Captura da tela de planos** do app novo salva no computador (exigida pela Apple)
+- [ ] **Captura da tela de planos** do app novo salva no computador (exigida pela Apple).
+  Antes de os produtos existirem, o Black Belt só aparece em versão de depuração.
 - [ ] Acesso à conta no App Store Connect e no Play Console
 
 ## Instruções para o assistente

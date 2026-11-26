@@ -147,12 +147,40 @@ Feito no código, **ainda não publicado**.
   `criado_em`, `web_cortesia_ate` e `plano_transacao_em` protegidos.
 - O app ainda aplica os limites durante o teste até a fase 4.
 
+### Suspensão no Google
+
+`ON_HOLD` retira o plano e o web (situação `suspenso`) e o acesso volta quando a loja
+informa a assinatura ativa, conforme a
+[documentação do Google](https://developer.android.com/google/play/billing/subscriptions).
+Vale também para quem já assina o PRO. A carência continua com acesso. Se a notificação da
+volta se perder, a reconciliação diária não revisa academias suspensas: o app tenta
+restaurar ao abrir, ou a pessoa usa "Restaurar compra".
+
 ### A decidir (comportamento anterior, não alterado)
 
 | Situação | Hoje no sistema | Segundo a loja |
 |---|---|---|
-| Google `ON_HOLD` (suspensão de conta) | Tratado como carência: mantém o acesso | [Sem acesso](https://developer.android.com/google/play/billing/subscriptions) |
 | Apple em nova tentativa de cobrança sem período de carência | Mantém o acesso | A confirmar na documentação da Apple |
+
+## App (fase 4)
+
+Feito no código, **ainda não testado em aparelho nem publicado**.
+
+- Catálogo e decisão de compra em [plan_catalog.dart](../mobile/lib/core/plan_catalog.dart).
+- Tela de planos com seletor PRO / Black Belt. Em versão publicada, o Black Belt só aparece
+  quando a loja devolve os produtos; em depuração aparece sempre.
+- Android: a troca informa a assinatura atual (upgrade na hora, com crédito do tempo
+  restante; downgrade e mudança de período na renovação).
+- Compra bloqueada quando a academia paga pela outra loja ou por outra conta da loja, ou
+  quando a conta da loja já paga uma assinatura que não é da academia.
+- Teste de 30 dias libera todos os recursos; o plano passa a ser carregado também para
+  Professor.
+- Textos novos de "Meu plano" em português e inglês. A tela de planos continua só em
+  português, como antes.
+- **Publicar o servidor antes do app**: com as regras antigas, o cadastro acima do limite
+  durante o teste seria recusado.
+
+Para rodar testes e análise, usar o Flutter do FVM (`~/fvm/versions/3.44.1`).
 
 ## Fases
 
@@ -174,7 +202,7 @@ Marque cada item quando o critério for atendido.
   estende o próprio teste) e respeitando `config/geral.trial_dias`.
   *Pronto quando* os testes cobrirem upgrade, downgrade, cancelamento, falha de cobrança e
   reembolso.
-- [ ] **Fase 4: App.** Seletor PRO / Black Belt com três períodos; troca de plano no
+- [x] **Fase 4: App** (falta conferir em aparelho). Seletor PRO / Black Belt com três períodos; troca de plano no
   Android sem cobrança dupla; bloqueio de compra com assinatura ativa na outra loja; tela
   "Meu plano"; sem limites do grátis durante o teste (hoje [plan_limits.dart](../mobile/lib/core/plan_limits.dart)
   só olha o plano pago); textos em português e inglês.
@@ -208,6 +236,9 @@ Marque cada item quando o critério for atendido.
 | Data | O que mudou |
 |---|---|
 | 26/11/2026 | Fases 1 e 2 em commits locais separados (a correção de segurança é o commit `aa22873f`) |
+| 26/11/2026 | Fase 3 em commit local `30d242fe` |
+| 26/11/2026 | Decisão e implementação: suspensão no Google retira o acesso |
+| 26/11/2026 | Fase 4: app. Verificado: 221 de 221 testes do app (28 novos), análise sem avisos novos, imagens das telas geradas em teste; servidor com 77 de 77 de assinatura, 5 de 5 de reconciliação e 67 de 67 unitários. Não verificado: compilação para Android e iOS, uso em aparelho e compras nas lojas. Sem commit |
 | 26/11/2026 | Fase 3: servidor e regras. Verificado nos emuladores: assinatura 73 de 73, reconciliação 5 de 5, regras 22 de 22, exclusão de conta 4 de 4 e unitários 67 de 67. Compras das lojas simuladas; nada testado contra Apple ou Google. Não publicado |
 | 26/11/2026 | Fase 2: correções de base. Verificado nos emuladores: assinatura 44 de 44, reconciliação 5 de 5, regras 17 de 17, exclusão de conta 4 de 4 e unitários 67 de 67. Um teste antigo teve o identificador de compra trocado, porque reaproveitava o de outra academia. Não publicado |
 | 26/11/2026 | Decisão: preços confirmados e grátis sem web depois do teste. Fase 0 concluída |
