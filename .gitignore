@@ -17,6 +17,10 @@ frontend-web/dist/
 .env
 .env.local
 scripts/migrate-firestore/auth-account-v2-report.json
+scripts/migrate-firestore/serviceAccount.json
+functions/scripts/serviceAccount.json
+functions/scripts/apple-iap-private-key.p8
+functions/scripts/google-play-service-account.json
 firebase-debug.log
 firestore-debug.log
 
