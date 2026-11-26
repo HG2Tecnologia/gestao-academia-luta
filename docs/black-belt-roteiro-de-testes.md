@@ -21,8 +21,16 @@ Branch: `ajuste-novas-assinaturas`. **Nada foi publicado em produção.**
 | 5 | Web: acesso, tela de bloqueio e selo do plano | `886fbfd2` | `frontend-web/src/app/core/` (`acesso-web`), `features/assinatura/` |
 | Antes de publicar | Textos do site e proteção das funções de teste | último commit da branch | `features/landing/`, `features/legal/`, `functions/index.js` |
 
-Os commits eram locais em 26/11/2026. Para testar em outra máquina, a branch precisa ter
-sido enviada ao GitHub (`git log` deve mostrar os commits acima).
+A branch foi enviada ao GitHub em 26/11/2026. Para baixar:
+
+```bash
+git fetch origin
+git checkout ajuste-novas-assinaturas
+```
+
+`git log` deve mostrar os commits acima. No mesmo dia a `main` recebeu o commit `4038fef6`
+(versões do app, em `mobile/pubspec.yaml` e no projeto iOS), que ainda não está nesta
+branch. A simulação de junção não apontou conflitos.
 
 ## 2. Preparação
 
