@@ -4174,6 +4174,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgDeleteAccountBtn => 'Delete my account';
 
   @override
+  String get cfgDeleteAdminTitle => 'Delete account and gym?';
+
+  @override
+  String cfgDeleteAdminBody(String nome) {
+    return 'If you are the only administrator, the gym “$nome” will be deleted entirely: students, classes, finances, history and everyone\'s access. If there is another administrator, only your account is removed and the gym stays.\n\nThis does not cancel App Store or Google Play subscriptions — cancel them in the store.\n\nThis cannot be undone. To confirm, type the gym name:';
+  }
+
+  @override
+  String get cfgDeleteAdminNameHint => 'Gym name';
+
+  @override
+  String get cfgDeleteAdminNameMismatch =>
+      'The name you typed doesn\'t match the gym name.';
+
+  @override
   String get cfgPlanActive => 'Active Plan';
 
   @override

@@ -159,6 +159,19 @@ function removeProfileRef(account, keyToRemove) {
   };
 }
 
+/**
+ * Remove de uma conta TODOS os perfis de uma academia (usado quando a
+ * academia inteira é excluída). Mesmo contrato de `removeProfileRef`:
+ * `{ deleted: true }` quando não sobra nenhum perfil (apagar a conta toda),
+ * senão `{ deleted: false, data }` com os campos recalculados.
+ */
+function removeAcademyProfiles(account, academiaId) {
+  const restantes = (Array.isArray(account.profile_refs) ? account.profile_refs : [])
+    .filter((ref) => ref.academiaId !== academiaId);
+  if (restantes.length === 0) return { deleted: true };
+  return removeProfileRef({ ...account, profile_refs: restantes }, null);
+}
+
 function identityFromAuthEmail(authEmail) {
   const email = canonicalizeEmail(authEmail);
   if (!email) return null;
@@ -190,6 +203,7 @@ module.exports = {
   normalizeProfileRef,
   profileKey,
   profileRole,
+  removeAcademyProfiles,
   removeProfileRef,
   syntheticAuthEmails,
 };
