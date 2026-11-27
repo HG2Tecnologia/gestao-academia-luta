@@ -10,12 +10,12 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DecimalPipe, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, DecimalPipe],
+  imports: [RouterLink],
   templateUrl: './landing.component.html',
   styleUrls: ['./landing.component.css'],
 })
@@ -29,13 +29,6 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly tick = signal(0);
   readonly billingPeriod = signal<'mensal' | 'trimestral' | 'anual'>('mensal');
   readonly menuAberto = signal(false);
-  readonly rankingRows = signal([
-    { name: 'Bruno Yamamoto', pts: 1284, faixa: 'Roxa' },
-    { name: 'Letícia Andrade', pts: 1247, faixa: 'Azul' },
-    { name: 'Diego Ferreira', pts: 1198, faixa: 'Roxa' },
-    { name: 'Rafael Costa', pts: 1142, faixa: 'Azul' },
-    { name: 'Mariana Silva', pts: 1098, faixa: 'Branca' },
-  ]);
 
   readonly bars = computed(() => {
     const seed = this.tick();
@@ -78,7 +71,11 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       q: 'Posso cancelar quando quiser?',
-      a: 'Sim. Cancele a qualquer momento nas assinaturas da App Store ou do Google Play, sem taxa de cancelamento. O acesso vale até o fim do período já pago.',
+      a: 'Sim. A assinatura é feita direto na sua conta da App Store ou do Google Play, então cancelamento, troca de plano e reembolso são tratados por lá (ou pelo próprio app) — sem taxa de cancelamento. O acesso vale até o fim do período já pago.',
+    },
+    {
+      q: 'Os planos trimestral e anual são parcelados?',
+      a: 'Não. O valor é cobrado em uma parcela única na sua conta da loja (ex.: R$ 149,90 de uma vez no plano trimestral) — o "preço por mês" mostrado aqui é só pra facilitar a comparação, não é parcelamento no cartão.',
     },
   ];
 
@@ -89,12 +86,12 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
       black: { porMes: '99,99', nota: 'Cobrado todo mês', economia: '' },
     },
     trimestral: {
-      pro: { porMes: '49,97', nota: 'Cobrado R$ 149,90 a cada 3 meses', economia: '29%' },
-      black: { porMes: '76,63', nota: 'Cobrado R$ 229,90 a cada 3 meses', economia: '23%' },
+      pro: { porMes: '49,97', nota: 'Cobrado R$ 149,90 em parcela única a cada 3 meses', economia: '29%' },
+      black: { porMes: '76,63', nota: 'Cobrado R$ 229,90 em parcela única a cada 3 meses', economia: '23%' },
     },
     anual: {
-      pro: { porMes: '41,66', nota: 'Cobrado R$ 499,90 por ano', economia: '40%' },
-      black: { porMes: '62,49', nota: 'Cobrado R$ 749,90 por ano', economia: '38%' },
+      pro: { porMes: '41,66', nota: 'Cobrado R$ 499,90 em parcela única por ano', economia: '40%' },
+      black: { porMes: '62,49', nota: 'Cobrado R$ 749,90 em parcela única por ano', economia: '38%' },
     },
   };
 
@@ -157,29 +154,6 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
     ['Aluno desmotivado', 'Ranking gamificado por faixa'],
   ];
 
-  readonly diferenciais = [
-    {
-      num: '01',
-      title: 'Financeiro sem planilha',
-      body: 'Mensalidade gerada automaticamente todo mês, com vencimento por aluno. Você acompanha pago, pendente e atrasado numa tela só — a cobrança em si (Pix, dinheiro, cartão) você recebe do seu jeito, o sistema só organiza.',
-    },
-    {
-      num: '02',
-      title: 'App e sistema web, os mesmos dados',
-      body: 'O que o professor lança no app (presença, graduação) aparece no sistema web na hora, e vice-versa. Sem exportar, sem sincronizar manualmente.',
-    },
-    {
-      num: '03',
-      title: 'Engajamento que vicia',
-      body: 'Ranking, badges, conquistas por faixa, desafios mensais. Os próprios alunos puxam quem falta. A turma se autorregula.',
-    },
-    {
-      num: '04',
-      title: 'Feito por quem treina',
-      body: 'Time fundador é faixa preta. Cada feature foi pensada num tatame, não numa reunião. Você sente isso em cada tela.',
-    },
-  ];
-
   readonly passos = [
     {
       num: 'Passo 01',
@@ -227,16 +201,7 @@ export class LandingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!this.isBrowser) return;
-    this.intervals.push(
-      setInterval(() => this.tick.update((t) => t + 1), 1800),
-      setInterval(() => {
-        this.rankingRows.update((rows) => {
-          const next = rows.map((r) => ({ ...r, pts: r.pts + Math.floor(Math.random() * 8) }));
-          next.sort((a, b) => b.pts - a.pts);
-          return [...next];
-        });
-      }, 1600),
-    );
+    this.intervals.push(setInterval(() => this.tick.update((t) => t + 1), 1800));
 
     this.observer = new IntersectionObserver(
       (entries) =>

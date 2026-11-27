@@ -5,7 +5,9 @@
   --bg-3: #142035;
   --fg: #f0f6ff;
   --fg-2: #8baec9;
-  --fg-3: #4a6880;
+  /* #4a6880 original falhava WCAG AA (contraste < 4.5:1) contra --bg-3; mantém o
+     mesmo tom azul-acinzentado, só mais claro, pra passar em todos os fundos. */
+  --fg-3: #6f90a8;
   --line: #1c2d42;
   --line-2: #243a55;
   --accent: #C9A020;
@@ -80,7 +82,17 @@
   font-size: clamp(48px, 6vw, 100px);
 }
 
+/*
+ * `height: auto` explícito abaixo: sem ele, a utility class global do
+ * Tailwind `.h-1`/`.h-2` (escala de espaçamento, `height: 0.25rem`/`0.5rem`)
+ * vaza por cima — a classe aqui tem mais especificidade (seletor com
+ * atributo de encapsulamento do Angular) mas só pra propriedades que ela
+ * mesma declara, então sem `height` aqui o valor do Tailwind "ganha" e
+ * esmaga a caixa do título pra 4px/8px, sobrepondo o texto no que vem
+ * depois.
+ */
 .h-1 {
+  height: auto;
   font-family: var(--display);
   font-weight: 600;
   letter-spacing: -0.035em;
@@ -89,6 +101,7 @@
 }
 
 .h-2 {
+  height: auto;
   font-family: var(--display);
   font-weight: 600;
   letter-spacing: -0.03em;
@@ -119,7 +132,13 @@
   cursor: pointer;
 }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--accent); color: #ffffff; }
+/*
+ * `.lp a` (reset de link, mais abaixo) tem mais especificidade que um
+ * `.btn-primary` sozinho — prefixado com `.lp` aqui só pra gente ganhar
+ * essa comparação sem recorrer a `!important`. Texto escuro: branco sobre
+ * dourado falhava contraste (2.46:1); escuro passa com folga (8:1+).
+ */
+.lp .btn-primary { background: var(--accent); color: #0a0a0a; }
 .btn-primary:hover { background: var(--accent-2); }
 .btn-ghost { background: transparent; color: var(--fg); border: 1px solid var(--line-2); }
 .btn-ghost:hover { border-color: var(--fg-2); }
@@ -313,8 +332,9 @@
 .dash-list-row:last-child { border-bottom: none; }
 .pill { font-family: var(--mono); font-size: 9px; padding: 3px 7px; border-radius: 999px; }
 .pill.paid { background: rgba(22,163,74,0.12); color: var(--good); }
-.pill.pending { background: rgba(180,83,9,0.10); color: #b45309; }
-.pill.due { background: rgba(220,38,38,0.10); color: #dc2626; }
+/* Tons originais (#b45309/#dc2626) falhavam contraste (~3.3:1) contra --bg-3; clareados pra passar WCAG AA. */
+.pill.pending { background: rgba(180,83,9,0.10); color: #d9822a; }
+.pill.due { background: rgba(220,38,38,0.10); color: #f06460; }
 @media (max-width: 880px) { .dash-body { grid-template-columns: 1fr; } .dash-sidebar { display: none; } .dash-stats { grid-template-columns: 1fr 1fr; } }
 
 /* ── Marquee ── */
@@ -356,72 +376,19 @@
 .problem-card .strike { text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 2px; color: var(--fg-3); font-family: var(--mono); font-size: 12px; margin-top: auto; }
 @media (max-width: 720px) { .problem-grid { grid-template-columns: 1fr; } }
 
-/* ── Solution split ── */
-.solution-split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: start; margin-top: 32px; }
-.solution-split > * { min-width: 0; }
-@media (max-width: 880px) { .solution-split { grid-template-columns: 1fr; gap: 40px; } }
-
 .transform-list { margin-top: 36px; border-top: 1px solid var(--line); }
 .transform-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line); align-items: center; }
 .transform-row .from { color: var(--fg-3); font-size: 15px; text-decoration: line-through; text-decoration-color: var(--fg-3); }
 .transform-row .arrow { color: var(--accent); font-family: var(--mono); font-size: 12px; }
 .transform-row .to { color: var(--fg); font-size: 16px; font-weight: 500; }
 
-/* ── Solution screenshot ── */
-.solution-img {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
-  display: block;
-}
-
-/* ── Feature screenshots ── */
-.feat-screenshot {
-  width: 100%;
-  height: 90%;
-  object-fit: cover;
-  object-position: top;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  margin-top: auto;
-  display: block;
-}
-
-/* ── Features grid ── */
-.features-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 64px; }
-.feature-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 16px; transition: border-color 200ms ease; }
-.feature-card:hover { border-color: var(--line-2); }
-.feat-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--accent); }
-.feat-title { font-family: var(--display); font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
-.feat-body { color: var(--fg-3); font-size: 14px; line-height: 1.5; flex: 1; }
-.span-3 { grid-column: span 3; }
-.span-2 { grid-column: span 2; }
-.tall { min-height: 280px; }
-@media (max-width: 880px) { .features-grid { grid-template-columns: repeat(2, 1fr); } .span-3, .span-2 { grid-column: span 2; } }
-@media (max-width: 540px) { .features-grid { grid-template-columns: 1fr; } .span-3, .span-2 { grid-column: span 1; } }
-
-/* ── Live ranking ── */
-.ranking { background: var(--bg-3); border-radius: 10px; padding: 14px; border: 1px solid var(--line); font-family: var(--mono); font-size: 13px; margin-top: 12px; }
-.ranking-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.ranking-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 7px 3px; border-bottom: 1px solid var(--line); }
-.ranking-row:last-child { border-bottom: none; }
-.ranking-row .pos { width: 22px; height: 22px; border-radius: 50%; background: var(--bg-2); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: var(--fg); }
-.ranking-row.gold .pos { background: var(--accent); color: #ffffff; }
-.ranking-row.silver .pos { background: var(--fg-2); color: #0a0a0a; }
-.ranking-row.bronze .pos { background: #b87333; color: #0a0a0a; }
-.ranking-row .rname { font-family: var(--display); color: var(--fg); font-size: 13px; }
-.ranking-row .rfaixa { font-size: 10px; color: var(--fg-3); }
-.ranking-row .pts { color: var(--fg-3); font-size: 11px; }
-
-/* ── Differentials ── */
-.diff-grid { border-top: 1px solid var(--line); margin-top: 48px; }
-.diff-row { display: grid; grid-template-columns: 80px 1fr 1.4fr; gap: 32px; padding: 28px 0; border-bottom: 1px solid var(--line); align-items: start; }
-.diff-row > * { min-width: 0; }
-.diff-num { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 0.1em; padding-top: 6px; }
-.diff-title { font-family: var(--display); font-weight: 600; font-size: 28px; letter-spacing: -0.025em; line-height: 1.05; }
-.diff-body { color: var(--fg-3); font-size: 15px; line-height: 1.55; padding-top: 6px; }
-@media (max-width: 720px) { .diff-row { grid-template-columns: 1fr; gap: 8px; } }
+/* ── Recursos extra (3 itens curtos, depois da grade de screenshots) ── */
+.recursos-extra { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+.recursos-extra-item { display: flex; gap: 14px; align-items: flex-start; }
+.feat-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; background: var(--bg-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.feat-title { font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: -0.015em; margin-bottom: 4px; }
+.feat-body { color: var(--fg-3); font-size: 13.5px; line-height: 1.5; }
+@media (max-width: 880px) { .recursos-extra { grid-template-columns: 1fr; } }
 
 /* ── Steps ── */
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 64px; }
@@ -881,11 +848,6 @@
 }
 .scr-phone-strip::-webkit-scrollbar { height: 3px; }
 .scr-phone-strip::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
-
-.scr-phone-strip-centered {
-  justify-content: center;
-  flex-wrap: wrap;
-}
 
 .scr-phone {
   flex: 0 0 185px;

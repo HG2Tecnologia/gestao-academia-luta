@@ -8,6 +8,43 @@ const SITE_URL = 'https://sensei-crm.web.app';
 const OG_IMAGE = `${SITE_URL}/images/dashboard-sistema-web.png`;
 
 /**
+ * Mesmas perguntas do widget de FAQ em `LandingComponent` — mantidas aqui
+ * também (pequena duplicação deliberada) porque o SEO não deve depender de
+ * um componente de UI carregado sob demanda; se o texto do FAQ mudar, mude
+ * nos dois lugares.
+ */
+const FAQ_ITEMS: ReadonlyArray<{ q: string; a: string }> = [
+  {
+    q: 'Como funciona o período grátis?',
+    a: '30 dias com tudo liberado, inclusive o sistema web, sem cartão de crédito. Ao final, você assina pelo app o Sensei PRO (app) ou o Black Belt (app + web), ou continua no Grátis (até 5 alunos, 1 turma e 1 funcionário).',
+  },
+  {
+    q: 'Posso migrar minha planilha de alunos?',
+    a: 'Sim! Manda sua planilha e a gente importa tudo pra você sem custo, em até 4 horas.',
+  },
+  {
+    q: 'Qual a diferença entre o Sensei PRO e o Black Belt?',
+    a: 'Os dois liberam o aplicativo sem limites. O Black Belt inclui também o sistema web, para gerir a academia pelo computador.',
+  },
+  {
+    q: 'Funciona para qual modalidade?',
+    a: 'Qualquer uma. Jiu-Jitsu, Muay Thai, Boxe, MMA, Karatê, Judô, Taekwondo... feito para todas as artes marciais.',
+  },
+  {
+    q: 'Como funciona a geração de mensalidades?',
+    a: 'Você define o valor e o dia de vencimento por modalidade ou plano, e o sistema gera a cobrança automaticamente todo mês. O recebimento em si (Pix, dinheiro, cartão) é do seu jeito — o sistema organiza quem pagou, quem está pendente e quem está atrasado.',
+  },
+  {
+    q: 'Posso cancelar quando quiser?',
+    a: 'Sim. A assinatura é feita direto na sua conta da App Store ou do Google Play, então cancelamento, troca de plano e reembolso são tratados por lá (ou pelo próprio app) — sem taxa de cancelamento. O acesso vale até o fim do período já pago.',
+  },
+  {
+    q: 'Os planos trimestral e anual são parcelados?',
+    a: 'Não. O valor é cobrado em uma parcela única na sua conta da loja (ex.: R$ 149,90 de uma vez no plano trimestral) — o "preço por mês" mostrado aqui é só pra facilitar a comparação, não é parcelamento no cartão.',
+  },
+];
+
+/**
  * Lê `data.description`/`data.robots` da rota ativa (`app.routes.ts`) e
  * aplica via `Meta`/canonical a cada navegação. O `<title>` por rota já
  * funciona nativamente pelo Angular Router (propriedade `title`) — isso
@@ -100,6 +137,14 @@ export class SeoService {
             { '@type': 'Offer', name: 'Sensei PRO (app)', price: '69.99', priceCurrency: 'BRL' },
             { '@type': 'Offer', name: 'Sensei Black Belt (app + web)', price: '99.99', priceCurrency: 'BRL' },
           ],
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: FAQ_ITEMS.map((item) => ({
+            '@type': 'Question',
+            name: item.q,
+            acceptedAnswer: { '@type': 'Answer', text: item.a },
+          })),
         },
       ],
     };

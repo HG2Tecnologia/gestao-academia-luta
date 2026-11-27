@@ -53,6 +53,7 @@
               "src/_redirects"
             ],
             "styles": [
+              "src/fonts-selfhosted.css",
               "src/styles.css"
             ],
             "scripts": []

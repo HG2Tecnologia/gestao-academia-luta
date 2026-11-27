@@ -53,10 +53,10 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./features/landing/landing.component').then((m) => m.LandingComponent),
-    title: 'Sensei Manager | Acesse sua conta ou cadastre sua academia',
+    title: 'Sensei Manager | Sistema de Gestão para Academias de Luta e Artes Marciais',
     data: {
       description:
-        'Acesse o Sensei Manager CRM ou cadastre sua academia. Gerencie sua operação pelo computador com integração ao aplicativo mobile.',
+        'Sistema completo para academias de Jiu-Jitsu, Muay Thai, Judô e outras artes marciais: mensalidade automática, ranking gamificado e app para alunos e professores. Teste 30 dias grátis.',
       robots: 'index, follow',
     },
   },
