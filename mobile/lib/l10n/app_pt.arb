@@ -752,12 +752,13 @@
   "pfNoEligibleStudents": "Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.",
   "pfUnrecognized": "Não identificado",
   "pfConfidence": "de confiança",
+  "pfAlreadyCheckedIn": "Presença já registrada",
   "pfIdentify": "Identificar",
   "pfPickStudent": "Quem é esse aluno?",
   "pfNotInPhoto": "Nenhum (não é aluno)",
   "pfError": "Não foi possível processar. Tente de novo.",
   "pfNoFacesFound": "Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.",
-  "pfConfirm": "{count, plural, =0{Confirmar} one{Confirmar presença} other{Confirmar {count} presenças}}",
+  "pfConfirm": "Confirmar presenças",
   "pfNoConsentBadge": "sem consentimento registrado",
   "pfConfirmConsentTitle": "Confirmar consentimento",
   "pfConfirmConsentBody": "Confirma que {nome} autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.",
@@ -769,13 +770,6 @@
     }
   },
   "pfConfirmConsentSave": "Confirmar e salvar",
-  "@pfConfirm": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "pfSaved": "{count, plural, =0{Nenhuma presença registrada} one{{count} presença registrada} other{{count} presenças registradas}}",
   "@pfSaved": {
     "placeholders": {

@@ -2034,9 +2034,16 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                         turmaNome: (_turma?['nome'] ?? _l.tdClassFallback)
                             .toString(),
                         alunos: _alunos,
+                        data: _dataSel,
                       ),
                     ),
-                  ).then((_) => _loadPresencaData());
+                  ).then((_) {
+                    // Recarrega tudo (não só a presença): a chamada por
+                    // foto pode ter salvo consentimento e rosto novos nos
+                    // alunos, e _alunos (passado por referência à tela)
+                    // só reflete isso depois de um _load() de verdade.
+                    _load();
+                  });
                 },
                 icon: const Icon(Icons.camera_alt_rounded, size: 18),
                 label: Text(

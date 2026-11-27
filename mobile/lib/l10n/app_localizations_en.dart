@@ -1634,6 +1634,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pfConfidence => 'confidence';
 
   @override
+  String get pfAlreadyCheckedIn => 'Attendance already recorded';
+
+  @override
   String get pfIdentify => 'Identify';
 
   @override
@@ -1650,16 +1653,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No faces found in this photo. Try again with everyone facing the camera.';
 
   @override
-  String pfConfirm(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Confirm $count attendances',
-      one: 'Confirm attendance',
-      zero: 'Confirm',
-    );
-    return '$_temp0';
-  }
+  String get pfConfirm => 'Confirm attendance';
 
   @override
   String get pfNoConsentBadge => 'no consent on file';

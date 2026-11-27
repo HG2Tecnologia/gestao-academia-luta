@@ -2966,6 +2966,12 @@ abstract class AppLocalizations {
   /// **'de confiança'**
   String get pfConfidence;
 
+  /// No description provided for @pfAlreadyCheckedIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presença já registrada'**
+  String get pfAlreadyCheckedIn;
+
   /// No description provided for @pfIdentify.
   ///
   /// In pt, this message translates to:
@@ -2999,8 +3005,8 @@ abstract class AppLocalizations {
   /// No description provided for @pfConfirm.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, =0{Confirmar} one{Confirmar presença} other{Confirmar {count} presenças}}'**
-  String pfConfirm(int count);
+  /// **'Confirmar presenças'**
+  String get pfConfirm;
 
   /// No description provided for @pfNoConsentBadge.
   ///

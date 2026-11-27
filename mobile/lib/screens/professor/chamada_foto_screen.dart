@@ -16,6 +16,11 @@ class _FaceCandidato {
   String? alunoId;
   double score = 0;
   bool confirmado = false;
+
+  /// Reconhecido, mas já tem presença registrada nessa data — mostrado como
+  /// identificado (não "Não identificado"), mas sem ação a tomar: não
+  /// duplica presença nem soma mais uma referência de rosto ao confirmar.
+  bool jaPresente = false;
 }
 
 /// Chamada por foto: o professor tira uma foto da turma, o app detecta cada
@@ -30,11 +35,18 @@ class ChamadaFotoScreen extends StatefulWidget {
     required this.turmaId,
     required this.turmaNome,
     required this.alunos,
+    required this.data,
   });
 
   final String academiaId;
   final String turmaId;
   final String turmaNome;
+
+  /// Data da chamada (a mesma selecionada na aba Presença) — usada tanto
+  /// pra checar quem já está presente quanto pra gravar a presença nova.
+  /// Sem isso, a tela sempre considerava "hoje", ignorando quando o
+  /// professor navegava pra outro dia antes de abrir a câmera.
+  final DateTime data;
 
   /// Alunos matriculados nessa turma — só quem tiver
   /// `consentimento_reconhecimento_facial == true` entra na comparação.
@@ -59,14 +71,14 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
     _preparar();
   }
 
+  String get _dataStr =>
+      '${widget.data.year}-${widget.data.month.toString().padLeft(2, '0')}-${widget.data.day.toString().padLeft(2, '0')}';
+
   Future<void> _preparar() async {
-    final hoje = DateTime.now();
-    final dataStr =
-        '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
     final jaPresentesMap = await firestoreService.getPresencasPorAluno(
       widget.academiaId,
       widget.turmaId,
-      dataStr,
+      _dataStr,
     );
     await FaceRecognitionService.preload();
     if (mounted) {
@@ -79,9 +91,10 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
 
   /// Alunos com consentimento já registrado — são as referências usadas pra
   /// SUGERIR automaticamente quem é cada rosto (comparação de embedding).
+  /// Inclui quem já está presente na data: o rosto ainda deve ser
+  /// reconhecido (só não entra de novo na confirmação, ver [_FaceCandidato.jaPresente]).
   List<Map<String, dynamic>> get _alunosElegiveis => widget.alunos
       .where((a) => a['consentimento_reconhecimento_facial'] == true)
-      .where((a) => !_jaPresentes.contains(a['id'].toString()))
       .toList();
 
   /// Todos os alunos da turma (com ou sem consentimento) — usado na lista
@@ -205,6 +218,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
         }
         candidatos[par.$1].alunoId = par.$2;
         candidatos[par.$1].score = par.$3;
+        candidatos[par.$1].jaPresente = _jaPresentes.contains(par.$2);
         facesUsadas.add(par.$1);
         alunosUsados.add(par.$2);
       }
@@ -319,6 +333,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
         setState(() {
           candidato.alunoId = null;
           candidato.score = 0;
+          candidato.jaPresente = false;
         });
       }
       return;
@@ -361,6 +376,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
     setState(() {
       candidato.alunoId = selecionado;
       candidato.score = 1.0; // escolha manual = certeza total
+      candidato.jaPresente = false; // _alunosSelecionaveis já exclui presentes
     });
   }
 
@@ -410,23 +426,21 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
 
   Future<void> _confirmarTudo() async {
     setState(() => _salvando = true);
-    final hoje = DateTime.now();
-    final dataStr =
-        '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+    final agora = DateTime.now();
     final horaStr =
-        '${hoje.hour.toString().padLeft(2, '0')}:${hoje.minute.toString().padLeft(2, '0')}';
+        '${agora.hour.toString().padLeft(2, '0')}:${agora.minute.toString().padLeft(2, '0')}';
 
     var registrados = 0;
     try {
       for (final c in _candidatos) {
         final alunoId = c.alunoId;
-        if (alunoId == null) continue;
+        if (alunoId == null || c.jaPresente) continue;
 
         await firestoreService.addPresenca(widget.academiaId, {
           'aluno_id': alunoId,
           'turma_id': widget.turmaId,
           'horario_id': '',
-          'data': dataStr,
+          'data': _dataStr,
           'hora_checkin': horaStr,
           'metodo_checkin': metodoCheckinReconhecimentoFacial,
           'confirmado': true,
@@ -473,7 +487,9 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final confirmaveis = _candidatos.where((c) => c.alunoId != null).length;
+    final confirmaveis = _candidatos
+        .where((c) => c.alunoId != null && !c.jaPresente)
+        .length;
 
     return Scaffold(
       backgroundColor: context.c.surface,
@@ -616,11 +632,21 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                                           ),
                                           if (aluno != null)
                                             Text(
-                                              '${(c.score * 100).round()}% ${context.l10n.pfConfidence}',
+                                              c.jaPresente
+                                                  ? context
+                                                        .l10n
+                                                        .pfAlreadyCheckedIn
+                                                  : '${(c.score * 100).round()}% ${context.l10n.pfConfidence}',
                                               style: TextStyle(
-                                                color:
-                                                    context.c.onSurfaceVariant,
+                                                color: c.jaPresente
+                                                    ? context.sem.success
+                                                    : context
+                                                          .c
+                                                          .onSurfaceVariant,
                                                 fontSize: 12,
+                                                fontWeight: c.jaPresente
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
                                               ),
                                             ),
                                         ],
@@ -676,7 +702,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                                         color: context.c.onPrimary,
                                       ),
                                     )
-                                  : Text(context.l10n.pfConfirm(confirmaveis)),
+                                  : Text(context.l10n.pfConfirm),
                             ),
                           ),
                         ],

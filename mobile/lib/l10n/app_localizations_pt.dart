@@ -1639,6 +1639,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pfConfidence => 'de confiança';
 
   @override
+  String get pfAlreadyCheckedIn => 'Presença já registrada';
+
+  @override
   String get pfIdentify => 'Identificar';
 
   @override
@@ -1655,16 +1658,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.';
 
   @override
-  String pfConfirm(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Confirmar $count presenças',
-      one: 'Confirmar presença',
-      zero: 'Confirmar',
-    );
-    return '$_temp0';
-  }
+  String get pfConfirm => 'Confirmar presenças';
 
   @override
   String get pfNoConsentBadge => 'sem consentimento registrado';
