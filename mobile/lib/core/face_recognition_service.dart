@@ -67,8 +67,23 @@ abstract final class FaceRecognitionService {
     if (decoded == null) return const [];
     decoded = img.bakeOrientation(decoded);
 
-    final inputImage = InputImage.fromFilePath(path);
-    final faces = await _getDetector().processImage(inputImage);
+    // O ML Kit lê o arquivo direto do disco, sem aplicar a orientação EXIF —
+    // fotos tiradas pela câmera costumam vir "deitadas" (pixels em paisagem +
+    // flag de orientação), e sem isso o detector não acha rosto nenhum.
+    // Grava uma cópia já corrigida (mesmo pipeline de [embeddingFromBase64Photo])
+    // e aponta o ML Kit pra ela, não pro arquivo original.
+    final tempPath =
+        '${Directory.systemTemp.path}/_face_detect_${DateTime.now().microsecondsSinceEpoch}.jpg';
+    await File(tempPath).writeAsBytes(img.encodeJpg(decoded));
+    final List<Face> faces;
+    try {
+      final inputImage = InputImage.fromFilePath(tempPath);
+      faces = await _getDetector().processImage(inputImage);
+    } finally {
+      try {
+        await File(tempPath).delete();
+      } catch (_) {}
+    }
 
     final resultado = <DetectedFace>[];
     for (final face in faces) {

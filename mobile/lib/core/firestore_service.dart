@@ -466,14 +466,20 @@ class FirestoreService {
     final ref = _doc(academiaId, 'usuarios', alunoId);
     final snap = await ref.get();
     final data = snap.data() as Map<String, dynamic>?;
-    final extras = ((data?['rosto_embeddings_extra'] as List?) ?? [])
-        .map((e) => (e as List).map((v) => (v as num).toDouble()).toList())
-        .toList();
+    final extras = _lerEmbeddingsExtras(
+      data?['rosto_embeddings_extra'] as List?,
+    );
     extras.add(embedding);
     while (extras.length > maxExtras) {
       extras.removeAt(0);
     }
-    await ref.update({'rosto_embeddings_extra': extras});
+    // Cada embedding fica dentro de um mapa (`{'v': [...]}`) porque o
+    // Firestore não aceita array-dentro-de-array — gravar a lista de listas
+    // direto derruba o app na hora (NSException nativa no iOS, antes de
+    // chegar no try/catch do Dart).
+    await ref.update({
+      'rosto_embeddings_extra': extras.map((e) => {'v': e}).toList(),
+    });
   }
 
   /// Todas as referências de rosto conhecidas de um aluno (embedding
@@ -485,13 +491,22 @@ class FirestoreService {
     if (inicial != null) {
       referencias.add(inicial.map((v) => (v as num).toDouble()).toList());
     }
-    final extras = aluno['rosto_embeddings_extra'] as List?;
-    if (extras != null) {
-      for (final e in extras) {
-        referencias.add((e as List).map((v) => (v as num).toDouble()).toList());
-      }
-    }
+    referencias.addAll(
+      _lerEmbeddingsExtras(aluno['rosto_embeddings_extra'] as List?),
+    );
     return referencias;
+  }
+
+  /// Aceita tanto o formato atual (lista de mapas `{'v': [...]}`) quanto o
+  /// formato antigo (lista de listas aninhadas) — esse antigo nunca deveria
+  /// ter sido gravado de verdade (o Firestore rejeita), mas a leitura fica
+  /// tolerante por segurança.
+  List<List<double>> _lerEmbeddingsExtras(List? raw) {
+    if (raw == null) return [];
+    return raw.map((e) {
+      final lista = e is Map ? (e['v'] as List? ?? const []) : (e as List);
+      return lista.map((v) => (v as num).toDouble()).toList();
+    }).toList();
   }
 
   Future<void> salvarConsentimentoReconhecimentoFacial(

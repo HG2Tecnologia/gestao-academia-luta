@@ -1651,6 +1651,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pfError => 'Não foi possível processar. Tente de novo.';
 
   @override
+  String get pfNoFacesFound =>
+      'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.';
+
+  @override
   String pfConfirm(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

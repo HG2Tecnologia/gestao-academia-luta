@@ -2990,6 +2990,12 @@ abstract class AppLocalizations {
   /// **'Não foi possível processar. Tente de novo.'**
   String get pfError;
 
+  /// No description provided for @pfNoFacesFound.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.'**
+  String get pfNoFacesFound;
+
   /// No description provided for @pfConfirm.
   ///
   /// In pt, this message translates to:

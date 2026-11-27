@@ -200,6 +200,14 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
           _candidatos = candidatos;
           _processandoFoto = false;
         });
+        if (candidatos.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.pfNoFacesFound),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (_) {
       if (mounted) {

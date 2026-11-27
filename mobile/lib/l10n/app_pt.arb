@@ -756,6 +756,7 @@
   "pfPickStudent": "Quem é esse aluno?",
   "pfNotInPhoto": "Nenhum (não é aluno)",
   "pfError": "Não foi possível processar. Tente de novo.",
+  "pfNoFacesFound": "Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.",
   "pfConfirm": "{count, plural, =0{Confirmar} one{Confirmar {count} presença} other{Confirmar {count} presenças}}",
   "@pfConfirm": {
     "placeholders": {
