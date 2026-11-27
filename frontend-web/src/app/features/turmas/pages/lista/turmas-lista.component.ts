@@ -7,6 +7,9 @@ import { TurmaDto } from '../../../../core/models/turma.model';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { ToastService } from '../../../../core/services/toast.service';
 
+import { ehProfessor } from '../../../../core/models/stored-user.model';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+
 @Component({
   selector: 'app-turmas-lista',
   standalone: true,
@@ -14,6 +17,8 @@ import { ToastService } from '../../../../core/services/toast.service';
   templateUrl: './turmas-lista.component.html',
 })
 export class TurmasListaComponent implements OnInit {
+  /** Professor segue as mesmas restrições do app mobile. */
+  readonly perfilProfessor = ehProfessor(inject(FirebaseAuthService).currentUser());
   private readonly turmaService = inject(TurmaService);
   private readonly dialogService = inject(DialogService);
   private readonly toastService = inject(ToastService);

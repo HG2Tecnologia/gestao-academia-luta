@@ -3,6 +3,7 @@ import { Observable, from, map } from 'rxjs';
 import { collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { FirebaseAuthService } from './firebase-auth.service';
+import { CheckinBloqueadoError, motivoBloqueioCheckin, verificarLimiteDiasSemana } from './regras-checkin';
 import { BaseResponse } from '../models/auth.model';
 import {
   PresencaDto,
@@ -41,6 +42,13 @@ export class PresencaService {
     return id;
   }
 
+  /** Modo 'aviso' do limite semanal: informa antes, sem impedir o check-in. */
+  async avisoLimiteSemanal(alunoId: string, horarioId: string): Promise<string | null> {
+    const turmaId = await this.resolverTurmaId(this.academiaId, horarioId);
+    const limite = await verificarLimiteDiasSemana(this.academiaId, alunoId, turmaId);
+    return limite?.modo === 'aviso' ? limite.mensagem : null;
+  }
+
   registrar(data: RegistrarPresencaRequest): Observable<BaseResponse<PresencaDto>> {
     return from(this.registrarEDevolver(data)).pipe(map((dto) => ok(dto)));
   }
@@ -50,6 +58,11 @@ export class PresencaService {
     const turmaId = await this.resolverTurmaId(academiaId, data.horarioId);
     const agora = new Date();
     const dataStr = data.data ?? dataLocalISO(agora);
+    // Mesmas travas de `addPresenca` no app, no único ponto que grava.
+    const bloqueio = await motivoBloqueioCheckin(academiaId, data.alunoId);
+    if (bloqueio) throw new CheckinBloqueadoError(bloqueio);
+    const limite = await verificarLimiteDiasSemana(academiaId, data.alunoId, turmaId);
+    if (limite?.modo === 'bloqueio') throw new CheckinBloqueadoError(limite.mensagem);
     const payload = {
       aluno_id: data.alunoId,
       turma_id: turmaId,

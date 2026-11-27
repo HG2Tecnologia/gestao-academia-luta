@@ -1345,7 +1345,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.';
+      'Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.';
 
   @override
   String get sdCpfOptional => 'CPF (opcional)';
@@ -4198,6 +4198,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgDeleteAccountBtn => 'Excluir minha conta';
 
   @override
+  String get cfgDeleteAdminTitle => 'Excluir conta e academia?';
+
+  @override
+  String cfgDeleteAdminBody(String nome) {
+    return 'Se você for o único administrador, a academia “$nome” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:';
+  }
+
+  @override
+  String get cfgDeleteAdminNameHint => 'Nome da academia';
+
+  @override
+  String get cfgDeleteAdminNameMismatch =>
+      'O nome digitado não confere com o nome da academia.';
+
+  @override
   String get cfgPlanActive => 'Plano Ativo';
 
   @override
@@ -5539,4 +5554,44 @@ class AppLocalizationsPt extends AppLocalizations {
   String rpSummaryLine(int presencas, int faltas, int total) {
     return '$presencas presenças · $faltas faltas · $total aulas no período';
   }
+
+  @override
+  String appVersionLabel(String version, String build) {
+    return 'Versão $version ($build)';
+  }
+
+  @override
+  String get appVersionCopied => 'Versão copiada';
+
+  @override
+  String get reviewAskTitle => 'Está gostando do Sensei?';
+
+  @override
+  String get reviewAskSubtitle =>
+      'Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.';
+
+  @override
+  String get reviewAskYes => 'Sim, estou gostando!';
+
+  @override
+  String get reviewAskNo => 'Não muito';
+
+  @override
+  String get reviewAskLater => 'Agora não';
+
+  @override
+  String get reviewFeedbackTitle => 'Poxa, o que podemos melhorar?';
+
+  @override
+  String get reviewFeedbackSubtitle =>
+      'Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.';
+
+  @override
+  String get reviewFeedbackHint => 'Escreva aqui sua sugestão ou problema';
+
+  @override
+  String get reviewFeedbackSend => 'Enviar';
+
+  @override
+  String get reviewFeedbackThanks => 'Obrigado pelo feedback!';
 }

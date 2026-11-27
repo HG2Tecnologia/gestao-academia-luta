@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
+import { permissaoGuard } from '../../core/guards/permissao.guard';
+
+/** Cadastro e edição não existem pro Professor, como no app. */
+const somenteGestao = permissaoGuard({ perfis: ['Admin', 'Secretaria'] });
 
 export const alunosRoutes: Routes = [
   {
@@ -9,12 +13,14 @@ export const alunosRoutes: Routes = [
   },
   {
     path: 'novo',
+    canActivate: [somenteGestao],
     loadComponent: () =>
       import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),
     title: 'Novo Aluno — Sensei Manager',
   },
   {
     path: ':id/editar',
+    canActivate: [somenteGestao],
     loadComponent: () =>
       import('./pages/form/aluno-form.component').then(m => m.AlunoFormComponent),
     title: 'Editar Aluno — Sensei Manager',

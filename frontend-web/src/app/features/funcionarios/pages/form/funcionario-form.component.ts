@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FuncionarioService } from '../../../../core/services/funcionario.service';
+import { PlanoLimiteService } from '../../../../core/services/plano-limite.service';
+import { AcessoService } from '../../../../core/services/acesso.service';
+import { DialogService } from '../../../../core/services/dialog.service';
 import { PERMISSOES_INFO, PERMISSOES_DEFAULT, PerfilComPermissoes } from '../../../../core/models/permissoes.model';
 
 /**
@@ -23,6 +26,9 @@ const CHAVES_PERMISSAO = Object.keys(PERMISSOES_INFO);
 })
 export class FuncionarioFormComponent implements OnInit {
   private readonly funcionarioService = inject(FuncionarioService);
+  private readonly planoLimiteService = inject(PlanoLimiteService);
+  private readonly acessoService = inject(AcessoService);
+  private readonly dialogService = inject(DialogService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
@@ -34,10 +40,10 @@ export class FuncionarioFormComponent implements OnInit {
   readonly permissoesInfo = CHAVES_PERMISSAO.map((chave) => ({ chave, ...PERMISSOES_INFO[chave] }));
 
   readonly form = this.fb.group({
-    nome: ['', [Validators.required, Validators.minLength(3)]],
+    nome: ['', Validators.required],
     email: ['', Validators.email],
     telefone: ['', Validators.required],
-    cargo: ['', Validators.required],
+    cargo: [''],
     perfil: ['Professor', Validators.required],
     permissoes: this.fb.group(
       Object.fromEntries(CHAVES_PERMISSAO.map((c) => [c, [false]])) as Record<string, [boolean]>,
@@ -94,8 +100,22 @@ export class FuncionarioFormComponent implements OnInit {
     this.form.get('telefone')?.setValue(v, { emitEvent: false });
   }
 
-  salvar(): void {
+  /** Avisa quando o telefone já é de um aluno — os dois perfis ficam na mesma pessoa. */
+  private async confirmarVinculoComAluno(): Promise<boolean> {
+    const aluno = await this.acessoService
+      .perfilComMesmoTelefone('usuarios', this.form.value.telefone ?? '')
+      .catch(() => null);
+    if (!aluno) return true;
+    return this.dialogService.confirm(
+      `Esse telefone já pertence a: ${aluno.nome} (${aluno.perfil}).\n\nDeseja vincular esse cadastro de funcionário ao mesmo contato? A pessoa poderá trocar entre os dois perfis dentro do app, pelo menu lateral.`,
+      { titulo: 'Vincular perfis?', textoConfirmar: 'Vincular também' },
+    );
+  }
+
+  async salvar(): Promise<void> {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.salvando()) return;
+    if (!this.editandoId() && !(await this.confirmarVinculoComAluno())) return;
     this.salvando.set(true);
     this.erro.set('');
     const v = this.form.value;
@@ -114,11 +134,22 @@ export class FuncionarioFormComponent implements OnInit {
         });
 
     req$.subscribe({
-      next: (res) => {
-        if (res.sucesso) this.router.navigate(['/app/funcionarios']);
-        else { this.erro.set(res.mensagem ?? 'Erro ao salvar.'); this.salvando.set(false); }
+      next: async (res) => {
+        if (!res.sucesso) { this.erro.set(res.mensagem ?? 'Erro ao salvar.'); this.salvando.set(false); return; }
+        // Como no app: tendo telefone ou e-mail, já mostra a senha temporária.
+        // Falha aqui não desfaz o cadastro.
+        if (!id && (v.email || v.telefone)) {
+          await this.acessoService.gerarEMostrar({
+            colecao: 'funcionarios', usuarioId: res.dados!.id, nome: v.nome!, motivo: 'provisao_criacao',
+          });
+        }
+        this.router.navigate(['/app/funcionarios']);
       },
-      error: (err) => { this.erro.set(err.error?.mensagem ?? 'Erro ao salvar.'); this.salvando.set(false); },
+      error: async (err) => {
+        const limite = id ? null : await this.planoLimiteService.mensagemSeAtingido(err, 'funcionario');
+        this.erro.set(limite ?? err.error?.mensagem ?? 'Erro ao salvar.');
+        this.salvando.set(false);
+      },
     });
   }
 }

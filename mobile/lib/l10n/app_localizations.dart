@@ -2459,7 +2459,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdEditAccessWarning.
   ///
   /// In pt, this message translates to:
-  /// **'Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.'**
+  /// **'Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.'**
   String get sdEditAccessWarning;
 
   /// No description provided for @sdCpfOptional.
@@ -7352,6 +7352,30 @@ abstract class AppLocalizations {
   /// **'Excluir minha conta'**
   String get cfgDeleteAccountBtn;
 
+  /// No description provided for @cfgDeleteAdminTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir conta e academia?'**
+  String get cfgDeleteAdminTitle;
+
+  /// No description provided for @cfgDeleteAdminBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se você for o único administrador, a academia “{nome}” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:'**
+  String cfgDeleteAdminBody(String nome);
+
+  /// No description provided for @cfgDeleteAdminNameHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome da academia'**
+  String get cfgDeleteAdminNameHint;
+
+  /// No description provided for @cfgDeleteAdminNameMismatch.
+  ///
+  /// In pt, this message translates to:
+  /// **'O nome digitado não confere com o nome da academia.'**
+  String get cfgDeleteAdminNameMismatch;
+
   /// No description provided for @cfgPlanActive.
   ///
   /// In pt, this message translates to:
@@ -9679,6 +9703,78 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'{presencas} presenças · {faltas} faltas · {total} aulas no período'**
   String rpSummaryLine(int presencas, int faltas, int total);
+
+  /// No description provided for @appVersionLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão {version} ({build})'**
+  String appVersionLabel(String version, String build);
+
+  /// No description provided for @appVersionCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão copiada'**
+  String get appVersionCopied;
+
+  /// No description provided for @reviewAskTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Está gostando do Sensei?'**
+  String get reviewAskTitle;
+
+  /// No description provided for @reviewAskSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.'**
+  String get reviewAskSubtitle;
+
+  /// No description provided for @reviewAskYes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sim, estou gostando!'**
+  String get reviewAskYes;
+
+  /// No description provided for @reviewAskNo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não muito'**
+  String get reviewAskNo;
+
+  /// No description provided for @reviewAskLater.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora não'**
+  String get reviewAskLater;
+
+  /// No description provided for @reviewFeedbackTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Poxa, o que podemos melhorar?'**
+  String get reviewFeedbackTitle;
+
+  /// No description provided for @reviewFeedbackSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.'**
+  String get reviewFeedbackSubtitle;
+
+  /// No description provided for @reviewFeedbackHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escreva aqui sua sugestão ou problema'**
+  String get reviewFeedbackHint;
+
+  /// No description provided for @reviewFeedbackSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar'**
+  String get reviewFeedbackSend;
+
+  /// No description provided for @reviewFeedbackThanks.
+  ///
+  /// In pt, this message translates to:
+  /// **'Obrigado pelo feedback!'**
+  String get reviewFeedbackThanks;
 }
 
 class _AppLocalizationsDelegate

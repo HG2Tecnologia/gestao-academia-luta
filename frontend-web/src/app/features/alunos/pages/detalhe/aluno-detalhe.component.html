@@ -24,7 +24,9 @@
             Entrar em contato
           </a>
         }
-        <a [routerLink]="['/app/alunos', aluno()!.id, 'editar']" class="btn-secondary">Editar aluno</a>
+        @if (!perfilProfessor) {
+          <a [routerLink]="['/app/alunos', aluno()!.id, 'editar']" class="btn-secondary">Editar aluno</a>
+        }
       </div>
     </div>
 
@@ -59,11 +61,19 @@
     <div class="tabs" style="margin-top:24px;">
       <button class="tab" [class.active]="tabAtiva()==='info'" (click)="tabAtiva.set('info')">Informações</button>
       <button class="tab" [class.active]="tabAtiva()==='presencas'" (click)="tabAtiva.set('presencas')">Presenças</button>
-      <button class="tab" [class.active]="tabAtiva()==='financeiro'" (click)="tabAtiva.set('financeiro')">Financeiro</button>
+      @if (!perfilProfessor) {
+        <button class="tab" [class.active]="tabAtiva()==='financeiro'" (click)="tabAtiva.set('financeiro')">Financeiro</button>
+      }
       <button class="tab" [class.active]="tabAtiva()==='ranking'" (click)="tabAtiva.set('ranking')">Ranking & XP</button>
-      <button class="tab" [class.active]="tabAtiva()==='contratos'" (click)="tabAtiva.set('contratos'); carregarContratos(aluno()!.id)">Contratos</button>
-      <button class="tab" [class.active]="tabAtiva()==='atestado'" (click)="tabAtiva.set('atestado'); carregarAtestado(aluno()!.id)">Atestado</button>
-      <button class="tab" [class.active]="tabAtiva()==='parq'" (click)="tabAtiva.set('parq'); carregarParQ(aluno()!.id)">PAR-Q</button>
+      @if (!perfilProfessor) {
+        <button class="tab" [class.active]="tabAtiva()==='contratos'" (click)="tabAtiva.set('contratos'); carregarContratos(aluno()!.id)">Contratos</button>
+      }
+      @if (podeVerSaude) {
+        <button class="tab" [class.active]="tabAtiva()==='atestado'" (click)="tabAtiva.set('atestado'); carregarAtestado(aluno()!.id)">Atestado</button>
+      }
+      @if (podeVerSaude) {
+        <button class="tab" [class.active]="tabAtiva()==='parq'" (click)="tabAtiva.set('parq'); carregarParQ(aluno()!.id)">PAR-Q</button>
+      }
     </div>
 
     <!-- ABA: INFORMAÇÕES -->
@@ -115,10 +125,12 @@
                       <div style="font-size:12px;color:var(--app-text-2)">{{ g.nomeFaixa }} · {{ formatarData(g.dataExame) }}</div>
                     </div>
                   </div>
-                  <button class="btn-grad-mini" (click)="abrirModalGraduacao(g.modalidadeId)" title="Nova graduação nesta modalidade">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Graduar
-                  </button>
+                  @if (podeGraduar) {
+                    <button class="btn-grad-mini" (click)="abrirModalGraduacao(g.modalidadeId)" title="Nova graduação nesta modalidade">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      Graduar
+                    </button>
+                  }
                 </div>
               }
             </div>
@@ -168,57 +180,59 @@
           </div>
         }
 
-        <!-- Grupo Familiar -->
-        <div class="secao-card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-            <h3 class="secao-titulo" style="margin:0">Grupo Familiar</h3>
-            @if (carregandoGrupoFamiliar()) {
-              <span style="font-size:12px;color:var(--app-text-3)">Carregando...</span>
-            } @else if (grupoFamiliar()) {
-              <button class="btn-icon-sm-text" (click)="abrirAdicionarMembroGrupo()">+ Adicionar membro</button>
-            } @else {
-              <div style="display:flex;gap:8px;">
-                <button class="btn-icon-sm-text" (click)="abrirCriarGrupo()">+ Criar grupo</button>
-                <button class="btn-icon-sm-text" (click)="abrirAssociarGrupo()">Vincular existente</button>
-              </div>
-            }
-          </div>
-
-          @if (carregandoGrupoFamiliar()) {
-            <div class="skeleton-row" style="height:40px;border-radius:8px;"></div>
-          } @else if (grupoFamiliar()) {
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--app-bg);border-radius:10px;border:1px solid var(--app-border);margin-bottom:10px;">
-              <div style="width:34px;height:34px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#B8860B) 12%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <svg width="16" height="16" fill="none" stroke="var(--color-primary,#B8860B)" stroke-width="1.75" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              </div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:700;color:var(--app-text-1)">{{ grupoFamiliar()!.nome }}</div>
-                <div style="font-size:11px;color:var(--app-text-3)">{{ grupoFamiliar()!.membros.length }} membro{{ grupoFamiliar()!.membros.length !== 1 ? 's' : '' }}</div>
-              </div>
-              <button class="btn-icon-danger-sm" title="Sair do grupo" (click)="sairDoGrupo()">
-                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-              </button>
-            </div>
-            @for (m of grupoFamiliar()!.membros; track m.id) {
-              @if (m.id !== aluno()!.id) {
-                <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
-                  <div style="width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#B8860B) 10%,transparent);color:var(--color-primary,#B8860B);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    {{ iniciais(m.nome) }}
-                  </div>
-                  <div style="flex:1;">
-                    <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ m.nome }}</div>
-                    @if (m.email) { <div style="font-size:11px;color:var(--app-text-3)">{{ m.email }}</div> }
-                  </div>
-                  <button class="btn-icon-danger-sm" title="Remover do grupo" (click)="removerMembroGrupo(m.id)">
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
+        @if (podeVerGrupoFamiliar) {
+          <!-- Grupo Familiar -->
+          <div class="secao-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <h3 class="secao-titulo" style="margin:0">Grupo Familiar</h3>
+              @if (carregandoGrupoFamiliar()) {
+                <span style="font-size:12px;color:var(--app-text-3)">Carregando...</span>
+              } @else if (grupoFamiliar()) {
+                <button class="btn-icon-sm-text" (click)="abrirAdicionarMembroGrupo()">+ Adicionar membro</button>
+              } @else {
+                <div style="display:flex;gap:8px;">
+                  <button class="btn-icon-sm-text" (click)="abrirCriarGrupo()">+ Criar grupo</button>
+                  <button class="btn-icon-sm-text" (click)="abrirAssociarGrupo()">Vincular existente</button>
                 </div>
               }
+            </div>
+
+            @if (carregandoGrupoFamiliar()) {
+              <div class="skeleton-row" style="height:40px;border-radius:8px;"></div>
+            } @else if (grupoFamiliar()) {
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--app-bg);border-radius:10px;border:1px solid var(--app-border);margin-bottom:10px;">
+                <div style="width:34px;height:34px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#B8860B) 12%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="16" height="16" fill="none" stroke="var(--color-primary,#B8860B)" stroke-width="1.75" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;color:var(--app-text-1)">{{ grupoFamiliar()!.nome }}</div>
+                  <div style="font-size:11px;color:var(--app-text-3)">{{ grupoFamiliar()!.membros.length }} membro{{ grupoFamiliar()!.membros.length !== 1 ? 's' : '' }}</div>
+                </div>
+                <button class="btn-icon-danger-sm" title="Sair do grupo" (click)="sairDoGrupo()">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                </button>
+              </div>
+              @for (m of grupoFamiliar()!.membros; track m.id) {
+                @if (m.id !== aluno()!.id) {
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--color-primary,#B8860B) 10%,transparent);color:var(--color-primary,#B8860B);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      {{ iniciais(m.nome) }}
+                    </div>
+                    <div style="flex:1;">
+                      <div style="font-size:13px;font-weight:600;color:var(--app-text-1)">{{ m.nome }}</div>
+                      @if (m.email) { <div style="font-size:11px;color:var(--app-text-3)">{{ m.email }}</div> }
+                    </div>
+                    <button class="btn-icon-danger-sm" title="Remover do grupo" (click)="removerMembroGrupo(m.id)">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                }
+              }
+            } @else {
+              <p style="font-size:13px;color:var(--app-text-3);margin:0;font-style:italic;">Este aluno não está em nenhum grupo familiar.</p>
             }
-          } @else {
-            <p style="font-size:13px;color:var(--app-text-3);margin:0;font-style:italic;">Este aluno não está em nenhum grupo familiar.</p>
-          }
-        </div>
+          </div>
+        }
 
       </div>
     }
@@ -631,13 +645,13 @@
               <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               Visualizar arquivo
             </button>
-            @if (a.status === 0) {
+            @if (a.status === 0 && !perfilProfessor) {
               <button class="btn-primary" style="font-size:13px;" (click)="avaliarAtestado(true)" [disabled]="salvandoAtestado()">✓ Aprovar</button>
               <button class="btn-danger" style="font-size:13px;" (click)="avaliarAtestado(false)" [disabled]="salvandoAtestado()">✕ Rejeitar</button>
             }
             <button class="btn-secondary" style="font-size:13px;" (click)="enviarLembreteAtestado()">Enviar lembrete ao aluno</button>
           </div>
-          @if (a.status === 0) {
+          @if (a.status === 0 && !perfilProfessor) {
             <div class="form-group" style="margin-top:12px;">
               <label class="form-label">Motivo de rejeição (opcional)</label>
               <input type="text" class="form-input" placeholder="Preencha para rejeitar com justificativa..." [ngModel]="motivoRejeicao()" (ngModelChange)="motivoRejeicao.set($event)" />
@@ -816,10 +830,12 @@
         <label class="form-label">Observações</label>
         <textarea class="form-input" rows="2" [ngModel]="gradObservacoes()" (ngModelChange)="gradObservacoes.set($event)" placeholder="Opcional..."></textarea>
       </div>
-      <div class="form-group" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--app-bg);border:1px solid var(--app-border);border-radius:8px;">
-        <label style="flex:1;font-size:13px;color:var(--app-text-1);cursor:pointer;margin:0;" [for]="'chk-grad-cobranca'">Gerar cobrança financeira</label>
-        <input type="checkbox" [id]="'chk-grad-cobranca'" [checked]="gradGerarCobranca()" (change)="gradGerarCobranca.set(!gradGerarCobranca())" style="width:16px;height:16px;accent-color:var(--app-primary);cursor:pointer;" />
-      </div>
+      @if (!perfilProfessor) {
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--app-bg);border:1px solid var(--app-border);border-radius:8px;">
+          <label style="flex:1;font-size:13px;color:var(--app-text-1);cursor:pointer;margin:0;" [for]="'chk-grad-cobranca'">Gerar cobrança financeira</label>
+          <input type="checkbox" [id]="'chk-grad-cobranca'" [checked]="gradGerarCobranca()" (change)="gradGerarCobranca.set(!gradGerarCobranca())" style="width:16px;height:16px;accent-color:var(--app-primary);cursor:pointer;" />
+        </div>
+      }
       @if (gradGerarCobranca()) {
         <div class="form-group">
           <label class="form-label">Valor da cobrança (R$) *</label>

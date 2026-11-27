@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/app_version_label.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -2092,7 +2093,8 @@ class _AlunoPerfilScreenState extends State<AlunoPerfilScreen> {
               ),
             ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            const SliverToBoxAdapter(child: AppVersionLabel()),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
           ],
         ),
       ),

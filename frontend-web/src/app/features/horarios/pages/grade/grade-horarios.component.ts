@@ -9,6 +9,9 @@ import { TurmaDto } from '../../../../core/models/turma.model';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { ToastService } from '../../../../core/services/toast.service';
 
+import { ehProfessor } from '../../../../core/models/stored-user.model';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+
 @Component({
   selector: 'app-grade-horarios',
   standalone: true,
@@ -17,6 +20,8 @@ import { ToastService } from '../../../../core/services/toast.service';
   styleUrls: ['./grade-horarios.component.css'],
 })
 export class GradeHorariosComponent implements OnInit {
+  /** Professor segue as mesmas restrições do app mobile. */
+  readonly perfilProfessor = ehProfessor(inject(FirebaseAuthService).currentUser());
   private readonly horarioService = inject(HorarioService);
   private readonly turmaService = inject(TurmaService);
   private readonly fb = inject(FormBuilder);
@@ -88,7 +93,8 @@ export class GradeHorariosComponent implements OnInit {
   }
 
   abrirModal(): void {
-    this.form.reset();
+    // `turmaId: ''` casa com a opção "Selecione a turma"; com `null` o campo fica em branco.
+    this.form.reset({ turmaId: '' });
     this.diasSelecionados.set([]);
     this.erroForm.set('');
     this.modalAberto.set(true);

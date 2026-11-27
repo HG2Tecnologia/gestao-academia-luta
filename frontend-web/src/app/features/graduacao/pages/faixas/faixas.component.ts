@@ -14,6 +14,9 @@ interface GrupoModalidade {
   faixas: FaixaDto[];
 }
 
+import { ehProfessor } from '../../../../core/models/stored-user.model';
+import { FirebaseAuthService } from '../../../../core/services/firebase-auth.service';
+
 @Component({
   selector: 'app-faixas',
   standalone: true,
@@ -21,6 +24,8 @@ interface GrupoModalidade {
   templateUrl: './faixas.component.html',
 })
 export class FaixasComponent implements OnInit {
+  /** Professor segue as mesmas restrições do app mobile. */
+  readonly perfilProfessor = ehProfessor(inject(FirebaseAuthService).currentUser());
   private readonly graduacaoService = inject(GraduacaoService);
   private readonly modalidadeService = inject(ModalidadeService);
   private readonly fb = inject(FormBuilder);

@@ -12,9 +12,13 @@ exports.discoverAccessProfiles = accountFunctions.discoverAccessProfiles;
 exports.activateAccessAccount = accountFunctions.activateAccessAccount;
 exports.refreshAccessAccount = accountFunctions.refreshAccessAccount;
 
+const accountDeletionFunctions = require("./account-deletion-functions");
+exports.excluirMinhaConta = accountDeletionFunctions.excluirMinhaConta;
+
 const adminFunctions = require("./admin-functions");
 exports.adminResetPassword = adminFunctions.adminResetPassword;
 exports.checkContatoCompartilhado = adminFunctions.checkContatoCompartilhado;
+exports.atualizarTelefoneAcessoAluno = adminFunctions.atualizarTelefoneAcessoAluno;
 exports.requestPasswordReset = adminFunctions.requestPasswordReset;
 
 const notificationTriggers = require("./notification-triggers");
@@ -63,6 +67,10 @@ exports.ativarAssinaturaIOS = iapFunctions.ativarAssinaturaIOS;
 exports.ativarAssinaturaAndroid = iapFunctions.ativarAssinaturaAndroid;
 exports.webhookAppStoreNotifications = iapFunctions.webhookAppStoreNotifications;
 exports.webhookGooglePlayNotifications = iapFunctions.webhookGooglePlayNotifications;
+
+const iapReconciliation = require("./iap-reconciliation");
+exports.reconciliarAssinaturas = iapReconciliation.reconciliarAssinaturas;
+exports.testarReconciliacaoAssinaturas = iapReconciliation.testarReconciliacaoAssinaturas;
 
 const engagementNotifications = require("./engagement-notifications");
 exports.checarAlertasEngajamento = engagementNotifications.checarAlertasEngajamento;
@@ -174,3 +182,9 @@ exports.testarVencimentosContasAcademia = onRequest(async (req, res) => {
   const total = await processarVencimentosContasAcademia();
   res.status(200).json({ alertasGerados: total });
 });
+
+const appFeedbackFunctions = require("./app-feedback-functions");
+exports.registrarFeedbackApp = appFeedbackFunctions.registrarFeedbackApp;
+
+const novoCadastroEmail = require("./novo-cadastro-email");
+exports.avisarNovaAcademia = novoCadastroEmail.avisarNovaAcademia;

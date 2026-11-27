@@ -1341,7 +1341,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'This student already has active app access. Changing the email/phone here does NOT change their password or login. Use \"Reset password\" if needed.';
+      'This student already has active app access. Changing the phone here automatically moves their login to the new number (the password never changes). Changing the email does NOT move the login. Use \"Reset password\" if needed.';
 
   @override
   String get sdCpfOptional => 'CPF (optional)';
@@ -4180,6 +4180,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgDeleteAccountBtn => 'Delete my account';
 
   @override
+  String get cfgDeleteAdminTitle => 'Delete account and gym?';
+
+  @override
+  String cfgDeleteAdminBody(String nome) {
+    return 'If you are the only administrator, the gym “$nome” will be deleted entirely: students, classes, finances, history and everyone\'s access. If there is another administrator, only your account is removed and the gym stays.\n\nThis does not cancel App Store or Google Play subscriptions — cancel them in the store.\n\nThis cannot be undone. To confirm, type the gym name:';
+  }
+
+  @override
+  String get cfgDeleteAdminNameHint => 'Gym name';
+
+  @override
+  String get cfgDeleteAdminNameMismatch =>
+      'The name you typed doesn\'t match the gym name.';
+
+  @override
   String get cfgPlanActive => 'Active Plan';
 
   @override
@@ -5514,4 +5529,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String rpSummaryLine(int presencas, int faltas, int total) {
     return '$presencas present · $faltas absent · $total classes in period';
   }
+
+  @override
+  String appVersionLabel(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
+  String get appVersionCopied => 'Version copied';
+
+  @override
+  String get reviewAskTitle => 'Enjoying Sensei?';
+
+  @override
+  String get reviewAskSubtitle =>
+      'Your opinion helps us improve the app and reach more gyms.';
+
+  @override
+  String get reviewAskYes => 'Yes, I\'m enjoying it!';
+
+  @override
+  String get reviewAskNo => 'Not really';
+
+  @override
+  String get reviewAskLater => 'Not now';
+
+  @override
+  String get reviewFeedbackTitle => 'Oh no, what can we improve?';
+
+  @override
+  String get reviewFeedbackSubtitle =>
+      'Tell us what\'s not working. Your message goes straight to our team.';
+
+  @override
+  String get reviewFeedbackHint => 'Write your suggestion or problem here';
+
+  @override
+  String get reviewFeedbackSend => 'Send';
+
+  @override
+  String get reviewFeedbackThanks => 'Thanks for your feedback!';
 }

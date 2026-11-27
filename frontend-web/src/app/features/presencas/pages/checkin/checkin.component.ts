@@ -9,6 +9,8 @@ import { HorarioDto } from '../../../../core/models/horario.model';
 import { PresencaDto } from '../../../../core/models/presenca.model';
 import { QrScannerComponent } from '../../../../shared/components/qr-scanner/qr-scanner.component';
 import { dataLocalISO } from '../../../../core/utils/date.util';
+import { CheckinBloqueadoError } from '../../../../core/services/regras-checkin';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-checkin',
@@ -102,20 +104,37 @@ export class CheckinComponent implements OnInit {
     if (!this.horarioId()) { this.erro.set('Selecione um horário.'); return; }
     this.salvando.set(true);
 
+    this.erro.set('');
+
     const novos = Array.from(this.presentes()).filter(id => !this.jaPresentes.has(id));
-    const reqs = novos.map((alunoId) =>
-      this.presencaService.registrar({
-        alunoId,
-        horarioId: this.horarioId(),
-        data: this.data(),
-        metodoCheckin: 1,
-      }).toPromise()
+    const nome = (id: string) => this.alunos().find((a) => a.alunoId === id)?.nomeAluno ?? 'Aluno';
+    const avisos: string[] = [];
+    const resultados = await Promise.allSettled(
+      novos.map(async (alunoId) => {
+        const aviso = await this.presencaService.avisoLimiteSemanal(alunoId, this.horarioId()).catch(() => null);
+        await firstValueFrom(this.presencaService.registrar({
+          alunoId,
+          horarioId: this.horarioId(),
+          data: this.data(),
+          metodoCheckin: 1,
+        }));
+        if (aviso) avisos.push(`${nome(alunoId)}: ${aviso}`);
+      }),
     );
 
-    await Promise.allSettled(reqs);
+    const recusados: string[] = [];
+    const presentes = new Set(this.presentes());
+    resultados.forEach((r, i) => {
+      if (r.status === 'fulfilled') return;
+      presentes.delete(novos[i]);
+      const motivo = r.reason instanceof CheckinBloqueadoError ? r.reason.message : 'Erro ao registrar presença.';
+      recusados.push(`${nome(novos[i])}: ${motivo}`);
+    });
+    this.presentes.set(presentes);
+    this.jaPresentes = new Set(presentes);
     this.salvando.set(false);
-    this.jaPresentes = new Set(this.presentes());
-    this.modalSucesso.set(true);
+    this.erro.set([...recusados, ...avisos].join(' · '));
+    if (recusados.length < novos.length || novos.length === 0) this.modalSucesso.set(true);
   }
 
   onQrDetectado(token: string): void {
@@ -126,7 +145,7 @@ export class CheckinComponent implements OnInit {
         this.feedbackQr.set(res.sucesso ? `✓ ${res.dados?.nomeAluno} registrado` : (res.mensagem ?? 'Erro'));
       },
       error: (err) => {
-        this.feedbackQr.set(err.error?.mensagem ?? 'Token inválido');
+        this.feedbackQr.set(err instanceof CheckinBloqueadoError ? err.message : (err.error?.mensagem ?? err.message ?? 'Token inválido'));
         this.modoQr.set(true);
       },
     });

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import '../../core/app_version_label.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -997,6 +999,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     titulo: _l.cfgDangerSection,
                     child: _BotaoExcluirConta(),
                   ),
+                  const AppVersionLabel(),
                 ],
               ),
             ),
@@ -2578,61 +2581,129 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
   AppLocalizations get _l => context.l10n;
   bool _loading = false;
 
-  Future<void> _excluir() async {
-    final confirma = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: context.c.surfaceContainer,
-        title: Text(
-          _l.cfgDeleteAccountTitle,
-          style: TextStyle(
-            color: context.c.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        content: Text(
-          _l.cfgDeleteAccountBody,
-          style: TextStyle(color: context.c.onSurfaceVariant),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text(
-              _l.commonCancel,
-              style: TextStyle(color: context.c.onSurfaceVariant),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: Text(
-              _l.commonDelete,
-              style: TextStyle(
-                color: context.sem.danger,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+  static String _normalizarNome(String value) =>
+      value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+  void _mostrarErro(String mensagem) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: context.sem.danger,
+        behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  /// Exclusão feita no servidor (Cloud Function `excluirMinhaConta`): se este
+  /// for o único Admin, apaga a academia inteira e os acessos dela; se houver
+  /// outro Admin, apaga só este perfil. Não depende de login recente, ao
+  /// contrário de `User.delete()` no cliente.
+  Future<void> _excluir() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final dados = await firestoreService.getAcademia(academiaId) ?? {};
+    final nomeAcademia = (dados['nome'] as String? ?? '').trim();
+    if (!mounted) return;
+
+    final nomeCtrl = TextEditingController();
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final confere = nomeAcademia.isNotEmpty &&
+              _normalizarNome(nomeCtrl.text) == _normalizarNome(nomeAcademia);
+          return AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              _l.cfgDeleteAdminTitle,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _l.cfgDeleteAdminBody(nomeAcademia),
+                    style: TextStyle(color: context.c.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nomeCtrl,
+                    autocorrect: false,
+                    textCapitalization: TextCapitalization.none,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      hintText: nomeAcademia.isEmpty
+                          ? _l.cfgDeleteAdminNameHint
+                          : nomeAcademia,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
+              ),
+              TextButton(
+                onPressed:
+                    confere ? () => Navigator.pop(dialogCtx, true) : null,
+                child: Text(
+                  _l.commonDelete,
+                  style: TextStyle(
+                    color: confere
+                        ? context.sem.danger
+                        : context.c.onSurfaceVariant.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    final nomeDigitado = nomeCtrl.text;
+    // Só descarta depois da animação de saída do diálogo, que ainda lê o campo.
+    Future<void>.delayed(const Duration(milliseconds: 500), nomeCtrl.dispose);
     if (confirma != true || !mounted) return;
 
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.currentUser?.delete();
+      await FirebaseFunctions.instance
+          .httpsCallable(
+            'excluirMinhaConta',
+            options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+          )
+          .call({'academiaId': academiaId, 'confirmacaoNome': nomeDigitado});
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {
+        // O login pode já ter sido apagado no servidor; segue a limpeza local.
+      }
       await AuthStorage.clear();
       PlanService.instance.reset();
       if (!mounted) return;
       context.go('/boas-vindas');
-    } catch (_) {
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('excluirMinhaConta falhou: ${e.code} ${e.message}');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.cfgDeleteAccountError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _mostrarErro(e.code == 'failed-precondition'
+          ? _l.cfgDeleteAdminNameMismatch
+          : _l.cfgDeleteAccountError);
+    } catch (e) {
+      debugPrint('excluirMinhaConta falhou: $e');
+      if (!mounted) return;
+      _mostrarErro(_l.cfgDeleteAccountError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

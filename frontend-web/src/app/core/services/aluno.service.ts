@@ -16,6 +16,7 @@ import { db, functions } from '../firebase/firebase';
 import { FirebaseAuthService } from './firebase-auth.service';
 import { BaseResponse } from '../models/auth.model';
 import { statusEfetivo } from '../utils/pagamento-status.util';
+import { veSomenteTurmasProprias } from '../models/stored-user.model';
 import {
   AlunoListaDto,
   AlunoDetalheDto,
@@ -60,7 +61,9 @@ export class AlunoService {
     const pagamentosRef = collection(db, 'academias', academiaId, 'pagamentos');
 
     const [usuariosSnap, turmasSnap, matriculasSnap, pagamentosSnap] = await Promise.all([
-      getDocs(academiaRef),
+      // `usuarios` também guarda a equipe (ex.: o Admin criado no cadastro da
+      // academia, `perfil: 0`) — mesmo filtro de `getAlunos` no mobile.
+      getDocs(query(academiaRef, where('perfil', '==', 3))),
       getDocs(turmasRef),
       getDocs(query(matriculasRef, where('ativo', '==', true))),
       getDocs(pagamentosRef),
@@ -113,7 +116,13 @@ export class AlunoService {
         situacaoFinanceira: situacaoPorAluno.get(d.id) ?? 'EmDia',
       });
     });
-    return lista;
+    const user = this.authService.currentUser();
+    if (!veSomenteTurmasProprias(user)) return lista;
+    const proprias = new Set(turmasSnap.docs.filter((d) => d.data()['professorId'] === user!.id).map((d) => d.id));
+    const permitidos = new Set(
+      matriculasSnap.docs.filter((d) => proprias.has(d.data()['turma_id'])).map((d) => d.data()['aluno_id']),
+    );
+    return lista.filter((a) => permitidos.has(a.id));
   }
 
   getAll(filtros?: {
@@ -172,10 +181,25 @@ export class AlunoService {
     return nomes.filter((n): n is string => !!n);
   }
 
+  /** Barra o link direto pra ficha de aluno que não é das turmas do professor. */
+  private async garantirAlunoVisivel(academiaId: string, alunoId: string): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!veSomenteTurmasProprias(user)) return;
+    const matriculas = await getDocs(
+      query(collection(db, 'academias', academiaId, 'matriculas'), where('aluno_id', '==', alunoId), where('ativo', '==', true)),
+    );
+    const turmas = await Promise.all(
+      matriculas.docs.map((d) => getDoc(doc(db, 'academias', academiaId, 'turmas', String(d.data()['turma_id'])))),
+    );
+    if (!turmas.some((t) => t.data()?.['professorId'] === user!.id)) throw new Error('Aluno de outro professor.');
+  }
+
   getById(id: string): Observable<BaseResponse<AlunoDetalheDto>> {
     const academiaId = this.academiaId;
     return from(
-      Promise.all([getDoc(doc(db, 'academias', academiaId, 'usuarios', id)), this.carregarTurmasDoAluno(academiaId, id)]),
+      this.garantirAlunoVisivel(academiaId, id).then(() =>
+        Promise.all([getDoc(doc(db, 'academias', academiaId, 'usuarios', id)), this.carregarTurmasDoAluno(academiaId, id)]),
+      ),
     ).pipe(
       map(([snap, turmas]) => {
         const a = snap.data() ?? {};
@@ -210,15 +234,18 @@ export class AlunoService {
     const academiaId = this.academiaId;
     const ref = collection(db, 'academias', academiaId, 'usuarios');
     const payload = {
-      nome: data.nome,
-      email: data.email ?? null,
-      telefone: data.telefone,
+      nome: data.nome.trim(),
+      email: data.email?.trim().toLowerCase() || null,
+      telefone: data.telefone ?? '',
       telefone_digits: data.telefone?.replace(/\D/g, '') ?? '',
       data_nascimento: data.dataNascimento ?? null,
+      ...(data.cpf ? { cpf: data.cpf.replace(/\D/g, '') } : {}),
       contato_emergencia_nome: data.contatoEmergenciaNome ?? null,
       contato_emergencia_telefone: data.contatoEmergenciaTelefone ?? null,
       plano_id: data.planoId ?? null,
       dia_vencimento: data.diaVencimento ?? null,
+      ...(data.acessoAppBloqueado ? { acesso_app_bloqueado: true } : {}),
+      xp_mensal: 0,
       perfil: 3,
       perfil_nome: 'Aluno',
       ativo: true,
@@ -227,6 +254,8 @@ export class AlunoService {
       origem: 'crm_web',
       criado_em: serverTimestamp(),
     };
+    // A cobrança do mês é gerada no servidor (`gerarCobrancasAoAtribuirPlano`).
+    // Gravar outra aqui duplicava.
     return from(addDoc(ref, payload)).pipe(
       map((docRef) =>
         ok<AlunoListaDto>({
@@ -244,12 +273,22 @@ export class AlunoService {
     );
   }
 
+  /** Aluno que já usa este e-mail (o app avisa e deixa cadastrar mesmo assim). */
+  async alunoComEmail(email: string): Promise<string | null> {
+    const snap = await getDocs(query(
+      collection(db, 'academias', this.academiaId, 'usuarios'),
+      where('email', '==', email.trim().toLowerCase()),
+      where('perfil', '==', 3),
+    ));
+    return snap.empty ? null : String(snap.docs[0].data()['nome'] ?? '');
+  }
+
   update(id: string, data: UpdateAlunoRequest): Observable<BaseResponse<AlunoListaDto>> {
     const academiaId = this.academiaId;
     const ref = doc(db, 'academias', academiaId, 'usuarios', id);
     const payload = {
       nome: data.nome,
-      email: data.email ?? null,
+      email: data.email?.trim().toLowerCase() || null,
       telefone: data.telefone,
       telefone_digits: data.telefone?.replace(/\D/g, '') ?? '',
       data_nascimento: data.dataNascimento ?? null,

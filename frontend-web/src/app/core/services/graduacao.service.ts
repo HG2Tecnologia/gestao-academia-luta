@@ -237,7 +237,8 @@ export class GraduacaoService {
   /** Espelho de `getAptosGraduacao` no mobile: lógica simplificada (todos os alunos ativos) — a UI decide quem de fato está apto. */
   getAptos(_faixaId: string): Observable<BaseResponse<AlunoAptoDto[]>> {
     const academiaId = this.academiaId;
-    return from(getDocs(query(collection(db, 'academias', academiaId, 'usuarios'), where('ativo', '==', true)))).pipe(
+    const alunosAtivos = query(collection(db, 'academias', academiaId, 'usuarios'), where('perfil', '==', 3), where('ativo', '==', true));
+    return from(getDocs(alunosAtivos)).pipe(
       map((snap) => {
         const lista: AlunoAptoDto[] = snap.docs.map((d) => {
           const a = d.data();

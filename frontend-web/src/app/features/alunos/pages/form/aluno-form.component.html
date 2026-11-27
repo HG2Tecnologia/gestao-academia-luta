@@ -23,16 +23,13 @@
           <label class="form-label">Nome completo *</label>
           <input formControlName="nome" class="form-input" placeholder="Nome do aluno" />
           @if (form.get('nome')?.invalid && form.get('nome')?.touched) {
-            <span class="form-error">Nome é obrigatório (mínimo 3 caracteres)</span>
+            <span class="form-error">Campo obrigatório</span>
           }
         </div>
         <div class="form-group">
-          <label class="form-label">Telefone *</label>
+          <label class="form-label">Telefone</label>
           <input formControlName="telefone" class="form-input" placeholder="(11) 99999-9999"
             (input)="mascaraTelefone($event)" inputmode="numeric" />
-          @if (form.get('telefone')?.invalid && form.get('telefone')?.touched) {
-            <span class="form-error">Telefone é obrigatório</span>
-          }
         </div>
       </div>
 
@@ -46,14 +43,8 @@
           }
         </div>
         <div class="form-group">
-          <label class="form-label">Data de Nascimento *</label>
+          <label class="form-label">Data de Nascimento</label>
           <input formControlName="dataNascimento" type="date" class="form-input" />
-          @if (form.get('dataNascimento')?.invalid && form.get('dataNascimento')?.touched) {
-            <span class="form-error">Data de nascimento é obrigatória</span>
-          }
-          @if (!menorDeIdade() && form.get('dataNascimento')?.value) {
-            <span style="font-size:11px;color:var(--app-text-3);margin-top:4px;display:block;">Dados de responsável exigidos apenas para menores de 18 anos.</span>
-          }
         </div>
       </div>
 
@@ -84,28 +75,34 @@
         </div>
       </div>
 
-      <!-- Contato de Emergência — só aparece para menores de 18 anos -->
-      @if (menorDeIdade()) {
-        <div class="form-section-title">
-          Responsável / Contato de Emergência
-          <span class="badge-menor">Obrigatório — aluno menor de 18 anos</span>
+      <!-- Responsável / contato de emergência (opcional, como no app) -->
+      <div class="form-section-title">Responsável / Contato de Emergência <small>(opcional)</small></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">{{ menorDeIdade() ? 'Nome do responsável' : 'Nome do contato' }}</label>
+          <input formControlName="contatoEmergenciaNome" class="form-input" />
         </div>
+        <div class="form-group">
+          <label class="form-label">{{ menorDeIdade() ? 'Telefone do responsável' : 'Telefone do contato' }}</label>
+          <input formControlName="contatoEmergenciaTelefone" class="form-input" placeholder="(11) 99999-9999"
+            (input)="mascaraEmergTel($event)" inputmode="numeric" />
+        </div>
+      </div>
+
+      @if (!editandoId()) {
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Nome do responsável *</label>
-            <input formControlName="contatoEmergenciaNome" class="form-input" placeholder="Nome do responsável" />
-            @if (form.get('contatoEmergenciaNome')?.invalid && form.get('contatoEmergenciaNome')?.touched) {
-              <span class="form-error">Nome do responsável é obrigatório para menores de 18 anos</span>
-            }
+            <label class="form-label">CPF (opcional)</label>
+            <input formControlName="cpf" class="form-input" inputmode="numeric" maxlength="14" />
           </div>
-          <div class="form-group">
-            <label class="form-label">Telefone do responsável *</label>
-            <input formControlName="contatoEmergenciaTelefone" class="form-input" placeholder="(11) 99999-9999"
-              (input)="mascaraEmergTel($event)" inputmode="numeric" />
-            @if (form.get('contatoEmergenciaTelefone')?.invalid && form.get('contatoEmergenciaTelefone')?.touched) {
-              <span class="form-error">Telefone do responsável é obrigatório para menores de 18 anos</span>
-            }
-          </div>
+        </div>
+        <div class="form-section-title">Acesso ao App</div>
+        <div class="form-group">
+          <label class="checkbox-label" style="display:flex;">
+            <input type="checkbox" class="form-checkbox" [checked]="acessoAppAtivo()" (change)="acessoAppAtivo.set(!acessoAppAtivo())" />
+            {{ acessoAppAtivo() ? 'Acesso ao app liberado' : 'Acesso ao app bloqueado' }}
+          </label>
+          <span style="font-size:11px;color:var(--app-text-3)">Com acesso liberado e telefone ou e-mail, geramos uma senha temporária para você repassar ao aluno. Ele entra no app com o telefone ou e-mail cadastrado e essa senha.</span>
         </div>
       }
 

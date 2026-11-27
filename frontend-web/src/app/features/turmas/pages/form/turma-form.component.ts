@@ -5,6 +5,9 @@ import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { TurmaService } from '../../../../core/services/turma.service';
 import { ModalidadeService, ModalidadeDto } from '../../../../core/services/modalidade.service';
 import { FuncionarioService } from '../../../../core/services/funcionario.service';
+import { PlanoLimiteService } from '../../../../core/services/plano-limite.service';
+import { PlanoService } from '../../../../core/services/plano.service';
+import { PlanoDto } from '../../../../core/models/plano.model';
 import { UsuarioResumoDto } from '../../../../core/models/usuario.model';
 
 @Component({
@@ -18,6 +21,9 @@ export class TurmaFormComponent implements OnInit {
   private readonly turmaService = inject(TurmaService);
   private readonly modalidadeService = inject(ModalidadeService);
   private readonly funcionarioService = inject(FuncionarioService);
+  private readonly planoLimiteService = inject(PlanoLimiteService);
+  private readonly planoService = inject(PlanoService);
+  readonly planos = signal<PlanoDto[]>([]);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -25,6 +31,8 @@ export class TurmaFormComponent implements OnInit {
   readonly carregando = signal(false);
   readonly erro = signal('');
   readonly modoEdicao = signal(false);
+  /** Se a turma em edição já estava ativa — só reativar conta no limite do plano. */
+  private estavaAtiva = false;
 
   readonly modalidades = signal<ModalidadeDto[]>([]);
   readonly professores = signal<UsuarioResumoDto[]>([]);
@@ -36,15 +44,17 @@ export class TurmaFormComponent implements OnInit {
   });
 
   readonly form = this.fb.group({
-    nome: ['', [Validators.required, Validators.minLength(3)]],
+    nome: ['', Validators.required],
     modalidadeId: ['', Validators.required],
-    professorId: ['', Validators.required],
+    professorId: [''],
+    planoPadraoId: [''],
     nivel: [''],
-    capacidadeMaxima: [20, [Validators.required, Validators.min(1)]],
+    capacidadeMaxima: [30, [Validators.required, Validators.min(1)]],
     ativo: [true],
   });
 
   ngOnInit(): void {
+    this.planoService.listar().subscribe({ next: (r) => this.planos.set((r.dados ?? []).filter((x) => x.ativo)) });
     this.modalidadeService.getAll().subscribe({ next: (r) => this.modalidades.set(r.dados ?? []) });
     this.funcionarioService.getProfessores().subscribe({ next: (r) => this.professores.set(r.dados ?? []) });
     const id = this.route.snapshot.paramMap.get('id');
@@ -60,10 +70,12 @@ export class TurmaFormComponent implements OnInit {
     this.turmaService.getById(id).subscribe({
       next: (res) => {
         if (res.dados) {
+          this.estavaAtiva = res.dados.ativo;
           this.form.patchValue({
             nome: res.dados.nome,
             modalidadeId: res.dados.modalidadeId,
             professorId: res.dados.professorId,
+            planoPadraoId: res.dados.planoPadraoId ?? '',
             nivel: res.dados.nivel ?? '',
             capacidadeMaxima: res.dados.capacidadeMaxima,
             ativo: res.dados.ativo,
@@ -93,7 +105,8 @@ export class TurmaFormComponent implements OnInit {
       ? this.turmaService.update(id, {
           nome: dados.nome!,
           modalidadeId: dados.modalidadeId!,
-          professorId: dados.professorId!,
+          professorId: dados.professorId ?? '',
+          planoPadraoId: dados.planoPadraoId || undefined,
           nivel: dados.nivel ?? undefined,
           capacidadeMaxima: dados.capacidadeMaxima!,
           ativo: dados.ativo!,
@@ -101,7 +114,8 @@ export class TurmaFormComponent implements OnInit {
       : this.turmaService.create({
           nome: dados.nome!,
           modalidadeId: dados.modalidadeId!,
-          professorId: dados.professorId!,
+          professorId: dados.professorId ?? '',
+          planoPadraoId: dados.planoPadraoId || undefined,
           nivel: dados.nivel ?? undefined,
           capacidadeMaxima: dados.capacidadeMaxima!,
         });
@@ -115,8 +129,10 @@ export class TurmaFormComponent implements OnInit {
           this.carregando.set(false);
         }
       },
-      error: (err) => {
-        this.erro.set(err.error?.mensagem ?? err.error?.title ?? 'Erro ao salvar turma.');
+      error: async (err) => {
+        const ocupaVaga = !id || (dados.ativo === true && !this.estavaAtiva);
+        const limite = ocupaVaga ? await this.planoLimiteService.mensagemSeAtingido(err, 'turma') : null;
+        this.erro.set(limite ?? err.error?.mensagem ?? err.error?.title ?? 'Erro ao salvar turma.');
         this.carregando.set(false);
       },
     });

@@ -1,3 +1,4 @@
+import '../../core/app_review_service.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/auth_storage.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/iap_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/plan_service.dart';
@@ -37,8 +39,23 @@ class _AdminShellState extends State<AdminShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         WhatsNewService.checkAndShow(context, viewer: ReleaseViewer.academy);
+        AppReviewService.registrarAberturaEPerguntar(context, papel: 'academia');
+        _conferirAssinaturaEmSilencio();
       }
     });
+  }
+
+  // Reforço oportunista pra pegar assinatura divergente entre loja e
+  // Firestore (ex.: notificação de renovação que se perdeu) — a rede de
+  // segurança principal é a rotina diária no servidor
+  // (functions/iap-reconciliation.js); isso aqui é só mais uma chance, sem
+  // incomodar ninguém. Cortesia/liberação manual nunca tem compra real pra
+  // restaurar, então nem tenta.
+  void _conferirAssinaturaEmSilencio() {
+    final plan = PlanService.instance;
+    if (plan.isPro && plan.planoOrigem == 'loja') {
+      IapService.instance.restaurar().catchError((_) {});
+    }
   }
 
   Future<void> _atualizarPerfis() async {

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'aluno_planos_modalidade_screen.dart';
 import '../../core/aluno_service.dart';
 import '../../core/auth_storage.dart';
+import '../../core/firebase_identity_service.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/finance_service.dart';
@@ -60,6 +61,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
   String? _academiaId;
   StoredUser? _callerUser;
   bool _loading = true;
+  List<Map<String, dynamic>> _todosPlanos = const [];
   String? _erro;
   bool _uploadingAtestado = false;
   // Faixa mais recente aprovada por modalidade: { nomeModalidade -> { nome, cor } }
@@ -93,9 +95,11 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  /// [silencioso]: recarrega por baixo, mantendo a ficha na tela (usado após
+  /// editar, para não trocar tudo por um spinner de tela cheia).
+  Future<void> _load({bool silencioso = false}) async {
     setState(() {
-      _loading = true;
+      if (!silencioso) _loading = true;
       _erro = null;
     });
     try {
@@ -393,6 +397,7 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
               academiaDoc?['cobranca_por_modalidade_ativa'] as bool? ?? false;
           _planosModalidade = planosModalidadeEnriquecidos;
           _modalidadesPorId = modalidadesLista;
+          _todosPlanos = todosPlanos;
         });
     } catch (_) {
       if (mounted) setState(() => _erro = _l.sdLoadError);
@@ -454,6 +459,62 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
         );
       }
     }
+  }
+
+  /// O telefone novo já pertence a outra conta de acesso (ex.: irmão que usa o
+  /// telefone do responsável). Pergunta se o aluno deve passar a usar essa
+  /// conta. Retorna `true` só ao confirmar "Vincular"; qualquer outra saída
+  /// (corrigir o número, tocar fora) devolve a pessoa ao formulário, sem gravar.
+  Future<bool?> _perguntarVincularTelefone(
+    BuildContext dialogContext, {
+    required String nome,
+    required String telefone,
+  }) {
+    return showDialog<bool>(
+      context: dialogContext,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.c.surfaceContainer,
+        title: Text(
+          'Telefone já está em uso',
+          style: TextStyle(
+            color: context.c.onSurface,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          'O telefone $telefone já pertence a outra conta de acesso. '
+          'Se for o telefone do responsável, você pode vincular '
+          '${nome.isEmpty ? 'o aluno' : nome} a essa conta: os dois passam a '
+          'entrar com o mesmo login e a senha existente não muda.\n\n'
+          'Se o número foi digitado errado, corrija-o.',
+          style: TextStyle(
+            color: context.c.onSurfaceVariant,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Corrigir número',
+              style: TextStyle(color: context.c.onSurfaceVariant),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Vincular',
+              style: TextStyle(
+                color: context.c.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Exclusão definitiva do aluno (Cloud Function `excluirAluno`): apaga
@@ -4001,10 +4062,14 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
     final alunoTemAcessoAtivo =
         (a['firebaseUid'] as String?)?.isNotEmpty == true;
 
-    List<Map<String, dynamic>> planos = [];
-    try {
-      planos = await firestoreService.getPlanos(_academiaId!);
-    } catch (_) {}
+    // Reaproveita os planos já carregados com a ficha (evita uma leitura e
+    // uma espera antes de abrir o formulário); só busca se ainda não vieram.
+    var planos = _todosPlanos;
+    if (planos.isEmpty) {
+      try {
+        planos = await firestoreService.getPlanos(_academiaId!);
+      } catch (_) {}
+    }
     if (!mounted) return;
 
     final nomeCtrl = TextEditingController(text: a['nome']?.toString() ?? '');
@@ -4352,6 +4417,46 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               erroEmailCampo = null;
                               erroTelefoneCampo = null;
                             });
+
+                            // Aluno que já tem acesso ao app: o login é uma
+                            // conta criada com o telefone da época do cadastro,
+                            // e editar só a ficha deixava o login no número
+                            // antigo. Confere ANTES de gravar se a conta
+                            // acompanha o número novo; só o servidor sabe se o
+                            // número já pertence a outra conta (ex.: irmão).
+                            var statusTelefone = 'sem_acesso';
+                            var vincularContaExistente = false;
+                            if (!_pm &&
+                                alunoTemAcessoAtivo &&
+                                telDigitsCanonico != null) {
+                              try {
+                                statusTelefone = (await firebaseIdentityService
+                                        .atualizarTelefoneAcessoAluno(
+                                          academiaId: _academiaId!,
+                                          usuarioId: widget.alunoId,
+                                          telefone: telVal,
+                                          modo: 'verificar',
+                                        ))
+                                    .status;
+                              } catch (_) {
+                                // Checagem é complementar: se falhar, a ficha
+                                // ainda pode ser salva como antes.
+                                statusTelefone = 'erro';
+                              }
+                            }
+                            if (statusTelefone == 'conflito') {
+                              if (!ctx.mounted) return;
+                              setModal(() => salvando = false);
+                              final vincular = await _perguntarVincularTelefone(
+                                ctx,
+                                nome: nomeCtrl.text.trim(),
+                                telefone: telVal,
+                              );
+                              if (vincular != true) return; // nada foi gravado.
+                              vincularContaExistente = true;
+                              setModal(() => salvando = true);
+                            }
+
                             try {
                               final nascText = nascCtrl.text.trim();
                               final cpfDigits = cpfCtrl.text.trim().replaceAll(
@@ -4403,19 +4508,61 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               final diaVencInt = int.tryParse(
                                 diaVencCtrl.text.trim(),
                               );
-                              if (!_pm &&
-                                  planoIdSel != null &&
-                                  planoIdAntes == null &&
-                                  diaVencInt != null) {
-                                try {
-                                  final agora = DateTime.now();
-                                  final periodoAtual =
-                                      '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
-                                  await financeService.ensureChargesForPeriod(
-                                    academiaId: _academiaId!,
-                                    period: periodoAtual,
-                                  );
-                                } catch (_) {}
+                              // Gerar a cobrança e atualizar o login são
+                              // chamadas independentes ao servidor: rodam
+                              // juntas, cada uma com o próprio tratamento de
+                              // falha (antes uma esperava a outra).
+                              Future<void> gerarCobranca() async {
+                                if (!_pm &&
+                                    planoIdSel != null &&
+                                    planoIdAntes == null &&
+                                    diaVencInt != null) {
+                                  try {
+                                    final agora = DateTime.now();
+                                    final periodoAtual =
+                                        '${agora.year}-${agora.month.toString().padLeft(2, '0')}';
+                                    await financeService.ensureChargesForPeriod(
+                                      academiaId: _academiaId!,
+                                      period: periodoAtual,
+                                    );
+                                  } catch (_) {}
+                                }
+                              }
+
+                              // Ficha já salva: agora a conta de login acompanha
+                              // o número novo. Falha aqui não desfaz a ficha —
+                              // avisa a academia pra tentar de novo.
+                              String? avisoAcesso;
+                              Future<void> atualizarLogin() async {
+                                if (statusTelefone == 'livre' ||
+                                    vincularContaExistente) {
+                                  try {
+                                    await firebaseIdentityService
+                                        .atualizarTelefoneAcessoAluno(
+                                          academiaId: _academiaId!,
+                                          usuarioId: widget.alunoId,
+                                          telefone: telVal,
+                                          modo: vincularContaExistente
+                                              ? 'vincular'
+                                              : 'aplicar',
+                                        );
+                                  } catch (_) {
+                                    avisoAcesso =
+                                        'Dados salvos, mas o login do aluno ainda está no telefone antigo. Abra a ficha e salve de novo para tentar outra vez.';
+                                  }
+                                }
+                              }
+
+                              await Future.wait([
+                                gerarCobranca(),
+                                atualizarLogin(),
+                              ]);
+                              if (statusTelefone == 'livre' ||
+                                  vincularContaExistente) {
+                                // login já tratado em atualizarLogin()
+                              } else if (statusTelefone == 'compartilhada') {
+                                avisoAcesso =
+                                    'Dados salvos. O login deste aluno é compartilhado com outro cadastro (mesmo telefone), então continua no número antigo. Use "Redefinir senha" ou fale com o suporte para separar os acessos.';
                               }
                               if (ctx.mounted) {
                                 FocusScope.of(ctx).unfocus();
@@ -4443,15 +4590,22 @@ class _AdminAlunoDetalheScreenState extends State<AdminAlunoDetalheScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(_l.sdStudentUpdated),
-                                    backgroundColor: context.sem.success,
+                                    content: Text(
+                                      avisoAcesso ?? _l.sdStudentUpdated,
+                                    ),
+                                    backgroundColor: avisoAcesso != null
+                                        ? context.sem.warning
+                                        : context.sem.success,
                                     behavior: SnackBarBehavior.floating,
+                                    duration: avisoAcesso != null
+                                        ? const Duration(seconds: 8)
+                                        : const Duration(seconds: 4),
                                   ),
                                 );
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
-                                  if (mounted) _load();
+                                  if (mounted) _load(silencioso: true);
                                 });
                               }
                             } catch (e) {
