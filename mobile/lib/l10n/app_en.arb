@@ -538,7 +538,7 @@
   "pfRetakePhoto": "Retake photo",
   "pfIntro": "Take a photo of the class — the app suggests who's who to speed up attendance.",
   "pfProcessing": "Analyzing photo...",
-  "pfNoEligibleStudents": "No student in this class has opted in to face recognition yet (or everyone is already marked present today).",
+  "pfNoEligibleStudents": "No student in this class has face recognition set up yet (or everyone is already marked present today) — automatic suggestions won't work, but you can still identify manually and confirm consent on the spot.",
   "pfUnrecognized": "Not recognized",
   "pfConfidence": "confidence",
   "pfIdentify": "Identify",
@@ -546,7 +546,18 @@
   "pfNotInPhoto": "None (not a student)",
   "pfError": "Could not process. Please try again.",
   "pfNoFacesFound": "No faces found in this photo. Try again with everyone facing the camera.",
-  "pfConfirm": "{count, plural, =0{Confirm} one{Confirm {count} attendance} other{Confirm {count} attendances}}",
+  "pfConfirm": "{count, plural, =0{Confirm} one{Confirm attendance} other{Confirm {count} attendances}}",
+  "pfNoConsentBadge": "no consent on file",
+  "pfConfirmConsentTitle": "Confirm consent",
+  "pfConfirmConsentBody": "Confirm that {nome} authorized the use of their photo for face recognition (verbally or via enrollment contract)? This saves their face to auto-recognize them in future roll calls.",
+  "@pfConfirmConsentBody": {
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      }
+    }
+  },
+  "pfConfirmConsentSave": "Confirm and save",
   "@pfConfirm": {
     "placeholders": {
       "count": {

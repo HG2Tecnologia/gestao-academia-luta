@@ -2951,7 +2951,7 @@ abstract class AppLocalizations {
   /// No description provided for @pfNoEligibleStudents.
   ///
   /// In pt, this message translates to:
-  /// **'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).'**
+  /// **'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.'**
   String get pfNoEligibleStudents;
 
   /// No description provided for @pfUnrecognized.
@@ -2999,8 +2999,32 @@ abstract class AppLocalizations {
   /// No description provided for @pfConfirm.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, =0{Confirmar} one{Confirmar {count} presença} other{Confirmar {count} presenças}}'**
+  /// **'{count, plural, =0{Confirmar} one{Confirmar presença} other{Confirmar {count} presenças}}'**
   String pfConfirm(int count);
+
+  /// No description provided for @pfNoConsentBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'sem consentimento registrado'**
+  String get pfNoConsentBadge;
+
+  /// No description provided for @pfConfirmConsentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar consentimento'**
+  String get pfConfirmConsentTitle;
+
+  /// No description provided for @pfConfirmConsentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirma que {nome} autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.'**
+  String pfConfirmConsentBody(String nome);
+
+  /// No description provided for @pfConfirmConsentSave.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar e salvar'**
+  String get pfConfirmConsentSave;
 
   /// No description provided for @pfSaved.
   ///

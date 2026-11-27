@@ -2021,7 +2021,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             child: SizedBox(
               height: 48,
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: FilledButton.icon(
                 onPressed: () {
                   final academiaId = _academiaId;
                   if (academiaId == null) return;
@@ -2043,7 +2043,9 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
                   _l.pfTakePhoto,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                style: OutlinedButton.styleFrom(
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.c.primary,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

@@ -59,12 +59,16 @@ abstract final class FaceRecognitionService {
   }
 
   /// Detecta todos os rostos numa foto de arquivo e já calcula o embedding
-  /// de cada um. Usado na "chamada por foto" (grupo de alunos).
-  static Future<List<DetectedFace>> detectFacesInFile(String path) async {
+  /// de cada um. Usado na "chamada por foto" (grupo de alunos). Devolve
+  /// também a imagem já decodificada e com a orientação EXIF corrigida —
+  /// quem chama (a tela, pra recortar as miniaturas de cada rosto) reaproveita
+  /// essa mesma imagem em vez de decodificar o arquivo de novo.
+  static Future<({img.Image? decoded, List<DetectedFace> faces})>
+  detectFacesInFile(String path) async {
     await _getInterpreter();
     final bytes = await File(path).readAsBytes();
     var decoded = img.decodeImage(bytes);
-    if (decoded == null) return const [];
+    if (decoded == null) return (decoded: null, faces: const <DetectedFace>[]);
     decoded = img.bakeOrientation(decoded);
 
     // O ML Kit lê o arquivo direto do disco, sem aplicar a orientação EXIF —
@@ -96,7 +100,7 @@ abstract final class FaceRecognitionService {
         ),
       );
     }
-    return resultado;
+    return (decoded: decoded, faces: resultado);
   }
 
   /// Gera o embedding de referência a partir da foto de perfil do aluno
@@ -223,10 +227,16 @@ abstract final class FaceRecognitionService {
     return List<double>.from(output[0]);
   }
 
-  /// Garante que o modelo já foi carregado — chamar antes de usar
-  /// [detectFacesInFile] ou [embeddingFromBase64Photo] numa sessão nova
-  /// (ex.: ao abrir a tela de chamada por foto).
-  static Future<void> preload() => _getInterpreter();
+  /// Garante que o modelo TFLite e o detector do ML Kit já foram
+  /// carregados — chamar antes de usar [detectFacesInFile] ou
+  /// [embeddingFromBase64Photo] numa sessão nova (ex.: ao abrir a tela de
+  /// chamada por foto). Sem isso, o custo de inicializar os dois (pesado,
+  /// principalmente o detector nativo na primeira chamada) acontece na
+  /// hora de processar a primeira foto, dando a sensação de travamento.
+  static Future<void> preload() async {
+    await _getInterpreter();
+    _getDetector();
+  }
 
   static double cosineSimilarity(List<double> a, List<double> b) {
     if (a.length != b.length) return 0.0;

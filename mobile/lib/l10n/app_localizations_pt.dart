@@ -1630,7 +1630,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get pfNoEligibleStudents =>
-      'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).';
+      'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.';
 
   @override
   String get pfUnrecognized => 'Não identificado';
@@ -1660,11 +1660,25 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: 'Confirmar $count presenças',
-      one: 'Confirmar $count presença',
+      one: 'Confirmar presença',
       zero: 'Confirmar',
     );
     return '$_temp0';
   }
+
+  @override
+  String get pfNoConsentBadge => 'sem consentimento registrado';
+
+  @override
+  String get pfConfirmConsentTitle => 'Confirmar consentimento';
+
+  @override
+  String pfConfirmConsentBody(String nome) {
+    return 'Confirma que $nome autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.';
+  }
+
+  @override
+  String get pfConfirmConsentSave => 'Confirmar e salvar';
 
   @override
   String pfSaved(int count) {

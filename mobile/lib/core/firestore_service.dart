@@ -517,6 +517,25 @@ class FirestoreService {
     'consentimento_reconhecimento_facial': consentiu,
   });
 
+  /// Registra, na "chamada por foto", que um ADMIN/professor confirmou ter
+  /// autorização (verbal ou por contrato) pra usar o rosto de um aluno que
+  /// nunca ativou o consentimento pelo próprio app — ex.: aluno que não usa
+  /// o app ou nunca mexeu nesse toggle. Fica registrado quem confirmou e
+  /// quando, pra servir de rastro em caso de dúvida depois (LGPD, art. 11).
+  Future<void> confirmarConsentimentoReconhecimentoFacialPeloAdmin(
+    String academiaId,
+    String alunoId, {
+    required String confirmadoPorId,
+    required String confirmadoPorNome,
+  }) => _doc(academiaId, 'usuarios', alunoId).update({
+    'consentimento_reconhecimento_facial': true,
+    'consentimento_reconhecimento_facial_origem': 'confirmado_pelo_admin',
+    'consentimento_reconhecimento_facial_confirmado_por_id': confirmadoPorId,
+    'consentimento_reconhecimento_facial_confirmado_por_nome': confirmadoPorNome,
+    'consentimento_reconhecimento_facial_confirmado_em':
+        FieldValue.serverTimestamp(),
+  });
+
   Future<List<Map<String, dynamic>>> getAniversariantes(
     String academiaId,
   ) async {

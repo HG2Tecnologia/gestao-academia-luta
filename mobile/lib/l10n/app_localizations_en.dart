@@ -1625,7 +1625,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pfNoEligibleStudents =>
-      'No student in this class has opted in to face recognition yet (or everyone is already marked present today).';
+      'No student in this class has face recognition set up yet (or everyone is already marked present today) — automatic suggestions won\'t work, but you can still identify manually and confirm consent on the spot.';
 
   @override
   String get pfUnrecognized => 'Not recognized';
@@ -1655,11 +1655,25 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other: 'Confirm $count attendances',
-      one: 'Confirm $count attendance',
+      one: 'Confirm attendance',
       zero: 'Confirm',
     );
     return '$_temp0';
   }
+
+  @override
+  String get pfNoConsentBadge => 'no consent on file';
+
+  @override
+  String get pfConfirmConsentTitle => 'Confirm consent';
+
+  @override
+  String pfConfirmConsentBody(String nome) {
+    return 'Confirm that $nome authorized the use of their photo for face recognition (verbally or via enrollment contract)? This saves their face to auto-recognize them in future roll calls.';
+  }
+
+  @override
+  String get pfConfirmConsentSave => 'Confirm and save';
 
   @override
   String pfSaved(int count) {
