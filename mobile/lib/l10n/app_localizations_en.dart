@@ -5475,6 +5475,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.';
 
   @override
+  String get rnFaceRollCallTitle => 'Photo roll call';
+
+  @override
+  String get rnFaceRollCallDesc =>
+      'Take a photo of the class and the app suggests who\'s who, using on-device face recognition — nothing leaves the app. Enable it in Settings.';
+
+  @override
+  String get rnPhotoFixTitle => 'More reliable profile photos';
+
+  @override
+  String get rnPhotoFixDesc =>
+      'Fixed an issue where a student\'s photo, edited by an admin, could disappear after leaving and reopening their profile.';
+
+  @override
   String get rpTitle => 'Attendance Report';
 
   @override

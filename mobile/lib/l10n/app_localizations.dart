@@ -9608,6 +9608,30 @@ abstract class AppLocalizations {
   /// **'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.'**
   String get rnColoredDegreesDesc;
 
+  /// No description provided for @rnFaceRollCallTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada por foto'**
+  String get rnFaceRollCallTitle;
+
+  /// No description provided for @rnFaceRollCallDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.'**
+  String get rnFaceRollCallDesc;
+
+  /// No description provided for @rnPhotoFixTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Foto de perfil mais confiável'**
+  String get rnPhotoFixTitle;
+
+  /// No description provided for @rnPhotoFixDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.'**
+  String get rnPhotoFixDesc;
+
   /// No description provided for @rpTitle.
   ///
   /// In pt, this message translates to:

@@ -210,6 +210,25 @@ final Map<String, AppReleaseNotes> _releaseNotesByVersion = {
       ),
     ],
   ),
+  '1.4.6': AppReleaseNotes(
+    version: '1.4.6',
+    entries: [
+      ReleaseEntry(
+        icon: Icons.face_retouching_natural_rounded,
+        tag: ReleaseTag.neu,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnFaceRollCallTitle,
+        description: (l) => l.rnFaceRollCallDesc,
+      ),
+      ReleaseEntry(
+        icon: Icons.bug_report_rounded,
+        tag: ReleaseTag.fix,
+        audience: ReleaseAudience.academyOnly,
+        title: (l) => l.rnPhotoFixTitle,
+        description: (l) => l.rnPhotoFixDesc,
+      ),
+    ],
+  ),
 };
 
 /// Notas da [version] instalada, ou `null` se não houver nada a anunciar.
