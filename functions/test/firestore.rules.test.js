@@ -214,6 +214,119 @@ test("Admin continua editando normalmente os outros campos da academia (não reg
   );
 });
 
+test("plano gratuito: Admin cria a 1ª turma mas a 2ª é barrada pelo limite", async () => {
+  // O emulador deste teste só roda Firestore/Auth, não as Cloud Functions —
+  // então o contador não incrementa sozinho como incrementaria em produção
+  // (manterContagemTurmasAtivas). Simula o resultado dessa function direto
+  // via withSecurityRulesDisabled, igual já fazemos pro teste de alunos.
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-limite-turmas").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-turmas").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-1").set({ nome: "Turma 1", ativo: true }),
+  );
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ turmas_ativas_contagem: 1 });
+  });
+  await assertFails(
+    firestore.doc("academias/academy-fixture/turmas/turma-2").set({ nome: "Turma 2", ativo: true }),
+  );
+});
+
+test("plano gratuito: turma extra é permitida quando academia é Pro", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ plano_tipo: 1 });
+    await context.firestore().doc("usuariosFirebase/admin-pro-turmas").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-pro-turmas").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-1").set({ nome: "Turma 1", ativo: true }),
+  );
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/turmas/turma-2").set({ nome: "Turma 2", ativo: true }),
+  );
+});
+
+test("plano gratuito: 6º aluno é barrado pelo limite de 5", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ alunos_ativos_contagem: 5 });
+    await context.firestore().doc("usuariosFirebase/admin-limite-alunos").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-alunos").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture/usuarios/aluno-6").set({
+      nome: "Aluno 6",
+      perfil: 3,
+      ativo: true,
+    }),
+  );
+});
+
+test("plano gratuito: funcionário extra é barrado pelo limite de 1", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("usuariosFirebase/admin-limite-equipe").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-limite-equipe").firestore();
+
+  await assertSucceeds(
+    firestore.doc("academias/academy-fixture/funcionarios/func-1").set({ nome: "Func 1" }),
+  );
+  // Mesmo motivo do teste de turmas: simula aqui o que
+  // manterContagemFuncionarios faria em produção.
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ funcionarios_contagem: 1 });
+  });
+  await assertFails(
+    firestore.doc("academias/academy-fixture/funcionarios/func-2").set({ nome: "Func 2" }),
+  );
+});
+
+test("Admin não consegue zerar os contadores de limite de plano direto na academia", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("academias/academy-fixture").update({ turmas_ativas_contagem: 1 });
+    await context.firestore().doc("usuariosFirebase/admin-contador-fixture").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Admin",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Admin"] },
+    });
+  });
+  const firestore = environment.authenticatedContext("admin-contador-fixture").firestore();
+
+  await assertFails(
+    firestore.doc("academias/academy-fixture").update({ turmas_ativas_contagem: 0 }),
+  );
+});
+
 test("regressão: se a proteção dos campos de plano sumir da regra, a escrita REABRE (prova que ela é necessária)", async () => {
   // Mesmo espírito do teste de regressão de `_atribuicao` acima: aplica uma
   // cópia DELIBERADAMENTE REGREDIDA das regras (remove só a condição extra
@@ -221,7 +334,8 @@ test("regressão: se a proteção dos campos de plano sumir da regra, a escrita 
   // provar que, sem ela, qualquer Admin volta a conseguir se auto-conceder
   // o plano Pro.
   const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
-  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  // Normaliza CRLF (checkout no Windows), senão os trechos substituídos abaixo não casam.
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8").replace(/\r\n/g, "\n");
   const rulesRegredidas = rulesOriginais.replace(
     "allow update: if isAdminOuSecretaria(academiaId) &&\n        !request.resource.data.diff(resource.data).affectedKeys()\n          .hasAny(camposPlanoProtegidos());",
     "allow update: if isAdminOuSecretaria(academiaId);",
@@ -271,7 +385,8 @@ test("regressão: se a exclusão de _atribuicao sumir do match genérico, o aces
   // escrito no topo do bloco `_atribuicao` do arquivo real: um rollback
   // que restaure só metade da proteção reabre o acesso.
   const rulesPath = path.join(__dirname, "..", "..", "scripts", "migrate-firestore", "firestore.rules");
-  const rulesOriginais = fs.readFileSync(rulesPath, "utf8");
+  // Normaliza CRLF (checkout no Windows), senão os trechos substituídos abaixo não casam.
+  const rulesOriginais = fs.readFileSync(rulesPath, "utf8").replace(/\r\n/g, "\n");
   const rulesRegredidas = rulesOriginais
     .replace("colecao != '_atribuicao' && pertenceAcademia(academiaId)", "pertenceAcademia(academiaId)")
     .replace("colecao in ['usuarios', 'funcionarios', '_atribuicao']", "colecao in ['usuarios', 'funcionarios']");

@@ -6,6 +6,7 @@ import '../../core/theme/context_ext.dart';
 import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
+import '../../core/plan_limits.dart';
 import '../../core/senha_temporaria_modal.dart';
 import '../../core/widgets.dart';
 
@@ -73,6 +74,19 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
   void initState() {
     super.initState();
     _carregarPlanos();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verificarLimitePlano());
+  }
+
+  Future<void> _verificarLimitePlano() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final pode = await podeCriarDentroDoPlano(
+      context,
+      academiaId: academiaId,
+      tipo: TipoLimitePlano.aluno,
+    );
+    if (!pode && mounted) context.pop();
   }
 
   Future<void> _carregarPlanos() async {
@@ -121,11 +135,28 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       final telVal = _telefone.text.trim();
       final telDigits = telVal.replaceAll(RegExp(r'\D'), '');
 
-      // Verificar duplicado por e-mail (telefone pode repetir entre irmãos)
-      final duplicado = await firestoreService.verificarDuplicadoAluno(
-        academiaId,
-        email: emailVal.isNotEmpty ? emailVal : null,
-      );
+      // As 3 verificações prévias são só leituras independentes: disparam
+      // juntas (antes eram em sequência, somando 3+ esperas de rede). Os
+      // diálogos abaixo continuam na mesma ordem de antes.
+      final precisaChecarContato =
+          _acessoAppAtivo && (emailVal.isNotEmpty || telDigits.isNotEmpty);
+      final (duplicado, vinculos, checagem) = await (
+        // Verificar duplicado por e-mail (telefone pode repetir entre irmãos)
+        firestoreService.verificarDuplicadoAluno(
+          academiaId,
+          email: emailVal.isNotEmpty ? emailVal : null,
+        ),
+        telDigits.isNotEmpty
+            ? firestoreService.buscarPerfisMesmaAcademia(academiaId, telDigits)
+            : Future.value(const <Map<String, dynamic>>[]),
+        precisaChecarContato
+            ? firebaseIdentityService.checkContatoCompartilhado(
+                academiaId: academiaId,
+                telefone: telDigits,
+                email: emailVal,
+              )
+            : Future.value(null),
+      ).wait;
 
       if (duplicado != null && mounted) {
         setState(() => _salvando = false);
@@ -141,10 +172,6 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       // isso vai vincular os dois perfis na mesma pessoa (ex: professor que
       // também treina como aluno em outra modalidade).
       if (telDigits.isNotEmpty) {
-        final vinculos = await firestoreService.buscarPerfisMesmaAcademia(
-          academiaId,
-          telDigits,
-        );
         final funcionarios = vinculos
             .where((v) => v['_colecao'] == 'funcionarios')
             .toList();
@@ -166,13 +193,7 @@ class _AdminAlunoCriarScreenState extends State<AdminAlunoCriarScreen> {
       // que o aluno já existe no banco).
       var confirmarSobrescrita = false;
       var apenasVincular = false;
-      if (_acessoAppAtivo && (emailVal.isNotEmpty || telDigits.isNotEmpty)) {
-        final checagem = await firebaseIdentityService
-            .checkContatoCompartilhado(
-              academiaId: academiaId,
-              telefone: telDigits,
-              email: emailVal,
-            );
+      if (checagem != null) {
         if (checagem.conflito) {
           if (!mounted) return;
           setState(() => _salvando = false);

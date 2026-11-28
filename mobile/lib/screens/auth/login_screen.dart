@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/firebase_identity_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/phone_normalizer.dart';
+import '../../core/plan_service.dart';
 import '../../core/push_service.dart';
 import '../../core/widgets.dart';
 
@@ -164,7 +165,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<String?> _validarAcessoAluno(String academiaId, String alunoId) async {
-    final alunoDoc = await firestoreService.getUsuario(academiaId, alunoId);
+    // As duas leituras são independentes: disparam juntas (antes a segunda só
+    // começava depois da primeira). A ordem das regras abaixo não muda.
+    final (alunoDoc, motivoMensalidade) = await (
+      firestoreService.getUsuario(academiaId, alunoId),
+      firestoreService.motivoBloqueioCheckin(academiaId, alunoId),
+    ).wait;
     if (alunoDoc == null) return _l.authErrProfileNotFound;
     if (alunoDoc['ativo'] == false) {
       return _l.authErrAccountInactive;
@@ -172,10 +178,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (alunoDoc['acesso_app_bloqueado'] == true) {
       return _l.authErrAppAccessSuspended;
     }
-    final motivoMensalidade = await firestoreService.motivoBloqueioCheckin(
-      academiaId,
-      alunoId,
-    );
     if (motivoMensalidade != null) {
       return _l.authErrBlockedOverdue;
     }
@@ -317,6 +319,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
+      if (!mounted) return;
+
+      // PlanService é um singleton carregado uma única vez na splash screen —
+      // sem isso, deslogar e logar em outra conta (ou outra academia) mantém
+      // o status Pro/Gratuito da sessão anterior até o app reiniciar de
+      // verdade, podendo mostrar "Gratuito" pra quem acabou de logar numa
+      // conta Pro de verdade.
+      await PlanService.instance.refresh();
       if (!mounted) return;
 
       // Registra o token de push (silencioso) para quem pode ver o financeiro,

@@ -341,7 +341,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashTrialDaysLeft.
   ///
   /// In pt, this message translates to:
-  /// **'{days, plural, one{1 dia restante} other{{days} dias restantes}}'**
+  /// **'{days, plural, =0{{days} dias restantes} one{{days} dia restante} other{{days} dias restantes}}'**
   String dashTrialDaysLeft(int days);
 
   /// No description provided for @dashSeePlans.
@@ -359,7 +359,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashFreePlanLimits.
   ///
   /// In pt, this message translates to:
-  /// **'Limite: 3 turmas · 10 alunos/turma · anúncios'**
+  /// **'Limite: 1 turma · 5 alunos · 1 funcionário'**
   String get dashFreePlanLimits;
 
   /// No description provided for @dashSubscribePro.
@@ -449,19 +449,19 @@ abstract class AppLocalizations {
   /// No description provided for @dashWatchRedSubtitle.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}'**
+  /// **'{count, plural, =0{{count} alunos sem treinar há 7+ dias} one{{count} aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}'**
   String dashWatchRedSubtitle(int count);
 
   /// No description provided for @dashWatchYellowSubtitle.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}'**
+  /// **'{count, plural, =0{{count} alunos com 7–13 dias de ausência} one{{count} aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}'**
   String dashWatchYellowSubtitle(int count);
 
   /// No description provided for @dashDaysCount.
   ///
   /// In pt, this message translates to:
-  /// **'{days, plural, one{1 dia} other{{days} dias}}'**
+  /// **'{days, plural, =0{{days} dias} one{{days} dia} other{{days} dias}}'**
   String dashDaysCount(int days);
 
   /// No description provided for @dashSeeAllStudents.
@@ -1565,7 +1565,7 @@ abstract class AppLocalizations {
   /// No description provided for @notifUnreadCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 não lida} other{{count} não lidas}}'**
+  /// **'{count, plural, =0{{count} não lidas} one{{count} não lida} other{{count} não lidas}}'**
   String notifUnreadCount(int count);
 
   /// No description provided for @notifMarkAllRead.
@@ -2063,7 +2063,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdMemberCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 membro} other{{count} membros}}'**
+  /// **'{count, plural, =0{{count} membros} one{{count} membro} other{{count} membros}}'**
   String sdMemberCount(int count);
 
   /// No description provided for @sdLinkGroupError.
@@ -2459,7 +2459,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdEditAccessWarning.
   ///
   /// In pt, this message translates to:
-  /// **'Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.'**
+  /// **'Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.'**
   String get sdEditAccessWarning;
 
   /// No description provided for @sdCpfOptional.
@@ -2591,7 +2591,7 @@ abstract class AppLocalizations {
   /// No description provided for @sdPointsAddedToast.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}'**
+  /// **'{count, plural, =0{{count} pontos lançados com sucesso!} one{{count} ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}'**
   String sdPointsAddedToast(int count);
 
   /// No description provided for @sdPointsError.
@@ -2912,6 +2912,138 @@ abstract class AppLocalizations {
   /// **'Fazer chamada'**
   String get takeAttendance;
 
+  /// No description provided for @pfTakePhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada por foto'**
+  String get pfTakePhoto;
+
+  /// No description provided for @pfSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get pfSourceCamera;
+
+  /// No description provided for @pfSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get pfSourceGallery;
+
+  /// No description provided for @pfRetakePhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar outra foto'**
+  String get pfRetakePhoto;
+
+  /// No description provided for @pfIntro.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.'**
+  String get pfIntro;
+
+  /// No description provided for @pfProcessing.
+  ///
+  /// In pt, this message translates to:
+  /// **'Analisando a foto...'**
+  String get pfProcessing;
+
+  /// No description provided for @pfNoEligibleStudents.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.'**
+  String get pfNoEligibleStudents;
+
+  /// No description provided for @pfUnrecognized.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não identificado'**
+  String get pfUnrecognized;
+
+  /// No description provided for @pfConfidence.
+  ///
+  /// In pt, this message translates to:
+  /// **'de confiança'**
+  String get pfConfidence;
+
+  /// No description provided for @pfAlreadyCheckedIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presença já registrada'**
+  String get pfAlreadyCheckedIn;
+
+  /// No description provided for @pfIdentify.
+  ///
+  /// In pt, this message translates to:
+  /// **'Identificar'**
+  String get pfIdentify;
+
+  /// No description provided for @pfPickStudent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quem é esse aluno?'**
+  String get pfPickStudent;
+
+  /// No description provided for @pfNotInPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum (não é aluno)'**
+  String get pfNotInPhoto;
+
+  /// No description provided for @pfError.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível processar. Tente de novo.'**
+  String get pfError;
+
+  /// No description provided for @pfNoFacesFound.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.'**
+  String get pfNoFacesFound;
+
+  /// No description provided for @pfConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar presenças'**
+  String get pfConfirm;
+
+  /// No description provided for @pfNoConsentBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'sem consentimento registrado'**
+  String get pfNoConsentBadge;
+
+  /// No description provided for @pfConfirmConsentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar consentimento'**
+  String get pfConfirmConsentTitle;
+
+  /// No description provided for @pfConfirmConsentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirma que {nome} autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.'**
+  String pfConfirmConsentBody(String nome);
+
+  /// No description provided for @pfConfirmConsentSave.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar e salvar'**
+  String get pfConfirmConsentSave;
+
+  /// No description provided for @pfSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{Nenhuma presença registrada} one{{count} presença registrada} other{{count} presenças registradas}}'**
+  String pfSaved(int count);
+
+  /// No description provided for @profFaceRecognitionCheckinLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial'**
+  String get profFaceRecognitionCheckinLabel;
+
   /// No description provided for @viewDetails.
   ///
   /// In pt, this message translates to:
@@ -2933,7 +3065,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 horário} other{{count} horários}}'**
+  /// **'{count, plural, =0{{count} horários} one{{count} horário} other{{count} horários}}'**
   String scheduleCount(int count);
 
   /// No description provided for @editClassTitle.
@@ -3185,13 +3317,13 @@ abstract class AppLocalizations {
   /// No description provided for @presentCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 presença} other{{count} presenças}}'**
+  /// **'{count, plural, =0{{count} presenças} one{{count} presença} other{{count} presenças}}'**
   String presentCount(int count);
 
   /// No description provided for @absentCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 falta} other{{count} faltas}}'**
+  /// **'{count, plural, =0{{count} faltas} one{{count} falta} other{{count} faltas}}'**
   String absentCount(int count);
 
   /// No description provided for @attendanceA11y.
@@ -3539,7 +3671,7 @@ abstract class AppLocalizations {
   /// No description provided for @tdWeeklyScheduleCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 horário semanal} other{{count} horários semanais}}'**
+  /// **'{count, plural, =0{{count} horários semanais} one{{count} horário semanal} other{{count} horários semanais}}'**
   String tdWeeklyScheduleCount(int count);
 
   /// No description provided for @tdClassSchedule.
@@ -3965,7 +4097,7 @@ abstract class AppLocalizations {
   /// No description provided for @raChargesCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 cobrança} other{{count} cobranças}}'**
+  /// **'{count, plural, =0{{count} cobranças} one{{count} cobrança} other{{count} cobranças}}'**
   String raChargesCount(int count);
 
   /// No description provided for @raOverdue.
@@ -3995,7 +4127,7 @@ abstract class AppLocalizations {
   /// No description provided for @raDaysOverdue.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 dia de atraso} other{{count} dias de atraso}}'**
+  /// **'{count, plural, =0{{count} dias de atraso} one{{count} dia de atraso} other{{count} dias de atraso}}'**
   String raDaysOverdue(int count);
 
   /// No description provided for @raUnknownStudent.
@@ -4451,13 +4583,13 @@ abstract class AppLocalizations {
   /// No description provided for @fiSelectedCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 selecionado} other{{count} selecionados}}'**
+  /// **'{count, plural, =0{{count} selecionados} one{{count} selecionado} other{{count} selecionados}}'**
   String fiSelectedCount(int count);
 
   /// No description provided for @fiBatchMarkedPaid.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
+  /// **'{count, plural, =0{{count} cobranças marcadas como pagas} one{{count} cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}'**
   String fiBatchMarkedPaid(int count);
 
   /// No description provided for @fiConfirmPayment.
@@ -4529,7 +4661,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiAffectedStudents.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 aluno afetado} other{{count} alunos afetados}}'**
+  /// **'{count, plural, =0{{count} alunos afetados} one{{count} aluno afetado} other{{count} alunos afetados}}'**
   String fiAffectedStudents(int count);
 
   /// No description provided for @fiSeeAffected.
@@ -4547,7 +4679,7 @@ abstract class AppLocalizations {
   /// No description provided for @fiNChargesGenerated.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 cobrança gerada} other{{count} cobranças geradas}}'**
+  /// **'{count, plural, =0{{count} cobranças geradas} one{{count} cobrança gerada} other{{count} cobranças geradas}}'**
   String fiNChargesGenerated(int count);
 
   /// No description provided for @fiReadyForWhatsapp.
@@ -4657,6 +4789,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'{n} cobrança(s) gerada(s).'**
   String fiGenerateChargesSuccess(int n);
+
+  /// No description provided for @fiLoadingMsg1.
+  ///
+  /// In pt, this message translates to:
+  /// **'Consultando seus alunos e mensalidades…'**
+  String get fiLoadingMsg1;
+
+  /// No description provided for @fiLoadingMsg2.
+  ///
+  /// In pt, this message translates to:
+  /// **'Organizando sua visão financeira…'**
+  String get fiLoadingMsg2;
+
+  /// No description provided for @fiLoadingMsg3.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quase lá…'**
+  String get fiLoadingMsg3;
 
   /// No description provided for @fiStudentsWithoutPlanTitle.
   ///
@@ -6476,11 +6626,83 @@ abstract class AppLocalizations {
   /// **'Mensagem para alunos em risco de evasão'**
   String get cfgReturnMsgSub;
 
+  /// No description provided for @cfgFaceRecognitionSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial (beta)'**
+  String get cfgFaceRecognitionSection;
+
+  /// No description provided for @cfgFaceRecognitionSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada automática por foto da turma'**
+  String get cfgFaceRecognitionSub;
+
+  /// No description provided for @cfgFaceRecognition.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ativar reconhecimento facial'**
+  String get cfgFaceRecognition;
+
+  /// No description provided for @cfgFaceRecognitionDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.'**
+  String get cfgFaceRecognitionDesc;
+
   /// No description provided for @cfgNewsSub.
   ///
   /// In pt, this message translates to:
   /// **'Publicar notícias e comunicados'**
   String get cfgNewsSub;
+
+  /// No description provided for @cfgNotifEvasao.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alunos sumindo'**
+  String get cfgNotifEvasao;
+
+  /// No description provided for @cfgNotifEvasaoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisa no celular quando um aluno fica 7+ dias sem treinar'**
+  String get cfgNotifEvasaoSub;
+
+  /// No description provided for @cfgNotifGraduacao.
+  ///
+  /// In pt, this message translates to:
+  /// **'Próximos de graduar'**
+  String get cfgNotifGraduacao;
+
+  /// No description provided for @cfgNotifGraduacaoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Avisa no celular quando um aluno acumula presenças suficientes pra graduar'**
+  String get cfgNotifGraduacaoSub;
+
+  /// No description provided for @cfgNotifGraduacaoThreshold.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças mínimas'**
+  String get cfgNotifGraduacaoThreshold;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quantas aulas desde a última graduação pra considerar apto'**
+  String get cfgNotifGraduacaoThresholdSub;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.'**
+  String get cfgNotifGraduacaoThresholdDesc;
+
+  /// No description provided for @cfgNotifGraduacaoThresholdSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presenças mínimas salvas'**
+  String get cfgNotifGraduacaoThresholdSaved;
 
   /// No description provided for @cfgFinanceSection.
   ///
@@ -6713,7 +6935,7 @@ abstract class AppLocalizations {
   /// No description provided for @grauColoridoStep3Body.
   ///
   /// In pt, this message translates to:
-  /// **'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
+  /// **'Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.'**
   String get grauColoridoStep3Body;
 
   /// No description provided for @cfgManualCheckinWindowMinutes.
@@ -6878,11 +7100,41 @@ abstract class AppLocalizations {
   /// **'Condições de uso do Sensei Manager'**
   String get cfgTermsSub;
 
+  /// No description provided for @cfgDeleteAccountInfo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Exclusão de Conta'**
+  String get cfgDeleteAccountInfo;
+
+  /// No description provided for @cfgDeleteAccountInfoSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como solicitar a exclusão da sua conta'**
+  String get cfgDeleteAccountInfoSub;
+
   /// No description provided for @cfgAccountSection.
   ///
   /// In pt, this message translates to:
   /// **'Conta'**
   String get cfgAccountSection;
+
+  /// No description provided for @cfgChangePassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alterar Senha'**
+  String get cfgChangePassword;
+
+  /// No description provided for @cfgChangePasswordSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar sua senha de acesso ao app'**
+  String get cfgChangePasswordSub;
+
+  /// No description provided for @cfgSignOutSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sair'**
+  String get cfgSignOutSection;
 
   /// No description provided for @cfgDangerSection.
   ///
@@ -7136,6 +7388,30 @@ abstract class AppLocalizations {
   /// **'Excluir minha conta'**
   String get cfgDeleteAccountBtn;
 
+  /// No description provided for @cfgDeleteAdminTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir conta e academia?'**
+  String get cfgDeleteAdminTitle;
+
+  /// No description provided for @cfgDeleteAdminBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se você for o único administrador, a academia “{nome}” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:'**
+  String cfgDeleteAdminBody(String nome);
+
+  /// No description provided for @cfgDeleteAdminNameHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome da academia'**
+  String get cfgDeleteAdminNameHint;
+
+  /// No description provided for @cfgDeleteAdminNameMismatch.
+  ///
+  /// In pt, this message translates to:
+  /// **'O nome digitado não confere com o nome da academia.'**
+  String get cfgDeleteAdminNameMismatch;
+
   /// No description provided for @cfgPlanActive.
   ///
   /// In pt, this message translates to:
@@ -7175,7 +7451,7 @@ abstract class AppLocalizations {
   /// No description provided for @cfgPlanFreeDesc.
   ///
   /// In pt, this message translates to:
-  /// **'3 turmas · 10 alunos/turma · anúncios'**
+  /// **'1 turma · 5 alunos · 1 funcionário · anúncios'**
   String get cfgPlanFreeDesc;
 
   /// No description provided for @planTitle.
@@ -7346,6 +7622,24 @@ abstract class AppLocalizations {
   /// **'Erro ao salvar foto.'**
   String get apPhotoSaveError;
 
+  /// No description provided for @apPhotoSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get apPhotoSourceCamera;
+
+  /// No description provided for @apPhotoSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get apPhotoSourceGallery;
+
+  /// No description provided for @apAdjustPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar foto'**
+  String get apAdjustPhoto;
+
   /// No description provided for @apPrimaryBelt.
   ///
   /// In pt, this message translates to:
@@ -7475,13 +7769,13 @@ abstract class AppLocalizations {
   /// No description provided for @apOverdueCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 atrasada} other{{count} atrasadas}}'**
+  /// **'{count, plural, =0{{count} atrasadas} one{{count} atrasada} other{{count} atrasadas}}'**
   String apOverdueCount(num count);
 
   /// No description provided for @apPendingCount.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, one{1 pendente} other{{count} pendentes}}'**
+  /// **'{count, plural, =0{{count} pendentes} one{{count} pendente} other{{count} pendentes}}'**
   String apPendingCount(num count);
 
   /// No description provided for @apTapToChoose.
@@ -7573,6 +7867,24 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Encerrar a sessão neste dispositivo'**
   String get apLogoutHint;
+
+  /// No description provided for @apPrivacySection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Privacidade'**
+  String get apPrivacySection;
+
+  /// No description provided for @apFaceRecognitionConsent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reconhecimento facial na chamada'**
+  String get apFaceRecognitionConsent;
+
+  /// No description provided for @apFaceRecognitionConsentHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.'**
+  String get apFaceRecognitionConsentHint;
 
   /// No description provided for @apLegal.
   ///
@@ -9296,6 +9608,30 @@ abstract class AppLocalizations {
   /// **'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.'**
   String get rnColoredDegreesDesc;
 
+  /// No description provided for @rnFaceRollCallTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada por foto'**
+  String get rnFaceRollCallTitle;
+
+  /// No description provided for @rnFaceRollCallDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.'**
+  String get rnFaceRollCallDesc;
+
+  /// No description provided for @rnPhotoFixTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Foto de perfil mais confiável'**
+  String get rnPhotoFixTitle;
+
+  /// No description provided for @rnPhotoFixDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.'**
+  String get rnPhotoFixDesc;
+
   /// No description provided for @rpTitle.
   ///
   /// In pt, this message translates to:
@@ -9427,6 +9763,78 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'{presencas} presenças · {faltas} faltas · {total} aulas no período'**
   String rpSummaryLine(int presencas, int faltas, int total);
+
+  /// No description provided for @appVersionLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão {version} ({build})'**
+  String appVersionLabel(String version, String build);
+
+  /// No description provided for @appVersionCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão copiada'**
+  String get appVersionCopied;
+
+  /// No description provided for @reviewAskTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Está gostando do Sensei?'**
+  String get reviewAskTitle;
+
+  /// No description provided for @reviewAskSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.'**
+  String get reviewAskSubtitle;
+
+  /// No description provided for @reviewAskYes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sim, estou gostando!'**
+  String get reviewAskYes;
+
+  /// No description provided for @reviewAskNo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não muito'**
+  String get reviewAskNo;
+
+  /// No description provided for @reviewAskLater.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora não'**
+  String get reviewAskLater;
+
+  /// No description provided for @reviewFeedbackTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Poxa, o que podemos melhorar?'**
+  String get reviewFeedbackTitle;
+
+  /// No description provided for @reviewFeedbackSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.'**
+  String get reviewFeedbackSubtitle;
+
+  /// No description provided for @reviewFeedbackHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escreva aqui sua sugestão ou problema'**
+  String get reviewFeedbackHint;
+
+  /// No description provided for @reviewFeedbackSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar'**
+  String get reviewFeedbackSend;
+
+  /// No description provided for @reviewFeedbackThanks.
+  ///
+  /// In pt, this message translates to:
+  /// **'Obrigado pelo feedback!'**
+  String get reviewFeedbackThanks;
 }
 
 class _AppLocalizationsDelegate

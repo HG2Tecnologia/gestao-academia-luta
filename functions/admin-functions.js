@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const { FieldValue } = require("firebase-admin/firestore");
 const { generateTemporaryPassword } = require("./domain/temp-password");
 const { syntheticAuthEmails, profileKey } = require("./domain/account");
+const { canonicalizePhone, canonicalPhoneDigits } = require("./domain/phone-normalizer");
 const {
   loginIdentifiers,
   primaryLoginEmail,
@@ -643,4 +644,250 @@ exports.requestPasswordReset = onCall(IDENTITY_FUNCTION_OPTIONS, async (request)
   return { ok: true };
 });
 
-exports._test = { loadCallerAuthority, collectRelatedUids, provisionAccount, linkProfileToAccount };
+/**
+ * Troca de telefone de um aluno que JÁ tem acesso ao app.
+ *
+ * O login por telefone é uma conta Auth com e-mail sintético `<E.164>@sensei.app`
+ * criado com o telefone da época do cadastro. Editar o telefone na ficha só muda
+ * o documento `usuarios` — a conta Auth continuava no número antigo, então o
+ * aluno não conseguia entrar com o número novo. Aqui a conta acompanha a ficha.
+ *
+ * Retorna o diagnóstico da troca SEM gravar nada:
+ *  - `sem_acesso`      aluno sem conta Auth (nada a fazer; o provisionamento cuida);
+ *  - `sem_mudanca`     a conta já está no telefone informado;
+ *  - `livre`           ninguém usa o número novo — dá pra mover a conta;
+ *  - `compartilhada`   a conta atual atende outros perfis (irmãos): mudar o
+ *                      e-mail dela derrubaria o login dos outros;
+ *  - `conflito`        o número novo já pertence a OUTRA conta.
+ */
+async function avaliarTrocaTelefoneAcesso({ academiaId, usuarioId, telefone }) {
+  const alvoRef = db.collection("academias").doc(academiaId).collection("usuarios").doc(usuarioId);
+  const alvoSnap = await alvoRef.get();
+  if (!alvoSnap.exists) throw new HttpsError("not-found", "Aluno não encontrado.");
+  const alvo = alvoSnap.data();
+
+  const docUid = alvo.firebaseUid || alvo.firebase_uid || null;
+  if (!docUid) return { status: "sem_acesso" };
+
+  const novoCanon = canonicalizePhone(telefone);
+  if (!novoCanon) throw new HttpsError("invalid-argument", "Telefone inválido.");
+
+  let authUser;
+  try {
+    authUser = await auth.getUser(docUid);
+  } catch (error) {
+    if (error.code === "auth/user-not-found") return { status: "sem_acesso" };
+    throw error;
+  }
+
+  const contaSnap = await db.collection("usuariosFirebase").doc(docUid).get();
+  const conta = contaSnap.data() || {};
+  const emailSintetico = String(authUser.email || "").toLowerCase().endsWith("@sensei.app");
+  const telefoneDaConta = conta.phone_canonical
+    || (emailSintetico ? identityForAuthEmail(authUser.email) : null);
+
+  const base = { alvoRef, alvo, docUid, novoCanon, authUser, conta, emailSintetico };
+  if (!telefoneDaConta || telefoneDaConta === novoCanon) return { status: "sem_mudanca", ...base };
+
+  // Outras contas que já respondem pelo número novo.
+  const candidatos = new Set();
+  for (const email of syntheticAuthEmails(novoCanon)) {
+    try {
+      const user = await auth.getUserByEmail(email);
+      if (user && user.uid !== docUid) candidatos.add(user.uid);
+    } catch (error) {
+      if (error.code !== "auth/user-not-found") throw error;
+    }
+  }
+  try {
+    const { profiles } = await findProfiles(novoCanon);
+    for (const profile of profiles) {
+      if (profile.firebaseUid && profile.firebaseUid !== docUid) candidatos.add(profile.firebaseUid);
+    }
+  } catch (error) {
+    if (error.code !== "invalid-argument") throw error;
+  }
+
+  // Descarta uids mortos (conta Auth removida): não são conflito de verdade.
+  const outrosUids = [];
+  for (const uid of candidatos) {
+    try {
+      await auth.getUser(uid);
+      outrosUids.push(uid);
+    } catch (error) {
+      if (error.code !== "auth/user-not-found") throw error;
+    }
+  }
+  if (outrosUids.length > 0) return { status: "conflito", outrosUids, ...base };
+
+  const minhaChave = profileKey({ academiaId, colecao: "usuarios", usuarioId });
+  const refs = Array.isArray(conta.profile_refs) ? conta.profile_refs : [];
+  if (refs.some((ref) => ref && ref.key !== minhaChave)) return { status: "compartilhada", ...base };
+
+  return { status: "livre", ...base };
+}
+
+exports.atualizarTelefoneAcessoAluno = onCall(IDENTITY_FUNCTION_OPTIONS, async (request) => {
+  if (!request.auth || request.auth.token.firebase?.sign_in_provider === "anonymous") {
+    throw new HttpsError("unauthenticated", "É necessário autenticar antes de alterar o acesso.");
+  }
+
+  const academiaId = String(request.data?.academiaId ?? "").trim();
+  const usuarioId = String(request.data?.usuarioId ?? "").trim();
+  const telefone = String(request.data?.telefone ?? "").trim();
+  const modo = String(request.data?.modo ?? "verificar");
+  if (!academiaId || !usuarioId || !telefone) {
+    throw new HttpsError("invalid-argument", "Informe a academia, o aluno e o telefone.");
+  }
+  if (!["verificar", "aplicar", "vincular"].includes(modo)) {
+    throw new HttpsError("invalid-argument", "Modo inválido.");
+  }
+
+  const authority = await loadCallerAuthority(request.auth.uid, academiaId);
+  if (!authority) {
+    throw new HttpsError("permission-denied", "Você não tem permissão para alterar o acesso nesta academia.");
+  }
+
+  const avaliacao = await avaliarTrocaTelefoneAcesso({ academiaId, usuarioId, telefone });
+  const { status } = avaliacao;
+
+  if (modo === "verificar") {
+    return { status, contas: avaliacao.outrosUids?.length ?? 0 };
+  }
+
+  const auditar = (tipo, extra = {}) => db
+    .collection("academias").doc(academiaId)
+    .collection("auditoria").add({
+      tipo,
+      alvo: { colecao: "usuarios", usuarioId, nome: avaliacao.alvo?.nome || "" },
+      ...extra,
+      realizado_por: {
+        uid: request.auth.uid,
+        usuarioId: authority.usuarioId,
+        nome: authority.nome,
+        perfil: authority.perfil,
+      },
+      criado_em: FieldValue.serverTimestamp(),
+    });
+
+  if (status === "sem_acesso" || status === "sem_mudanca") return { status };
+
+  const { alvoRef, alvo, docUid, novoCanon, authUser, emailSintetico } = avaliacao;
+
+  if (modo === "aplicar") {
+    if (status !== "livre") {
+      throw new HttpsError(
+        "failed-precondition",
+        status === "conflito"
+          ? "Esse telefone já pertence a outra conta de acesso."
+          : "A conta de acesso deste aluno é compartilhada com outros perfis; o login não pode ser movido sozinho.",
+        { code: status },
+      );
+    }
+    if (emailSintetico) {
+      try {
+        await auth.updateUser(docUid, { email: `${canonicalPhoneDigits(novoCanon)}@sensei.app` });
+      } catch (error) {
+        if (error.code === "auth/email-already-exists") {
+          throw new HttpsError("failed-precondition", "Esse telefone já pertence a outra conta de acesso.", { code: "conflito" });
+        }
+        throw error;
+      }
+    }
+    await db.collection("usuariosFirebase").doc(docUid).set({
+      phone_canonical: novoCanon,
+      atualizado_em: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await auditar("troca_telefone_acesso", { telefone_novo: novoCanon });
+    logger.info("Telefone de acesso atualizado", { academiaId, usuarioId, realizadoPor: request.auth.uid });
+    return { status: "atualizado" };
+  }
+
+  // modo === "vincular": move o aluno para a conta que já responde pelo número novo.
+  if (status !== "conflito") {
+    throw new HttpsError("failed-precondition", "Não há outra conta com esse telefone para vincular.", { code: status });
+  }
+  if (avaliacao.outrosUids.length !== 1) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Esse telefone está ligado a mais de uma conta. A academia precisa revisar esse acesso.",
+      { code: "varias_contas" },
+    );
+  }
+  const outroUid = avaliacao.outrosUids[0];
+  const outraConta = await auth.getUser(outroUid);
+  const minhaChave = profileKey({ academiaId, colecao: "usuarios", usuarioId });
+
+  // Desfaz o vínculo com a conta antiga (a do número errado): sem isso o número
+  // antigo continuaria entrando na ficha deste aluno.
+  const contaAntigaRef = db.collection("usuariosFirebase").doc(docUid);
+  const contaAntiga = (await contaAntigaRef.get()).data() || {};
+  const refsRestantes = (Array.isArray(contaAntiga.profile_refs) ? contaAntiga.profile_refs : [])
+    .filter((ref) => ref && ref.key !== minhaChave);
+  await contaAntigaRef.set({
+    profile_refs: refsRestantes,
+    profile_keys: refsRestantes.map((ref) => ref.key),
+    atualizado_em: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await alvoRef.set({
+    firebaseUid: FieldValue.delete(),
+    firebase_uid: FieldValue.delete(),
+    conta_ativa: false,
+    // A senha temporária mostrada na ficha era da conta antiga — não vale mais.
+    acesso_senha_temporaria: FieldValue.delete(),
+    acesso_senha_temporaria_em: FieldValue.delete(),
+    acesso_senha_temporaria_por: FieldValue.delete(),
+    atualizado_em: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await linkProfileToAccount({
+    uid: outroUid,
+    authUserEmail: outraConta.email,
+    academiaId,
+    colecao: "usuarios",
+    usuarioId,
+    targetData: alvo,
+    realEmail: loginIdentifiers(alvo).realEmail,
+    phoneCanonical: novoCanon,
+  });
+
+  // `upsertAccount` só vincula perfis cuja ficha já tem o telefone novo; se a
+  // ficha ainda não foi salva, garante o vínculo mínimo aqui.
+  const aposVinculo = (await alvoRef.get()).data() || {};
+  if ((aposVinculo.firebaseUid || aposVinculo.firebase_uid) !== outroUid) {
+    await alvoRef.set({
+      firebaseUid: outroUid,
+      conta_ativa: true,
+      auth_account_schema_version: 2,
+      atualizado_em: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const contaNovaRef = db.collection("usuariosFirebase").doc(outroUid);
+    const contaNova = (await contaNovaRef.get()).data() || {};
+    const refs = (Array.isArray(contaNova.profile_refs) ? contaNova.profile_refs : [])
+      .filter((ref) => ref && ref.key !== minhaChave);
+    refs.push({
+      key: minhaChave, academiaId, colecao: "usuarios", usuarioId,
+      perfil_nome: "Aluno", nome: String(alvo.nome || ""),
+    });
+    await contaNovaRef.set({
+      profile_refs: refs,
+      profile_keys: refs.map((ref) => ref.key),
+      atualizado_em: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  await auditar("vinculo_telefone_acesso", { telefone_novo: novoCanon, conta_anterior: authUser.uid });
+  logger.info("Aluno vinculado à conta existente do telefone novo", {
+    academiaId, usuarioId, realizadoPor: request.auth.uid,
+  });
+  return { status: "vinculado" };
+});
+
+exports._test = {
+  loadCallerAuthority,
+  collectRelatedUids,
+  provisionAccount,
+  linkProfileToAccount,
+  avaliarTrocaTelefoneAcesso,
+};

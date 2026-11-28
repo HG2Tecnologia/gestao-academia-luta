@@ -6,6 +6,7 @@ import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/perfil_switch.dart';
 import '../../core/tab_refresh.dart';
+import '../admin/widgets/dashboard_widgets.dart';
 
 class ProfDashboardScreen extends StatefulWidget {
   const ProfDashboardScreen({super.key});
@@ -131,66 +132,36 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
     return val.length >= 5 ? val.substring(0, 5) : val;
   }
 
-  List<(IconData, String, String)> get _acessos => [
+  List<(IconData, String, String, DashTone)> get _acessos => [
     if (_perms.contains('tela_turmas'))
-      (Icons.groups_rounded, context.l10n.navClasses, '/professor/turmas'),
+      (
+        Icons.groups_rounded,
+        context.l10n.navClasses,
+        '/professor/turmas',
+        DashTone.gold,
+      ),
     if (_perms.contains('tela_alunos'))
       (
         Icons.sports_martial_arts,
         context.l10n.navStudents,
         '/professor/alunos',
+        DashTone.success,
       ),
     if (_perms.contains('tela_horarios'))
-      (Icons.schedule_rounded, context.l10n.navSchedule, '/professor/horarios'),
+      (
+        Icons.schedule_rounded,
+        context.l10n.navSchedule,
+        '/professor/horarios',
+        DashTone.info,
+      ),
     if (_perms.contains('tela_rankings'))
       (
         Icons.emoji_events_rounded,
         context.l10n.navRanking,
         '/professor/rankings',
+        DashTone.warning,
       ),
   ];
-
-  Widget _acessoCard(IconData icon, String label, String rota) => Material(
-    color: context.c.surfaceContainer,
-    borderRadius: BorderRadius.circular(14),
-    child: InkWell(
-      onTap: () => context.go(rota),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.c.outline),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: context.c.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: context.c.primary, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.c.onSurface,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -249,78 +220,75 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _statCard(
-                            context.l10n.navClasses,
-                            '$_totalTurmas',
-                            Icons.groups_rounded,
-                            context.c.primary,
+                          child: DashMetricCard(
+                            icon: Icons.groups_rounded,
+                            value: '$_totalTurmas',
+                            label: context.l10n.navClasses,
+                            tone: DashTone.gold,
+                            onTap: () => context.go('/professor/turmas'),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: _statCard(
-                            context.l10n.navStudents,
-                            '$_totalAlunos',
-                            Icons.sports_martial_arts,
-                            context.sem.success,
+                          child: DashMetricCard(
+                            icon: Icons.sports_martial_arts,
+                            value: '$_totalAlunos',
+                            label: context.l10n.navStudents,
+                            tone: DashTone.success,
+                            onTap: () => context.go('/professor/alunos'),
                           ),
                         ),
                       ],
                     ),
                     if (_turmasComoAluno > 0) ...[
-                      const SizedBox(height: 10),
-                      _statCard(
-                        context.l10n.profAlsoTrainsIn(_turmasComoAluno),
-                        '',
-                        Icons.emoji_events_rounded,
-                        context.sem.warning,
-                        wide: true,
+                      const SizedBox(height: 12),
+                      DashCard(
+                        tone: DashTone.warning,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.emoji_events_rounded,
+                              color: context.sem.warning,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                context.l10n.profAlsoTrainsIn(_turmasComoAluno),
+                                style: TextStyle(
+                                  color: context.c.onSurface,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     if (_acessos.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      Text(
+                      DashSectionHeader(
                         context.l10n.profQuickAccess,
-                        style: TextStyle(
-                          color: context.c.onSurfaceVariant,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
                       ),
-                      const SizedBox(height: 10),
-                      GridView.count(
-                        crossAxisCount: 3,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1,
+                      Row(
                         children: [
                           for (final a in _acessos)
-                            _acessoCard(a.$1, a.$2, a.$3),
+                            DashQuickAction(
+                              icon: a.$1,
+                              label: a.$2,
+                              tone: a.$4,
+                              onTap: () => context.go(a.$3),
+                            ),
                         ],
                       ),
                     ],
-                    const SizedBox(height: 24),
-                    Text(
+                    DashSectionHeader(
                       context.l10n.profTodayClasses,
-                      style: TextStyle(
-                        color: context.c.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(0, 24, 0, 10),
                     ),
-                    const SizedBox(height: 10),
                     if (_aulasHoje.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: context.c.surfaceContainer,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: context.c.outline),
-                        ),
+                      DashCard(
                         child: Row(
                           children: [
                             Icon(
@@ -345,46 +313,44 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
                             h['nome_turma']?.toString() ??
                             h['nomeTurma']?.toString() ??
                             '';
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: context.c.surfaceContainer,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: context.c.outline),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: context.c.primary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _hora(h, 'hora_inicio', 'horaInicio'),
-                                  style: TextStyle(
-                                    color: context.c.primary,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: DashCard(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: context.c.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _hora(h, 'hora_inicio', 'horaInicio'),
+                                    style: TextStyle(
+                                      color: context.c.primary,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  turma,
-                                  style: TextStyle(
-                                    color: context.c.onSurface,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    turma,
+                                    style: TextStyle(
+                                      color: context.c.onSurface,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       }),
@@ -420,60 +386,6 @@ class _ProfDashboardScreenState extends State<ProfDashboardScreen> {
       ),
     );
   }
-
-  Widget _statCard(
-    String label,
-    String value,
-    IconData icon,
-    Color cor, {
-    bool wide = false,
-  }) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: context.c.surfaceContainer,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: context.c.outline),
-    ),
-    child: wide
-        ? Row(
-            children: [
-              Icon(icon, color: cor, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: context.c.onSurface,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: cor, size: 20),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  color: context.c.onSurface,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: context.c.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-  );
 }
 
 class _Avatar extends StatelessWidget {

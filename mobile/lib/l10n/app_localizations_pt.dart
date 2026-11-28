@@ -138,7 +138,8 @@ class AppLocalizationsPt extends AppLocalizations {
       days,
       locale: localeName,
       other: '$days dias restantes',
-      one: '1 dia restante',
+      one: '$days dia restante',
+      zero: '$days dias restantes',
     );
     return '$_temp0';
   }
@@ -150,8 +151,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dashFreePlan => 'Plano Gratuito';
 
   @override
-  String get dashFreePlanLimits =>
-      'Limite: 3 turmas · 10 alunos/turma · anúncios';
+  String get dashFreePlanLimits => 'Limite: 1 turma · 5 alunos · 1 funcionário';
 
   @override
   String get dashSubscribePro => 'Assinar PRO';
@@ -203,7 +203,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count alunos sem treinar há 7+ dias',
-      one: '1 aluno sem treinar há 7+ dias',
+      one: '$count aluno sem treinar há 7+ dias',
+      zero: '$count alunos sem treinar há 7+ dias',
     );
     return '$_temp0';
   }
@@ -214,7 +215,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count alunos com 7–13 dias de ausência',
-      one: '1 aluno com 7–13 dias de ausência',
+      one: '$count aluno com 7–13 dias de ausência',
+      zero: '$count alunos com 7–13 dias de ausência',
     );
     return '$_temp0';
   }
@@ -225,7 +227,8 @@ class AppLocalizationsPt extends AppLocalizations {
       days,
       locale: localeName,
       other: '$days dias',
-      one: '1 dia',
+      one: '$days dia',
+      zero: '$days dias',
     );
     return '$_temp0';
   }
@@ -848,7 +851,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count não lidas',
-      one: '1 não lida',
+      one: '$count não lida',
+      zero: '$count não lidas',
     );
     return '$_temp0';
   }
@@ -1112,7 +1116,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count membros',
-      one: '1 membro',
+      one: '$count membro',
+      zero: '$count membros',
     );
     return '$_temp0';
   }
@@ -1340,7 +1345,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.';
+      'Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.';
 
   @override
   String get sdCpfOptional => 'CPF (opcional)';
@@ -1414,7 +1419,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count pontos lançados com sucesso!',
-      one: '1 ponto lançado com sucesso!',
+      one: '$count ponto lançado com sucesso!',
+      zero: '$count pontos lançados com sucesso!',
     );
     return '$_temp0';
   }
@@ -1604,6 +1610,86 @@ class AppLocalizationsPt extends AppLocalizations {
   String get takeAttendance => 'Fazer chamada';
 
   @override
+  String get pfTakePhoto => 'Chamada por foto';
+
+  @override
+  String get pfSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get pfSourceGallery => 'Escolher da galeria';
+
+  @override
+  String get pfRetakePhoto => 'Tirar outra foto';
+
+  @override
+  String get pfIntro =>
+      'Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.';
+
+  @override
+  String get pfProcessing => 'Analisando a foto...';
+
+  @override
+  String get pfNoEligibleStudents =>
+      'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.';
+
+  @override
+  String get pfUnrecognized => 'Não identificado';
+
+  @override
+  String get pfConfidence => 'de confiança';
+
+  @override
+  String get pfAlreadyCheckedIn => 'Presença já registrada';
+
+  @override
+  String get pfIdentify => 'Identificar';
+
+  @override
+  String get pfPickStudent => 'Quem é esse aluno?';
+
+  @override
+  String get pfNotInPhoto => 'Nenhum (não é aluno)';
+
+  @override
+  String get pfError => 'Não foi possível processar. Tente de novo.';
+
+  @override
+  String get pfNoFacesFound =>
+      'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.';
+
+  @override
+  String get pfConfirm => 'Confirmar presenças';
+
+  @override
+  String get pfNoConsentBadge => 'sem consentimento registrado';
+
+  @override
+  String get pfConfirmConsentTitle => 'Confirmar consentimento';
+
+  @override
+  String pfConfirmConsentBody(String nome) {
+    return 'Confirma que $nome autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.';
+  }
+
+  @override
+  String get pfConfirmConsentSave => 'Confirmar e salvar';
+
+  @override
+  String pfSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count presenças registradas',
+      one: '$count presença registrada',
+      zero: 'Nenhuma presença registrada',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profFaceRecognitionCheckinLabel => 'Reconhecimento facial';
+
+  @override
   String get viewDetails => 'Ver detalhes';
 
   @override
@@ -1618,7 +1704,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count horários',
-      one: '1 horário',
+      one: '$count horário',
+      zero: '$count horários',
     );
     return '$_temp0';
   }
@@ -1758,7 +1845,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count presenças',
-      one: '1 presença',
+      one: '$count presença',
+      zero: '$count presenças',
     );
     return '$_temp0';
   }
@@ -1769,7 +1857,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count faltas',
-      one: '1 falta',
+      one: '$count falta',
+      zero: '$count faltas',
     );
     return '$_temp0';
   }
@@ -1967,7 +2056,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count horários semanais',
-      one: '1 horário semanal',
+      one: '$count horário semanal',
+      zero: '$count horários semanais',
     );
     return '$_temp0';
   }
@@ -2205,7 +2295,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count cobranças',
-      one: '1 cobrança',
+      one: '$count cobrança',
+      zero: '$count cobranças',
     );
     return '$_temp0';
   }
@@ -2230,7 +2321,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count dias de atraso',
-      one: '1 dia de atraso',
+      one: '$count dia de atraso',
+      zero: '$count dias de atraso',
     );
     return '$_temp0';
   }
@@ -2504,7 +2596,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count selecionados',
-      one: '1 selecionado',
+      one: '$count selecionado',
+      zero: '$count selecionados',
     );
     return '$_temp0';
   }
@@ -2515,7 +2608,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count cobranças marcadas como pagas',
-      one: '1 cobrança marcada como paga',
+      one: '$count cobrança marcada como paga',
+      zero: '$count cobranças marcadas como pagas',
     );
     return '$_temp0';
   }
@@ -2569,7 +2663,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count alunos afetados',
-      one: '1 aluno afetado',
+      one: '$count aluno afetado',
+      zero: '$count alunos afetados',
     );
     return '$_temp0';
   }
@@ -2586,7 +2681,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count cobranças geradas',
-      one: '1 cobrança gerada',
+      one: '$count cobrança gerada',
+      zero: '$count cobranças geradas',
     );
     return '$_temp0';
   }
@@ -2650,6 +2746,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String fiGenerateChargesSuccess(int n) {
     return '$n cobrança(s) gerada(s).';
   }
+
+  @override
+  String get fiLoadingMsg1 => 'Consultando seus alunos e mensalidades…';
+
+  @override
+  String get fiLoadingMsg2 => 'Organizando sua visão financeira…';
+
+  @override
+  String get fiLoadingMsg3 => 'Quase lá…';
 
   @override
   String get fiStudentsWithoutPlanTitle => 'Alunos sem plano configurado';
@@ -3675,7 +3780,48 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgReturnMsgSub => 'Mensagem para alunos em risco de evasão';
 
   @override
+  String get cfgFaceRecognitionSection => 'Reconhecimento facial (beta)';
+
+  @override
+  String get cfgFaceRecognitionSub => 'Chamada automática por foto da turma';
+
+  @override
+  String get cfgFaceRecognition => 'Ativar reconhecimento facial';
+
+  @override
+  String get cfgFaceRecognitionDesc =>
+      'O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.';
+
+  @override
   String get cfgNewsSub => 'Publicar notícias e comunicados';
+
+  @override
+  String get cfgNotifEvasao => 'Alunos sumindo';
+
+  @override
+  String get cfgNotifEvasaoSub =>
+      'Avisa no celular quando um aluno fica 7+ dias sem treinar';
+
+  @override
+  String get cfgNotifGraduacao => 'Próximos de graduar';
+
+  @override
+  String get cfgNotifGraduacaoSub =>
+      'Avisa no celular quando um aluno acumula presenças suficientes pra graduar';
+
+  @override
+  String get cfgNotifGraduacaoThreshold => 'Presenças mínimas';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSub =>
+      'Quantas aulas desde a última graduação pra considerar apto';
+
+  @override
+  String get cfgNotifGraduacaoThresholdDesc =>
+      'Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSaved => 'Presenças mínimas salvas';
 
   @override
   String get cfgFinanceSection => 'Financeiro';
@@ -3806,7 +3952,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get grauColoridoStep3Body =>
-      'Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.';
+      'Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {
@@ -3907,7 +4053,23 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgTermsSub => 'Condições de uso do Sensei Manager';
 
   @override
+  String get cfgDeleteAccountInfo => 'Exclusão de Conta';
+
+  @override
+  String get cfgDeleteAccountInfoSub =>
+      'Como solicitar a exclusão da sua conta';
+
+  @override
   String get cfgAccountSection => 'Conta';
+
+  @override
+  String get cfgChangePassword => 'Alterar Senha';
+
+  @override
+  String get cfgChangePasswordSub => 'Trocar sua senha de acesso ao app';
+
+  @override
+  String get cfgSignOutSection => 'Sair';
 
   @override
   String get cfgDangerSection => 'Zona de Perigo';
@@ -4048,6 +4210,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cfgDeleteAccountBtn => 'Excluir minha conta';
 
   @override
+  String get cfgDeleteAdminTitle => 'Excluir conta e academia?';
+
+  @override
+  String cfgDeleteAdminBody(String nome) {
+    return 'Se você for o único administrador, a academia “$nome” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:';
+  }
+
+  @override
+  String get cfgDeleteAdminNameHint => 'Nome da academia';
+
+  @override
+  String get cfgDeleteAdminNameMismatch =>
+      'O nome digitado não confere com o nome da academia.';
+
+  @override
   String get cfgPlanActive => 'Plano Ativo';
 
   @override
@@ -4068,7 +4245,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get cfgPlanFreeDesc => '3 turmas · 10 alunos/turma · anúncios';
+  String get cfgPlanFreeDesc => '1 turma · 5 alunos · 1 funcionário · anúncios';
 
   @override
   String get planTitle => 'Minha assinatura';
@@ -4175,6 +4352,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get apPhotoSaveError => 'Erro ao salvar foto.';
 
   @override
+  String get apPhotoSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get apPhotoSourceGallery => 'Escolher da galeria';
+
+  @override
+  String get apAdjustPhoto => 'Ajustar foto';
+
+  @override
   String get apPrimaryBelt => 'Faixa Principal';
 
   @override
@@ -4247,7 +4433,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count atrasadas',
-      one: '1 atrasada',
+      one: '$count atrasada',
+      zero: '$count atrasadas',
     );
     return '$_temp0';
   }
@@ -4258,7 +4445,8 @@ class AppLocalizationsPt extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count pendentes',
-      one: '1 pendente',
+      one: '$count pendente',
+      zero: '$count pendentes',
     );
     return '$_temp0';
   }
@@ -4317,6 +4505,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get apLogoutHint => 'Encerrar a sessão neste dispositivo';
+
+  @override
+  String get apPrivacySection => 'Privacidade';
+
+  @override
+  String get apFaceRecognitionConsent => 'Reconhecimento facial na chamada';
+
+  @override
+  String get apFaceRecognitionConsentHint =>
+      'Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.';
 
   @override
   String get apLegal => 'Legal';
@@ -5301,6 +5499,20 @@ class AppLocalizationsPt extends AppLocalizations {
       'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.';
 
   @override
+  String get rnFaceRollCallTitle => 'Chamada por foto';
+
+  @override
+  String get rnFaceRollCallDesc =>
+      'Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.';
+
+  @override
+  String get rnPhotoFixTitle => 'Foto de perfil mais confiável';
+
+  @override
+  String get rnPhotoFixDesc =>
+      'Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.';
+
+  @override
   String get rpTitle => 'Relatório de Presenças';
 
   @override
@@ -5368,4 +5580,44 @@ class AppLocalizationsPt extends AppLocalizations {
   String rpSummaryLine(int presencas, int faltas, int total) {
     return '$presencas presenças · $faltas faltas · $total aulas no período';
   }
+
+  @override
+  String appVersionLabel(String version, String build) {
+    return 'Versão $version ($build)';
+  }
+
+  @override
+  String get appVersionCopied => 'Versão copiada';
+
+  @override
+  String get reviewAskTitle => 'Está gostando do Sensei?';
+
+  @override
+  String get reviewAskSubtitle =>
+      'Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.';
+
+  @override
+  String get reviewAskYes => 'Sim, estou gostando!';
+
+  @override
+  String get reviewAskNo => 'Não muito';
+
+  @override
+  String get reviewAskLater => 'Agora não';
+
+  @override
+  String get reviewFeedbackTitle => 'Poxa, o que podemos melhorar?';
+
+  @override
+  String get reviewFeedbackSubtitle =>
+      'Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.';
+
+  @override
+  String get reviewFeedbackHint => 'Escreva aqui sua sugestão ou problema';
+
+  @override
+  String get reviewFeedbackSend => 'Enviar';
+
+  @override
+  String get reviewFeedbackThanks => 'Obrigado pelo feedback!';
 }

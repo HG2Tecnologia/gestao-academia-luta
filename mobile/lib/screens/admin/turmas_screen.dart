@@ -4,6 +4,7 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
+import '../../core/plan_limits.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -176,6 +177,14 @@ class _AdminTurmasScreenState extends State<AdminTurmasScreen> {
 
   Future<void> _abrirForm({Map<String, dynamic>? turma}) async {
     if (_academiaId == null) return;
+    if (turma == null) {
+      final pode = await podeCriarDentroDoPlano(
+        context,
+        academiaId: _academiaId!,
+        tipo: TipoLimitePlano.turma,
+      );
+      if (!pode || !mounted) return;
+    }
     final criou = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -1015,8 +1024,13 @@ class TurmaFormSheetState extends State<TurmaFormSheet> {
         if (_nivel != null) 'nivel': _nivel,
         'ativo': _ativo,
         'planoPadraoId': _planoPadraoId,
-        if (widget.grausColoridosDisponivel)
-          'usa_graus_coloridos': _usaGrausColoridos,
+        // Grava explicitamente `false` (não omite) quando o switch "pai"
+        // está desligado — sem isso, uma turma que já tinha o campo `true`
+        // de antes continuava assim pra sempre, mesmo salvando de novo com
+        // o recurso desativado na academia (ver core/grau_colorido.dart).
+        'usa_graus_coloridos': widget.grausColoridosDisponivel
+            ? _usaGrausColoridos
+            : false,
       };
 
       if (_editando) {

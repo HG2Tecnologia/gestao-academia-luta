@@ -28,6 +28,12 @@ const guestGuard: CanActivateFn = async (route, state): Promise<boolean | UrlTre
   return (await runInInjectionContext(injector, () => m.guestGuard(route, state))) as boolean | UrlTree;
 };
 
+const trocaSenhaGuard: CanActivateFn = async (route, state): Promise<boolean | UrlTree> => {
+  const injector = inject(Injector);
+  const m = await import('./core/guards/auth.guard');
+  return (await runInInjectionContext(injector, () => m.trocaSenhaGuard(route, state))) as boolean | UrlTree;
+};
+
 function permissaoGuard(chave: string | { perfis: string[] }): CanActivateFn {
   return async (route, state): Promise<boolean | UrlTree> => {
     const injector = inject(Injector);
@@ -71,6 +77,14 @@ export const routes: Routes = [
         (m) => m.ForgotPasswordComponent
       ),
     title: 'Recuperar senha — Sensei Manager',
+    data: { robots: 'noindex, nofollow' },
+  },
+  {
+    path: 'troca-senha-obrigatoria',
+    loadComponent: () =>
+      import('./features/auth/troca-senha/troca-senha.component').then((m) => m.TrocaSenhaComponent),
+    canActivate: [trocaSenhaGuard],
+    title: 'Definir senha — Sensei Manager',
     data: { robots: 'noindex, nofollow' },
   },
   {
@@ -125,19 +139,19 @@ export const routes: Routes = [
       },
       {
         path: 'modalidades',
-        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/modalidades/modalidades.routes').then((m) => m.modalidadesRoutes),
       },
       {
         path: 'funcionarios',
-        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/funcionarios/funcionarios.routes').then((m) => m.funcionariosRoutes),
       },
       {
         path: 'configuracoes',
-        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/configuracoes/configuracoes.routes').then((m) => m.configuracoesRoutes),
       },
@@ -149,7 +163,7 @@ export const routes: Routes = [
       },
       {
         path: 'planos',
-        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/planos/planos.routes').then((m) => m.planosRoutes),
       },
@@ -161,13 +175,14 @@ export const routes: Routes = [
       },
       {
         path: 'relatorios',
-        canActivate: [permissaoGuard('tela_relatorio_presencas')],
+        // O relatório do web traz receita e inadimplência: Professor não entra.
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/relatorios/relatorios.routes').then((m) => m.relatoriosRoutes),
       },
       {
         path: 'contratos',
-        canActivate: [permissaoGuard({ perfis: ['Admin'] })],
+        canActivate: [permissaoGuard({ perfis: ['Admin', 'Secretaria'] })],
         loadChildren: () =>
           import('./features/contratos/contratos.routes').then((m) => m.contratosRoutes),
       },

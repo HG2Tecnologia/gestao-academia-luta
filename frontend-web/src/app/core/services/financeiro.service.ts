@@ -301,7 +301,7 @@ export class FinanceiroService {
     const [pagamentosSnap, presencasSnap, usuariosSnap] = await Promise.all([
       getDocs(collection(db, 'academias', academiaId, 'pagamentos')),
       getDocs(collection(db, 'academias', academiaId, 'presencas')),
-      getDocs(query(collection(db, 'academias', academiaId, 'usuarios'), where('ativo', '==', true))),
+      getDocs(query(collection(db, 'academias', academiaId, 'usuarios'), where('perfil', '==', 3), where('ativo', '==', true))),
     ]);
 
     const receitaPorMes = new Map<number, ReceitaMensalDto>();

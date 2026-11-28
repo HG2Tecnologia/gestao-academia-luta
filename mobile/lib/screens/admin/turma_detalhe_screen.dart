@@ -7,10 +7,12 @@ import '../../core/ad_banner.dart';
 import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/feature_flags.dart';
 import '../../core/firestore_service.dart';
 import '../../core/graduacao_order.dart';
 import '../../core/turma_service.dart';
 import '../../core/widgets.dart';
+import '../professor/chamada_foto_screen.dart';
 import 'turmas_screen.dart' show TurmaFormSheet;
 
 /// Critérios de ordenação da lista de alunos da turma.
@@ -117,6 +119,10 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
   // Modo professor: permissões concedidas pela academia.
   bool _podeDarPresenca = true;
 
+  // Reconhecimento facial (beta): precisa da flag global + da academia ter
+  // ativado em Configurações.
+  bool _reconhecimentoFacialAtivo = false;
+
   bool get _pm => widget.professorMode;
 
   @override
@@ -173,6 +179,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
         ),
         firestoreService.getAlunos(_academiaId!),
         firestoreService.getGraduacoes(_academiaId!, detalhadas: true),
+        firestoreService.getAcademia(_academiaId!).catchError((_) => null),
       ]);
 
       final turmaData = results[0] as Map<String, dynamic>?;
@@ -186,6 +193,7 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
       final matriculas = (results[4] as List).cast<Map<String, dynamic>>();
       final todosAlunos = (results[5] as List).cast<Map<String, dynamic>>();
       final graduacoes = (results[6] as List).cast<Map<String, dynamic>>();
+      final academiaData = results[7] as Map<String, dynamic>?;
       final faixasAtuaisPorAluno = montarFaixasAtuaisPorAluno(graduacoes);
 
       final alunoMap = <String, Map<String, dynamic>>{
@@ -254,6 +262,8 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
           _horarios = horariosList;
           _aptosGraduar = aptosSet;
           _temOrdemManual = temOrdemManual;
+          _reconhecimentoFacialAtivo =
+              academiaData?['reconhecimento_facial_ativo'] == true;
           _podeReordenar =
               !_pm ||
               (user?.temPermissao('acesso_turmas_todas') ?? false) ||
@@ -2005,6 +2015,51 @@ class _AdminTurmaDetalheScreenState extends State<AdminTurmaDetalheScreen>
             ],
           ),
         ),
+        if (kFeatureReconhecimentoFacialAtiva && _reconhecimentoFacialAtivo)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  final academiaId = _academiaId;
+                  if (academiaId == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChamadaFotoScreen(
+                        academiaId: academiaId,
+                        turmaId: widget.turmaId,
+                        turmaNome: (_turma?['nome'] ?? _l.tdClassFallback)
+                            .toString(),
+                        alunos: _alunos,
+                        data: _dataSel,
+                      ),
+                    ),
+                  ).then((_) {
+                    // Recarrega tudo (não só a presença): a chamada por
+                    // foto pode ter salvo consentimento e rosto novos nos
+                    // alunos, e _alunos (passado por referência à tela)
+                    // só reflete isso depois de um _load() de verdade.
+                    _load();
+                  });
+                },
+                icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                label: Text(
+                  _l.pfTakePhoto,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.c.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (_alunos.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),

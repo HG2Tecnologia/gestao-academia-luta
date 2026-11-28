@@ -8,6 +8,7 @@ import { TurmaService } from './turma.service';
 import { HorarioService } from './horario.service';
 import { BaseResponse } from '../models/auth.model';
 import { dataLocalISO } from '../utils/date.util';
+import { veSomenteTurmasProprias } from '../models/stored-user.model';
 
 export interface DashboardResumoDto {
   totalAlunos: number;
@@ -97,7 +98,9 @@ export class DashboardService {
         return ok<DashboardResumoDto>({
           totalAlunos: itensAlunos.length,
           turmasAtivas: turmas.dados?.length ?? 0,
-          presencasHoje: presencasHoje.size,
+          presencasHoje: veSomenteTurmasProprias(this.authService.currentUser())
+            ? presencasHoje.docs.filter((d) => turmas.dados?.some((t) => t.id === d.data()['turma_id'])).length
+            : presencasHoje.size,
           alunosSemTurma,
           proximasAulas,
         });

@@ -22,6 +22,7 @@
 }
 .dash-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg); }
 .dash-header p  { font-size: 13px; color: var(--fg-3); margin-top: 3px; }
+.dash-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dash-header-date {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--fg-3); font-weight: 500;

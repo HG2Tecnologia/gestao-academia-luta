@@ -19,6 +19,12 @@ function senhasIguaisValidator(group: AbstractControl): ValidationErrors | null 
   return senha === confirmar ? null : { senhasDiferentes: true };
 }
 
+/** Telefone obrigatório: DDD + número (10 ou 11 dígitos). */
+function telefoneComDddValidator(control: AbstractControl): ValidationErrors | null {
+  const digitos = String(control.value ?? '').replace(/\D/g, '');
+  return digitos.length >= 10 ? null : { telefoneInvalido: true };
+}
+
 @Component({
   selector: 'app-cadastro',
   standalone: true,
@@ -81,7 +87,10 @@ export class CadastroComponent implements OnInit {
           Validators.pattern(/^[a-z0-9-]+$/),
         ],
       }),
-      telefone: new FormControl('', { nonNullable: true }),
+      telefone: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, telefoneComDddValidator],
+      }),
     },
     { validators: senhasIguaisValidator }
   );
@@ -101,7 +110,12 @@ export class CadastroComponent implements OnInit {
   }
 
   async cadastrar(): Promise<void> {
-    if (this.form.invalid || this.carregando()) return;
+    if (this.carregando()) return;
+    if (this.form.invalid) {
+      // Mostra o erro de cada campo pendente (antes o botão falhava em silêncio).
+      this.form.markAllAsTouched();
+      return;
+    }
 
     this.carregando.set(true);
     this.erro.set(null);
@@ -109,7 +123,7 @@ export class CadastroComponent implements OnInit {
     const { nome, email, senha, nomeAcademia, subdominio, telefone } = this.form.getRawValue();
 
     try {
-      const usuario = await this.authService.cadastrarAcademia({ nome, email, senha, nomeAcademia, subdominio, telefone: telefone || undefined });
+      const usuario = await this.authService.cadastrarAcademia({ nome, email, senha, nomeAcademia, subdominio, telefone });
       // Dispara só aqui — depois que Auth + Firestore + seed de
       // modalidades confirmaram sucesso, nunca no clique do botão.
       this.analytics.cadastroConcluido();

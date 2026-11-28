@@ -2,13 +2,24 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'auth_storage.dart';
+import 'firestore_service.dart';
 
 const kIapMensal = 'br.com.senseimanager.pro.mensal';
 const kIapTrimestral = 'br.com.senseimanager.pro.trimestral';
 const kIapAnual = 'br.com.senseimanager.pro.anual';
 
 const _kProductIds = {kIapMensal, kIapTrimestral, kIapAnual};
+
+// ID do base plan de cupom criado no Play Console (Monetização > Assinaturas
+// > Sensei PRO Mensal > Base plans). Precisa bater exatamente com o "ID do
+// plano base" configurado lá. Academias com o campo Firestore
+// `cupom_base_plan_android` igual a este valor compram automaticamente por
+// esse base plan com desconto, sem aparecer como opção separada na tela de
+// seleção de planos.
+const kCupomBasePlanIdAndroid = 'mensal-sensei10';
+const kCupomCampoFirestore = 'cupom_base_plan_android';
 
 class IapService {
   static final IapService instance = IapService._();
@@ -18,6 +29,14 @@ class IapService {
   StreamSubscription<List<PurchaseDetails>>? _sub;
 
   List<ProductDetails> products = [];
+
+  // No Android, cada base plan de uma assinatura (ex.: o normal e o de
+  // cupom) chega como um ProductDetails SEPARADO com o mesmo `id`, diferindo
+  // só no base plan/offer interno. Guardamos a resposta completa aqui — o
+  // `products` exibido na tela de planos filtra fora os base plans de cupom,
+  // que nunca aparecem como opção visível.
+  List<ProductDetails> _todosOsProdutos = [];
+
   bool storeAvailable = false;
   bool _ready = false;
 
@@ -33,7 +52,8 @@ class IapService {
     _sub ??= _iap.purchaseStream.listen(_handlePurchases, onError: (_) {});
 
     final response = await _iap.queryProductDetails(_kProductIds);
-    products = List.of(response.productDetails)
+    _todosOsProdutos = response.productDetails;
+    products = _todosOsProdutos.where((p) => !_ehBasePlanDeCupom(p)).toList()
       ..sort((a, b) => _order(a.id).compareTo(_order(b.id)));
   }
 
@@ -43,10 +63,54 @@ class IapService {
     return 2;
   }
 
+  bool _ehBasePlanDeCupom(ProductDetails p) {
+    if (p is! GooglePlayProductDetails) return false;
+    final idx = p.subscriptionIndex;
+    final offers = p.productDetails.subscriptionOfferDetails;
+    if (idx == null || offers == null || idx >= offers.length) return false;
+    return offers[idx].basePlanId == kCupomBasePlanIdAndroid;
+  }
+
   Future<void> comprar(ProductDetails product) async {
+    final offerToken = await _offerTokenCupomElegivel(product);
+    if (offerToken != null && product is GooglePlayProductDetails) {
+      await _iap.buyNonConsumable(
+        purchaseParam: GooglePlayPurchaseParam(
+          productDetails: product,
+          offerToken: offerToken,
+        ),
+      );
+      return;
+    }
     await _iap.buyNonConsumable(
       purchaseParam: PurchaseParam(productDetails: product),
     );
+  }
+
+  // Elegibilidade é decidida só pelo nosso Firestore (campo
+  // `cupom_base_plan_android` na academia) — o Google nunca filtra isso
+  // sozinho. Sem esse campo, compra segue 100% o fluxo normal de sempre.
+  Future<String?> _offerTokenCupomElegivel(ProductDetails product) async {
+    if (!Platform.isAndroid || product.id != kIapMensal) return null;
+
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null) return null;
+
+    final academia = await firestoreService.getAcademia(academiaId);
+    final temCupom = academia?[kCupomCampoFirestore] == kCupomBasePlanIdAndroid;
+    if (!temCupom) return null;
+
+    final produtoComCupom = _todosOsProdutos.firstWhere(
+      (p) => p.id == kIapMensal && _ehBasePlanDeCupom(p),
+      orElse: () => product,
+    );
+    if (produtoComCupom is! GooglePlayProductDetails) return null;
+
+    final idx = produtoComCupom.subscriptionIndex;
+    final offers = produtoComCupom.productDetails.subscriptionOfferDetails;
+    if (idx == null || offers == null || idx >= offers.length) return null;
+    return offers[idx].offerIdToken;
   }
 
   Future<void> restaurar() async => _iap.restorePurchases();

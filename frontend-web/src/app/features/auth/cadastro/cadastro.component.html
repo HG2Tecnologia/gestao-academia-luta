@@ -198,10 +198,13 @@
           </div>
 
           <div class="form-group">
-            <div class="form-label">Telefone <span style="color:var(--fg-3);font-size:10px;text-transform:none;letter-spacing:0">(opcional)</span></div>
-            <input class="form-input" type="tel" formControlName="telefone"
+            <div class="form-label">Telefone</div>
+            <input class="form-input" [class.has-error]="campo('telefone')" type="tel" formControlName="telefone"
                    placeholder="(11) 99999-9999" autocomplete="tel"
                    inputmode="numeric" (input)="onTelefoneInput($event)">
+            @if (campo('telefone')) {
+              <p class="form-error">Informe o telefone com DDD.</p>
+            }
           </div>
 
           <div class="form-actions">

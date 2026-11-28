@@ -54,7 +54,7 @@
   "dashMarkAttendance": "Registrar presença",
   "dashTrialActive": "Trial gratuito ativo",
   "dashTrialLastDay": "Último dia do trial!",
-  "dashTrialDaysLeft": "{days, plural, one{1 dia restante} other{{days} dias restantes}}",
+  "dashTrialDaysLeft": "{days, plural, =0{{days} dias restantes} one{{days} dia restante} other{{days} dias restantes}}",
   "@dashTrialDaysLeft": {
     "placeholders": {
       "days": {
@@ -64,7 +64,7 @@
   },
   "dashSeePlans": "Ver planos",
   "dashFreePlan": "Plano Gratuito",
-  "dashFreePlanLimits": "Limite: 3 turmas · 10 alunos/turma · anúncios",
+  "dashFreePlanLimits": "Limite: 1 turma · 5 alunos · 1 funcionário",
   "dashSubscribePro": "Assinar PRO",
   "dashGettingStarted": "Primeiros passos",
   "dashGettingStartedSubtitle": "Configure sua academia em ordem",
@@ -79,7 +79,7 @@
   "dashStepFirstStudent": "Cadastre seu primeiro aluno",
   "dashStepFirstStudentDesc": "Adicione alunos e matricule nas turmas.",
   "dashAttendanceWatch": "Risco de evasão",
-  "dashWatchRedSubtitle": "{count, plural, one{1 aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}",
+  "dashWatchRedSubtitle": "{count, plural, =0{{count} alunos sem treinar há 7+ dias} one{{count} aluno sem treinar há 7+ dias} other{{count} alunos sem treinar há 7+ dias}}",
   "@dashWatchRedSubtitle": {
     "placeholders": {
       "count": {
@@ -87,7 +87,7 @@
       }
     }
   },
-  "dashWatchYellowSubtitle": "{count, plural, one{1 aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}",
+  "dashWatchYellowSubtitle": "{count, plural, =0{{count} alunos com 7–13 dias de ausência} one{{count} aluno com 7–13 dias de ausência} other{{count} alunos com 7–13 dias de ausência}}",
   "@dashWatchYellowSubtitle": {
     "placeholders": {
       "count": {
@@ -95,7 +95,7 @@
       }
     }
   },
-  "dashDaysCount": "{days, plural, one{1 dia} other{{days} dias}}",
+  "dashDaysCount": "{days, plural, =0{{days} dias} one{{days} dia} other{{days} dias}}",
   "@dashDaysCount": {
     "placeholders": {
       "days": {
@@ -359,7 +359,7 @@
   "studentsFilterAll": "Todos",
 
   "notifTitle": "Notificações",
-  "notifUnreadCount": "{count, plural, one{1 não lida} other{{count} não lidas}}",
+  "notifUnreadCount": "{count, plural, =0{{count} não lidas} one{{count} não lida} other{{count} não lidas}}",
   "@notifUnreadCount": {
     "placeholders": {
       "count": { "type": "int" }
@@ -461,7 +461,7 @@
   "sdCreateGroupError": "Erro ao criar grupo.",
   "sdNoGroupsYet": "Nenhum grupo cadastrado ainda.",
   "sdSelectGroup": "Selecionar Grupo",
-  "sdMemberCount": "{count, plural, one{1 membro} other{{count} membros}}",
+  "sdMemberCount": "{count, plural, =0{{count} membros} one{{count} membro} other{{count} membros}}",
   "@sdMemberCount": {
     "placeholders": {
       "count": {
@@ -586,7 +586,7 @@
   "sdLink": "Vincular",
   "sdEditStudent": "Editar Aluno",
   "sdPersonalData": "Dados pessoais",
-  "sdEditAccessWarning": "Este aluno já tem acesso ativo ao app. Alterar e-mail/telefone aqui NÃO muda a senha nem o login dele. Use \"Redefinir senha\" se for necessário.",
+  "sdEditAccessWarning": "Este aluno já tem acesso ativo ao app. Trocar o telefone aqui move o login dele pro número novo automaticamente (a senha nunca muda). Alterar e-mail NÃO move o login. Use \"Redefinir senha\" se for necessário.",
   "sdCpfOptional": "CPF (opcional)",
   "sdBirthDateField": "Data de nascimento (DD/MM/AAAA)",
   "sdGuardianEmergency": "Responsável / Emergência",
@@ -615,7 +615,7 @@
   "sdAddPoints": "Lançar Pontos",
   "sdNoManualRankings": "Nenhum ranking com pontos manuais ativo.",
   "sdPointsAmount": "Quantidade de pontos",
-  "sdPointsAddedToast": "{count, plural, one{1 ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}",
+  "sdPointsAddedToast": "{count, plural, =0{{count} pontos lançados com sucesso!} one{{count} ponto lançado com sucesso!} other{{count} pontos lançados com sucesso!}}",
   "@sdPointsAddedToast": {
     "placeholders": {
       "count": {
@@ -743,10 +743,46 @@
     }
   },
   "takeAttendance": "Fazer chamada",
+  "pfTakePhoto": "Chamada por foto",
+  "pfSourceCamera": "Tirar foto agora",
+  "pfSourceGallery": "Escolher da galeria",
+  "pfRetakePhoto": "Tirar outra foto",
+  "pfIntro": "Tire uma foto da turma — o app sugere quem é cada aluno pra agilizar a chamada.",
+  "pfProcessing": "Analisando a foto...",
+  "pfNoEligibleStudents": "Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.",
+  "pfUnrecognized": "Não identificado",
+  "pfConfidence": "de confiança",
+  "pfAlreadyCheckedIn": "Presença já registrada",
+  "pfIdentify": "Identificar",
+  "pfPickStudent": "Quem é esse aluno?",
+  "pfNotInPhoto": "Nenhum (não é aluno)",
+  "pfError": "Não foi possível processar. Tente de novo.",
+  "pfNoFacesFound": "Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.",
+  "pfConfirm": "Confirmar presenças",
+  "pfNoConsentBadge": "sem consentimento registrado",
+  "pfConfirmConsentTitle": "Confirmar consentimento",
+  "pfConfirmConsentBody": "Confirma que {nome} autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.",
+  "@pfConfirmConsentBody": {
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      }
+    }
+  },
+  "pfConfirmConsentSave": "Confirmar e salvar",
+  "pfSaved": "{count, plural, =0{Nenhuma presença registrada} one{{count} presença registrada} other{{count} presenças registradas}}",
+  "@pfSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profFaceRecognitionCheckinLabel": "Reconhecimento facial",
   "viewDetails": "Ver detalhes",
   "editClass": "Editar turma",
   "noSchedule": "Sem horários definidos",
-  "scheduleCount": "{count, plural, one{1 horário} other{{count} horários}}",
+  "scheduleCount": "{count, plural, =0{{count} horários} one{{count} horário} other{{count} horários}}",
   "@scheduleCount": {
     "placeholders": {
       "count": {
@@ -809,7 +845,7 @@
   "sortAttendanceAsc": "Menor frequência",
   "sortNameAsc": "Nome (A–Z)",
   "sortNameDesc": "Nome (Z–A)",
-  "presentCount": "{count, plural, one{1 presença} other{{count} presenças}}",
+  "presentCount": "{count, plural, =0{{count} presenças} one{{count} presença} other{{count} presenças}}",
   "@presentCount": {
     "placeholders": {
       "count": {
@@ -817,7 +853,7 @@
       }
     }
   },
-  "absentCount": "{count, plural, one{1 falta} other{{count} faltas}}",
+  "absentCount": "{count, plural, =0{{count} faltas} one{{count} falta} other{{count} faltas}}",
   "@absentCount": {
     "placeholders": {
       "count": {
@@ -940,7 +976,7 @@
   "tdAttendanceRemoveError": "Erro ao remover presença.",
   "tdToday": "Hoje",
   "tdYesterday": "Ontem",
-  "tdWeeklyScheduleCount": "{count, plural, one{1 horário semanal} other{{count} horários semanais}}",
+  "tdWeeklyScheduleCount": "{count, plural, =0{{count} horários semanais} one{{count} horário semanal} other{{count} horários semanais}}",
   "@tdWeeklyScheduleCount": {
     "placeholders": {
       "count": {
@@ -1077,7 +1113,7 @@
   "raPrevYear": "Ano anterior",
   "raNextYear": "Próximo ano",
   "raReceivedYear": "Recebido no ano",
-  "raChargesCount": "{count, plural, one{1 cobrança} other{{count} cobranças}}",
+  "raChargesCount": "{count, plural, =0{{count} cobranças} one{{count} cobrança} other{{count} cobranças}}",
   "@raChargesCount": {
     "placeholders": {
       "count": {
@@ -1096,7 +1132,7 @@
       }
     }
   },
-  "raDaysOverdue": "{count, plural, one{1 dia de atraso} other{{count} dias de atraso}}",
+  "raDaysOverdue": "{count, plural, =0{{count} dias de atraso} one{{count} dia de atraso} other{{count} dias de atraso}}",
   "@raDaysOverdue": {
     "placeholders": {
       "count": {
@@ -1276,7 +1312,7 @@
   },
   "fiUpdateError": "Erro ao atualizar pagamento.",
   "fiSelectMode": "Selecionar",
-  "fiSelectedCount": "{count, plural, one{1 selecionado} other{{count} selecionados}}",
+  "fiSelectedCount": "{count, plural, =0{{count} selecionados} one{{count} selecionado} other{{count} selecionados}}",
   "@fiSelectedCount": {
     "placeholders": {
       "count": {
@@ -1284,7 +1320,7 @@
       }
     }
   },
-  "fiBatchMarkedPaid": "{count, plural, one{1 cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
+  "fiBatchMarkedPaid": "{count, plural, =0{{count} cobranças marcadas como pagas} one{{count} cobrança marcada como paga} other{{count} cobranças marcadas como pagas}}",
   "@fiBatchMarkedPaid": {
     "placeholders": {
       "count": {
@@ -1317,7 +1353,7 @@
       }
     }
   },
-  "fiAffectedStudents": "{count, plural, one{1 aluno afetado} other{{count} alunos afetados}}",
+  "fiAffectedStudents": "{count, plural, =0{{count} alunos afetados} one{{count} aluno afetado} other{{count} alunos afetados}}",
   "@fiAffectedStudents": {
     "placeholders": {
       "count": {
@@ -1327,7 +1363,7 @@
   },
   "fiSeeAffected": "Ver alunos afetados",
   "fiNoStudentsForFilter": "Nenhum aluno corresponde a este filtro.",
-  "fiNChargesGenerated": "{count, plural, one{1 cobrança gerada} other{{count} cobranças geradas}}",
+  "fiNChargesGenerated": "{count, plural, =0{{count} cobranças geradas} one{{count} cobrança gerada} other{{count} cobranças geradas}}",
   "@fiNChargesGenerated": {
     "placeholders": {
       "count": {
@@ -1365,6 +1401,9 @@
       "n": {"type": "int"}
     }
   },
+  "fiLoadingMsg1": "Consultando seus alunos e mensalidades…",
+  "fiLoadingMsg2": "Organizando sua visão financeira…",
+  "fiLoadingMsg3": "Quase lá…",
   "fiStudentsWithoutPlanTitle": "Alunos sem plano configurado",
   "fiStudentsWithoutPlanSeeWho": "Ver quais são",
   "fiStudentsWithoutPlanBody": "{n} aluno(s) ativo(s) sem plano vinculado — eles nunca recebem cobrança automática até que um plano seja atribuído.",
@@ -1879,7 +1918,19 @@
   "cfgCommSub": "Personalize as mensagens enviadas aos alunos.",
   "cfgReturnMsg": "Mensagem de retorno (WhatsApp)",
   "cfgReturnMsgSub": "Mensagem para alunos em risco de evasão",
+  "cfgFaceRecognitionSection": "Reconhecimento facial (beta)",
+  "cfgFaceRecognitionSub": "Chamada automática por foto da turma",
+  "cfgFaceRecognition": "Ativar reconhecimento facial",
+  "cfgFaceRecognitionDesc": "O professor tira uma foto da turma e o app sugere quem é cada aluno, pra marcar presença mais rápido. Tudo roda no celular, nenhuma foto é enviada pra fora do app. Só funciona pra alunos que autorizarem no próprio perfil.",
   "cfgNewsSub": "Publicar notícias e comunicados",
+  "cfgNotifEvasao": "Alunos sumindo",
+  "cfgNotifEvasaoSub": "Avisa no celular quando um aluno fica 7+ dias sem treinar",
+  "cfgNotifGraduacao": "Próximos de graduar",
+  "cfgNotifGraduacaoSub": "Avisa no celular quando um aluno acumula presenças suficientes pra graduar",
+  "cfgNotifGraduacaoThreshold": "Presenças mínimas",
+  "cfgNotifGraduacaoThresholdSub": "Quantas aulas desde a última graduação pra considerar apto",
+  "cfgNotifGraduacaoThresholdDesc": "Conta as presenças do aluno na modalidade desde a última graduação (ou desde a primeira aula, se nunca graduou). Ao atingir esse número, a academia recebe um aviso — a graduação em si continua sendo feita manualmente.",
+  "cfgNotifGraduacaoThresholdSaved": "Presenças mínimas salvas",
   "cfgFinanceSection": "Financeiro",
   "cfgFinanceSub": "Configure cobranças e opções financeiras.",
   "cfgPlansSub": "Criar, editar e excluir planos de mensalidade",
@@ -1918,7 +1969,7 @@
   "grauColoridoStep2Title": "As cores vêm em sequência",
   "grauColoridoStep2Body": "Nunca uma cor por cima da outra. Ex.: com 12 graus e branco/vermelho/amarelo — o aluno ganha primeiro os graus 1º ao 4º, todos brancos. Só depois disso vêm os graus 5º ao 8º, vermelhos. E só depois vêm os graus 9º ao 12º, amarelos. No 12º, ele troca de faixa.",
   "grauColoridoStep3Title": "Configure isso por faixa",
-  "grauColoridoStep3Body": "Vá em Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
+  "grauColoridoStep3Body": "Vá em Gestão de Faixas → toque numa faixa pra editar → ligue \"Graus coloridos\" ali dentro. Cada faixa decide sozinha — pode deixar ligado só nas faixas infantis, por exemplo, e desligado nas de adulto.",
   "cfgManualCheckinWindowMinutes": "{min}min",
   "@cfgManualCheckinWindowMinutes": {
     "placeholders": {
@@ -1987,7 +2038,12 @@
   "cfgPrivacySub": "Como tratamos seus dados (LGPD)",
   "cfgTerms": "Termos de Uso",
   "cfgTermsSub": "Condições de uso do Sensei Manager",
+  "cfgDeleteAccountInfo": "Exclusão de Conta",
+  "cfgDeleteAccountInfoSub": "Como solicitar a exclusão da sua conta",
   "cfgAccountSection": "Conta",
+  "cfgChangePassword": "Alterar Senha",
+  "cfgChangePasswordSub": "Trocar sua senha de acesso ao app",
+  "cfgSignOutSection": "Sair",
   "cfgDangerSection": "Zona de Perigo",
   "cfgSaveToggleError": "Não foi possível salvar a alteração.",
   "cfgInfoSaved": "Informações salvas.",
@@ -2044,6 +2100,13 @@
   "cfgDeleteAccountBody": "Seus dados pessoais serão removidos permanentemente. Esta ação não pode ser desfeita.",
   "cfgDeleteAccountError": "Erro ao excluir conta. Tente novamente.",
   "cfgDeleteAccountBtn": "Excluir minha conta",
+  "cfgDeleteAdminTitle": "Excluir conta e academia?",
+  "cfgDeleteAdminBody": "Se você for o único administrador, a academia “{nome}” será apagada por completo: alunos, turmas, financeiro, histórico e os acessos de todos. Se houver outro administrador, só a sua conta é removida e a academia continua.\n\nIsso não cancela assinaturas da App Store ou do Google Play — cancele na loja.\n\nEsta ação não pode ser desfeita. Para confirmar, digite o nome da academia:",
+  "@cfgDeleteAdminBody": {
+    "placeholders": { "nome": { "type": "String" } }
+  },
+  "cfgDeleteAdminNameHint": "Nome da academia",
+  "cfgDeleteAdminNameMismatch": "O nome digitado não confere com o nome da academia.",
   "cfgPlanActive": "Plano Ativo",
   "cfgPlanTrial": "Trial",
   "cfgPlanFree": "Gratuito",
@@ -2057,7 +2120,7 @@
       }
     }
   },
-  "cfgPlanFreeDesc": "3 turmas · 10 alunos/turma · anúncios",
+  "cfgPlanFreeDesc": "1 turma · 5 alunos · 1 funcionário · anúncios",
   "planTitle": "Minha assinatura",
   "planSubscribedSince": "Assinante desde",
   "planRenewsOn": "Renova em",
@@ -2127,6 +2190,9 @@
   "profYourNameHint": "Seu nome",
   "profChangePassword": "Alterar senha",
   "apPhotoSaveError": "Erro ao salvar foto.",
+  "apPhotoSourceCamera": "Tirar foto agora",
+  "apPhotoSourceGallery": "Escolher da galeria",
+  "apAdjustPhoto": "Ajustar foto",
   "apPrimaryBelt": "Faixa Principal",
   "apPrimaryBeltHint": "Escolha qual graduação exibir no seu perfil",
   "apThanksFeedback": "Obrigado pelo feedback!",
@@ -2155,8 +2221,8 @@
   "apQrAttendance": "QR Presença",
   "apSwitchProfile": "Trocar perfil",
   "apSwitchShort": "Trocar",
-  "apOverdueCount": "{count, plural, one{1 atrasada} other{{count} atrasadas}}",
-  "apPendingCount": "{count, plural, one{1 pendente} other{{count} pendentes}}",
+  "apOverdueCount": "{count, plural, =0{{count} atrasadas} one{{count} atrasada} other{{count} atrasadas}}",
+  "apPendingCount": "{count, plural, =0{{count} pendentes} one{{count} pendente} other{{count} pendentes}}",
   "apTapToChoose": "Toque para escolher",
   "apTuitionOverdue": "Mensalidade em atraso",
   "apTuitionOverdueHint": "Toque para ver detalhes e regularizar.",
@@ -2186,6 +2252,9 @@
   "apParqDone": "Questionário de saúde respondido",
   "apParqPending": "Questionário de saúde pendente",
   "apLogoutHint": "Encerrar a sessão neste dispositivo",
+  "apPrivacySection": "Privacidade",
+  "apFaceRecognitionConsent": "Reconhecimento facial na chamada",
+  "apFaceRecognitionConsentHint": "Permite que o professor use sua foto de perfil pra te identificar automaticamente na chamada por foto. Fica no celular, nunca é enviado pra fora do app. Pode desligar quando quiser.",
   "apLegal": "Legal",
   "apPrivacyHint": "Como seus dados são tratados",
   "apTermsHint": "Regras e condições de uso do app",
@@ -2663,6 +2732,10 @@
   "rnStaffPermissionsDesc": "Agora dá para liberar, por permissão, que um professor veja atestado médico, PAR-Q e grupo familiar do aluno, sem precisar trocar o perfil dele.",
   "rnColoredDegreesTitle": "Graus coloridos",
   "rnColoredDegreesDesc": "Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.",
+  "rnFaceRollCallTitle": "Chamada por foto",
+  "rnFaceRollCallDesc": "Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.",
+  "rnPhotoFixTitle": "Foto de perfil mais confiável",
+  "rnPhotoFixDesc": "Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.",
   "rpTitle": "Relatório de Presenças",
   "rpNoAccess": "Você não tem acesso a este relatório.",
   "rpAllClasses": "Todas as turmas",
@@ -2691,5 +2764,23 @@
       "faltas": {"type": "int"},
       "total": {"type": "int"}
     }
-  }
+  },
+  "appVersionLabel": "Versão {version} ({build})",
+  "@appVersionLabel": {
+    "placeholders": {
+      "version": {"type": "String"},
+      "build": {"type": "String"}
+    }
+  },
+  "appVersionCopied": "Versão copiada",
+  "reviewAskTitle": "Está gostando do Sensei?",
+  "reviewAskSubtitle": "Sua opinião ajuda a gente a melhorar o app e a chegar a mais academias.",
+  "reviewAskYes": "Sim, estou gostando!",
+  "reviewAskNo": "Não muito",
+  "reviewAskLater": "Agora não",
+  "reviewFeedbackTitle": "Poxa, o que podemos melhorar?",
+  "reviewFeedbackSubtitle": "Conte pra gente o que não está legal. Sua mensagem vai direto para a nossa equipe.",
+  "reviewFeedbackHint": "Escreva aqui sua sugestão ou problema",
+  "reviewFeedbackSend": "Enviar",
+  "reviewFeedbackThanks": "Obrigado pelo feedback!"
 }

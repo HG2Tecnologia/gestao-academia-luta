@@ -10,6 +10,10 @@ export interface FuncionarioListaDto {
   ativo: boolean;
   dataAdmissao: string;
   permissoes: Record<string, boolean>;
+  /** Já tem conta de acesso vinculada. */
+  temAcesso?: boolean;
+  /** Presente até a pessoa entrar pela primeira vez. */
+  senhaTemporaria?: string;
 }
 
 export interface CreateFuncionarioRequest {

@@ -7,9 +7,19 @@ export interface DialogState {
   /** Ausente = modo "alerta" (só um botão, sem opção de cancelar). */
   textoCancelar?: string;
   perigoso?: boolean;
+  /** Valor em destaque com botão "Copiar" (ex.: senha temporária). */
+  copiavel?: string;
+  textoParaCopiar?: string;
+  /** Segunda ação, além de confirmar e cancelar. */
+  textoAlternativo?: string;
 }
 
+export type DialogEscolha = 'confirmar' | 'alternativa' | 'cancelar';
+
 export interface DialogOptions {
+  copiavel?: string;
+  textoParaCopiar?: string;
+  textoAlternativo?: string;
   titulo?: string;
   textoConfirmar?: string;
   textoCancelar?: string;
@@ -26,7 +36,7 @@ export interface DialogOptions {
 @Injectable({ providedIn: 'root' })
 export class DialogService {
   readonly state = signal<DialogState | null>(null);
-  private resolver: ((v: boolean) => void) | null = null;
+  private resolver: ((v: DialogEscolha) => void) | null = null;
 
   confirm(mensagem: string, opts?: DialogOptions): Promise<boolean> {
     this.state.set({
@@ -35,6 +45,20 @@ export class DialogService {
       textoConfirmar: opts?.textoConfirmar ?? 'Confirmar',
       textoCancelar: opts?.textoCancelar ?? 'Cancelar',
       perigoso: opts?.perigoso,
+    });
+    return new Promise((resolve) => {
+      this.resolver = (v) => resolve(v === 'confirmar');
+    });
+  }
+
+  /** Confirmação com duas ações possíveis, além de cancelar. */
+  escolher(mensagem: string, opts: DialogOptions & { textoAlternativo: string }): Promise<DialogEscolha> {
+    this.state.set({
+      mensagem,
+      titulo: opts.titulo,
+      textoConfirmar: opts.textoConfirmar ?? 'Confirmar',
+      textoAlternativo: opts.textoAlternativo,
+      textoCancelar: opts.textoCancelar ?? 'Cancelar',
     });
     return new Promise((resolve) => {
       this.resolver = resolve;
@@ -48,16 +72,18 @@ export class DialogService {
       textoConfirmar: opts?.textoConfirmar ?? 'OK',
       textoCancelar: undefined,
       perigoso: opts?.perigoso,
+      copiavel: opts?.copiavel,
+      textoParaCopiar: opts?.textoParaCopiar,
     });
     return new Promise<void>((resolve) => {
       this.resolver = () => resolve();
     });
   }
 
-  resolveWith(valor: boolean): void {
+  resolveWith(valor: boolean | DialogEscolha): void {
     const resolver = this.resolver;
     this.state.set(null);
     this.resolver = null;
-    resolver?.(valor);
+    resolver?.(valor === true ? 'confirmar' : valor === false ? 'cancelar' : valor);
   }
 }

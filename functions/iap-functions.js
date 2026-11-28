@@ -14,6 +14,8 @@ const {
   VerificationStatus,
 } = require("@apple/app-store-server-library");
 const { google } = require("googleapis");
+const { FieldValue } = require("firebase-admin/firestore");
+const { GMAIL_APP_PASSWORD, enviarAvisoInterno, esc } = require("./mailer");
 
 const db = admin.firestore();
 
@@ -109,11 +111,97 @@ async function verificarCompraAndroid(purchaseToken, serviceAccountJsonRaw) {
   return data;
 }
 
+// Confirma ("acknowledge") a compra junto à Google — obrigatório em até 3 dias
+// pra toda assinatura Android nova, senão o Google reembolsa automaticamente
+// (foi exatamente o que quase aconteceu com o Maykon/Dojô Coelho: a compra
+// nunca tinha sido reconhecida pelo app). Nunca precisa em renovação — só na
+// primeira ativação de cada assinatura. `subscriptionId` aqui é o próprio
+// `productId` (nome do produto), que é o que a API v1 de assinaturas espera.
+async function confirmarCompraAndroid(purchaseToken, productId, serviceAccountJsonRaw) {
+  const credentials = JSON.parse(serviceAccountJsonRaw);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  const androidpublisher = google.androidpublisher({ version: "v3", auth });
+  await androidpublisher.purchases.subscriptions.acknowledge({
+    packageName: ANDROID_PACKAGE_NAME,
+    subscriptionId: productId,
+    token: purchaseToken,
+    requestBody: {},
+  });
+}
+
+// ── Histórico de assinatura (append-only) ───────────────────────────────────
+// Nunca lança: é só auditoria/aviso, uma falha aqui não pode derrubar a
+// atualização de verdade do plano que já aconteceu.
+async function registrarEventoAssinatura({
+  academiaId,
+  evento,
+  produto,
+  plataforma,
+  statusAnterior,
+  statusNovo,
+  origem,
+}) {
+  try {
+    await db.collection("eventos_assinatura").add({
+      academiaId,
+      evento,
+      produto: produto || null,
+      plataforma: plataforma || null,
+      status_anterior: statusAnterior ?? null,
+      status_novo: statusNovo ?? null,
+      origem,
+      criado_em: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    logger.error("registrarEventoAssinatura: falha ao gravar evento", {
+      academiaId, evento, motivo: e.message,
+    });
+  }
+}
+
+// E-mail pra equipe HG2 quando um assinante precisa de atenção (cancelou,
+// falhou cobrança, foi reembolsado ou expirou) — nunca em renovação normal,
+// só o que vale a pena olhar. Mesmo padrão "melhor esforço" dos outros
+// e-mails internos: falha de envio só loga, nunca interrompe nada.
+async function avisarEventoAssinatura({ academiaId, evento, status }) {
+  try {
+    const academiaSnap = await db.doc(`academias/${academiaId}`).get();
+    const academia = academiaSnap.data() || {};
+    const nome = academia.nome || "—";
+    const telefone = academia.telefone || "não informado";
+    await enviarAvisoInterno({
+      subject: `Assinatura: ${nome} — ${status}`,
+      text:
+        `Evento de assinatura que pode precisar da sua atenção.\n\n` +
+        `Academia: ${nome}\nTelefone: ${telefone}\nID: ${academiaId}\n` +
+        `Evento: ${evento}\nStatus: ${status}\n`,
+      html:
+        `<p>Evento de assinatura que pode precisar da sua atenção.</p>` +
+        `<ul><li><b>Academia:</b> ${esc(nome)}</li>` +
+        `<li><b>Telefone:</b> ${esc(telefone)}</li>` +
+        `<li><b>ID:</b> ${esc(academiaId)}</li>` +
+        `<li><b>Evento:</b> ${esc(evento)}</li>` +
+        `<li><b>Status:</b> ${esc(status)}</li></ul>`,
+    });
+  } catch (e) {
+    logger.error("avisarEventoAssinatura: falha ao enviar e-mail", {
+      academiaId, evento, motivo: e.message,
+    });
+  }
+}
+
 // ── Núcleo comum: valida os dados já verificados e grava no Firestore ───────
 // Só é chamado depois que a assinatura/transação já foi confirmada como
 // genuína (Apple ou Google) — aqui só restam as regras de negócio. Cobre
 // tanto a primeira ativação (chamada pelo app) quanto uma renovação
 // detectada via webhook — é a mesma operação de negócio nos dois casos.
+// `origemEvento` é só pra auditoria em `eventos_assinatura` (quem disparou
+// essa ativação) — nunca confundir com `plano_origem` (gravado sempre como
+// "loja" aqui, porque só chega até aqui quem já validou de verdade com a
+// Apple/Google).
 async function processarAtivacaoAssinatura({
   academiaId,
   productId,
@@ -123,6 +211,7 @@ async function processarAtivacaoAssinatura({
   transactionId,
   originalTransactionId,
   renovacaoAutomatica,
+  origemEvento = "app",
 }) {
   if (!PRODUTOS_VALIDOS.has(productId)) {
     throw new HttpsError("invalid-argument", "Produto desconhecido.");
@@ -136,6 +225,7 @@ async function processarAtivacaoAssinatura({
   if (!academiaSnap.exists) {
     throw new HttpsError("not-found", "Academia não encontrada.");
   }
+  const statusAnterior = academiaSnap.data()?.plano_status ?? null;
   const jaTemAssinaturaDesde =
     academiaSnap.data()?.plano_assinado_em != null;
 
@@ -143,6 +233,7 @@ async function processarAtivacaoAssinatura({
   await academiaRef.update({
     plano_tipo: 1,
     plano_status: "ativo",
+    plano_origem: "loja",
     plano_renovacao_automatica: renovacaoAutomatica ?? true,
     plano_expiracao: new Date(expiresAtMs).toISOString(),
     plano_produto_id: productId,
@@ -153,6 +244,16 @@ async function processarAtivacaoAssinatura({
     ...(jaTemAssinaturaDesde
       ? {}
       : { plano_assinado_em: agora.toISOString() }),
+  });
+
+  await registrarEventoAssinatura({
+    academiaId,
+    evento: jaTemAssinaturaDesde ? "renovacao" : "ativacao",
+    produto: productId,
+    plataforma,
+    statusAnterior,
+    statusNovo: "ativo",
+    origem: origemEvento,
   });
 
   logger.info(
@@ -169,24 +270,53 @@ async function atualizarStatusAssinatura({
   academiaId,
   status,
   renovacaoAutomatica,
+  origemEvento = "webhook",
 }) {
+  const academiaRef = db.doc(`academias/${academiaId}`);
+  const academiaSnap = await academiaRef.get();
+  const statusAnterior = academiaSnap.data()?.plano_status ?? null;
+
   const update = { plano_status: status };
   if (renovacaoAutomatica !== undefined) {
     update.plano_renovacao_automatica = renovacaoAutomatica;
   }
-  await db.doc(`academias/${academiaId}`).update(update);
+  await academiaRef.update(update);
   logger.info(`atualizarStatusAssinatura: academia ${academiaId} -> ${status}`);
+
+  await registrarEventoAssinatura({
+    academiaId,
+    evento: "status_atualizado",
+    statusAnterior,
+    statusNovo: status,
+    origem: origemEvento,
+  });
+  if (status === "periodo_carencia") {
+    await avisarEventoAssinatura({ academiaId, evento: "falha_cobranca", status });
+  }
 }
 
 // Revoga o Pro imediatamente — usado em reembolso/revogação (não espera a
 // data de expiração, porque o pagamento já não é mais válido) e em
 // expiração definitiva (fim do período de carência sem sucesso de cobrança).
-async function revogarAssinatura({ academiaId, status }) {
-  await db.doc(`academias/${academiaId}`).update({
+async function revogarAssinatura({ academiaId, status, origemEvento = "webhook" }) {
+  const academiaRef = db.doc(`academias/${academiaId}`);
+  const academiaSnap = await academiaRef.get();
+  const statusAnterior = academiaSnap.data()?.plano_status ?? null;
+
+  await academiaRef.update({
     plano_tipo: 0,
     plano_status: status,
   });
   logger.info(`revogarAssinatura: academia ${academiaId} -> ${status}`);
+
+  await registrarEventoAssinatura({
+    academiaId,
+    evento: "revogado",
+    statusAnterior,
+    statusNovo: status,
+    origem: origemEvento,
+  });
+  await avisarEventoAssinatura({ academiaId, evento: "revogado", status });
 }
 
 async function buscarAcademiaPorOriginalTransactionId(originalTransactionId) {
@@ -220,6 +350,7 @@ async function rotearNotificacaoAssinatura({
   expiresAtMs,
   transactionId,
   renovacaoAutomatica,
+  origemEvento = "webhook",
 }) {
   const academiaId = await buscarAcademiaPorOriginalTransactionId(
     originalTransactionId
@@ -234,6 +365,21 @@ async function rotearNotificacaoAssinatura({
   switch (notificationType) {
     case "DID_RENEW":
     case "SUBSCRIBED":
+    // Troca de plano (ex.: mensal -> anual). No upgrade imediato a Apple já
+    // manda a transação nova (produto/expiração atualizados) nessa mesma
+    // notificação; no downgrade/crossgrade (só vale na próxima renovação)
+    // ela ainda reflete o plano atual — nos dois casos é seguro tratar
+    // igual a uma renovação normal.
+    case "DID_CHANGE_RENEWAL_PREF":
+    // Reembolso que a Apple decidiu reverter (devolveu o dinheiro de volta
+    // pro comerciante) — o assinante recupera o acesso. Sem isso, uma conta
+    // revogada por REFUND ficava revogada pra sempre mesmo a Apple
+    // desfazendo o reembolso depois.
+    case "REFUND_REVERSED":
+    // Extensão de cortesia dada pela Apple (ex.: compensação por instabilidade
+    // da loja) — muda a data de expiração sem o assinante ter feito nada.
+    case "RENEWAL_EXTENDED":
+    case "RENEWAL_EXTENSION":
       await processarAtivacaoAssinatura({
         academiaId,
         productId,
@@ -243,6 +389,7 @@ async function rotearNotificacaoAssinatura({
         transactionId,
         originalTransactionId,
         renovacaoAutomatica,
+        origemEvento,
       });
       break;
     case "DID_CHANGE_RENEWAL_STATUS":
@@ -250,18 +397,19 @@ async function rotearNotificacaoAssinatura({
         academiaId,
         status: renovacaoAutomatica === false ? "cancelado_ate_expirar" : "ativo",
         renovacaoAutomatica,
+        origemEvento,
       });
       break;
     case "DID_FAIL_TO_RENEW":
-      await atualizarStatusAssinatura({ academiaId, status: "periodo_carencia" });
+      await atualizarStatusAssinatura({ academiaId, status: "periodo_carencia", origemEvento });
       break;
     case "GRACE_PERIOD_EXPIRED":
     case "EXPIRED":
-      await revogarAssinatura({ academiaId, status: "expirado" });
+      await revogarAssinatura({ academiaId, status: "expirado", origemEvento });
       break;
     case "REFUND":
     case "REVOKE":
-      await revogarAssinatura({ academiaId, status: "reembolsado" });
+      await revogarAssinatura({ academiaId, status: "reembolsado", origemEvento });
       break;
     default:
       logger.info(
@@ -271,7 +419,7 @@ async function rotearNotificacaoAssinatura({
 }
 
 // ── Processamento de notificações da Apple (App Store Server Notifications V2) ──
-async function processarNotificacaoApple(decoded, appAppleId) {
+async function processarNotificacaoApple(decoded, appAppleId, origemEvento = "webhook") {
   const { notificationType, data } = decoded;
   if (!data?.signedTransactionInfo) {
     logger.info(
@@ -307,6 +455,7 @@ async function processarNotificacaoApple(decoded, appAppleId) {
     expiresAtMs: transacao.expiresDate,
     transactionId: transacao.transactionId,
     renovacaoAutomatica,
+    origemEvento,
   });
 }
 
@@ -320,9 +469,14 @@ const SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE = {
   SUBSCRIPTION_STATE_ON_HOLD: "DID_FAIL_TO_RENEW",
   SUBSCRIPTION_STATE_EXPIRED: "EXPIRED",
   SUBSCRIPTION_STATE_REVOKED: "REVOKE",
+  // Google permite o assinante pausar a assinatura (fica sem cobrar e sem
+  // acesso até ele mesmo retomar) — sem acesso válido nesse meio tempo,
+  // então trata igual a uma expiração; quando retomar, o próximo
+  // SUBSCRIPTION_STATE_ACTIVE reativa normalmente.
+  SUBSCRIPTION_STATE_PAUSED: "EXPIRED",
 };
 
-async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson) {
+async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson, origemEvento = "webhook") {
   const compra = await verificarCompraAndroid(purchaseToken, serviceAccountJson);
   const item = (compra.lineItems || [])[0];
   const renovacaoAutomatica = !!item?.autoRenewingPlan?.autoRenewEnabled;
@@ -341,6 +495,7 @@ async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson)
       notificationType,
       originalTransactionId: purchaseToken,
       renovacaoAutomatica: false,
+      origemEvento,
     });
     return;
   }
@@ -353,6 +508,7 @@ async function processarNotificacaoGooglePlay(purchaseToken, serviceAccountJson)
     plataforma: "android",
     ambiente: compra.testPurchase ? "sandbox" : "production",
     expiresAtMs: item?.expiryTime ? new Date(item.expiryTime).getTime() : 0,
+    origemEvento,
     transactionId: item?.latestSuccessfulOrderId || null,
     renovacaoAutomatica,
   });
@@ -449,6 +605,23 @@ exports.ativarAssinaturaAndroid = onCall(
       throw new HttpsError("permission-denied", "Assinatura sem item válido.");
     }
 
+    if (compra.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING") {
+      try {
+        await confirmarCompraAndroid(
+          purchaseToken,
+          item.productId,
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.value()
+        );
+      } catch (e) {
+        // Não impede a ativação (o assinante já pagou e já validamos a
+        // compra) — só loga, pra não deixar a confirmação pendente passar
+        // batido e virar reembolso automático em 3 dias.
+        logger.error("ativarAssinaturaAndroid: falha ao confirmar (acknowledge) a compra", {
+          academiaId, motivo: e.message,
+        });
+      }
+    }
+
     return processarAtivacaoAssinatura({
       academiaId,
       productId: item.productId,
@@ -522,12 +695,16 @@ exports._internal = {
   processarAtivacaoAssinatura,
   atualizarStatusAssinatura,
   revogarAssinatura,
+  registrarEventoAssinatura,
+  avisarEventoAssinatura,
   buscarAcademiaPorOriginalTransactionId,
   rotearNotificacaoAssinatura,
   processarNotificacaoApple,
   processarNotificacaoGooglePlay,
   verificarTransacaoApple,
   verificarCompraAndroid,
+  confirmarCompraAndroid,
   PRODUTOS_VALIDOS,
   BUNDLE_ID,
+  SUBSCRIPTION_STATE_PARA_NOTIFICATION_TYPE,
 };

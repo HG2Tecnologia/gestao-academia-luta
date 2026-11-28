@@ -120,9 +120,31 @@ void main() {
         final elegiveis = montarElegibilidadeGrausColoridosPorAluno(
           matriculas: matriculas,
           turmasPorId: turmasPorId,
+          grausColoridosDisponivelNaAcademia: true,
         );
         expect(elegiveis['crianca-1'], {'jiu-jitsu'});
         expect(elegiveis.containsKey('adulto-1'), isFalse);
+      },
+    );
+
+    test(
+      'switch "pai" da academia desligado zera a elegibilidade de todo mundo, mesmo com a turma ainda marcada',
+      () {
+        final turmasPorId = {
+          'turma-kids': {
+            'modalidadeId': 'jiu-jitsu',
+            'usa_graus_coloridos': true,
+          },
+        };
+        final matriculas = [
+          {'aluno_id': 'crianca-1', 'turma_id': 'turma-kids', 'ativo': true},
+        ];
+        final elegiveis = montarElegibilidadeGrausColoridosPorAluno(
+          matriculas: matriculas,
+          turmasPorId: turmasPorId,
+          grausColoridosDisponivelNaAcademia: false,
+        );
+        expect(elegiveis, isEmpty);
       },
     );
 
@@ -136,6 +158,7 @@ void main() {
       final elegiveis = montarElegibilidadeGrausColoridosPorAluno(
         matriculas: matriculas,
         turmasPorId: turmasPorId,
+        grausColoridosDisponivelNaAcademia: true,
       );
       expect(elegiveis, isEmpty);
     });
@@ -152,6 +175,7 @@ void main() {
       final elegiveis = montarElegibilidadeGrausColoridosPorAluno(
         matriculas: matriculas,
         turmasPorId: turmasPorId,
+        grausColoridosDisponivelNaAcademia: true,
       );
       expect(elegiveis['aluno-1'], {'jiu-jitsu'});
     });
@@ -166,6 +190,7 @@ void main() {
       final elegiveis = montarElegibilidadeGrausColoridosPorAluno(
         matriculas: matriculas,
         turmasPorId: turmasPorId,
+        grausColoridosDisponivelNaAcademia: true,
       );
       expect(elegiveis, isEmpty);
     });
@@ -176,6 +201,7 @@ void main() {
           {'aluno_id': 'aluno-1', 'turma_id': 'turma-inexistente', 'ativo': true},
         ],
         turmasPorId: const {},
+        grausColoridosDisponivelNaAcademia: true,
       );
       expect(elegiveis, isEmpty);
     });
@@ -185,10 +211,52 @@ void main() {
         montarElegibilidadeGrausColoridosPorAluno(
           matriculas: const [],
           turmasPorId: const {},
+          grausColoridosDisponivelNaAcademia: true,
         ),
         isEmpty,
       );
     });
+  });
+
+  group('maxGrausEfetivo', () {
+    test(
+      'faixa configurada pro sistema colorido (12) mas aluno não elegível cai pro padrão de 4',
+      () {
+        expect(
+          maxGrausEfetivo(
+            maxGrausConfigurado: 12,
+            temGrauCoresConfigurado: true,
+            elegivelGrauColorido: false,
+          ),
+          4,
+        );
+      },
+    );
+
+    test('aluno elegível mantém o valor configurado (12)', () {
+      expect(
+        maxGrausEfetivo(
+          maxGrausConfigurado: 12,
+          temGrauCoresConfigurado: true,
+          elegivelGrauColorido: true,
+        ),
+        12,
+      );
+    });
+
+    test(
+      'faixa que nunca configurou grau_cores (ex.: graus de faixa preta) não é afetada pela elegibilidade',
+      () {
+        expect(
+          maxGrausEfetivo(
+            maxGrausConfigurado: 6,
+            temGrauCoresConfigurado: false,
+            elegivelGrauColorido: false,
+          ),
+          6,
+        );
+      },
+    );
   });
 
   group('ajustarGrauCoresPersonalizado', () {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/ad_banner.dart';
@@ -6,6 +7,7 @@ import '../../core/drawer_helper.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import '../../core/pro_gate.dart';
 import '../../core/tab_refresh.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/widgets.dart';
@@ -33,6 +35,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _temModalidades = false;
   bool _temPlanos = false;
   bool _temProfessores = false;
+  String? _logoBase64;
 
   @override
   void initState() {
@@ -75,6 +78,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         firestoreService.getAptosGraduacao(academiaId),
         firestoreService.getNoticias(academiaId, publicadasOnly: true),
         firestoreService.getTurmas(academiaId),
+        firestoreService.getAcademia(academiaId),
       ]);
 
       final dashData = results[0] as Map<String, dynamic>? ?? {};
@@ -86,6 +90,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final aptosGrad = (results[6] as List).cast<Map<String, dynamic>>();
       final noticiasList = (results[7] as List).cast<Map<String, dynamic>>();
       final turmasList = (results[8] as List).cast<Map<String, dynamic>>();
+      final academiaDados = results[9] as Map<String, dynamic>?;
+      _logoBase64 = academiaDados?['logoUrl'] as String?;
       final turmasAtivasCount = turmasList
           .where((t) => t['ativo'] == true)
           .length;
@@ -321,11 +327,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SliverToBoxAdapter(child: _buildOnboarding()),
               SliverToBoxAdapter(child: _buildMetrics()),
               SliverToBoxAdapter(child: _buildQuickActions()),
-              if (_alertasEvasao.isNotEmpty)
+              if (!PlanService.instance.isPro)
+                SliverToBoxAdapter(
+                  child: ProLockedCard(
+                    icon: Icons.person_off_rounded,
+                    title: context.l10n.dashAttendanceWatch,
+                  ),
+                )
+              else if (_alertasEvasao.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAlertaEvasao()),
               if (_aniversariantes.isNotEmpty)
                 SliverToBoxAdapter(child: _buildAniversariantes()),
-              SliverToBoxAdapter(child: _buildProximosGraduacao()),
+              if (!PlanService.instance.isPro)
+                SliverToBoxAdapter(
+                  child: ProLockedCard(
+                    icon: Icons.military_tech_rounded,
+                    title: context.l10n.dashNearingPromotion,
+                  ),
+                )
+              else
+                SliverToBoxAdapter(child: _buildProximosGraduacao()),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -556,6 +577,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Container(
                 width: 46,
                 height: 46,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -567,16 +589,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      color: context.c.onPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
+                child: (_logoBase64 != null && _logoBase64!.contains(','))
+                    ? Image.memory(
+                        base64Decode(_logoBase64!.split(',').last),
+                        fit: BoxFit.cover,
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: context.c.onPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(

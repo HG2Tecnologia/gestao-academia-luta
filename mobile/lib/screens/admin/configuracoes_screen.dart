@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import '../../core/app_version_label.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,10 +10,13 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_settings.dart';
 import '../../core/auth_storage.dart';
+import '../../core/constants.dart';
+import '../../core/feature_flags.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/paywall_modal.dart';
 import '../../core/plan_service.dart';
+import '../../core/pro_gate.dart';
 import '../../core/release_notes.dart';
 import '../../core/whats_new_service.dart';
 import '../../core/widgets.dart';
@@ -67,6 +72,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   String _limiteDiasSemanaModo = 'off';
   bool _faltaAutomaticaAtiva = true;
   bool _grausColoridosDisponivel = false;
+  bool _notifEvasaoAtiva = false;
+  bool _notifGraduacaoAtiva = false;
+  int _notifGraduacaoPresencasMinimas = 40;
+  bool _reconhecimentoFacialAtivo = false;
 
   @override
   void initState() {
@@ -140,6 +149,12 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
       _faltaAutomaticaAtiva = dados['falta_automatica_ativa'] as bool? ?? true;
       _grausColoridosDisponivel =
           dados['graus_coloridos_disponivel'] as bool? ?? false;
+      _notifEvasaoAtiva = dados['notif_evasao_ativo'] as bool? ?? false;
+      _notifGraduacaoAtiva = dados['notif_graduacao_ativo'] as bool? ?? false;
+      _notifGraduacaoPresencasMinimas =
+          (dados['notif_graduacao_presencas_minimas'] as num?)?.toInt() ?? 40;
+      _reconhecimentoFacialAtivo =
+          dados['reconhecimento_facial_ativo'] as bool? ?? false;
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -186,6 +201,10 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     'limite_dias_semana_modo': _limiteDiasSemanaModo,
     'falta_automatica_ativa': _faltaAutomaticaAtiva,
     'graus_coloridos_disponivel': _grausColoridosDisponivel,
+    'notif_evasao_ativo': _notifEvasaoAtiva,
+    'notif_graduacao_ativo': _notifGraduacaoAtiva,
+    'notif_graduacao_presencas_minimas': _notifGraduacaoPresencasMinimas,
+    'reconhecimento_facial_ativo': _reconhecimentoFacialAtivo,
   };
 
   /// Grava o documento completo da academia (mesma chamada que o antigo botão
@@ -382,6 +401,21 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _abrirPresencasGraduacaoMinimas() async {
+    await _sheet<void>(
+      _PresencasGraduacaoSheet(
+        inicial: _notifGraduacaoPresencasMinimas,
+        onSalvar: (presencas) async {
+          _notifGraduacaoPresencasMinimas = presencas;
+          final ok = await _persistirTudo();
+          if (ok) _snack(_l.cfgNotifGraduacaoThresholdSaved);
+          return ok;
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   Future<void> _abrirPesquisaConfig() async {
     await _sheet<void>(
       _PesquisaConfigSheet(
@@ -482,6 +516,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = PlanService.instance.isPro;
     return Scaffold(
       backgroundColor: context.c.surface,
       appBar: AppBar(
@@ -595,16 +630,19 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                     subtitulo: _l.cfgStudentsSub,
                     child: _GroupCard(
                       children: [
-                        _SwitchRow(
-                          icon: Icons.groups_rounded,
-                          titulo: _l.cfgBlockCheckin,
-                          subtitulo: _l.cfgBlockCheckinSub,
-                          valor: _bloqueioCheckinAtivo,
-                          onChanged: (v) => _toggle(
-                            _l.cfgBlockCheckin,
-                            _bloqueioCheckinAtivo,
-                            (x) => _bloqueioCheckinAtivo = x,
-                            v,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.groups_rounded,
+                            titulo: _l.cfgBlockCheckin,
+                            subtitulo: _l.cfgBlockCheckinSub,
+                            valor: _bloqueioCheckinAtivo,
+                            onChanged: (v) => _toggle(
+                              _l.cfgBlockCheckin,
+                              _bloqueioCheckinAtivo,
+                              (x) => _bloqueioCheckinAtivo = x,
+                              v,
+                            ),
                           ),
                         ),
                         if (_bloqueioCheckinAtivo)
@@ -622,16 +660,19 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirCarencia,
                           ),
-                        _SwitchRow(
-                          icon: Icons.event_busy_rounded,
-                          titulo: _l.cfgAutoAbsence,
-                          subtitulo: _l.cfgAutoAbsenceSub,
-                          valor: _faltaAutomaticaAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgAutoAbsence,
-                            _faltaAutomaticaAtiva,
-                            (x) => _faltaAutomaticaAtiva = x,
-                            v,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.event_busy_rounded,
+                            titulo: _l.cfgAutoAbsence,
+                            subtitulo: _l.cfgAutoAbsenceSub,
+                            valor: _faltaAutomaticaAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgAutoAbsence,
+                              _faltaAutomaticaAtiva,
+                              (x) => _faltaAutomaticaAtiva = x,
+                              v,
+                            ),
                           ),
                         ),
                         _SwitchRow(
@@ -647,43 +688,115 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           ),
                         ),
                         if (_checkinManualAtivo)
-                          _NavRowComValorAbaixo(
-                            icon: Icons.timelapse_rounded,
-                            titulo: _l.cfgManualCheckinWindow,
-                            subtitulo: _l.cfgManualCheckinWindowSub,
-                            valor: _l.cfgManualCheckinWindowValue(
-                              formatarJanelaCheckinManual(
-                                _checkinManualAntesMinutos,
-                                _l,
+                          ProGate(
+                            isPro: isPro,
+                            child: _NavRowComValorAbaixo(
+                              icon: Icons.timelapse_rounded,
+                              titulo: _l.cfgManualCheckinWindow,
+                              subtitulo: _l.cfgManualCheckinWindowSub,
+                              valor: _l.cfgManualCheckinWindowValue(
+                                formatarJanelaCheckinManual(
+                                  _checkinManualAntesMinutos,
+                                  _l,
+                                ),
+                                formatarJanelaCheckinManual(
+                                  _checkinManualDepoisMinutos,
+                                  _l,
+                                ),
                               ),
-                              formatarJanelaCheckinManual(
-                                _checkinManualDepoisMinutos,
-                                _l,
-                              ),
+                              onTap: _abrirJanelaCheckinManual,
                             ),
-                            onTap: _abrirJanelaCheckinManual,
                           ),
                       ],
                     ),
                   ),
+
+                  if (kFeatureReconhecimentoFacialAtiva)
+                    _SettingsSection(
+                      titulo: _l.cfgFaceRecognitionSection,
+                      subtitulo: _l.cfgFaceRecognitionSub,
+                      child: _GroupCard(
+                        children: [
+                          _SwitchRow(
+                            icon: Icons.face_retouching_natural_rounded,
+                            titulo: _l.cfgFaceRecognition,
+                            subtitulo: _l.cfgFaceRecognitionDesc,
+                            valor: _reconhecimentoFacialAtivo,
+                            onChanged: (v) => _toggle(
+                              _l.cfgFaceRecognition,
+                              _reconhecimentoFacialAtivo,
+                              (x) => _reconhecimentoFacialAtivo = x,
+                              v,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   _SettingsSection(
                     titulo: _l.cfgCommSection,
                     subtitulo: _l.cfgCommSub,
                     child: _GroupCard(
                       children: [
-                        _NavRow(
-                          icon: Icons.chat_rounded,
-                          titulo: _l.cfgReturnMsg,
-                          subtitulo: _l.cfgReturnMsgSub,
-                          onTap: _abrirMensagemRetorno,
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.chat_rounded,
+                            titulo: _l.cfgReturnMsg,
+                            subtitulo: _l.cfgReturnMsgSub,
+                            onTap: _abrirMensagemRetorno,
+                          ),
                         ),
-                        _NavRow(
-                          icon: Icons.newspaper_rounded,
-                          titulo: _l.menuNews,
-                          subtitulo: _l.cfgNewsSub,
-                          onTap: () => context.push('/admin/noticias'),
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.newspaper_rounded,
+                            titulo: _l.menuNews,
+                            subtitulo: _l.cfgNewsSub,
+                            onTap: () => context.push('/admin/noticias'),
+                          ),
                         ),
+                        if (kFeatureNotificacoesEngajamentoAtiva) ...[
+                          _SwitchRow(
+                            icon: Icons.person_off_rounded,
+                            titulo: _l.cfgNotifEvasao,
+                            subtitulo: _l.cfgNotifEvasaoSub,
+                            valor: _notifEvasaoAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgNotifEvasao,
+                              _notifEvasaoAtiva,
+                              (x) => _notifEvasaoAtiva = x,
+                              v,
+                            ),
+                          ),
+                          _SwitchRow(
+                            icon: Icons.military_tech_rounded,
+                            titulo: _l.cfgNotifGraduacao,
+                            subtitulo: _l.cfgNotifGraduacaoSub,
+                            valor: _notifGraduacaoAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgNotifGraduacao,
+                              _notifGraduacaoAtiva,
+                              (x) => _notifGraduacaoAtiva = x,
+                              v,
+                            ),
+                          ),
+                          if (_notifGraduacaoAtiva)
+                            _NavRow(
+                              icon: Icons.tune_rounded,
+                              titulo: _l.cfgNotifGraduacaoThreshold,
+                              subtitulo: _l.cfgNotifGraduacaoThresholdSub,
+                              trailing: Text(
+                                '$_notifGraduacaoPresencasMinimas',
+                                style: TextStyle(
+                                  color: context.c.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              onTap: _abrirPresencasGraduacaoMinimas,
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -735,35 +848,41 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                             onTap: _abrirTaxaAtraso,
                           ),
-                        _SwitchRow(
-                          icon: Icons.category_rounded,
-                          titulo: _l.cfgBillingByModality,
-                          subtitulo: _l.cfgBillingByModalitySub,
-                          valor: _cobrancaPorModalidadeAtiva,
-                          onChanged: (v) => _toggle(
-                            _l.cfgBillingByModality,
-                            _cobrancaPorModalidadeAtiva,
-                            (x) => _cobrancaPorModalidadeAtiva = x,
-                            v,
-                          ),
-                        ),
-                        _NavRow(
-                          icon: Icons.event_repeat_rounded,
-                          titulo: _l.cfgWeeklyLimit,
-                          subtitulo: _l.cfgWeeklyLimitSub,
-                          trailing: Text(
-                            switch (_limiteDiasSemanaModo) {
-                              'aviso' => _l.cfgWeeklyLimitModeWarn,
-                              'bloqueio' => _l.cfgWeeklyLimitModeBlock,
-                              _ => _l.cfgWeeklyLimitModeOff,
-                            },
-                            style: TextStyle(
-                              color: context.c.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                        ProGate(
+                          isPro: isPro,
+                          child: _SwitchRow(
+                            icon: Icons.category_rounded,
+                            titulo: _l.cfgBillingByModality,
+                            subtitulo: _l.cfgBillingByModalitySub,
+                            valor: _cobrancaPorModalidadeAtiva,
+                            onChanged: (v) => _toggle(
+                              _l.cfgBillingByModality,
+                              _cobrancaPorModalidadeAtiva,
+                              (x) => _cobrancaPorModalidadeAtiva = x,
+                              v,
                             ),
                           ),
-                          onTap: _abrirLimiteDiasSemana,
+                        ),
+                        ProGate(
+                          isPro: isPro,
+                          child: _NavRow(
+                            icon: Icons.event_repeat_rounded,
+                            titulo: _l.cfgWeeklyLimit,
+                            subtitulo: _l.cfgWeeklyLimitSub,
+                            trailing: Text(
+                              switch (_limiteDiasSemanaModo) {
+                                'aviso' => _l.cfgWeeklyLimitModeWarn,
+                                'bloqueio' => _l.cfgWeeklyLimitModeBlock,
+                                _ => _l.cfgWeeklyLimitModeOff,
+                              },
+                              style: TextStyle(
+                                color: context.c.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            onTap: _abrirLimiteDiasSemana,
+                          ),
                         ),
                       ],
                     ),
@@ -798,33 +917,36 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                           onTap: () =>
                               context.push('/admin/dashboard/contratos'),
                         ),
-                        _RowShell(
-                          icon: Icons.palette_rounded,
-                          titulo: _l.cfgColoredDegrees,
-                          subtitulo: _l.cfgColoredDegreesSub,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AjudaGrausColoridosButton(),
-                              Switch(
-                                value: _grausColoridosDisponivel,
-                                onChanged: (v) async {
-                                  await _toggle(
-                                    _l.cfgColoredDegrees,
-                                    _grausColoridosDisponivel,
-                                    (x) => _grausColoridosDisponivel = x,
-                                    v,
-                                  );
-                                  if (v && mounted) {
-                                    await mostrarAjudaGrausColoridos(context);
-                                  }
-                                },
-                                activeThumbColor: Colors.white,
-                                activeTrackColor: context.c.primary,
-                                inactiveThumbColor: context.c.surface,
-                                inactiveTrackColor: context.c.outline,
-                              ),
-                            ],
+                        ProGate(
+                          isPro: isPro,
+                          child: _RowShell(
+                            icon: Icons.palette_rounded,
+                            titulo: _l.cfgColoredDegrees,
+                            subtitulo: _l.cfgColoredDegreesSub,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const AjudaGrausColoridosButton(),
+                                Switch(
+                                  value: _grausColoridosDisponivel,
+                                  onChanged: (v) async {
+                                    await _toggle(
+                                      _l.cfgColoredDegrees,
+                                      _grausColoridosDisponivel,
+                                      (x) => _grausColoridosDisponivel = x,
+                                      v,
+                                    );
+                                    if (v && mounted) {
+                                      await mostrarAjudaGrausColoridos(context);
+                                    }
+                                  },
+                                  activeThumbColor: Colors.white,
+                                  activeTrackColor: context.c.primary,
+                                  inactiveThumbColor: context.c.surface,
+                                  inactiveTrackColor: context.c.outline,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -889,7 +1011,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             size: 16,
                           ),
                           onTap: () => _abrirLink(
-                            'https://senseimanager.com.br/privacidade',
+                            'https://hg2tecnologia.com.br/privacy-policy',
                           ),
                         ),
                         _NavRow(
@@ -901,8 +1023,20 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             color: context.c.onSurfaceVariant,
                             size: 16,
                           ),
-                          onTap: () =>
-                              _abrirLink('https://senseimanager.com.br/termos'),
+                          onTap: () => _abrirLink(kTermosUrl),
+                        ),
+                        _NavRow(
+                          icon: Icons.person_remove_rounded,
+                          titulo: _l.cfgDeleteAccountInfo,
+                          subtitulo: _l.cfgDeleteAccountInfoSub,
+                          trailing: Icon(
+                            Icons.open_in_new_rounded,
+                            color: context.c.onSurfaceVariant,
+                            size: 16,
+                          ),
+                          onTap: () => _abrirLink(
+                            'https://hg2tecnologia.com.br/exclusao-de-conta',
+                          ),
                         ),
                       ],
                     ),
@@ -910,12 +1044,26 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
 
                   _SettingsSection(
                     titulo: _l.cfgAccountSection,
+                    child: _GroupCard(
+                      children: [
+                        _NavRow(
+                          icon: Icons.lock_reset_rounded,
+                          titulo: _l.cfgChangePassword,
+                          subtitulo: _l.cfgChangePasswordSub,
+                          onTap: () => context.push('/alterar-senha'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _SettingsSection(
+                    titulo: _l.cfgSignOutSection,
                     child: _BotaoSair(),
                   ),
                   _SettingsSection(
                     titulo: _l.cfgDangerSection,
                     child: _BotaoExcluirConta(),
                   ),
+                  const AppVersionLabel(),
                 ],
               ),
             ),
@@ -2192,6 +2340,76 @@ class _CarenciaSheetState extends State<_CarenciaSheet> {
   }
 }
 
+// ─── Sheet: presenças mínimas pra alerta de "próximo de graduar" ──────────
+
+class _PresencasGraduacaoSheet extends StatefulWidget {
+  const _PresencasGraduacaoSheet({required this.inicial, required this.onSalvar});
+  final int inicial;
+  final Future<bool> Function(int) onSalvar;
+
+  @override
+  State<_PresencasGraduacaoSheet> createState() =>
+      _PresencasGraduacaoSheetState();
+}
+
+class _PresencasGraduacaoSheetState extends State<_PresencasGraduacaoSheet> {
+  AppLocalizations get _l => context.l10n;
+  late int _presencas = widget.inicial;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SheetScaffold(
+      titulo: _l.cfgNotifGraduacaoThreshold,
+      descricao: _l.cfgNotifGraduacaoThresholdDesc,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                iconSize: 32,
+                onPressed: _presencas > 1
+                    ? () => setState(() => _presencas--)
+                    : null,
+                icon: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  color: _presencas > 1 ? context.c.primary : context.c.outline,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '$_presencas',
+                  style: TextStyle(
+                    color: context.c.onSurface,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                iconSize: 32,
+                onPressed: _presencas < 300
+                    ? () => setState(() => _presencas++)
+                    : null,
+                icon: Icon(
+                  Icons.add_circle_outline_rounded,
+                  color: _presencas < 300 ? context.c.primary : context.c.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _SheetSaveButton(
+            label: _l.commonSave,
+            onSalvar: () => widget.onSalvar(_presencas),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Sheet: janela do check-in manual sem QR ──────────────────────────────
 
 /// Formata minutos pra exibição nas configurações de check-in manual.
@@ -2609,6 +2827,7 @@ class _BotaoSairState extends State<_BotaoSair> {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     await AuthStorage.clear();
+    PlanService.instance.reset();
     if (!mounted) return;
     context.go('/boas-vindas');
   }
@@ -2655,60 +2874,129 @@ class _BotaoExcluirContaState extends State<_BotaoExcluirConta> {
   AppLocalizations get _l => context.l10n;
   bool _loading = false;
 
-  Future<void> _excluir() async {
-    final confirma = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: context.c.surfaceContainer,
-        title: Text(
-          _l.cfgDeleteAccountTitle,
-          style: TextStyle(
-            color: context.c.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        content: Text(
-          _l.cfgDeleteAccountBody,
-          style: TextStyle(color: context.c.onSurfaceVariant),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text(
-              _l.commonCancel,
-              style: TextStyle(color: context.c.onSurfaceVariant),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: Text(
-              _l.commonDelete,
-              style: TextStyle(
-                color: context.sem.danger,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+  static String _normalizarNome(String value) =>
+      value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+  void _mostrarErro(String mensagem) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: context.sem.danger,
+        behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  /// Exclusão feita no servidor (Cloud Function `excluirMinhaConta`): se este
+  /// for o único Admin, apaga a academia inteira e os acessos dela; se houver
+  /// outro Admin, apaga só este perfil. Não depende de login recente, ao
+  /// contrário de `User.delete()` no cliente.
+  Future<void> _excluir() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final dados = await firestoreService.getAcademia(academiaId) ?? {};
+    final nomeAcademia = (dados['nome'] as String? ?? '').trim();
+    if (!mounted) return;
+
+    final nomeCtrl = TextEditingController();
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final confere = nomeAcademia.isNotEmpty &&
+              _normalizarNome(nomeCtrl.text) == _normalizarNome(nomeAcademia);
+          return AlertDialog(
+            backgroundColor: context.c.surfaceContainer,
+            title: Text(
+              _l.cfgDeleteAdminTitle,
+              style: TextStyle(
+                color: context.c.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _l.cfgDeleteAdminBody(nomeAcademia),
+                    style: TextStyle(color: context.c.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nomeCtrl,
+                    autocorrect: false,
+                    textCapitalization: TextCapitalization.none,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      hintText: nomeAcademia.isEmpty
+                          ? _l.cfgDeleteAdminNameHint
+                          : nomeAcademia,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: Text(
+                  _l.commonCancel,
+                  style: TextStyle(color: context.c.onSurfaceVariant),
+                ),
+              ),
+              TextButton(
+                onPressed:
+                    confere ? () => Navigator.pop(dialogCtx, true) : null,
+                child: Text(
+                  _l.commonDelete,
+                  style: TextStyle(
+                    color: confere
+                        ? context.sem.danger
+                        : context.c.onSurfaceVariant.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    final nomeDigitado = nomeCtrl.text;
+    // Só descarta depois da animação de saída do diálogo, que ainda lê o campo.
+    Future<void>.delayed(const Duration(milliseconds: 500), nomeCtrl.dispose);
     if (confirma != true || !mounted) return;
 
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.currentUser?.delete();
+      await FirebaseFunctions.instance
+          .httpsCallable(
+            'excluirMinhaConta',
+            options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+          )
+          .call({'academiaId': academiaId, 'confirmacaoNome': nomeDigitado});
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {
+        // O login pode já ter sido apagado no servidor; segue a limpeza local.
+      }
       await AuthStorage.clear();
+      PlanService.instance.reset();
       if (!mounted) return;
       context.go('/boas-vindas');
-    } catch (_) {
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('excluirMinhaConta falhou: ${e.code} ${e.message}');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_l.cfgDeleteAccountError),
-          backgroundColor: context.sem.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _mostrarErro(e.code == 'failed-precondition'
+          ? _l.cfgDeleteAdminNameMismatch
+          : _l.cfgDeleteAccountError);
+    } catch (e) {
+      debugPrint('excluirMinhaConta falhou: $e');
+      if (!mounted) return;
+      _mostrarErro(_l.cfgDeleteAccountError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

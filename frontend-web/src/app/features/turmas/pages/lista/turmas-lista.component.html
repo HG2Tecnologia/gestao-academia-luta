@@ -15,7 +15,9 @@
       <h1 class="page-title">Turmas</h1>
       <p class="page-subtitle">Gerencie as turmas da academia</p>
     </div>
-    <a routerLink="novo" class="btn-primary">+ Nova Turma</a>
+    @if (!perfilProfessor) {
+      <a routerLink="novo" class="btn-primary">+ Nova Turma</a>
+    }
   </div>
 
   <div class="filters-row">
@@ -41,7 +43,9 @@
     <div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <p>Nenhuma turma encontrada</p>
-      <a routerLink="novo" class="btn-primary">Criar primeira turma</a>
+      @if (!perfilProfessor) {
+        <a routerLink="novo" class="btn-primary">Criar primeira turma</a>
+      }
     </div>
   } @else {
     <div class="table-wrapper">
@@ -82,11 +86,13 @@
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         Ver detalhes
                       </a>
-                      <a [routerLink]="[turma.id, 'editar']" class="acao-item" (click)="fecharDropdown()">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Editar
-                      </a>
-                      @if (turma.ativo) {
+                      @if (!perfilProfessor) {
+                        <a [routerLink]="[turma.id, 'editar']" class="acao-item" (click)="fecharDropdown()">
+                          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          Editar
+                        </a>
+                      }
+                      @if (turma.ativo && !perfilProfessor) {
                         <div class="acao-separator"></div>
                         <button class="acao-item danger-item" (click)="arquivar(turma.id); fecharDropdown()">
                           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>

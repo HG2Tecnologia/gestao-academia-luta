@@ -1,0 +1,3 @@
+facenet.tflite
+Source: https://github.com/shubham0204/FaceRecognition_With_FaceNet_Android
+License: Apache License, Version 2.0 (see repo's LICENSE.txt)

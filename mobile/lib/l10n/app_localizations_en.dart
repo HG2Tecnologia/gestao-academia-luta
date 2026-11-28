@@ -150,7 +150,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashFreePlan => 'Free plan';
 
   @override
-  String get dashFreePlanLimits => 'Limit: 3 classes · 10 students/class · ads';
+  String get dashFreePlanLimits =>
+      'Limit: 1 class · 5 students · 1 staff member';
 
   @override
   String get dashSubscribePro => 'Get PRO';
@@ -1340,7 +1341,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sdEditAccessWarning =>
-      'This student already has active app access. Changing the email/phone here does NOT change their password or login. Use \"Reset password\" if needed.';
+      'This student already has active app access. Changing the phone here automatically moves their login to the new number (the password never changes). Changing the email does NOT move the login. Use \"Reset password\" if needed.';
 
   @override
   String get sdCpfOptional => 'CPF (optional)';
@@ -1602,6 +1603,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get takeAttendance => 'Take attendance';
+
+  @override
+  String get pfTakePhoto => 'Photo attendance';
+
+  @override
+  String get pfSourceCamera => 'Take photo now';
+
+  @override
+  String get pfSourceGallery => 'Choose from gallery';
+
+  @override
+  String get pfRetakePhoto => 'Retake photo';
+
+  @override
+  String get pfIntro =>
+      'Take a photo of the class — the app suggests who\'s who to speed up attendance.';
+
+  @override
+  String get pfProcessing => 'Analyzing photo...';
+
+  @override
+  String get pfNoEligibleStudents =>
+      'No student in this class has face recognition set up yet (or everyone is already marked present today) — automatic suggestions won\'t work, but you can still identify manually and confirm consent on the spot.';
+
+  @override
+  String get pfUnrecognized => 'Not recognized';
+
+  @override
+  String get pfConfidence => 'confidence';
+
+  @override
+  String get pfAlreadyCheckedIn => 'Attendance already recorded';
+
+  @override
+  String get pfIdentify => 'Identify';
+
+  @override
+  String get pfPickStudent => 'Who is this student?';
+
+  @override
+  String get pfNotInPhoto => 'None (not a student)';
+
+  @override
+  String get pfError => 'Could not process. Please try again.';
+
+  @override
+  String get pfNoFacesFound =>
+      'No faces found in this photo. Try again with everyone facing the camera.';
+
+  @override
+  String get pfConfirm => 'Confirm attendance';
+
+  @override
+  String get pfNoConsentBadge => 'no consent on file';
+
+  @override
+  String get pfConfirmConsentTitle => 'Confirm consent';
+
+  @override
+  String pfConfirmConsentBody(String nome) {
+    return 'Confirm that $nome authorized the use of their photo for face recognition (verbally or via enrollment contract)? This saves their face to auto-recognize them in future roll calls.';
+  }
+
+  @override
+  String get pfConfirmConsentSave => 'Confirm and save';
+
+  @override
+  String pfSaved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attendances recorded',
+      one: '$count attendance recorded',
+      zero: 'No attendance recorded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get profFaceRecognitionCheckinLabel => 'Face recognition';
 
   @override
   String get viewDetails => 'View details';
@@ -2652,6 +2733,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get fiLoadingMsg1 => 'Fetching your students and dues…';
+
+  @override
+  String get fiLoadingMsg2 => 'Organizing your financial overview…';
+
+  @override
+  String get fiLoadingMsg3 => 'Almost there…';
+
+  @override
   String get fiStudentsWithoutPlanTitle => 'Students without a plan';
 
   @override
@@ -3673,7 +3763,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgReturnMsgSub => 'Message for students at risk of dropping out';
 
   @override
+  String get cfgFaceRecognitionSection => 'Face recognition (beta)';
+
+  @override
+  String get cfgFaceRecognitionSub => 'Automatic attendance from a class photo';
+
+  @override
+  String get cfgFaceRecognition => 'Enable face recognition';
+
+  @override
+  String get cfgFaceRecognitionDesc =>
+      'The teacher takes a photo of the class and the app suggests who\'s who, to mark attendance faster. Everything runs on the phone — no photo ever leaves the app. Only works for students who opted in on their own profile.';
+
+  @override
   String get cfgNewsSub => 'Publish news and announcements';
+
+  @override
+  String get cfgNotifEvasao => 'Students disappearing';
+
+  @override
+  String get cfgNotifEvasaoSub =>
+      'Push notification when a student goes 7+ days without training';
+
+  @override
+  String get cfgNotifGraduacao => 'Close to promotion';
+
+  @override
+  String get cfgNotifGraduacaoSub =>
+      'Push notification when a student builds up enough attendance to be promoted';
+
+  @override
+  String get cfgNotifGraduacaoThreshold => 'Minimum attendance';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSub =>
+      'How many classes since the last promotion to consider them ready';
+
+  @override
+  String get cfgNotifGraduacaoThresholdDesc =>
+      'Counts the student\'s attendance in that style since their last promotion (or since their first class, if never promoted). Once this number is reached, the academy gets a notification — the promotion itself is still done manually.';
+
+  @override
+  String get cfgNotifGraduacaoThresholdSaved => 'Minimum attendance saved';
 
   @override
   String get cfgFinanceSection => 'Billing';
@@ -3804,7 +3935,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get grauColoridoStep3Body =>
-      'Go to Belts → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
+      'Go to Belt Management → tap a belt to edit it → turn on \"Colored degrees\" in there. Each belt decides on its own — you can leave it on only for kids belts, for example, and off for adult ones.';
 
   @override
   String cfgManualCheckinWindowMinutes(int min) {
@@ -3904,7 +4035,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgTermsSub => 'Sensei Manager terms of use';
 
   @override
+  String get cfgDeleteAccountInfo => 'Delete Account';
+
+  @override
+  String get cfgDeleteAccountInfoSub => 'How to request your account deletion';
+
+  @override
   String get cfgAccountSection => 'Account';
+
+  @override
+  String get cfgChangePassword => 'Change Password';
+
+  @override
+  String get cfgChangePasswordSub => 'Change your app login password';
+
+  @override
+  String get cfgSignOutSection => 'Sign Out';
 
   @override
   String get cfgDangerSection => 'Danger Zone';
@@ -4046,6 +4192,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cfgDeleteAccountBtn => 'Delete my account';
 
   @override
+  String get cfgDeleteAdminTitle => 'Delete account and gym?';
+
+  @override
+  String cfgDeleteAdminBody(String nome) {
+    return 'If you are the only administrator, the gym “$nome” will be deleted entirely: students, classes, finances, history and everyone\'s access. If there is another administrator, only your account is removed and the gym stays.\n\nThis does not cancel App Store or Google Play subscriptions — cancel them in the store.\n\nThis cannot be undone. To confirm, type the gym name:';
+  }
+
+  @override
+  String get cfgDeleteAdminNameHint => 'Gym name';
+
+  @override
+  String get cfgDeleteAdminNameMismatch =>
+      'The name you typed doesn\'t match the gym name.';
+
+  @override
   String get cfgPlanActive => 'Active Plan';
 
   @override
@@ -4066,7 +4227,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cfgPlanFreeDesc => '3 classes · 10 students/class · ads';
+  String get cfgPlanFreeDesc => '1 class · 5 students · 1 staff member · ads';
 
   @override
   String get planTitle => 'My subscription';
@@ -4170,6 +4331,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apPhotoSaveError => 'Error saving photo.';
+
+  @override
+  String get apPhotoSourceCamera => 'Take photo now';
+
+  @override
+  String get apPhotoSourceGallery => 'Choose from gallery';
+
+  @override
+  String get apAdjustPhoto => 'Adjust photo';
 
   @override
   String get apPrimaryBelt => 'Primary Belt';
@@ -4314,6 +4484,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apLogoutHint => 'End the session on this device';
+
+  @override
+  String get apPrivacySection => 'Privacy';
+
+  @override
+  String get apFaceRecognitionConsent => 'Face recognition for attendance';
+
+  @override
+  String get apFaceRecognitionConsentHint =>
+      'Lets the teacher use your profile photo to identify you automatically in photo-based attendance. It stays on your phone — never sent outside the app. You can turn it off anytime.';
 
   @override
   String get apLegal => 'Legal';
@@ -5295,6 +5475,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.';
 
   @override
+  String get rnFaceRollCallTitle => 'Photo roll call';
+
+  @override
+  String get rnFaceRollCallDesc =>
+      'Take a photo of the class and the app suggests who\'s who, using on-device face recognition — nothing leaves the app. Enable it in Settings.';
+
+  @override
+  String get rnPhotoFixTitle => 'More reliable profile photos';
+
+  @override
+  String get rnPhotoFixDesc =>
+      'Fixed an issue where a student\'s photo, edited by an admin, could disappear after leaving and reopening their profile.';
+
+  @override
   String get rpTitle => 'Attendance Report';
 
   @override
@@ -5361,4 +5555,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String rpSummaryLine(int presencas, int faltas, int total) {
     return '$presencas present · $faltas absent · $total classes in period';
   }
+
+  @override
+  String appVersionLabel(String version, String build) {
+    return 'Version $version ($build)';
+  }
+
+  @override
+  String get appVersionCopied => 'Version copied';
+
+  @override
+  String get reviewAskTitle => 'Enjoying Sensei?';
+
+  @override
+  String get reviewAskSubtitle =>
+      'Your opinion helps us improve the app and reach more gyms.';
+
+  @override
+  String get reviewAskYes => 'Yes, I\'m enjoying it!';
+
+  @override
+  String get reviewAskNo => 'Not really';
+
+  @override
+  String get reviewAskLater => 'Not now';
+
+  @override
+  String get reviewFeedbackTitle => 'Oh no, what can we improve?';
+
+  @override
+  String get reviewFeedbackSubtitle =>
+      'Tell us what\'s not working. Your message goes straight to our team.';
+
+  @override
+  String get reviewFeedbackHint => 'Write your suggestion or problem here';
+
+  @override
+  String get reviewFeedbackSend => 'Send';
+
+  @override
+  String get reviewFeedbackThanks => 'Thanks for your feedback!';
 }

@@ -5,6 +5,7 @@ import '../../core/auth_storage.dart';
 import '../../core/theme/context_ext.dart';
 import '../../core/firestore_service.dart';
 import '../../core/permissoes.dart';
+import '../../core/plan_limits.dart';
 import '../../core/senha_temporaria_modal.dart';
 
 class _PhoneMaskFormatter extends TextInputFormatter {
@@ -54,6 +55,24 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
   Map<String, bool> _permissoes = permissoesParaPerfil('Professor');
 
   static const _perfis = ['Professor', 'Secretaria', 'Admin'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verificarLimitePlano());
+  }
+
+  Future<void> _verificarLimitePlano() async {
+    final user = await AuthStorage.getUser();
+    final academiaId = user?.academiaId;
+    if (academiaId == null || !mounted) return;
+    final pode = await podeCriarDentroDoPlano(
+      context,
+      academiaId: academiaId,
+      tipo: TipoLimitePlano.funcionario,
+    );
+    if (!pode && mounted) context.pop();
+  }
 
   void _onPerfilChanged(String novoPerfil) {
     setState(() {
@@ -446,24 +465,51 @@ class _AdminEquipeCriarScreenState extends State<AdminEquipeCriarScreen> {
     final desc = info.$2;
     final valor = _permissoes[chave] ?? false;
 
-    return SwitchListTile(
-      value: valor,
-      onChanged: (v) => setState(() => _permissoes[chave] = v),
-      activeColor: context.c.primary,
-      title: Text(
-        label,
-        style: TextStyle(
-          color: context.c.onSurface,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+    return Semantics(
+      toggled: valor,
+      label: label,
+      child: InkWell(
+        onTap: () => setState(() => _permissoes[chave] = !valor),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: context.c.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        color: context.c.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Switch(
+                value: valor,
+                onChanged: (v) => setState(() => _permissoes[chave] = v),
+                activeThumbColor: Colors.white,
+                activeTrackColor: context.c.primary,
+                inactiveThumbColor: context.c.surface,
+                inactiveTrackColor: context.c.outline,
+              ),
+            ],
+          ),
         ),
       ),
-      subtitle: Text(
-        desc,
-        style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 12),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      dense: true,
     );
   }
 

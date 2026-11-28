@@ -1,0 +1,98 @@
+diff --git a/functions/test/firestore.rules.test.js b/functions/test/firestore.rules.test.js
+index d9dd7a50..4fb13755 100644
+--- a/functions/test/firestore.rules.test.js
++++ b/functions/test/firestore.rules.test.js
+@@ -427,3 +427,62 @@ test("regressão: se a exclusão de _atribuicao sumir do match genérico, o aces
+     await ambienteRegredido.cleanup();
+   }
+ });
++
++test("Professor grava só o que o app oferece a ele — nada de financeiro nem de gestão", async () => {
++  const base = "academias/academy-fixture";
++  await environment.withSecurityRulesDisabled(async (context) => {
++    const db = context.firestore();
++    await db.doc("usuariosFirebase/professor-fixture").set({
++      schemaVersion: 2,
++      academiaId: "academy-fixture",
++      perfil: "Professor",
++      academy_ids: ["academy-fixture"],
++      roles_by_academy: { "academy-fixture": ["Professor"] },
++    });
++    await db.doc(`${base}/pagamentos/pag-1`).set({ status: 0, valor: 100 });
++    await db.doc(`${base}/matriculas/mat-1`).set({ aluno_id: "student-a", turma_id: "t1", ativo: true });
++  });
++  const firestore = environment.authenticatedContext("professor-fixture").firestore();
++
++  // O que continua liberado
++  await assertSucceeds(firestore.doc(`${base}/pagamentos/pag-1`).get());
++  await assertSucceeds(firestore.doc(`${base}/graduacoes/g1`).set({ aluno_id: "student-a" }));
++  await assertSucceeds(firestore.doc(`${base}/graduacoes/g1`).delete());
++  await assertSucceeds(firestore.doc(`${base}/presencas/p1`).set({ aluno_id: "student-a" }));
++  await assertSucceeds(firestore.doc(`${base}/presencas/p1`).delete());
++  await assertSucceeds(firestore.doc(`${base}/lancamentos_ponto/l1`).set({ pontos: 1 }));
++  await assertSucceeds(firestore.doc(`${base}/grupos_familiares/f1`).set({ nome: "Família" }));
++  await assertSucceeds(firestore.doc(`${base}/notificacoes/n1`).set({ titulo: "Lembrete" }));
++  await assertSucceeds(firestore.doc(`${base}/matriculas/mat-1`).update({ ordem: 2 }));
++
++  // O que passa a ser negado
++  await assertFails(firestore.doc(`${base}/pagamentos/pag-1`).update({ status: 1 }));
++  await assertFails(firestore.doc(`${base}/pagamentos/pag-1`).delete());
++  await assertFails(firestore.doc(`${base}/pagamentos/pag-2`).set({ valor: 1 }));
++  await assertFails(firestore.doc(`${base}/matriculas/mat-1`).update({ ativo: false }));
++  await assertFails(firestore.doc(`${base}/matriculas/mat-2`).set({ aluno_id: "student-a" }));
++  for (const colecao of [
++    "planos", "planos_modalidade", "contas_academia", "modalidades", "faixas",
++    "horarios", "contratos", "modelos_contrato", "noticias", "rankings_custom",
++  ]) {
++    await assertFails(firestore.doc(`${base}/${colecao}/x`).set({ nome: "x" }));
++  }
++});
++
++test("Secretaria continua gravando financeiro, horários e planos", async () => {
++  const base = "academias/academy-fixture";
++  await environment.withSecurityRulesDisabled(async (context) => {
++    await context.firestore().doc("usuariosFirebase/secretaria-fixture").set({
++      schemaVersion: 2,
++      academiaId: "academy-fixture",
++      perfil: "Secretaria",
++      academy_ids: ["academy-fixture"],
++      roles_by_academy: { "academy-fixture": ["Secretaria"] },
++    });
++  });
++  const firestore = environment.authenticatedContext("secretaria-fixture").firestore();
++
++  for (const colecao of ["pagamentos", "planos", "horarios", "matriculas", "modalidades"]) {
++    await assertSucceeds(firestore.doc(`${base}/${colecao}/x`).set({ nome: "x" }));
++  }
++});
+diff --git a/scripts/migrate-firestore/firestore.rules b/scripts/migrate-firestore/firestore.rules
+index 882f2e65..d5b5155d 100644
+--- a/scripts/migrate-firestore/firestore.rules
++++ b/scripts/migrate-firestore/firestore.rules
+@@ -253,13 +253,24 @@ service cloud.firestore {
+       allow read, write: if false;
+     }
+ 
+-    // Resto: admin/secretaria gerencia tudo; membros leem
++    // Resto: admin/secretaria gerencia tudo; membros leem. O Professor só
++    // grava o que o app oferece a ele — financeiro, planos, modalidades,
++    // faixas, horários e contratos ficam de fora. Tela nova do app em que o
++    // Professor grave outra coleção precisa entrar nesta lista (presenças,
++    // atestados e PAR-Q têm regra própria acima).
+     // A exclusão de '_atribuicao' abaixo é a METADE 2/2 da proteção
+     // descrita no bloco de aviso acima — não remover isoladamente.
+     match /academias/{academiaId}/{colecao}/{doc} {
+       allow read: if colecao != '_atribuicao' && pertenceAcademia(academiaId);
+       allow write: if !(colecao in ['usuarios', 'funcionarios', 'turmas', '_atribuicao']) &&
+-        (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
++        (isAdminOuSecretaria(academiaId) ||
++         (isProfessor(academiaId) &&
++          colecao in ['graduacoes', 'lancamentos_ponto', 'grupos_familiares']));
++      // Lembrete de atestado enviado pela ficha do aluno.
++      allow create: if colecao == 'notificacoes' && isProfessor(academiaId);
++      // Ordem manual dos alunos dentro da turma.
++      allow update: if colecao == 'matriculas' && isProfessor(academiaId) &&
++        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ordem']);
+     }
+ 
+     // Timer público — leitura aberta (TV sem login); escrita apenas pelo dono
