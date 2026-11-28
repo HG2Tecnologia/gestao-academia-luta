@@ -98,6 +98,26 @@ function asaasHttp(apiKey, walletId = null) {
   return axios.create({ baseURL: ASAAS_BASE, headers, timeout: 20000 });
 }
 
+// Traduz o erro de POST /payments pro aluno/admin, registrando o corpo
+// completo (code + description) no log pra diagnóstico — e, quando o motivo
+// é a Asaas bloqueando a subconta por excesso de consultas, troca o texto
+// cru dela por uma mensagem que faz sentido pra quem está pagando, em vez de
+// expor jargão de API.
+function _mensagemErroCobranca(e, academiaId) {
+  const erroAsaas = e.response?.data?.errors?.[0];
+  const msg = erroAsaas?.description || e.message;
+  logger.warn(`criar cobrança: Asaas recusou (${academiaId}):`, e.response?.status, e.response?.data || e.message);
+
+  if (erroAsaas?.code === 'invalid_action' && msg.toLowerCase().includes('excesso de consultas')) {
+    return 'Serviço de pagamento temporariamente indisponível. Tente novamente em alguns minutos.';
+  }
+  if (msg.toLowerCase().includes('aprovad')) {
+    db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status: 'PENDENTE' }).catch(() => {});
+    return msg;
+  }
+  return msg;
+}
+
 // ── criarSubcontaAcademia ────────────────────────────────────────────────────
 exports.criarSubcontaAcademia = onCall(
   { secrets: [ASAAS_API_KEY], region: 'us-central1' },
@@ -171,9 +191,18 @@ exports.verificarStatusAsaas = onCall(
     }
 
     const { subcontaId } = cfgSnap.data();
-    const client = asaasHttp(ASAAS_API_KEY.value());
     const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
 
+    // A Asaas bloqueia a subconta por "excesso de consultas" se chamarmos
+    // /myAccount/status com frequência demais (ex.: toda abertura de tela).
+    // Reaproveita o último resultado por um tempo curto em vez de consultar
+    // a Asaas de novo a cada chamada.
+    const verificadoEm = cfgSnap.data()?.statusVerificadoEm?.toMillis?.();
+    if (verificadoEm && Date.now() - verificadoEm < 90_000) {
+      return { configurado: true, subcontaId, status: cfgSnap.data().status, nomeAsaas: cfgSnap.data().nomeAsaas };
+    }
+
+    const client = asaasHttp(ASAAS_API_KEY.value());
     let nomeAsaas;
     try {
       const r = await client.get(`/accounts/${subcontaId}`);
@@ -201,7 +230,7 @@ exports.verificarStatusAsaas = onCall(
         logger.warn(`verificarStatusAsaas: falha ao consultar /myAccount/status (${academiaId}):`, e.response?.status, e.response?.data || e.message);
       }
     }
-    await cfgRef.update({ status });
+    await cfgRef.update({ status, nomeAsaas: nomeAsaas || null, statusVerificadoEm: admin.firestore.FieldValue.serverTimestamp() });
     return { configurado: true, subcontaId, status, nomeAsaas };
   }
 );
@@ -326,15 +355,7 @@ exports.criarCobrancaPix = onCall(
     try {
       charge = await client.post('/payments', chargePayload);
     } catch (e) {
-      const msg = e.response?.data?.errors?.[0]?.description || e.message;
-      // Se o status salvo no Firestore ficou desatualizado (ex.: ATIVO por
-      // engano) e a Asaas rejeita por falta de aprovação real, corrige o
-      // status aqui mesmo — assim a próxima tentativa já para antes de
-      // chamar a Asaas, com uma mensagem clara em vez de repetir o erro.
-      if (msg.toLowerCase().includes('aprovad')) {
-        await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status: 'PENDENTE' }).catch(() => {});
-      }
-      throw new HttpsError('internal', `Erro ao criar cobrança: ${msg}`);
+      throw new HttpsError('internal', `Erro ao criar cobrança: ${_mensagemErroCobranca(e, academiaId)}`);
     }
 
     const chargeId = charge.data.id;
@@ -621,12 +642,7 @@ async function _processarCobranca(academiaId, data) {
   try {
     charge = await client.post('/payments', chargePayload);
   } catch (e) {
-    const msg = e.response?.data?.errors?.[0]?.description || e.message;
-    // Ver nota equivalente em criarCobrancaPix.
-    if (msg.toLowerCase().includes('aprovad')) {
-      await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status: 'PENDENTE' }).catch(() => {});
-    }
-    throw new Error(`Erro ao criar cobrança: ${msg}`);
+    throw new Error(`Erro ao criar cobrança: ${_mensagemErroCobranca(e, academiaId)}`);
   }
 
   const chargeId = charge.data.id;
@@ -1121,16 +1137,24 @@ async function _verificarStatus(academiaId) {
   if (!cfgSnap.exists || !cfgSnap.data()?.subcontaId) return { configurado: false };
 
   const { subcontaId } = cfgSnap.data();
-  const client = asaasHttp(ASAAS_API_KEY.value());
   const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
 
+  // Ver nota em verificarStatusAsaas: a Asaas bloqueia por excesso de
+  // consultas se checarmos /myAccount/status com frequência demais (ex.:
+  // toda vez que o admin abre a tela). Reaproveita o último resultado por
+  // um tempo curto em vez de bater na Asaas de novo a cada chamada.
+  const verificadoEm = cfgSnap.data()?.statusVerificadoEm?.toMillis?.();
+  if (verificadoEm && Date.now() - verificadoEm < 90_000) {
+    return { configurado: true, subcontaId, status: cfgSnap.data().status, nomeAsaas: cfgSnap.data().nomeAsaas };
+  }
+
+  const client = asaasHttp(ASAAS_API_KEY.value());
   let nomeAsaas;
   try {
     const r = await client.get(`/accounts/${subcontaId}`);
     nomeAsaas = r.data.name;
   } catch (_) { /* segue sem o nome */ }
 
-  // Ver nota em verificarStatusAsaas: accountNumber não indica aprovação real.
   let status = 'PENDENTE';
   const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
   if (subcontaApiKey) {
@@ -1145,7 +1169,7 @@ async function _verificarStatus(academiaId) {
       logger.warn(`_verificarStatus: falha ao consultar /myAccount/status (${academiaId}):`, e.response?.status, e.response?.data || e.message);
     }
   }
-  await cfgRef.update({ status });
+  await cfgRef.update({ status, nomeAsaas: nomeAsaas || null, statusVerificadoEm: admin.firestore.FieldValue.serverTimestamp() });
   return { configurado: true, subcontaId, status, nomeAsaas };
 }
 
@@ -1163,19 +1187,17 @@ async function _garantirChavePixEvp(academiaId, subcontaApiKey) {
   const privSnap = await _privRef(academiaId).get();
   if (privSnap.data()?.pixKeyRegistrada) return;
 
-  const subClient = asaasHttp(subcontaApiKey);
-  // O sandbox já demonstrou ser lento/instável aqui logo após a aprovação
-  // — tenta de novo uma vez antes de desistir (sem flag salva, a próxima
-  // verificação de status tenta de novo mesmo assim).
-  for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    try {
-      await subClient.post('/pix/addressKeys', { type: 'EVP' });
-      await _privRef(academiaId).set({ pixKeyRegistrada: true }, { merge: true });
-      logger.info(`_garantirChavePixEvp: chave Pix EVP registrada para academia ${academiaId} (tentativa ${tentativa})`);
-      return;
-    } catch (e) {
-      logger.warn(`_garantirChavePixEvp: falha ao registrar chave Pix (${academiaId}, tentativa ${tentativa}):`, e.response?.status, e.response?.data || e.message);
-    }
+  // Uma tentativa só, sem retry imediato — repetir a chamada sem intervalo
+  // (como fazia antes) só piora um bloqueio por excesso de consultas da
+  // Asaas. A próxima verificação de status (ação do usuário, com minutos
+  // de intervalo real) já serve como retry natural.
+  try {
+    const subClient = asaasHttp(subcontaApiKey);
+    await subClient.post('/pix/addressKeys', { type: 'EVP' });
+    await _privRef(academiaId).set({ pixKeyRegistrada: true }, { merge: true });
+    logger.info(`_garantirChavePixEvp: chave Pix EVP registrada para academia ${academiaId}`);
+  } catch (e) {
+    logger.warn(`_garantirChavePixEvp: falha ao registrar chave Pix (${academiaId}):`, e.response?.status, e.response?.data || e.message);
   }
 }
 
