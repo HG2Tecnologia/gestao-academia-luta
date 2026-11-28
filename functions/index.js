@@ -1160,15 +1160,22 @@ async function _verificarStatus(academiaId) {
 // chave EVP (aleatória) uma única vez — melhor esforço, não falha o fluxo
 // se já existir uma chave ou se a Asaas recusar.
 async function _garantirChavePixEvp(academiaId, subcontaApiKey) {
-  try {
-    const privSnap = await _privRef(academiaId).get();
-    if (privSnap.data()?.pixKeyRegistrada) return;
-    const subClient = asaasHttp(subcontaApiKey);
-    await subClient.post('/pix/addressKeys', { type: 'EVP' });
-    await _privRef(academiaId).set({ pixKeyRegistrada: true }, { merge: true });
-    logger.info(`_garantirChavePixEvp: chave Pix EVP registrada para academia ${academiaId}`);
-  } catch (e) {
-    logger.warn(`_garantirChavePixEvp: falha ao registrar chave Pix (${academiaId}):`, e.response?.status, e.response?.data || e.message);
+  const privSnap = await _privRef(academiaId).get();
+  if (privSnap.data()?.pixKeyRegistrada) return;
+
+  const subClient = asaasHttp(subcontaApiKey);
+  // O sandbox já demonstrou ser lento/instável aqui logo após a aprovação
+  // — tenta de novo uma vez antes de desistir (sem flag salva, a próxima
+  // verificação de status tenta de novo mesmo assim).
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    try {
+      await subClient.post('/pix/addressKeys', { type: 'EVP' });
+      await _privRef(academiaId).set({ pixKeyRegistrada: true }, { merge: true });
+      logger.info(`_garantirChavePixEvp: chave Pix EVP registrada para academia ${academiaId} (tentativa ${tentativa})`);
+      return;
+    } catch (e) {
+      logger.warn(`_garantirChavePixEvp: falha ao registrar chave Pix (${academiaId}, tentativa ${tentativa}):`, e.response?.status, e.response?.data || e.message);
+    }
   }
 }
 
