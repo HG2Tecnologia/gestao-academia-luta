@@ -234,6 +234,31 @@ class _PagamentosConfigScreenState extends State<PagamentosConfigScreen> {
     }
   }
 
+  /// Só funciona no Asaas sandbox — a própria Cloud Function recusa a
+  /// chamada se o backend estiver em produção. Serve pra desbloquear o
+  /// teste do fluxo feliz sem precisar enviar documentação de verdade.
+  Future<void> _aprovarContaSandbox() async {
+    if (_academiaId == null) return;
+    setState(() => _processando = true);
+    try {
+      final data = await PaymentRequestService.adminRequest(academiaId: _academiaId!, tipo: 'aprovarContaSandbox');
+      if (mounted) {
+        final novoStatus = data['status'] as String? ?? _status;
+        setState(() => _status = novoStatus);
+        _mostrarSnack(
+          novoStatus == 'ATIVO' ? 'Conta aprovada no sandbox! Pagamentos já estão ativos.' : 'Aprovação solicitada, mas ainda não ficou ATIVO.',
+          sucesso: novoStatus == 'ATIVO',
+        );
+      }
+    } on PaymentRequestError catch (e) {
+      if (mounted) _mostrarSnack(e.message);
+    } catch (_) {
+      if (mounted) _mostrarSnack('Erro de conexão. Verifique sua internet.');
+    } finally {
+      if (mounted) setState(() => _processando = false);
+    }
+  }
+
   // Retorna o documento fiscal disponível (CPF ou CNPJ), já sem formatação
   String get _docFiscal {
     final cnpj = (_cnpjAcademia ?? '').replaceAll(RegExp(r'\D'), '');
@@ -810,6 +835,24 @@ class _PagamentosConfigScreenState extends State<PagamentosConfigScreen> {
             child: TextButton(
               onPressed: _processando ? null : _deletarSubconta,
               child: Text('Desvincular conta Asaas', style: TextStyle(color: kText2, fontSize: 12)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: kBorder),
+          const SizedBox(height: 12),
+          Text('Ferramenta de teste (só funciona no sandbox)', style: TextStyle(color: kText2, fontSize: 11)),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _processando ? null : _aprovarContaSandbox,
+              icon: Icon(Icons.science_rounded, color: kText2, size: 16),
+              label: Text('Aprovar automaticamente (sandbox)', style: TextStyle(color: kText2, fontSize: 12, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: kBorder),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
         ],

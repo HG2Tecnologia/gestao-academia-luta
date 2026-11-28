@@ -172,18 +172,37 @@ exports.verificarStatusAsaas = onCall(
 
     const { subcontaId } = cfgSnap.data();
     const client = asaasHttp(ASAAS_API_KEY.value());
+    const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
 
+    let nomeAsaas;
     try {
       const r = await client.get(`/accounts/${subcontaId}`);
-      const ativo = !!r.data.accountNumber;
-      const status = ativo ? 'ATIVO' : 'PENDENTE';
-      const update = { status };
+      nomeAsaas = r.data.name;
+      const update = {};
       if (r.data.walletId && !cfgSnap.data().walletId) update.walletId = r.data.walletId;
-      await db.doc(`academias/${academiaId}/integracoes/asaas`).update(update);
-      return { configurado: true, subcontaId, status, nomeAsaas: r.data.name };
-    } catch {
-      return { configurado: true, subcontaId, status: cfgSnap.data().status || 'PENDENTE' };
+      if (Object.keys(update).length) await cfgRef.update(update);
+    } catch (_) { /* segue sem o nome, não é crítico */ }
+
+    // accountNumber existe desde a criação da subconta — não significa que
+    // ela está aprovada a movimentar dinheiro de verdade. A aprovação real
+    // só se confirma com GET /myAccount/status (chamado com a apiKey DA
+    // SUBCONTA), no campo `general` ('APPROVED' = aprovação completa).
+    let status = 'PENDENTE';
+    const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+    if (subcontaApiKey) {
+      try {
+        const subClient = asaasHttp(subcontaApiKey);
+        const statusR = await subClient.get('/myAccount/status/');
+        if (statusR.data?.general === 'APPROVED') {
+          status = 'ATIVO';
+          await _garantirChavePixEvp(academiaId, subcontaApiKey);
+        }
+      } catch (e) {
+        logger.warn(`verificarStatusAsaas: falha ao consultar /myAccount/status (${academiaId}):`, e.response?.status, e.response?.data || e.message);
+      }
     }
+    await cfgRef.update({ status });
+    return { configurado: true, subcontaId, status, nomeAsaas };
   }
 );
 
@@ -661,6 +680,8 @@ exports.processarAdminReq = onDocumentCreated(
         resultado = await _solicitarSaque(academiaId, { valor: data.valor, uid: data.uid });
       } else if (data.tipo === 'verificarStatusSaque') {
         resultado = await _verificarStatusSaque(academiaId, data.transferId);
+      } else if (data.tipo === 'aprovarContaSandbox') {
+        resultado = await _aprovarContaSandbox(academiaId);
       } else {
         throw new Error('Tipo de requisição desconhecido.');
       }
@@ -1090,16 +1111,69 @@ async function _verificarStatus(academiaId) {
 
   const { subcontaId } = cfgSnap.data();
   const client = asaasHttp(ASAAS_API_KEY.value());
+  const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
 
+  let nomeAsaas;
   try {
     const r = await client.get(`/accounts/${subcontaId}`);
-    const ativo = !!r.data.accountNumber;
-    const status = ativo ? 'ATIVO' : 'PENDENTE';
-    await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status });
-    return { configurado: true, subcontaId, status, nomeAsaas: r.data.name };
-  } catch {
-    return { configurado: true, subcontaId, status: cfgSnap.data().status || 'PENDENTE' };
+    nomeAsaas = r.data.name;
+  } catch (_) { /* segue sem o nome */ }
+
+  // Ver nota em verificarStatusAsaas: accountNumber não indica aprovação real.
+  let status = 'PENDENTE';
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (subcontaApiKey) {
+    try {
+      const subClient = asaasHttp(subcontaApiKey);
+      const statusR = await subClient.get('/myAccount/status/');
+      if (statusR.data?.general === 'APPROVED') {
+        status = 'ATIVO';
+        await _garantirChavePixEvp(academiaId, subcontaApiKey);
+      }
+    } catch (e) {
+      logger.warn(`_verificarStatus: falha ao consultar /myAccount/status (${academiaId}):`, e.response?.status, e.response?.data || e.message);
+    }
   }
+  await cfgRef.update({ status });
+  return { configurado: true, subcontaId, status, nomeAsaas };
+}
+
+// Só funciona no Asaas sandbox (POST /sandbox/myAccount/approve) — aprova a
+// conta autenticada só pra fins de teste; não representa aprovação real e a
+// própria Asaas bloqueia essa chamada fora do sandbox. Serve pra desbloquear
+// o teste do fluxo feliz sem precisar enviar documentação de verdade.
+// Sem chave Pix cadastrada, a Asaas gera uma chave temporária pra receber o
+// Pix, o que aumenta o tempo de processamento (ver docs Asaas, seção Pix —
+// "Before you start"). A criação só é permitida depois que a conta está
+// 100% aprovada. Então sempre que a conta vira ATIVO, tenta cadastrar uma
+// chave EVP (aleatória) uma única vez — melhor esforço, não falha o fluxo
+// se já existir uma chave ou se a Asaas recusar.
+async function _garantirChavePixEvp(academiaId, subcontaApiKey) {
+  try {
+    const privSnap = await _privRef(academiaId).get();
+    if (privSnap.data()?.pixKeyRegistrada) return;
+    const subClient = asaasHttp(subcontaApiKey);
+    await subClient.post('/pix/addressKeys', { type: 'EVP' });
+    await _privRef(academiaId).set({ pixKeyRegistrada: true }, { merge: true });
+    logger.info(`_garantirChavePixEvp: chave Pix EVP registrada para academia ${academiaId}`);
+  } catch (e) {
+    logger.warn(`_garantirChavePixEvp: falha ao registrar chave Pix (${academiaId}):`, e.response?.status, e.response?.data || e.message);
+  }
+}
+
+async function _aprovarContaSandbox(academiaId) {
+  if (!ASAAS_BASE.includes('sandbox')) {
+    throw new Error('Esta ação só está disponível no ambiente sandbox.');
+  }
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (!subcontaApiKey) throw new Error('Esta academia ainda não tem uma subconta Asaas configurada.');
+
+  const subClient = asaasHttp(subcontaApiKey);
+  const r = await subClient.post('/sandbox/myAccount/approve');
+  const status = r.data?.general === 'APPROVED' ? 'ATIVO' : 'PENDENTE';
+  if (status === 'ATIVO') await _garantirChavePixEvp(academiaId, subcontaApiKey);
+  await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status });
+  return { status, aprovacao: r.data };
 }
 
 async function _deletarSubconta(academiaId) {
@@ -1155,14 +1229,21 @@ exports.pollingStatusAsaas = onSchedule(
 
     if (snap.empty) return;
 
-    const client = asaasHttp(ASAAS_API_KEY.value());
     const updates = [];
 
     for (const doc of snap.docs) {
       const { subcontaId } = doc.data();
+      const academiaId = doc.ref.parent.parent.id;
       try {
-        const r = await client.get(`/accounts/${subcontaId}`);
-        if (r.data?.accountNumber) {
+        // Ver nota em verificarStatusAsaas: só a aprovação real (general ===
+        // 'APPROVED' via /myAccount/status com a chave da própria subconta)
+        // confirma que a conta pode mesmo receber pagamentos.
+        const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+        if (!subcontaApiKey) continue;
+        const subClient = asaasHttp(subcontaApiKey);
+        const statusR = await subClient.get('/myAccount/status/');
+        if (statusR.data?.general === 'APPROVED') {
+          await _garantirChavePixEvp(academiaId, subcontaApiKey);
           updates.push(doc.ref.update({ status: 'ATIVO', atualizadoEm: admin.firestore.FieldValue.serverTimestamp() }));
           logger.info(`pollingStatusAsaas: ${doc.ref.path} → ATIVO`);
         }
