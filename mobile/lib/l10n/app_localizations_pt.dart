@@ -1613,6 +1613,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pfTakePhoto => 'Chamada por foto';
 
   @override
+  String get pfSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get pfSourceGallery => 'Escolher da galeria';
+
+  @override
   String get pfRetakePhoto => 'Tirar outra foto';
 
   @override
@@ -1624,13 +1630,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get pfNoEligibleStudents =>
-      'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).';
+      'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.';
 
   @override
   String get pfUnrecognized => 'Não identificado';
 
   @override
   String get pfConfidence => 'de confiança';
+
+  @override
+  String get pfAlreadyCheckedIn => 'Presença já registrada';
 
   @override
   String get pfIdentify => 'Identificar';
@@ -1645,16 +1654,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pfError => 'Não foi possível processar. Tente de novo.';
 
   @override
-  String pfConfirm(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Confirmar $count presenças',
-      one: 'Confirmar $count presença',
-      zero: 'Confirmar',
-    );
-    return '$_temp0';
+  String get pfNoFacesFound =>
+      'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.';
+
+  @override
+  String get pfConfirm => 'Confirmar presenças';
+
+  @override
+  String get pfNoConsentBadge => 'sem consentimento registrado';
+
+  @override
+  String get pfConfirmConsentTitle => 'Confirmar consentimento';
+
+  @override
+  String pfConfirmConsentBody(String nome) {
+    return 'Confirma que $nome autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.';
   }
+
+  @override
+  String get pfConfirmConsentSave => 'Confirmar e salvar';
 
   @override
   String pfSaved(int count) {
@@ -4334,6 +4352,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get apPhotoSaveError => 'Erro ao salvar foto.';
 
   @override
+  String get apPhotoSourceCamera => 'Tirar foto agora';
+
+  @override
+  String get apPhotoSourceGallery => 'Escolher da galeria';
+
+  @override
+  String get apAdjustPhoto => 'Ajustar foto';
+
+  @override
   String get apPrimaryBelt => 'Faixa Principal';
 
   @override
@@ -5470,6 +5497,20 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get rnColoredDegreesDesc =>
       'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.';
+
+  @override
+  String get rnFaceRollCallTitle => 'Chamada por foto';
+
+  @override
+  String get rnFaceRollCallDesc =>
+      'Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.';
+
+  @override
+  String get rnPhotoFixTitle => 'Foto de perfil mais confiável';
+
+  @override
+  String get rnPhotoFixDesc =>
+      'Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.';
 
   @override
   String get rpTitle => 'Relatório de Presenças';

@@ -533,24 +533,32 @@
   "classCapacitySuffix": " / {cap} students",
   "takeAttendance": "Take attendance",
   "pfTakePhoto": "Photo attendance",
+  "pfSourceCamera": "Take photo now",
+  "pfSourceGallery": "Choose from gallery",
   "pfRetakePhoto": "Retake photo",
   "pfIntro": "Take a photo of the class — the app suggests who's who to speed up attendance.",
   "pfProcessing": "Analyzing photo...",
-  "pfNoEligibleStudents": "No student in this class has opted in to face recognition yet (or everyone is already marked present today).",
+  "pfNoEligibleStudents": "No student in this class has face recognition set up yet (or everyone is already marked present today) — automatic suggestions won't work, but you can still identify manually and confirm consent on the spot.",
   "pfUnrecognized": "Not recognized",
   "pfConfidence": "confidence",
+  "pfAlreadyCheckedIn": "Attendance already recorded",
   "pfIdentify": "Identify",
   "pfPickStudent": "Who is this student?",
   "pfNotInPhoto": "None (not a student)",
   "pfError": "Could not process. Please try again.",
-  "pfConfirm": "{count, plural, =0{Confirm} one{Confirm {count} attendance} other{Confirm {count} attendances}}",
-  "@pfConfirm": {
+  "pfNoFacesFound": "No faces found in this photo. Try again with everyone facing the camera.",
+  "pfConfirm": "Confirm attendance",
+  "pfNoConsentBadge": "no consent on file",
+  "pfConfirmConsentTitle": "Confirm consent",
+  "pfConfirmConsentBody": "Confirm that {nome} authorized the use of their photo for face recognition (verbally or via enrollment contract)? This saves their face to auto-recognize them in future roll calls.",
+  "@pfConfirmConsentBody": {
     "placeholders": {
-      "count": {
-        "type": "int"
+      "nome": {
+        "type": "String"
       }
     }
   },
+  "pfConfirmConsentSave": "Confirm and save",
   "pfSaved": "{count, plural, =0{No attendance recorded} one{{count} attendance recorded} other{{count} attendances recorded}}",
   "@pfSaved": {
     "placeholders": {
@@ -1629,6 +1637,9 @@
   "profYourNameHint": "Your name",
   "profChangePassword": "Change password",
   "apPhotoSaveError": "Error saving photo.",
+  "apPhotoSourceCamera": "Take photo now",
+  "apPhotoSourceGallery": "Choose from gallery",
+  "apAdjustPhoto": "Adjust photo",
   "apPrimaryBelt": "Primary Belt",
   "apPrimaryBeltHint": "Choose which promotion to show on your profile",
   "apThanksFeedback": "Thanks for the feedback!",
@@ -2168,6 +2179,10 @@
   "rnStaffPermissionsDesc": "You can now grant a coach permission to view a student's medical certificate, PAR-Q and family group, without changing their role.",
   "rnColoredDegreesTitle": "Colored belt degrees",
   "rnColoredDegreesDesc": "Enable it in settings to color belt degrees (like the CBJJ/IBJJF kids system) and choose which classes it applies to — handy when the same modality has both kids and adult classes.",
+  "rnFaceRollCallTitle": "Photo roll call",
+  "rnFaceRollCallDesc": "Take a photo of the class and the app suggests who's who, using on-device face recognition — nothing leaves the app. Enable it in Settings.",
+  "rnPhotoFixTitle": "More reliable profile photos",
+  "rnPhotoFixDesc": "Fixed an issue where a student's photo, edited by an admin, could disappear after leaving and reopening their profile.",
   "rpTitle": "Attendance Report",
   "rpNoAccess": "You don't have access to this report.",
   "rpAllClasses": "All classes",

@@ -41,7 +41,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>A câmera é usada para escanear o QR Code do aluno na entrada da academia.</string>
+	<string>A câmera é usada para escanear o QR Code do aluno na entrada da academia, tirar fotos de perfil e, quando o reconhecimento facial estiver ativado, fazer a chamada por foto da turma.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O acesso à galeria é necessário para anexar atestados médicos e documentos do aluno.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

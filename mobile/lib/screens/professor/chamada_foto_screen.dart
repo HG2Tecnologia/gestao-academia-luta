@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import '../../core/auth_storage.dart';
 import '../../core/face_recognition_service.dart';
 import '../../core/firestore_service.dart';
 import '../../core/theme/context_ext.dart';
@@ -16,6 +16,11 @@ class _FaceCandidato {
   String? alunoId;
   double score = 0;
   bool confirmado = false;
+
+  /// Reconhecido, mas já tem presença registrada nessa data — mostrado como
+  /// identificado (não "Não identificado"), mas sem ação a tomar: não
+  /// duplica presença nem soma mais uma referência de rosto ao confirmar.
+  bool jaPresente = false;
 }
 
 /// Chamada por foto: o professor tira uma foto da turma, o app detecta cada
@@ -30,11 +35,18 @@ class ChamadaFotoScreen extends StatefulWidget {
     required this.turmaId,
     required this.turmaNome,
     required this.alunos,
+    required this.data,
   });
 
   final String academiaId;
   final String turmaId;
   final String turmaNome;
+
+  /// Data da chamada (a mesma selecionada na aba Presença) — usada tanto
+  /// pra checar quem já está presente quanto pra gravar a presença nova.
+  /// Sem isso, a tela sempre considerava "hoje", ignorando quando o
+  /// professor navegava pra outro dia antes de abrir a câmera.
+  final DateTime data;
 
   /// Alunos matriculados nessa turma — só quem tiver
   /// `consentimento_reconhecimento_facial == true` entra na comparação.
@@ -59,14 +71,14 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
     _preparar();
   }
 
+  String get _dataStr =>
+      '${widget.data.year}-${widget.data.month.toString().padLeft(2, '0')}-${widget.data.day.toString().padLeft(2, '0')}';
+
   Future<void> _preparar() async {
-    final hoje = DateTime.now();
-    final dataStr =
-        '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
     final jaPresentesMap = await firestoreService.getPresencasPorAluno(
       widget.academiaId,
       widget.turmaId,
-      dataStr,
+      _dataStr,
     );
     await FaceRecognitionService.preload();
     if (mounted) {
@@ -77,15 +89,62 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
     }
   }
 
+  /// Alunos com consentimento já registrado — são as referências usadas pra
+  /// SUGERIR automaticamente quem é cada rosto (comparação de embedding).
+  /// Inclui quem já está presente na data: o rosto ainda deve ser
+  /// reconhecido (só não entra de novo na confirmação, ver [_FaceCandidato.jaPresente]).
   List<Map<String, dynamic>> get _alunosElegiveis => widget.alunos
       .where((a) => a['consentimento_reconhecimento_facial'] == true)
+      .toList();
+
+  /// Todos os alunos da turma (com ou sem consentimento) — usado na lista
+  /// de identificação MANUAL. Quem não tem consentimento ainda passa por
+  /// uma confirmação explícita do admin antes de ter o rosto salvo (ver
+  /// [_escolherAluno]).
+  List<Map<String, dynamic>> get _alunosSelecionaveis => widget.alunos
       .where((a) => !_jaPresentes.contains(a['id'].toString()))
       .toList();
 
   Future<void> _tirarFoto() async {
+    // Câmera OU galeria de propósito: o professor pode tirar a foto da
+    // turma formada no tatame na hora e processar depois com calma (ex.:
+    // em casa), sem precisar estar com o aluno na frente de novo.
+    final origem = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: context.c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: Text(context.l10n.pfSourceCamera),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: Text(context.l10n.pfSourceGallery),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (origem == null || !mounted) return;
+
     final picker = ImagePicker();
     final foto = await picker.pickImage(
-      source: ImageSource.camera,
+      source: origem,
+      // Foto de turma não precisa de resolução cheia — 1600px já é bem mais
+      // que suficiente pra detecção de rosto, e reduz bastante o tempo de
+      // decodificar/processar numa foto de 12+ MP direto da câmera.
+      maxWidth: 1600,
+      maxHeight: 1600,
       imageQuality: 90,
       preferredCameraDevice: CameraDevice.rear,
     );
@@ -103,16 +162,15 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
         if (refs.isNotEmpty) referencias[aluno['id'].toString()] = refs;
       }
 
-      final detectados = await FaceRecognitionService.detectFacesInFile(
+      final deteccao = await FaceRecognitionService.detectFacesInFile(
         foto.path,
       );
-      final bytes = await File(foto.path).readAsBytes();
-      var decoded = img.decodeImage(bytes);
+      final decoded = deteccao.decoded;
+      final detectados = deteccao.faces;
       if (decoded == null) {
         if (mounted) setState(() => _processandoFoto = false);
         return;
       }
-      decoded = img.bakeOrientation(decoded);
 
       final candidatos = <_FaceCandidato>[];
       for (final face in detectados) {
@@ -160,6 +218,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
         }
         candidatos[par.$1].alunoId = par.$2;
         candidatos[par.$1].score = par.$3;
+        candidatos[par.$1].jaPresente = _jaPresentes.contains(par.$2);
         facesUsadas.add(par.$1);
         alunosUsados.add(par.$2);
       }
@@ -169,6 +228,14 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
           _candidatos = candidatos;
           _processandoFoto = false;
         });
+        if (candidatos.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.pfNoFacesFound),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -189,7 +256,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
         .where((c) => c != candidato && c.alunoId != null)
         .map((c) => c.alunoId)
         .toSet();
-    final disponiveis = _alunosElegiveis
+    final disponiveis = _alunosSelecionaveis
         .where((a) => !jaEscolhidos.contains(a['id'].toString()))
         .toList();
 
@@ -242,6 +309,15 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                         ),
                       ),
                       title: Text(a['nome'] as String? ?? ''),
+                      subtitle: a['consentimento_reconhecimento_facial'] == true
+                          ? null
+                          : Text(
+                              context.l10n.pfNoConsentBadge,
+                              style: TextStyle(
+                                color: context.sem.warning,
+                                fontSize: 12,
+                              ),
+                            ),
                       onTap: () => Navigator.pop(context, a['id'].toString()),
                     ),
                 ],
@@ -252,32 +328,119 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
       ),
     );
 
-    if (selecionado == null || !mounted) return;
+    if (selecionado == null || !mounted || selecionado.isEmpty) {
+      if (selecionado != null && mounted) {
+        setState(() {
+          candidato.alunoId = null;
+          candidato.score = 0;
+          candidato.jaPresente = false;
+        });
+      }
+      return;
+    }
+
+    final aluno = _alunosPorId[selecionado];
+    final jaConsentiu = aluno?['consentimento_reconhecimento_facial'] == true;
+    if (!jaConsentiu) {
+      final confirmou = await _confirmarConsentimentoPeloAdmin(
+        aluno?['nome'] as String? ?? '',
+      );
+      if (!mounted) return;
+      if (!confirmou) return; // admin não confirmou: não seleciona ninguém
+      try {
+        final admin = await AuthStorage.getUser();
+        await firestoreService.confirmarConsentimentoReconhecimentoFacialPeloAdmin(
+          widget.academiaId,
+          selecionado,
+          confirmadoPorId: admin?.id ?? '',
+          confirmadoPorNome: admin?.nome ?? '',
+        );
+        // Reflete localmente pra não pedir confirmação de novo nessa mesma
+        // sessão (ex.: se o mesmo aluno aparecer em outra foto da chamada).
+        aluno?['consentimento_reconhecimento_facial'] = true;
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.pfError),
+              backgroundColor: context.sem.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
-      candidato.alunoId = selecionado.isEmpty ? null : selecionado;
-      candidato.score = selecionado.isEmpty ? 0 : 1.0; // escolha manual = certeza total
+      candidato.alunoId = selecionado;
+      candidato.score = 1.0; // escolha manual = certeza total
+      candidato.jaPresente = false; // _alunosSelecionaveis já exclui presentes
     });
+  }
+
+  /// Diálogo de confirmação explícita antes de salvar o rosto de um aluno
+  /// que nunca ativou o consentimento pelo próprio app (LGPD art. 11: dado
+  /// biométrico exige consentimento específico). Devolve `true` só se o
+  /// admin confirmar que tem autorização (verbal ou por contrato).
+  Future<bool> _confirmarConsentimentoPeloAdmin(String nomeAluno) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: dialogCtx.c.surfaceContainer,
+        title: Text(
+          dialogCtx.l10n.pfConfirmConsentTitle,
+          style: TextStyle(
+            color: dialogCtx.c.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: Text(
+          dialogCtx.l10n.pfConfirmConsentBody(nomeAluno),
+          style: TextStyle(color: dialogCtx.c.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(
+              dialogCtx.l10n.commonCancel,
+              style: TextStyle(color: dialogCtx.c.onSurfaceVariant),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(
+              dialogCtx.l10n.pfConfirmConsentSave,
+              style: TextStyle(
+                color: dialogCtx.c.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmou ?? false;
   }
 
   Future<void> _confirmarTudo() async {
     setState(() => _salvando = true);
-    final hoje = DateTime.now();
-    final dataStr =
-        '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+    final agora = DateTime.now();
     final horaStr =
-        '${hoje.hour.toString().padLeft(2, '0')}:${hoje.minute.toString().padLeft(2, '0')}';
+        '${agora.hour.toString().padLeft(2, '0')}:${agora.minute.toString().padLeft(2, '0')}';
 
     var registrados = 0;
     try {
       for (final c in _candidatos) {
         final alunoId = c.alunoId;
-        if (alunoId == null) continue;
+        if (alunoId == null || c.jaPresente) continue;
 
         await firestoreService.addPresenca(widget.academiaId, {
           'aluno_id': alunoId,
           'turma_id': widget.turmaId,
           'horario_id': '',
-          'data': dataStr,
+          'data': _dataStr,
           'hora_checkin': horaStr,
           'metodo_checkin': metodoCheckinReconhecimentoFacial,
           'confirmado': true,
@@ -324,7 +487,9 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final confirmaveis = _candidatos.where((c) => c.alunoId != null).length;
+    final confirmaveis = _candidatos
+        .where((c) => c.alunoId != null && !c.jaPresente)
+        .length;
 
     return Scaffold(
       backgroundColor: context.c.surface,
@@ -402,13 +567,24 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                               final aluno = c.alunoId != null
                                   ? _alunosPorId[c.alunoId]
                                   : null;
+                              final reconhecido = aluno != null;
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 10),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: context.c.surfaceContainer,
+                                  color: reconhecido
+                                      ? context.sem.success.withValues(
+                                          alpha: 0.08,
+                                        )
+                                      : context.c.surfaceContainer,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: context.c.outline),
+                                  border: Border.all(
+                                    color: reconhecido
+                                        ? context.sem.success.withValues(
+                                            alpha: 0.4,
+                                          )
+                                        : context.c.outline,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -427,22 +603,50 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            aluno?['nome'] as String? ??
-                                                context.l10n.pfUnrecognized,
-                                            style: TextStyle(
-                                              color: context.c.onSurface,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 14,
-                                            ),
+                                          Row(
+                                            children: [
+                                              if (reconhecido) ...[
+                                                Icon(
+                                                  Icons.check_circle_rounded,
+                                                  size: 14,
+                                                  color: context.sem.success,
+                                                ),
+                                                const SizedBox(width: 4),
+                                              ],
+                                              Flexible(
+                                                child: Text(
+                                                  aluno?['nome'] as String? ??
+                                                      context
+                                                          .l10n
+                                                          .pfUnrecognized,
+                                                  style: TextStyle(
+                                                    color: reconhecido
+                                                        ? context.sem.success
+                                                        : context.c.onSurface,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           if (aluno != null)
                                             Text(
-                                              '${(c.score * 100).round()}% ${context.l10n.pfConfidence}',
+                                              c.jaPresente
+                                                  ? context
+                                                        .l10n
+                                                        .pfAlreadyCheckedIn
+                                                  : '${(c.score * 100).round()}% ${context.l10n.pfConfidence}',
                                               style: TextStyle(
-                                                color:
-                                                    context.c.onSurfaceVariant,
+                                                color: c.jaPresente
+                                                    ? context.sem.success
+                                                    : context
+                                                          .c
+                                                          .onSurfaceVariant,
                                                 fontSize: 12,
+                                                fontWeight: c.jaPresente
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
                                               ),
                                             ),
                                         ],
@@ -498,7 +702,7 @@ class _ChamadaFotoScreenState extends State<ChamadaFotoScreen> {
                                         color: context.c.onPrimary,
                                       ),
                                     )
-                                  : Text(context.l10n.pfConfirm(confirmaveis)),
+                                  : Text(context.l10n.pfConfirm),
                             ),
                           ),
                         ],

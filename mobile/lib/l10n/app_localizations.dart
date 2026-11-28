@@ -2918,6 +2918,18 @@ abstract class AppLocalizations {
   /// **'Chamada por foto'**
   String get pfTakePhoto;
 
+  /// No description provided for @pfSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get pfSourceCamera;
+
+  /// No description provided for @pfSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get pfSourceGallery;
+
   /// No description provided for @pfRetakePhoto.
   ///
   /// In pt, this message translates to:
@@ -2939,7 +2951,7 @@ abstract class AppLocalizations {
   /// No description provided for @pfNoEligibleStudents.
   ///
   /// In pt, this message translates to:
-  /// **'Nenhum aluno dessa turma autorizou o reconhecimento facial ainda (ou todos já estão presentes hoje).'**
+  /// **'Nenhum aluno dessa turma tem reconhecimento facial configurado ainda (ou todos já estão presentes hoje) — a sugestão automática não vai funcionar, mas dá pra identificar manualmente e confirmar o consentimento na hora.'**
   String get pfNoEligibleStudents;
 
   /// No description provided for @pfUnrecognized.
@@ -2953,6 +2965,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'de confiança'**
   String get pfConfidence;
+
+  /// No description provided for @pfAlreadyCheckedIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Presença já registrada'**
+  String get pfAlreadyCheckedIn;
 
   /// No description provided for @pfIdentify.
   ///
@@ -2978,11 +2996,41 @@ abstract class AppLocalizations {
   /// **'Não foi possível processar. Tente de novo.'**
   String get pfError;
 
+  /// No description provided for @pfNoFacesFound.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum rosto encontrado nessa foto. Tente de novo com todo mundo de frente pra câmera.'**
+  String get pfNoFacesFound;
+
   /// No description provided for @pfConfirm.
   ///
   /// In pt, this message translates to:
-  /// **'{count, plural, =0{Confirmar} one{Confirmar {count} presença} other{Confirmar {count} presenças}}'**
-  String pfConfirm(int count);
+  /// **'Confirmar presenças'**
+  String get pfConfirm;
+
+  /// No description provided for @pfNoConsentBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'sem consentimento registrado'**
+  String get pfNoConsentBadge;
+
+  /// No description provided for @pfConfirmConsentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar consentimento'**
+  String get pfConfirmConsentTitle;
+
+  /// No description provided for @pfConfirmConsentBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirma que {nome} autorizou o uso da foto para reconhecimento facial (verbalmente ou por contrato de matrícula)? Isso salva o rosto para reconhecer automaticamente nas próximas chamadas.'**
+  String pfConfirmConsentBody(String nome);
+
+  /// No description provided for @pfConfirmConsentSave.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar e salvar'**
+  String get pfConfirmConsentSave;
 
   /// No description provided for @pfSaved.
   ///
@@ -7574,6 +7622,24 @@ abstract class AppLocalizations {
   /// **'Erro ao salvar foto.'**
   String get apPhotoSaveError;
 
+  /// No description provided for @apPhotoSourceCamera.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tirar foto agora'**
+  String get apPhotoSourceCamera;
+
+  /// No description provided for @apPhotoSourceGallery.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher da galeria'**
+  String get apPhotoSourceGallery;
+
+  /// No description provided for @apAdjustPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar foto'**
+  String get apAdjustPhoto;
+
   /// No description provided for @apPrimaryBelt.
   ///
   /// In pt, this message translates to:
@@ -9541,6 +9607,30 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Quem ativar nas configurações pode colorir os graus da faixa (como no sistema infantil da CBJJ/IBJJF) e escolher em quais turmas isso vale — útil quando a mesma modalidade tem turma infantil e adulta.'**
   String get rnColoredDegreesDesc;
+
+  /// No description provided for @rnFaceRollCallTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chamada por foto'**
+  String get rnFaceRollCallTitle;
+
+  /// No description provided for @rnFaceRollCallDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tire uma foto da turma e o app já sugere quem é cada aluno, por reconhecimento facial — tudo processado no aparelho, nenhuma foto sai do app. Ative em Configurações.'**
+  String get rnFaceRollCallDesc;
+
+  /// No description provided for @rnPhotoFixTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Foto de perfil mais confiável'**
+  String get rnPhotoFixTitle;
+
+  /// No description provided for @rnPhotoFixDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corrigimos um problema em que a foto do aluno, editada pelo admin na ficha, podia sumir depois de sair e voltar.'**
+  String get rnPhotoFixDesc;
 
   /// No description provided for @rpTitle.
   ///
