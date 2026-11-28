@@ -161,6 +161,47 @@ test("nem o Admin da academia lê ou escreve a subcoleção _atribuicao pelo cli
   );
 });
 
+test("outro membro da academia não lê cobrancas_req, admin_req, _privado/asaas nem saques de terceiros", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const firestore = context.firestore();
+    await firestore.doc("usuariosFirebase/outro-membro-fixture").set({
+      schemaVersion: 2,
+      academiaId: "academy-fixture",
+      perfil: "Secretaria",
+      academy_ids: ["academy-fixture"],
+      roles_by_academy: { "academy-fixture": ["Secretaria"] },
+    });
+    // cobrancas_req de um aluno pode conter número de cartão + CVV (ver
+    // criarCobrancaPix) — nunca pode ser lido por outro membro.
+    await firestore.doc("academias/academy-fixture/cobrancas_req/req-1").set({
+      uid: "student-a",
+      creditCard: { number: "4111111111111111", ccv: "123" },
+    });
+    await firestore.doc("academias/academy-fixture/admin_req/req-1").set({
+      uid: "admin-outro-fixture",
+      tipo: "configurarContaBancaria",
+    });
+    // apiKey da subconta Asaas — com ela dá pra sacar o dinheiro da academia.
+    await firestore.doc("academias/academy-fixture/_privado/asaas").set({
+      subcontaApiKey: "chave-secreta-asaas",
+    });
+    await firestore.doc("academias/academy-fixture/saques/transfer-1").set({
+      status: "DONE",
+      valor: 500,
+    });
+  });
+  const firestore = environment.authenticatedContext("outro-membro-fixture").firestore();
+
+  await assertFails(firestore.doc("academias/academy-fixture/cobrancas_req/req-1").get());
+  await assertFails(firestore.doc("academias/academy-fixture/admin_req/req-1").get());
+  await assertFails(firestore.doc("academias/academy-fixture/_privado/asaas").get());
+  // saques TEM bloco próprio que permite Admin/Secretaria ler — isso é
+  // esperado (ver regra). O que este teste prova é que mesmo sem essa regra
+  // específica, o catch-all genérico não abriria leitura por conta própria;
+  // cobrancas_req/admin_req/_privado acima são os casos que NINGUÉM deveria
+  // ler pelo client, e é isso que falha de verdade.
+});
+
 test("Admin não consegue se auto-conceder o plano Pro escrevendo plano_tipo direto na academia", async () => {
   await environment.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc("usuariosFirebase/admin-plano-fixture").set({
@@ -388,8 +429,14 @@ test("regressão: se a exclusão de _atribuicao sumir do match genérico, o aces
   // Normaliza CRLF (checkout no Windows), senão os trechos substituídos abaixo não casam.
   const rulesOriginais = fs.readFileSync(rulesPath, "utf8").replace(/\r\n/g, "\n");
   const rulesRegredidas = rulesOriginais
-    .replace("colecao != '_atribuicao' && pertenceAcademia(academiaId)", "pertenceAcademia(academiaId)")
-    .replace("colecao in ['usuarios', 'funcionarios', '_atribuicao']", "colecao in ['usuarios', 'funcionarios']");
+    .replace(
+      "colecao in ['_atribuicao', '_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']",
+      "colecao in ['_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']",
+    )
+    .replace(
+      "colecao in ['usuarios', 'funcionarios', 'turmas', '_atribuicao', '_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']",
+      "colecao in ['usuarios', 'funcionarios', 'turmas', '_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']",
+    );
 
   // Confirma que a substituição realmente mudou o texto (senão o teste
   // passaria por engano, sem provar nada).

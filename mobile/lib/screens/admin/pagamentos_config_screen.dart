@@ -4,6 +4,7 @@ import '../../core/auth_storage.dart';
 import '../../core/payment_request_service.dart';
 import '../../core/constants.dart';
 import '../../core/firestore_service.dart';
+import 'pagamentos_saldo_screen.dart';
 
 class PagamentosConfigScreen extends StatefulWidget {
   const PagamentosConfigScreen({super.key});
@@ -891,6 +892,23 @@ class _PagamentosConfigScreenState extends State<PagamentosConfigScreen> {
                 ),
               ),
             ]),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PagamentosSaldoScreen()),
+              ),
+              icon: Icon(Icons.account_balance_wallet_rounded, color: kPrimary, size: 18),
+              label: Text('Ver saldo e extrato', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: kPrimary),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Center(

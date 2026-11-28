@@ -6764,6 +6764,276 @@ abstract class AppLocalizations {
   /// **'Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)'**
   String get cfgBillingByModalitySub;
 
+  /// No description provided for @pagAppTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pagamentos pelo app'**
+  String get pagAppTitle;
+
+  /// No description provided for @pagAppSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Deixe seus alunos pagarem mensalidades direto no app'**
+  String get pagAppSub;
+
+  /// No description provided for @pagAppManageTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerenciar pagamentos e saldo'**
+  String get pagAppManageTitle;
+
+  /// No description provided for @pagAppManageSub.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conta Asaas, saldo disponível e saques'**
+  String get pagAppManageSub;
+
+  /// No description provided for @pagAppExplicTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como funciona'**
+  String get pagAppExplicTitle;
+
+  /// No description provided for @pagAppExplicStep1Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'O aluno paga pelo app'**
+  String get pagAppExplicStep1Title;
+
+  /// No description provided for @pagAppExplicStep1Desc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Via Pix, boleto ou cartão de crédito, direto na tela de Financeiro.'**
+  String get pagAppExplicStep1Desc;
+
+  /// No description provided for @pagAppExplicStep2Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'O dinheiro cai na conta Asaas da academia'**
+  String get pagAppExplicStep2Title;
+
+  /// No description provided for @pagAppExplicStep2Desc.
+  ///
+  /// In pt, this message translates to:
+  /// **'A Asaas é a fintech que processa os pagamentos — o Sensei Manager nunca tem acesso ao seu dinheiro.'**
+  String get pagAppExplicStep2Desc;
+
+  /// No description provided for @pagAppExplicStep3Title.
+  ///
+  /// In pt, this message translates to:
+  /// **'A mensalidade é baixada automaticamente'**
+  String get pagAppExplicStep3Title;
+
+  /// No description provided for @pagAppExplicStep3Desc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Assim que o pagamento é confirmado, o financeiro do aluno é atualizado sozinho.'**
+  String get pagAppExplicStep3Desc;
+
+  /// No description provided for @pagAppExplicFeesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Taxas por forma de pagamento'**
+  String get pagAppExplicFeesTitle;
+
+  /// No description provided for @pagAppExplicFeePix.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pix'**
+  String get pagAppExplicFeePix;
+
+  /// No description provided for @pagAppExplicFeePixValor.
+  ///
+  /// In pt, this message translates to:
+  /// **'~R\$ 1,99 por transação'**
+  String get pagAppExplicFeePixValor;
+
+  /// No description provided for @pagAppExplicFeeBoleto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Boleto'**
+  String get pagAppExplicFeeBoleto;
+
+  /// No description provided for @pagAppExplicFeeBoletoValor.
+  ///
+  /// In pt, this message translates to:
+  /// **'~R\$ 1,99 por transação'**
+  String get pagAppExplicFeeBoletoValor;
+
+  /// No description provided for @pagAppExplicFeeCartao.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cartão de crédito'**
+  String get pagAppExplicFeeCartao;
+
+  /// No description provided for @pagAppExplicFeeCartaoValor.
+  ///
+  /// In pt, this message translates to:
+  /// **'R\$ 0,49 + 2,99% por transação'**
+  String get pagAppExplicFeeCartaoValor;
+
+  /// No description provided for @pagAppExplicFeesNote.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valores cobrados pela Asaas, sujeitos a alteração sem aviso do Sensei Manager.'**
+  String get pagAppExplicFeesNote;
+
+  /// No description provided for @pagAppExplicNoCommission.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Sensei Manager não cobra nada sobre os pagamentos recebidos pela sua academia.'**
+  String get pagAppExplicNoCommission;
+
+  /// No description provided for @pagAppExplicContinuar.
+  ///
+  /// In pt, this message translates to:
+  /// **'Entendi, continuar'**
+  String get pagAppExplicContinuar;
+
+  /// No description provided for @pagAppDesligarTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desligar pagamentos pelo app?'**
+  String get pagAppDesligarTitle;
+
+  /// No description provided for @pagAppDesligarBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seus alunos deixarão de ver as opções de pagamento no app. Sua conta Asaas não será apagada — você pode ligar de novo quando quiser.'**
+  String get pagAppDesligarBody;
+
+  /// No description provided for @pagAppDesligarConfirmar.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desligar'**
+  String get pagAppDesligarConfirmar;
+
+  /// No description provided for @pagAppSaldoTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Saldo e extrato'**
+  String get pagAppSaldoTitle;
+
+  /// No description provided for @pagAppSaldoDisponivel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Saldo disponível'**
+  String get pagAppSaldoDisponivel;
+
+  /// No description provided for @pagAppSaldoSacar.
+  ///
+  /// In pt, this message translates to:
+  /// **'Solicitar saque'**
+  String get pagAppSaldoSacar;
+
+  /// No description provided for @pagAppExtratoTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Extrato'**
+  String get pagAppExtratoTitle;
+
+  /// No description provided for @pagAppExtratoVazio.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma movimentação ainda'**
+  String get pagAppExtratoVazio;
+
+  /// No description provided for @pagAppSaqueDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Solicitar saque'**
+  String get pagAppSaqueDialogTitle;
+
+  /// No description provided for @pagAppSaqueDialogValor.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor a sacar (R\$)'**
+  String get pagAppSaqueDialogValor;
+
+  /// No description provided for @pagAppSaqueDialogContaDestino.
+  ///
+  /// In pt, this message translates to:
+  /// **'O valor será transferido para a conta bancária cadastrada da academia.'**
+  String get pagAppSaqueDialogContaDestino;
+
+  /// No description provided for @pagAppSaqueDialogConfirmar.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar saque'**
+  String get pagAppSaqueDialogConfirmar;
+
+  /// No description provided for @pagAppSaqueSucesso.
+  ///
+  /// In pt, this message translates to:
+  /// **'Saque solicitado! Acompanhe o status abaixo.'**
+  String get pagAppSaqueSucesso;
+
+  /// No description provided for @pagAppSaqueHistoricoTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Saques solicitados'**
+  String get pagAppSaqueHistoricoTitle;
+
+  /// No description provided for @pagAppSaqueHistoricoVazio.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum saque solicitado ainda'**
+  String get pagAppSaqueHistoricoVazio;
+
+  /// No description provided for @pagAppVerificarStatus.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizar status'**
+  String get pagAppVerificarStatus;
+
+  /// No description provided for @pagAppSaqueStatusPending.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pendente'**
+  String get pagAppSaqueStatusPending;
+
+  /// No description provided for @pagAppSaqueStatusBankProcessing.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em processamento no banco'**
+  String get pagAppSaqueStatusBankProcessing;
+
+  /// No description provided for @pagAppSaqueStatusDone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Concluído'**
+  String get pagAppSaqueStatusDone;
+
+  /// No description provided for @pagAppSaqueStatusCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelado'**
+  String get pagAppSaqueStatusCancelled;
+
+  /// No description provided for @pagAppSaqueStatusFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falhou'**
+  String get pagAppSaqueStatusFailed;
+
+  /// No description provided for @pagAppSemContaBancaria.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cadastre a conta bancária de recebimento antes de solicitar um saque.'**
+  String get pagAppSemContaBancaria;
+
+  /// No description provided for @pagAppValorInvalido.
+  ///
+  /// In pt, this message translates to:
+  /// **'Informe um valor válido.'**
+  String get pagAppValorInvalido;
+
+  /// No description provided for @pagAppValorMaiorQueSaldo.
+  ///
+  /// In pt, this message translates to:
+  /// **'O valor não pode ser maior que o saldo disponível.'**
+  String get pagAppValorMaiorQueSaldo;
+
   /// No description provided for @cfgWeeklyLimit.
   ///
   /// In pt, this message translates to:

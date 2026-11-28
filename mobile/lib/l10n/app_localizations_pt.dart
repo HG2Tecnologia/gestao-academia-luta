@@ -3855,6 +3855,154 @@ class AppLocalizationsPt extends AppLocalizations {
       'Permite planos e mensalidades independentes por modalidade (ex.: jiu-jitsu e judô com valores separados)';
 
   @override
+  String get pagAppTitle => 'Pagamentos pelo app';
+
+  @override
+  String get pagAppSub =>
+      'Deixe seus alunos pagarem mensalidades direto no app';
+
+  @override
+  String get pagAppManageTitle => 'Gerenciar pagamentos e saldo';
+
+  @override
+  String get pagAppManageSub => 'Conta Asaas, saldo disponível e saques';
+
+  @override
+  String get pagAppExplicTitle => 'Como funciona';
+
+  @override
+  String get pagAppExplicStep1Title => 'O aluno paga pelo app';
+
+  @override
+  String get pagAppExplicStep1Desc =>
+      'Via Pix, boleto ou cartão de crédito, direto na tela de Financeiro.';
+
+  @override
+  String get pagAppExplicStep2Title =>
+      'O dinheiro cai na conta Asaas da academia';
+
+  @override
+  String get pagAppExplicStep2Desc =>
+      'A Asaas é a fintech que processa os pagamentos — o Sensei Manager nunca tem acesso ao seu dinheiro.';
+
+  @override
+  String get pagAppExplicStep3Title =>
+      'A mensalidade é baixada automaticamente';
+
+  @override
+  String get pagAppExplicStep3Desc =>
+      'Assim que o pagamento é confirmado, o financeiro do aluno é atualizado sozinho.';
+
+  @override
+  String get pagAppExplicFeesTitle => 'Taxas por forma de pagamento';
+
+  @override
+  String get pagAppExplicFeePix => 'Pix';
+
+  @override
+  String get pagAppExplicFeePixValor => '~R\$ 1,99 por transação';
+
+  @override
+  String get pagAppExplicFeeBoleto => 'Boleto';
+
+  @override
+  String get pagAppExplicFeeBoletoValor => '~R\$ 1,99 por transação';
+
+  @override
+  String get pagAppExplicFeeCartao => 'Cartão de crédito';
+
+  @override
+  String get pagAppExplicFeeCartaoValor => 'R\$ 0,49 + 2,99% por transação';
+
+  @override
+  String get pagAppExplicFeesNote =>
+      'Valores cobrados pela Asaas, sujeitos a alteração sem aviso do Sensei Manager.';
+
+  @override
+  String get pagAppExplicNoCommission =>
+      'O Sensei Manager não cobra nada sobre os pagamentos recebidos pela sua academia.';
+
+  @override
+  String get pagAppExplicContinuar => 'Entendi, continuar';
+
+  @override
+  String get pagAppDesligarTitle => 'Desligar pagamentos pelo app?';
+
+  @override
+  String get pagAppDesligarBody =>
+      'Seus alunos deixarão de ver as opções de pagamento no app. Sua conta Asaas não será apagada — você pode ligar de novo quando quiser.';
+
+  @override
+  String get pagAppDesligarConfirmar => 'Desligar';
+
+  @override
+  String get pagAppSaldoTitle => 'Saldo e extrato';
+
+  @override
+  String get pagAppSaldoDisponivel => 'Saldo disponível';
+
+  @override
+  String get pagAppSaldoSacar => 'Solicitar saque';
+
+  @override
+  String get pagAppExtratoTitle => 'Extrato';
+
+  @override
+  String get pagAppExtratoVazio => 'Nenhuma movimentação ainda';
+
+  @override
+  String get pagAppSaqueDialogTitle => 'Solicitar saque';
+
+  @override
+  String get pagAppSaqueDialogValor => 'Valor a sacar (R\$)';
+
+  @override
+  String get pagAppSaqueDialogContaDestino =>
+      'O valor será transferido para a conta bancária cadastrada da academia.';
+
+  @override
+  String get pagAppSaqueDialogConfirmar => 'Confirmar saque';
+
+  @override
+  String get pagAppSaqueSucesso =>
+      'Saque solicitado! Acompanhe o status abaixo.';
+
+  @override
+  String get pagAppSaqueHistoricoTitle => 'Saques solicitados';
+
+  @override
+  String get pagAppSaqueHistoricoVazio => 'Nenhum saque solicitado ainda';
+
+  @override
+  String get pagAppVerificarStatus => 'Atualizar status';
+
+  @override
+  String get pagAppSaqueStatusPending => 'Pendente';
+
+  @override
+  String get pagAppSaqueStatusBankProcessing => 'Em processamento no banco';
+
+  @override
+  String get pagAppSaqueStatusDone => 'Concluído';
+
+  @override
+  String get pagAppSaqueStatusCancelled => 'Cancelado';
+
+  @override
+  String get pagAppSaqueStatusFailed => 'Falhou';
+
+  @override
+  String get pagAppSemContaBancaria =>
+      'Cadastre a conta bancária de recebimento antes de solicitar um saque.';
+
+  @override
+  String get pagAppValorInvalido => 'Informe um valor válido.';
+
+  @override
+  String get pagAppValorMaiorQueSaldo =>
+      'O valor não pode ser maior que o saldo disponível.';
+
+  @override
   String get cfgWeeklyLimit => 'Limite de dias por semana';
 
   @override

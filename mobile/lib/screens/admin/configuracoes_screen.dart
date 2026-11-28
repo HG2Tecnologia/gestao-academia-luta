@@ -22,6 +22,8 @@ import '../../core/whats_new_service.dart';
 import '../../core/widgets.dart';
 import '../../l10n/app_localizations.dart';
 import 'modalidades_screen.dart';
+import 'pagamentos_config_screen.dart';
+import 'pagamentos_explicacao_screen.dart';
 import 'plano_screen.dart';
 import 'planos_screen.dart';
 
@@ -76,6 +78,8 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
   bool _notifGraduacaoAtiva = false;
   int _notifGraduacaoPresencasMinimas = 40;
   bool _reconhecimentoFacialAtivo = false;
+  bool _pagamentosAppAtivo = false;
+  String? _academiaIdAtual;
 
   @override
   void initState() {
@@ -110,6 +114,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     try {
       final user = await AuthStorage.getUser();
       final academiaId = user!.academiaId!;
+      _academiaIdAtual = academiaId;
       final dados = await firestoreService.getAcademia(academiaId) ?? {};
       _nomeCtrl.text = dados['nome'] as String? ?? '';
       _emailCtrl.text = dados['email'] as String? ?? '';
@@ -155,6 +160,7 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
           (dados['notif_graduacao_presencas_minimas'] as num?)?.toInt() ?? 40;
       _reconhecimentoFacialAtivo =
           dados['reconhecimento_facial_ativo'] as bool? ?? false;
+      _pagamentosAppAtivo = dados['pagamentos_app_ativo'] as bool? ?? false;
       if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (mounted) {
@@ -246,6 +252,54 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
     if (!ok) {
       setState(() => aplicar(atual));
       _snack(_l.cfgSaveToggleError, erro: true);
+    }
+  }
+
+  Future<void> _alterarPagamentosAppAtivo(bool novo) async {
+    final academiaId = _academiaIdAtual;
+    if (academiaId == null) return;
+
+    if (novo) {
+      final confirmou = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const PagamentosExplicacaoScreen()),
+      );
+      if (confirmou != true || !mounted) return;
+    } else {
+      final confirmou = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: context.c.surface,
+          title: Text(_l.pagAppDesligarTitle, style: TextStyle(color: context.c.onSurface, fontSize: 16, fontWeight: FontWeight.w700)),
+          content: Text(_l.pagAppDesligarBody, style: TextStyle(color: context.c.onSurfaceVariant, fontSize: 13, height: 1.5)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_l.commonCancel, style: TextStyle(color: context.c.onSurfaceVariant))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(_l.pagAppDesligarConfirmar, style: TextStyle(color: context.sem.danger, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (confirmou != true || !mounted) return;
+    }
+
+    setState(() => _pagamentosAppAtivo = novo);
+    try {
+      await firestoreService.setPagamentosAppAtivo(academiaId, novo);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _pagamentosAppAtivo = !novo);
+        _snack(_l.cfgSaveToggleError, erro: true);
+      }
+      return;
+    }
+
+    if (novo && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PagamentosConfigScreen()),
+      );
     }
   }
 
@@ -817,6 +871,25 @@ class _AdminConfiguracoesScreenState extends State<AdminConfiguracoesScreen> {
                             ),
                           ),
                         ),
+                        _SwitchRow(
+                          icon: Icons.payments_rounded,
+                          titulo: _l.pagAppTitle,
+                          subtitulo: _l.pagAppSub,
+                          valor: _pagamentosAppAtivo,
+                          onChanged: _alterarPagamentosAppAtivo,
+                        ),
+                        if (_pagamentosAppAtivo)
+                          _NavRow(
+                            icon: Icons.account_balance_wallet_rounded,
+                            titulo: _l.pagAppManageTitle,
+                            subtitulo: _l.pagAppManageSub,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PagamentosConfigScreen(),
+                              ),
+                            ),
+                          ),
                         _SwitchRow(
                           icon: Icons.percent_rounded,
                           titulo: _l.cfgLateFee,

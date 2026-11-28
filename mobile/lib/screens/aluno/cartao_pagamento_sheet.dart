@@ -98,7 +98,7 @@ class _CartaoPagamentoSheetState extends State<CartaoPagamentoSheet> {
     final tel = _telCtrl.text.replaceAll(RegExp(r'\D'), '');
 
     try {
-      await PaymentRequestService.criarCobranca(
+      await PaymentRequestService.criarCobrancaCartao(
         academiaId: widget.academiaId,
         pagamentoId: widget.pagamentoId,
         valor: widget.valor,
@@ -106,7 +106,6 @@ class _CartaoPagamentoSheetState extends State<CartaoPagamentoSheet> {
         alunoNome: widget.alunoNome,
         alunoCpf: widget.alunoCpf,
         alunoEmail: widget.alunoEmail,
-        billingType: 'CREDIT_CARD',
         creditCard: {
           'holderName': _nomeCtrl.text.trim().toUpperCase(),
           'number': numero,

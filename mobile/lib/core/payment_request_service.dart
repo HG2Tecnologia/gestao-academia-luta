@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PaymentRequestError implements Exception {
@@ -10,6 +11,8 @@ class PaymentRequestError implements Exception {
 }
 
 class PaymentRequestService {
+  /// Cria cobrança PIX ou Boleto. NUNCA aceita dados de cartão — eles não
+  /// podem transitar pelo Firestore (ver [criarCobrancaCartao]).
   static Future<Map<String, dynamic>> criarCobranca({
     required String academiaId,
     required String pagamentoId,
@@ -19,9 +22,8 @@ class PaymentRequestService {
     String? alunoCpf,
     String? alunoEmail,
     required String billingType,
-    Map<String, dynamic>? creditCard,
-    Map<String, dynamic>? creditCardHolderInfo,
   }) async {
+    assert(billingType != 'CREDIT_CARD', 'Cartão deve usar criarCobrancaCartao, nunca o Firestore.');
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw PaymentRequestError('Sessão expirada. Faça login novamente.');
 
@@ -31,7 +33,7 @@ class PaymentRequestService {
         .collection('cobrancas_req')
         .doc();
 
-    final payload = <String, dynamic>{
+    await reqRef.set({
       'pagamentoId': pagamentoId,
       'billingType': billingType,
       'valor': valor,
@@ -42,12 +44,42 @@ class PaymentRequestService {
       'uid': user.uid,
       'status': 'processing',
       'criadoEm': FieldValue.serverTimestamp(),
-    };
-    if (creditCard != null) payload['creditCard'] = creditCard;
-    if (creditCardHolderInfo != null) payload['creditCardHolderInfo'] = creditCardHolderInfo;
-
-    await reqRef.set(payload);
+    });
     return _aguardarResultado(reqRef);
+  }
+
+  /// Cria cobrança de cartão de crédito chamando a Cloud Function diretamente
+  /// (onCall) — o número do cartão e o CVV vão só nesta chamada, nunca são
+  /// escritos no Firestore (PCI DSS).
+  static Future<Map<String, dynamic>> criarCobrancaCartao({
+    required String academiaId,
+    required String pagamentoId,
+    required double valor,
+    required String descricao,
+    required String alunoNome,
+    String? alunoCpf,
+    String? alunoEmail,
+    required Map<String, dynamic> creditCard,
+    required Map<String, dynamic> creditCardHolderInfo,
+  }) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('criarCobrancaPix');
+      final result = await callable.call({
+        'academiaId': academiaId,
+        'pagamentoId': pagamentoId,
+        'valor': valor,
+        'descricao': descricao,
+        'alunoNome': alunoNome,
+        'alunoCpf': alunoCpf ?? '',
+        'alunoEmail': alunoEmail ?? '',
+        'billingType': 'CREDIT_CARD',
+        'creditCard': creditCard,
+        'creditCardHolderInfo': creditCardHolderInfo,
+      });
+      return Map<String, dynamic>.from(result.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      throw PaymentRequestError(e.message ?? 'Erro ao processar o cartão.');
+    }
   }
 
   static Future<Map<String, dynamic>> adminRequest({

@@ -3838,6 +3838,155 @@ class AppLocalizationsEn extends AppLocalizations {
       'Allows independent plans and monthly fees per discipline (e.g. jiu-jitsu and judo billed separately)';
 
   @override
+  String get pagAppTitle => 'Payments in the app';
+
+  @override
+  String get pagAppSub =>
+      'Let your students pay membership fees right in the app';
+
+  @override
+  String get pagAppManageTitle => 'Manage payments and balance';
+
+  @override
+  String get pagAppManageSub =>
+      'Asaas account, available balance and withdrawals';
+
+  @override
+  String get pagAppExplicTitle => 'How it works';
+
+  @override
+  String get pagAppExplicStep1Title => 'The student pays in the app';
+
+  @override
+  String get pagAppExplicStep1Desc =>
+      'Via Pix, bank slip (boleto) or credit card, right from the Financial screen.';
+
+  @override
+  String get pagAppExplicStep2Title =>
+      'The money goes to the academy\'s Asaas account';
+
+  @override
+  String get pagAppExplicStep2Desc =>
+      'Asaas is the fintech that processes the payments — Sensei Manager never has access to your money.';
+
+  @override
+  String get pagAppExplicStep3Title =>
+      'The membership fee is marked as paid automatically';
+
+  @override
+  String get pagAppExplicStep3Desc =>
+      'As soon as the payment is confirmed, the student\'s financial record updates on its own.';
+
+  @override
+  String get pagAppExplicFeesTitle => 'Fees by payment method';
+
+  @override
+  String get pagAppExplicFeePix => 'Pix';
+
+  @override
+  String get pagAppExplicFeePixValor => '~R\$ 1.99 per transaction';
+
+  @override
+  String get pagAppExplicFeeBoleto => 'Bank slip (boleto)';
+
+  @override
+  String get pagAppExplicFeeBoletoValor => '~R\$ 1.99 per transaction';
+
+  @override
+  String get pagAppExplicFeeCartao => 'Credit card';
+
+  @override
+  String get pagAppExplicFeeCartaoValor => 'R\$ 0.49 + 2.99% per transaction';
+
+  @override
+  String get pagAppExplicFeesNote =>
+      'Fees charged by Asaas, subject to change without notice from Sensei Manager.';
+
+  @override
+  String get pagAppExplicNoCommission =>
+      'Sensei Manager never charges anything on top of the payments your academy receives.';
+
+  @override
+  String get pagAppExplicContinuar => 'Got it, continue';
+
+  @override
+  String get pagAppDesligarTitle => 'Turn off payments in the app?';
+
+  @override
+  String get pagAppDesligarBody =>
+      'Your students will stop seeing payment options in the app. Your Asaas account won\'t be deleted — you can turn it back on anytime.';
+
+  @override
+  String get pagAppDesligarConfirmar => 'Turn off';
+
+  @override
+  String get pagAppSaldoTitle => 'Balance and statement';
+
+  @override
+  String get pagAppSaldoDisponivel => 'Available balance';
+
+  @override
+  String get pagAppSaldoSacar => 'Request withdrawal';
+
+  @override
+  String get pagAppExtratoTitle => 'Statement';
+
+  @override
+  String get pagAppExtratoVazio => 'No transactions yet';
+
+  @override
+  String get pagAppSaqueDialogTitle => 'Request withdrawal';
+
+  @override
+  String get pagAppSaqueDialogValor => 'Amount to withdraw (R\$)';
+
+  @override
+  String get pagAppSaqueDialogContaDestino =>
+      'The amount will be transferred to the academy\'s registered bank account.';
+
+  @override
+  String get pagAppSaqueDialogConfirmar => 'Confirm withdrawal';
+
+  @override
+  String get pagAppSaqueSucesso =>
+      'Withdrawal requested! Track the status below.';
+
+  @override
+  String get pagAppSaqueHistoricoTitle => 'Requested withdrawals';
+
+  @override
+  String get pagAppSaqueHistoricoVazio => 'No withdrawals requested yet';
+
+  @override
+  String get pagAppVerificarStatus => 'Refresh status';
+
+  @override
+  String get pagAppSaqueStatusPending => 'Pending';
+
+  @override
+  String get pagAppSaqueStatusBankProcessing => 'Processing at the bank';
+
+  @override
+  String get pagAppSaqueStatusDone => 'Completed';
+
+  @override
+  String get pagAppSaqueStatusCancelled => 'Cancelled';
+
+  @override
+  String get pagAppSaqueStatusFailed => 'Failed';
+
+  @override
+  String get pagAppSemContaBancaria =>
+      'Set up the receiving bank account before requesting a withdrawal.';
+
+  @override
+  String get pagAppValorInvalido => 'Enter a valid amount.';
+
+  @override
+  String get pagAppValorMaiorQueSaldo =>
+      'The amount can\'t be greater than the available balance.';
+
+  @override
   String get cfgWeeklyLimit => 'Weekly training-day limit';
 
   @override

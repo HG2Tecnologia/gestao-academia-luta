@@ -139,7 +139,7 @@ class _AlunoFinanceiroScreenState extends State<AlunoFinanceiroScreen> {
           (p['id'] ?? '').toString(): p,
       };
 
-      _pixDisponivel = asaasData?['status'] == 'ATIVO';
+      _pixDisponivel = asaasData?['status'] == 'ATIVO' && acadData['pagamentos_app_ativo'] == true;
       _alunoNome = user.nome;
       _alunoEmail = user.email;
       _alunoCpf = (alunoData?['cpf'] as String? ?? '').replaceAll(RegExp(r'\D'), '');

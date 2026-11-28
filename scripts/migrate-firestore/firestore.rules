@@ -172,6 +172,20 @@ service cloud.firestore {
       allow create, delete: if isAdminOuSecretaria(academiaId);
     }
 
+    // Saques solicitados via app: só Admin/Secretaria vê; só a Function (Admin SDK) escreve
+    match /academias/{academiaId}/saques/{doc} {
+      allow read: if isAdminOuSecretaria(academiaId);
+      allow create, update, delete: if false;
+    }
+
+    // Config pública da Asaas: status/subcontaId/walletId (sem segredos —
+    // apiKey e dados bancários ficam em _privado/asaas). Membros leem pra
+    // saber se pagamento via app está disponível; só a Function escreve.
+    match /academias/{academiaId}/integracoes/{doc} {
+      allow read: if pertenceAcademia(academiaId);
+      allow write: if false;
+    }
+
     // Respostas de pesquisa: qualquer membro pode criar (self-submit)
     match /academias/{academiaId}/respostas_pesquisa/{doc} {
       allow read: if pertenceAcademia(academiaId);
@@ -274,12 +288,26 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Segredos de pagamento (apiKey da subconta Asaas, dados bancários
+    // completos) — só a Cloud Function (Admin SDK) lê/escreve. Nunca pelo
+    // client, nem Admin da academia: com a apiKey dá pra sacar o dinheiro da
+    // academia direto na Asaas. Ver nota em functions/index.js (_privRef).
+    match /academias/{academiaId}/_privado/{doc} {
+      allow read, write: if false;
+    }
+
     // Resto: admin/secretaria gerencia tudo; membros leem
-    // A exclusão de '_atribuicao' abaixo é a METADE 2/2 da proteção
-    // descrita no bloco de aviso acima — não remover isoladamente.
+    // ATENÇÃO: no Firestore, se QUALQUER `match` que cobre o caminho permitir
+    // a operação, ela é permitida — mesmo que outro `match` mais específico
+    // seja restritivo. Por isso toda coleção com regra própria mais
+    // restritiva (sensível: segredos, dados de pagamento, requisições
+    // privadas) PRECISA também ser excluída aqui, ou essa exclusão não vale
+    // nada. A exclusão abaixo é a METADE 2/2 da proteção de cada uma dessas
+    // coleções — não remover isoladamente.
     match /academias/{academiaId}/{colecao}/{doc} {
-      allow read: if colecao != '_atribuicao' && pertenceAcademia(academiaId);
-      allow write: if !(colecao in ['usuarios', 'funcionarios', 'turmas', '_atribuicao']) &&
+      allow read: if !(colecao in ['_atribuicao', '_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']) &&
+        pertenceAcademia(academiaId);
+      allow write: if !(colecao in ['usuarios', 'funcionarios', 'turmas', '_atribuicao', '_privado', 'cobrancas_req', 'admin_req', 'integracoes', 'saques']) &&
         (isAdminOuSecretaria(academiaId) || isProfessor(academiaId));
     }
 

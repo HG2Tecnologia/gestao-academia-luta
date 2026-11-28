@@ -75,6 +75,19 @@ const ASAAS_WEBHOOK_TOKEN = defineSecret('ASAAS_WEBHOOK_TOKEN');
 // Troque para https://www.asaas.com/api/v3 quando for para produção
 const ASAAS_BASE = 'https://sandbox.asaas.com/api/v3';
 
+// O vencimento enviado ao Asaas precisa ser o mesmo vencimento real da
+// cobrança (pag.data_vencimento, formato YYYY-MM-DD), não "hoje + N dias" —
+// senão o boleto/Pix no Asaas vence num dia diferente do que o app mostra
+// pro aluno. Se a cobrança já estiver vencida, mantém a data real (o Asaas
+// aceita e marca como OVERDUE, que é o estado correto).
+function _dueDateDaCobranca(pag, billingType) {
+  const raw = pag?.data_vencimento;
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const due = new Date();
+  due.setDate(due.getDate() + (billingType === 'BOLETO' ? 3 : 1));
+  return due.toISOString().split('T')[0];
+}
+
 function asaasHttp(apiKey, walletId = null) {
   const headers = {
     'access_token': apiKey,
@@ -199,30 +212,45 @@ exports.criarCobrancaPix = onCall(
     if (!cfgSnap.exists || !cfgSnap.data()?.subcontaId) {
       throw new HttpsError('failed-precondition', 'Esta academia ainda não configurou pagamentos via app.');
     }
-    const { subcontaId, status, walletId: savedWalletId } = cfgSnap.data();
+    const { status } = cfgSnap.data();
     if (status !== 'ATIVO') {
       throw new HttpsError('failed-precondition', 'A conta de pagamentos está pendente de aprovação. Aguarde a liberação.');
     }
 
+    const acadSnapCheck = await db.doc(`academias/${academiaId}`).get();
+    if (acadSnapCheck.data()?.pagamentos_app_ativo !== true) {
+      throw new HttpsError('failed-precondition', 'Pagamentos pelo app estão desativados por esta academia.');
+    }
+
     const pagRef = db.doc(`academias/${academiaId}/pagamentos/${pagamentoId}`);
     const pagSnap = await pagRef.get();
+    if (!pagSnap.exists) throw new HttpsError('not-found', 'Cobrança não encontrada.');
     const pag = pagSnap.data() || {};
 
-    // Usa master key + walletId correto (campo walletId ≠ id da conta).
-    // Isso garante que PIX está disponível (conta master tem PIX habilitado)
-    // e as cobranças ficam na wallet da subconta.
-    let walletId = savedWalletId;
-    if (!walletId) {
-      try {
-        const masterC = asaasHttp(ASAAS_API_KEY.value());
-        const accRes = await masterC.get(`/accounts/${subcontaId}`);
-        walletId = accRes.data?.walletId || null;
-        if (walletId) {
-          await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ walletId });
-        }
-      } catch (_) {}
+    // Esta function recebe academiaId/pagamentoId/valor do CLIENTE — sem isto,
+    // qualquer usuário autenticado (de qualquer academia) poderia cobrar em
+    // nome de outra academia, pagar o valor que quiser, ou gerar cobrança de
+    // um aluno que não é ele. Confere que: (1) o pagamento é mesmo desse
+    // aluno autenticado, e (2) usa o valor JÁ REGISTRADO no pagamento, nunca
+    // o valor que o cliente mandou.
+    const alunoSnap = await db.doc(`academias/${academiaId}/usuarios/${pag.aluno_id}`).get();
+    const alunoUid = alunoSnap.data()?.firebaseUid || alunoSnap.data()?.firebase_uid;
+    if (!alunoSnap.exists || alunoUid !== req.auth.uid) {
+      throw new HttpsError('permission-denied', 'Esta cobrança não pertence a este usuário.');
     }
-    const client = asaasHttp(ASAAS_API_KEY.value(), walletId);
+    const valorReal = (pag.valor != null ? Number(pag.valor) : null);
+    if (valorReal == null) throw new HttpsError('failed-precondition', 'Cobrança sem valor definido.');
+
+    // A cobrança é criada diretamente com a apiKey DA SUBCONTA — não da master.
+    // O Asaas não tem um mecanismo de header 'wallet' para agir em nome de
+    // outra conta; isso só funciona chamando a API como a própria subconta
+    // (mesmo padrão já usado em saldo/extrato/saque). Assim, o dinheiro recebido
+    // já cai direto no saldo da subconta da academia, sem precisar de split.
+    const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+    if (!subcontaApiKey) {
+      throw new HttpsError('failed-precondition', 'Esta academia ainda não configurou pagamentos via app.');
+    }
+    const client = asaasHttp(subcontaApiKey);
 
     // Reaproveitamento de cobrança existente (mesmo tipo, ainda pendente)
     if (pag.asaasChargeId && pag.asaasStatus === 'PENDING' && pag.asaasBillingType === billingType) {
@@ -259,15 +287,12 @@ exports.criarCobrancaPix = onCall(
       customerId = cr.data.id;
     }
 
-    // Vencimento
-    const due = new Date();
-    due.setDate(due.getDate() + (billingType === 'BOLETO' ? 3 : 1));
-    const dueDate = due.toISOString().split('T')[0];
+    const dueDate = _dueDateDaCobranca(pag, billingType);
 
     const chargePayload = {
       customer: customerId,
       billingType,
-      value: valor,
+      value: valorReal,
       dueDate,
       description: descricao || 'Mensalidade',
       externalReference: `${academiaId}:${pagamentoId}`,
@@ -439,7 +464,10 @@ async function processarVencimentosContasAcademia() {
   return totalAlertas;
 }
 
-// ── Firestore trigger: processar cobranca (PIX / BOLETO / CREDIT_CARD) ────────
+// ── Firestore trigger: processar cobranca (PIX / BOLETO) ─────────────────────
+// CREDIT_CARD é proibido aqui de propósito: dados de cartão nunca podem
+// passar pelo Firestore. Cartão usa exclusivamente exports.criarCobrancaPix
+// (onCall), que recebe o cartão direto do app sem persistir em lugar nenhum.
 exports.processarCobrancaReq = onDocumentCreated(
   {
     document: 'academias/{academiaId}/cobrancas_req/{reqId}',
@@ -463,39 +491,53 @@ exports.processarCobrancaReq = onDocumentCreated(
 
 async function _processarCobranca(academiaId, data) {
   const {
-    pagamentoId, billingType: rawBillingType, valor, descricao,
-    alunoNome, alunoCpf, alunoEmail,
-    creditCard, creditCardHolderInfo,
+    pagamentoId, billingType: rawBillingType, descricao,
+    alunoNome, alunoCpf, alunoEmail, uid,
   } = data;
 
   const billingType = rawBillingType || 'PIX';
 
-  if (!academiaId || !pagamentoId || !valor) throw new Error('Campos obrigatórios ausentes.');
-  if (!['PIX', 'BOLETO', 'CREDIT_CARD'].includes(billingType)) throw new Error('billingType inválido.');
+  if (!academiaId || !pagamentoId) throw new Error('Campos obrigatórios ausentes.');
+  if (!['PIX', 'BOLETO'].includes(billingType)) {
+    // CREDIT_CARD nunca passa por aqui: dados de cartão não podem transitar
+    // pelo Firestore (ver exports.criarCobrancaPix, que recebe o cartão
+    // direto por onCall e nunca persiste nada).
+    throw new Error('billingType inválido para este fluxo.');
+  }
 
   const cfgSnap = await db.doc(`academias/${academiaId}/integracoes/asaas`).get();
   if (!cfgSnap.exists || !cfgSnap.data()?.subcontaId)
     throw new Error('Esta academia ainda não configurou pagamentos via app.');
-  const { subcontaId, status, walletId: savedWalletId2 } = cfgSnap.data();
+  const { status } = cfgSnap.data();
   if (status !== 'ATIVO')
     throw new Error('A conta de pagamentos está pendente de aprovação. Aguarde a liberação.');
 
+  const acadSnapCheck = await db.doc(`academias/${academiaId}`).get();
+  if (acadSnapCheck.data()?.pagamentos_app_ativo !== true) {
+    throw new Error('Pagamentos pelo app estão desativados por esta academia.');
+  }
+
   const pagRef = db.doc(`academias/${academiaId}/pagamentos/${pagamentoId}`);
   const pagSnap = await pagRef.get();
+  if (!pagSnap.exists) throw new Error('Cobrança não encontrada.');
   const pag = pagSnap.data() || {};
 
-  let walletId2 = savedWalletId2;
-  if (!walletId2) {
-    try {
-      const masterC = asaasHttp(ASAAS_API_KEY.value());
-      const accRes = await masterC.get(`/accounts/${subcontaId}`);
-      walletId2 = accRes.data?.walletId || null;
-      if (walletId2) {
-        await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ walletId: walletId2 });
-      }
-    } catch (_) {}
+  // A regra do Firestore só garante que quem CRIOU o cobrancas_req é membro
+  // desta academia — não que o pagamentoId é dele, nem o valor real. Sem
+  // isto, um aluno poderia cobrar o pagamento de outro aluno, ou um valor
+  // diferente do registrado.
+  const alunoSnap = await db.doc(`academias/${academiaId}/usuarios/${pag.aluno_id}`).get();
+  const alunoUid = alunoSnap.data()?.firebaseUid || alunoSnap.data()?.firebase_uid;
+  if (!alunoSnap.exists || alunoUid !== uid) {
+    throw new Error('Esta cobrança não pertence a este usuário.');
   }
-  const client = asaasHttp(ASAAS_API_KEY.value(), walletId2);
+  const valor = pag.valor != null ? Number(pag.valor) : null;
+  if (valor == null) throw new Error('Cobrança sem valor definido.');
+
+  // Cobrança criada direto com a apiKey DA SUBCONTA (ver nota em criarCobrancaPix).
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (!subcontaApiKey) throw new Error('Esta academia ainda não configurou pagamentos via app.');
+  const client = asaasHttp(subcontaApiKey);
 
   if (pag.asaasChargeId && pag.asaasStatus === 'PENDING' && pag.asaasBillingType === billingType) {
     try {
@@ -539,9 +581,7 @@ async function _processarCobranca(academiaId, data) {
     }
   }
 
-  const due = new Date();
-  due.setDate(due.getDate() + (billingType === 'BOLETO' ? 3 : 1));
-  const dueDate = due.toISOString().split('T')[0];
+  const dueDate = _dueDateDaCobranca(pag, billingType);
 
   const chargePayload = {
     customer: customerId,
@@ -551,12 +591,6 @@ async function _processarCobranca(academiaId, data) {
     description: descricao || 'Mensalidade',
     externalReference: `${academiaId}:${pagamentoId}`,
   };
-  if (billingType === 'CREDIT_CARD') {
-    if (!creditCard) throw new Error('Dados do cartão são obrigatórios.');
-    chargePayload.creditCard = creditCard;
-    chargePayload.creditCardHolderInfo = creditCardHolderInfo || {};
-  }
-
   let charge;
   try {
     charge = await client.post('/payments', chargePayload);
@@ -574,11 +608,6 @@ async function _processarCobranca(academiaId, data) {
     asaasStatus: chargeStatus === 'RECEIVED' ? 'RECEIVED' : 'PENDING',
     asaasBillingType: billingType,
   });
-
-  if (billingType === 'CREDIT_CARD' && chargeStatus === 'RECEIVED') {
-    await pagRef.update({ status: 1, pago_em: admin.firestore.FieldValue.serverTimestamp() });
-    return { chargeId, status: chargeStatus, invoiceUrl: charge.data.invoiceUrl };
-  }
 
   if (billingType === 'PIX') {
     const qrR = await client.get(`/payments/${chargeId}/pixQrCode`);
@@ -624,6 +653,14 @@ exports.processarAdminReq = onDocumentCreated(
         resultado = await _configurarContaBancaria(academiaId, data);
       } else if (data.tipo === 'sincronizarPagamentos') {
         resultado = await _sincronizarPagamentos(academiaId, data.alunoId);
+      } else if (data.tipo === 'consultarSaldo') {
+        resultado = await _consultarSaldo(academiaId);
+      } else if (data.tipo === 'obterExtrato') {
+        resultado = await _obterExtrato(academiaId, { offset: data.offset, limit: data.limit });
+      } else if (data.tipo === 'solicitarSaque') {
+        resultado = await _solicitarSaque(academiaId, { valor: data.valor, uid: data.uid });
+      } else if (data.tipo === 'verificarStatusSaque') {
+        resultado = await _verificarStatusSaque(academiaId, data.transferId);
       } else {
         throw new Error('Tipo de requisição desconhecido.');
       }
@@ -641,14 +678,51 @@ async function _sincronizarPagamentos(academiaId, alunoId) {
   return result;
 }
 
+// academias/{id}/integracoes/asaas é lido pelo app cliente (status, subcontaId,
+// walletId) — NUNCA pode guardar subcontaApiKey ou dados bancários, porque o
+// catch-all de regras do Firestore libera leitura dessa coleção pra qualquer
+// membro da academia. Segredos (apiKey, conta bancária) vivem só em
+// academias/{id}/_privado/asaas, que as regras bloqueiam para todo client e
+// só o Admin SDK (estas Functions) acessa.
+function _privRef(academiaId) {
+  return db.doc(`academias/${academiaId}/_privado/asaas`);
+}
+
+// Academias que já conectaram a conta Asaas ANTES desta correção têm a
+// subcontaApiKey salva em integracoes/asaas (o lugar antigo, legível por
+// qualquer membro). Pra não perder o acesso a elas, na primeira leitura
+// migra silenciosamente a chave pra _privado/asaas e apaga do documento
+// antigo, em vez de simplesmente falhar com "chave não encontrada".
+async function _obterSubcontaApiKey(academiaId) {
+  const privRef = _privRef(academiaId);
+  const privSnap = await privRef.get();
+  let apiKey = privSnap.data()?.subcontaApiKey || null;
+  if (apiKey) return apiKey;
+
+  const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
+  const cfgSnap = await cfgRef.get();
+  apiKey = cfgSnap.data()?.subcontaApiKey || null;
+  if (apiKey) {
+    await Promise.all([
+      privRef.set({ subcontaApiKey: apiKey }, { merge: true }),
+      cfgRef.update({ subcontaApiKey: admin.firestore.FieldValue.delete() }),
+    ]);
+    logger.info(`_obterSubcontaApiKey: migrou subcontaApiKey legada de integracoes/asaas para _privado/asaas (academia ${academiaId})`);
+    return apiKey;
+  }
+  return null;
+}
+
 async function _criarSubconta(academiaId) {
   const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
+  const privRef = _privRef(academiaId);
   const cfgSnap = await cfgRef.get();
   if (cfgSnap.exists && cfgSnap.data()?.subcontaId) {
     const cfgData = cfgSnap.data();
+    const privSnap = await privRef.get();
     // Se está DESVINCULADO, reconectar à conta Asaas existente (ex: DELETE retornou 403 no sandbox)
     if (cfgData.status === 'DESVINCULADO') {
-      let subcontaApiKey = cfgData.subcontaApiKey || null;
+      let subcontaApiKey = privSnap.data()?.subcontaApiKey || null;
       if (!subcontaApiKey) {
         try {
           const client = asaasHttp(ASAAS_API_KEY.value());
@@ -658,17 +732,20 @@ async function _criarSubconta(academiaId) {
       }
       const isSandboxRecon = ASAAS_BASE.includes('sandbox');
       const newStatus = isSandboxRecon ? 'AGUARDANDO_CONTA_BANCARIA' : (subcontaApiKey ? 'AGUARDANDO_SMS' : 'AGUARDANDO_CONTA_BANCARIA');
-      await cfgRef.update({ status: newStatus, subcontaApiKey, desvinculadoEm: admin.firestore.FieldValue.delete() });
+      await Promise.all([
+        cfgRef.update({ status: newStatus, desvinculadoEm: admin.firestore.FieldValue.delete() }),
+        privRef.set({ subcontaApiKey }, { merge: true }),
+      ]);
       logger.info(`_criarSubconta: reconectando conta DESVINCULADO ${cfgData.subcontaId}, novo status: ${newStatus}`);
       return { subcontaId: cfgData.subcontaId, status: newStatus };
     }
     // Já ativa — garante que temos o apiKey salvo
-    if (!cfgData.subcontaApiKey) {
+    if (!privSnap.data()?.subcontaApiKey) {
       try {
         const client = asaasHttp(ASAAS_API_KEY.value());
         const accRes = await client.get(`/accounts/${cfgData.subcontaId}`);
         const apiKey = accRes.data?.apiKey;
-        if (apiKey) await cfgRef.update({ subcontaApiKey: apiKey });
+        if (apiKey) await privRef.set({ subcontaApiKey: apiKey }, { merge: true });
       } catch (_) {}
     }
     return { subcontaId: cfgData.subcontaId, status: cfgData.status };
@@ -759,12 +836,14 @@ async function _criarSubconta(academiaId) {
   const isSandbox = ASAAS_BASE.includes('sandbox');
   const status = isSandbox ? 'AGUARDANDO_CONTA_BANCARIA' : 'AGUARDANDO_SMS';
 
-  await cfgRef.set({
-    subcontaId,
-    subcontaApiKey,
-    status,
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  await Promise.all([
+    cfgRef.set({
+      subcontaId,
+      status,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    }),
+    privRef.set({ subcontaApiKey }, { merge: true }),
+  ]);
 
   logger.info(`_criarSubconta: status final = ${status}, apiKey salvo = ${!!subcontaApiKey}`);
   return { subcontaId, status };
@@ -772,10 +851,12 @@ async function _criarSubconta(academiaId) {
 
 async function _reenviarCodigoSms(academiaId) {
   const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
+  const privRef = _privRef(academiaId);
   const cfgSnap = await cfgRef.get();
   if (!cfgSnap.exists) throw new Error('Configuração Asaas não encontrada.');
-  let { subcontaApiKey, subcontaId } = cfgSnap.data();
+  const { subcontaId } = cfgSnap.data();
   if (!subcontaId) throw new Error('Sub-conta não vinculada.');
+  let subcontaApiKey = await _obterSubcontaApiKey(academiaId);
 
   // Se apiKey não foi salvo na criação, busca agora com a master key
   if (!subcontaApiKey) {
@@ -787,7 +868,7 @@ async function _reenviarCodigoSms(academiaId) {
       logger.info('_reenviarCodigoSms: apiKey encontrado?', accData.apiKey ? 'SIM' : 'NÃO', '| accessToken?', accData.accessToken ? 'SIM' : 'NÃO');
       // Asaas pode retornar apiKey ou accessToken dependendo da versão
       subcontaApiKey = accData.apiKey || accData.accessToken || null;
-      if (subcontaApiKey) await cfgRef.update({ subcontaApiKey });
+      if (subcontaApiKey) await privRef.set({ subcontaApiKey }, { merge: true });
     } catch (e) {
       logger.error('_reenviarCodigoSms: erro ao buscar conta:', e.response?.status, e.response?.data || e.message);
     }
@@ -805,7 +886,7 @@ async function _confirmarCodigoSms(academiaId, codigo) {
   const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
   const cfgSnap = await cfgRef.get();
   if (!cfgSnap.exists) throw new Error('Configuração Asaas não encontrada.');
-  const { subcontaApiKey } = cfgSnap.data();
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
   if (!subcontaApiKey) throw new Error('API Key da sub-conta não disponível. Tente reenviar o código.');
 
   const subClient = asaasHttp(subcontaApiKey);
@@ -834,9 +915,10 @@ async function _configurarContaBancaria(academiaId, dados) {
   }
 
   const cfgRef = db.doc(`academias/${academiaId}/integracoes/asaas`);
+  const privRef = _privRef(academiaId);
   const cfgSnap = await cfgRef.get();
   if (!cfgSnap.exists) throw new Error('Configuração Asaas não encontrada.');
-  const { subcontaApiKey } = cfgSnap.data();
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
   if (!subcontaApiKey) throw new Error('API Key da sub-conta não disponível. Tente novamente.');
 
   const subClient = asaasHttp(subcontaApiKey);
@@ -863,8 +945,143 @@ async function _configurarContaBancaria(academiaId, dados) {
     }
   }
 
-  await cfgRef.update({ status: 'PENDENTE', contaBancariaConfigurada: true });
+  // Guardamos os dados bancários porque a API de transferência da Asaas não
+  // guarda/referencia a conta cadastrada em /myAccount/bankAccount — toda
+  // transferência exige os dados bancários completos de novo no corpo da
+  // requisição (ver _solicitarSaque).
+  await Promise.all([
+    cfgRef.update({ status: 'PENDENTE', contaBancariaConfigurada: true }),
+    privRef.set({
+      contaBancaria: {
+        codigoBanco: String(codigoBanco),
+        agencia: String(agencia),
+        conta: String(conta),
+        digitoConta: String(digitoConta || '0'),
+        tipoConta,
+        nomeTitular,
+        cpfCnpjTitular: String(cpfCnpjTitular).replace(/\D/g, ''),
+      },
+    }, { merge: true }),
+  ]);
   return { status: 'PENDENTE' };
+}
+
+async function _consultarSaldo(academiaId) {
+  const cfgSnap = await db.doc(`academias/${academiaId}/integracoes/asaas`).get();
+  const { status } = cfgSnap.data() || {};
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (!subcontaApiKey) throw new Error('Pagamentos ainda não configurados para esta academia.');
+  if (status !== 'ATIVO') throw new Error('A conta de pagamentos ainda não foi aprovada pelo Asaas.');
+
+  const subClient = asaasHttp(subcontaApiKey);
+  const r = await subClient.get('/finance/balance');
+  return { saldo: r.data?.balance ?? 0 };
+}
+
+async function _obterExtrato(academiaId, { offset = 0, limit = 20 } = {}) {
+  const cfgSnap = await db.doc(`academias/${academiaId}/integracoes/asaas`).get();
+  const { status } = cfgSnap.data() || {};
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (!subcontaApiKey) throw new Error('Pagamentos ainda não configurados para esta academia.');
+  if (status !== 'ATIVO') throw new Error('A conta de pagamentos ainda não foi aprovada pelo Asaas.');
+
+  const subClient = asaasHttp(subcontaApiKey);
+  const lim = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const off = Math.max(Number(offset) || 0, 0);
+  const r = await subClient.get(`/financialTransactions?offset=${off}&limit=${lim}&order=desc`);
+  const data = r.data || {};
+  return {
+    itens: (data.data || []).map((t) => ({
+      id: t.id,
+      tipo: t.type,
+      valor: t.value,
+      saldoApos: t.balance,
+      data: t.date,
+      descricao: t.description || '',
+    })),
+    temMais: !!data.hasMore,
+    total: data.totalCount || 0,
+  };
+}
+
+async function _solicitarSaque(academiaId, { valor, uid }) {
+  const valorNum = Number(valor);
+  if (!valorNum || valorNum <= 0) throw new Error('Informe um valor válido para o saque.');
+
+  const cfgSnap = await db.doc(`academias/${academiaId}/integracoes/asaas`).get();
+  const { status } = cfgSnap.data() || {};
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  const { contaBancaria } = (await _privRef(academiaId).get()).data() || {};
+  if (!subcontaApiKey) throw new Error('Pagamentos ainda não configurados para esta academia.');
+  if (status !== 'ATIVO') throw new Error('A conta de pagamentos ainda não foi aprovada pelo Asaas.');
+  if (!contaBancaria) throw new Error('Cadastre a conta bancária de recebimento antes de solicitar um saque.');
+
+  const subClient = asaasHttp(subcontaApiKey);
+
+  // Confere o saldo antes de pedir a transferência — a Asaas também valida,
+  // mas isso evita uma chamada de transferência destinada a falhar e dá um
+  // erro mais claro pro usuário.
+  const balanceR = await subClient.get('/finance/balance');
+  const saldoAtual = balanceR.data?.balance ?? 0;
+  if (valorNum > saldoAtual) {
+    throw new Error(`Saldo insuficiente. Disponível: R$ ${saldoAtual.toFixed(2).replace('.', ',')}.`);
+  }
+
+  let transferResp;
+  try {
+    transferResp = await subClient.post('/transfers', {
+      value: valorNum,
+      bankAccount: {
+        bank: { code: contaBancaria.codigoBanco },
+        ownerName: contaBancaria.nomeTitular,
+        cpfCnpj: contaBancaria.cpfCnpjTitular,
+        agency: contaBancaria.agencia,
+        account: contaBancaria.conta,
+        accountDigit: contaBancaria.digitoConta,
+        bankAccountType: contaBancaria.tipoConta,
+      },
+      description: 'Saque solicitado pelo app Sensei Manager',
+      externalReference: academiaId,
+    });
+  } catch (e) {
+    const msg = e.response?.data?.errors?.[0]?.description || e.message;
+    throw new Error(`Erro ao solicitar transferência: ${msg}`);
+  }
+
+  const t = transferResp.data || {};
+  const saqueRef = db.doc(`academias/${academiaId}/saques/${t.id}`);
+  await saqueRef.set({
+    asaasTransferId: t.id,
+    valor: valorNum,
+    netValue: t.netValue ?? null,
+    taxa: t.transferFee ?? null,
+    status: t.status || 'PENDING',
+    tipoOperacao: t.operationType || null,
+    solicitadoPorUid: uid || null,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { id: t.id, status: t.status, valor: valorNum, netValue: t.netValue ?? null };
+}
+
+async function _verificarStatusSaque(academiaId, transferId) {
+  if (!transferId) throw new Error('transferId obrigatório.');
+  const subcontaApiKey = await _obterSubcontaApiKey(academiaId);
+  if (!subcontaApiKey) throw new Error('Pagamentos ainda não configurados para esta academia.');
+
+  const subClient = asaasHttp(subcontaApiKey);
+  const r = await subClient.get(`/transfers/${transferId}`);
+  const t = r.data || {};
+
+  await db.doc(`academias/${academiaId}/saques/${transferId}`).update({
+    status: t.status || 'PENDING',
+    netValue: t.netValue ?? null,
+    taxa: t.transferFee ?? null,
+    falhaMotivo: t.failReason || null,
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch(() => {});
+
+  return { id: t.id, status: t.status, netValue: t.netValue ?? null, falhaMotivo: t.failReason || null };
 }
 
 async function _verificarStatus(academiaId) {

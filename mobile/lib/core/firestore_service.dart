@@ -1796,6 +1796,18 @@ class FirestoreService {
       .snapshots()
       .map((s) => s.data());
 
+  Future<void> setPagamentosAppAtivo(String academiaId, bool ativo) =>
+      updateAcademia(academiaId, {'pagamentos_app_ativo': ativo});
+
+  Stream<List<Map<String, dynamic>>> streamSaques(String academiaId) => _db
+      .collection('academias')
+      .doc(academiaId)
+      .collection('saques')
+      .orderBy('criadoEm', descending: true)
+      .limit(50)
+      .snapshots()
+      .map((s) => s.docs.map(_convertDoc).toList());
+
   // ─── PLANOS ────────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPlanos(String academiaId) async {
