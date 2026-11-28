@@ -81,6 +81,17 @@ class _PagamentosConfigScreenState extends State<PagamentosConfigScreen> {
       _cpfAcademia = acad['cpf'] as String?;
       _emailAcademia = acad['email'] as String?;
       _status = asaas?['status'] as String?;
+      // O status salvo pode estar desatualizado (ex.: ficou ATIVO por um
+      // bug antigo, ou a aprovação na Asaas caducou) — reconfirma contra
+      // /myAccount/status sempre que já houver subconta vinculada, pra
+      // nunca mostrar "Pagamentos Ativos" sem a aprovação real por trás.
+      if (_status != null && _status != 'DESVINCULADO') {
+        try {
+          final fresco = await PaymentRequestService.adminRequest(academiaId: _academiaId!, tipo: 'verificarStatus');
+          final statusFresco = fresco['status'] as String?;
+          if (statusFresco != null) _status = statusFresco;
+        } catch (_) { /* mantém o status salvo se a reconfirmação falhar */ }
+      }
       final fat = (acad['faturamento_mensal'] as num?)?.toDouble() ?? 0.0;
       if (fat > 0) {
         final cents = (fat * 100).round();

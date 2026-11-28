@@ -327,6 +327,13 @@ exports.criarCobrancaPix = onCall(
       charge = await client.post('/payments', chargePayload);
     } catch (e) {
       const msg = e.response?.data?.errors?.[0]?.description || e.message;
+      // Se o status salvo no Firestore ficou desatualizado (ex.: ATIVO por
+      // engano) e a Asaas rejeita por falta de aprovação real, corrige o
+      // status aqui mesmo — assim a próxima tentativa já para antes de
+      // chamar a Asaas, com uma mensagem clara em vez de repetir o erro.
+      if (msg.toLowerCase().includes('aprovad')) {
+        await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status: 'PENDENTE' }).catch(() => {});
+      }
       throw new HttpsError('internal', `Erro ao criar cobrança: ${msg}`);
     }
 
@@ -615,6 +622,10 @@ async function _processarCobranca(academiaId, data) {
     charge = await client.post('/payments', chargePayload);
   } catch (e) {
     const msg = e.response?.data?.errors?.[0]?.description || e.message;
+    // Ver nota equivalente em criarCobrancaPix.
+    if (msg.toLowerCase().includes('aprovad')) {
+      await db.doc(`academias/${academiaId}/integracoes/asaas`).update({ status: 'PENDENTE' }).catch(() => {});
+    }
     throw new Error(`Erro ao criar cobrança: ${msg}`);
   }
 
